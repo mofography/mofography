@@ -1,0 +1,11 @@
+"""A powerful python package for the analysis, visualization, featurization and machine learning on molecular pores in nanoporous materials."""
+
+# Add imports here
+from .compute import *
+
+# Handle versioneer
+from ._version import get_versions
+versions = get_versions()
+__version__ = versions['version']
+__git_revision__ = versions['full-revisionid']
+del get_versions, versions
