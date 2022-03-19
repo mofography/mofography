@@ -199,10 +199,10 @@ def draw_framework(data, colorscheme=get_default_colors(), opacity=[1.0, 1.0],di
           for a, b in itertools.combinations(range(number_of_sites), 2):
               if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=2.0):
                   bonds.append([a, b])
-          return np.array(bonds)
+          return bonds
 
       import numpy as np
-      from pymatgen.core import Molecule
+      from pymatgen.core.structure import Molecule
       print("1. Creating Molecule ...")
       # coord = np.dot(A_unit, (coord+[0.5,0.5,0.5]).T).T
       mol = Molecule(names, coord)
@@ -233,7 +233,7 @@ def draw_framework(data, colorscheme=get_default_colors(), opacity=[1.0, 1.0],di
       # * Create a color scale using ASE cpk colorlist.
       from ase.data import colors
       from sklearn.preprocessing import minmax_scale
-      cols = np.round(colorscheme * 255, decimals=0).astype(np.int)
+      cols = np.round(colorscheme * 255, decimals=0).astype(int)
       colorlist = ["rgb(" + ",".join(c.astype(str)) + ")" for c in cols]
       # atomic_numbers        = np.vstack(data.get_atomic_numbers())
       # atom_colors           =   minmax_scale(np.linspace(0,103, 104), feature_range=(0,1))
