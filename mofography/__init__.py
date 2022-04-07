@@ -2,6 +2,8 @@
 
 # Add imports here
 from .compute import *
+from .analyze import *
+from .visualize import *
 
 # Handle versioneer
 from ._version import get_versions

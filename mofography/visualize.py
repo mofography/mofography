@@ -10,34 +10,56 @@
                                                                  
  
 """
+from turtle import width
+
+
+global white_layout 
+white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=1000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
+global dark_layout 
+dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=1000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
+
+
 def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
     """Creates a plolty mesh3D trace of an isosurface of a given value for a given 3D distance/energy grid. The surface can then
     be colored by the regions or any other property
 
     :param dgrid: 3D numpy array of grid values
     :type dgrid: numpy.array
+    
     :param isovalue: value at which the isosurface is calculated using marching cubes.
     :type isovalue: float
+    
     :param region_labels: 3D nmpy array of region labels or any other coloring function
     :type region_labels: numpy.array
+    
     :param ase_atoms: ASE atoms object containing crystallographic information.
     :type ase_atoms: ase.atoms
+    
     :param select: regions to select, useful for showing just one or more regions, defaults to 'all'
     :type select: int or same type as the coloring function, optional
+    
     :param opacity: opacity of the plotted isosurface, defaults to 1.0
     :type opacity: float, optional
+    
     :param cscale: colorscale used to color the plotting surface, defaults to a custom random colorscale everytime you plot
-    :type cscale: can be one of plotly.express.colors.sequential/continuous/discrete or a custom color scale as specified by plotly, optional, defaults to .
-    if colorscale is none, use the color argument to plot in a single color. Color names can be found in plotly docs or see this discussion
-    https://community.plotly.com/t/plotly-colours-list/11730/3
+    :type cscale: 
+        can be None: not used if region_labels are None, plots in constant color specified by the 'color' argument. Color names can be found in plotly docs or see this discussion
+        https://community.plotly.com/t/plotly-colours-list/11730/3
+        can be None: generates a random colorscale dictateby randome_seed argument if region_labels are provided 
+        can be a string: has to one of discrete colorscale names in plotly.express.colors.qualitative, with first letter capitalized, e.g. 'Pastel1', 'Plotly' etc.,
+        can be a list: which has to be one of plotly.express.colors.sequential/continuous/qualitative or a custom color scale as specified by plotly, optional, defaults to .
+    
     :param color: color of the isosurface used only when colorscale is not specified, defaults to 'blue'
     :type color: str, optional
+    
     :param stepsize: whether to use all the grid points for the isosurface or to choose every nth point. Can be used to save visualization load on
     less capable machines.  , defaults to 1
     :type stepsize: int, optional
+    
     :param stylize: secret set of styling options to make your surface look cool, purely personal preference. Refer to plotly
     documentation for detailed options, defaults to False
     :type stylize: bool, optiona    
+    
     :param random_seed: set the random seed to generate the colors for colorscheme if cscale is not specified. Ensures consistency of colors with every execution. defaults to 0
     :type random_seed: int, optional"""
 
@@ -45,6 +67,8 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
     import copy
     import plotly.graph_objects as go
     import ase 
+    import plotly.express as px
+
     dgrid_copy = copy.deepcopy(dgrid) # deepcopy of the grid
     cell = ase.geometry.complete_cell(ase_atoms.get_cell()) #get cell matrix
     #* Exclude the regions that are not selected
@@ -65,7 +89,8 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
             cscale = [[cvals[i],
                     "rgb(" + str(rand_ints[i][0]) + ',' + str(rand_ints[i][1]) + ',' + str(
 rand_ints[i][2]) + ')'] for i in range((region_labels.max()).astype(int))]
-
+        if type(cscale == 'str'):
+            cscale = getattr(px.colors.qualitative, cscale)
 
             # cscale = [[cvals[i],
             #         "rgb(" + str(np.random.randint(0, 256)) + ',' + str(np.random.randint(0, 256)) + ',' + str(
@@ -272,7 +297,10 @@ def draw_framework(data, colorscheme=get_default_colors(), opacity=[1.0, 1.0],di
       # data_framework          = go.Scatter3d(x=edges_master[:,0] , y=edges_master[:,1], z=edges_master[:,2] , line=dict(width=15, color='grey'), mode='markers+lines', hovertext=hovertext, marker=dict(opacity=opacity[0], size=bond_scatter_size, color=bond_atoms_Z, colorscale=cscale), opacity=opacity[1], name='Framework')
       return data_scatter, data_edges
 
-        
+def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', marker_size=12, marker_line_color ='white', marker_symbol = 'circle', marker_line_width=1, line_color='black', line_width=2, hovertext=None):        
+    import plotly.graph_objects as go 
+    return go.Scatter3d(x=X[:,0], y=X[:,1], z=X[:,2], mode=mode, marker =dict(color=marker_color, size=marker_size, symbol=marker_symbol, line=dict(color=marker_line_color, width=marker_line_width)), name=name, line=dict(color=line_color, width=line_width), hovertext=hovertext)
+
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
     # Do something if this file is invoked on its own

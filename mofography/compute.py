@@ -10,27 +10,27 @@
  
 """
 
-def canvas(with_attribution=True):
-    """
-    Placeholder function to show example docstring (NumPy format).
+# def canvas(with_attribution=True):
+#     """
+#     Placeholder function to show example docstring (NumPy format).
 
-    Replace this function and doc string for your own project.
+#     Replace this function and doc string for your own project.
 
-    Parameters
-    ----------
-    with_attribution : bool, Optional, default: True
-        Set whether or not to display who the quote is from.
+#     Parameters
+#     ----------
+#     with_attribution : bool, Optional, default: True
+#         Set whether or not to display who the quote is from.
 
-    Returns
-    -------
-    quote : str
-        Compiled string including quote and optional attribution.
-    """
+#     Returns
+#     -------
+#     quote : str
+#         Compiled string including quote and optional attribution.
+#     """
 
-    quote = "The code is but a canvas to our imagination."
-    if with_attribution:
-        quote += "\n\t- Adapted from Henry David Thoreau"
-    return quote
+#     quote = "The code is but a canvas to our imagination."
+#     if with_attribution:
+#         quote += "\n\t- Adapted from Henry David Thoreau"
+#     return quote
 
 
 def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0 ):
@@ -294,6 +294,6 @@ def connections_from_regions(region_labels, ase_atoms):
 
 
 
-if __name__ == "__main__":
-    # Do something if this file is invoked on its own
-    print(canvas())
+# if __name__ == "__main__":
+#     # Do something if this file is invoked on its own
+#     print(canvas())
