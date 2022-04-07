@@ -16,10 +16,10 @@ def find_coord_from_indices(indices, shape, ase_atoms):
     """Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object.
 
     :param indices: indices of interest, can be a list of a (N,3) numpy array, where N is number of points
-    :type indices: list or np.array (1,3)
+    :type indices: list or np.array (N,3)
     :param shape: overall shape of the 3D grid
-    :type shape: np.shape output, so numpy array of shape (1,3)
-    :param ase_atoms: ASE atoms object correesponding to the grid
+    :type shape: np.shape output, so tuple or array of shape (1,3)
+    :param ase_atoms: ASE atoms object corressponding to the grid
     :type ase_atoms: ase.atoms object
     :return: cartesian coordinates of the grid points
     :rtype: numpy arry of size (N,3) where N is the number of grid points
