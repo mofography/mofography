@@ -10,7 +10,7 @@
                                                                  
  
 """
-def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False):
+def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
     """Creates a plolty mesh3D trace of an isosurface of a given value for a given 3D distance/energy grid. The surface can then
     be colored by the regions or any other property
 
@@ -37,30 +37,39 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
     :type stepsize: int, optional
     :param stylize: secret set of styling options to make your surface look cool, purely personal preference. Refer to plotly
     documentation for detailed options, defaults to False
-    :type stylize: bool, optional
-    """        
+    :type stylize: bool, optiona    
+    :param random_seed: set the random seed to generate the colors for colorscheme if cscale is not specified. Ensures consistency of colors with every execution. defaults to 0
+    :type random_seed: int, optional"""
+
     import numpy as np
     import copy
     import plotly.graph_objects as go
     import ase 
     dgrid_copy = copy.deepcopy(dgrid) # deepcopy of the grid
     cell = ase.geometry.complete_cell(ase_atoms.get_cell()) #get cell matrix
-    # Exclude the regions that are not selected
+    #* Exclude the regions that are not selected
     if select != 'all':
         dgrid_copy[np.isin(region_labels, select, assume_unique=False, invert=True)] = -10
 
-    # Compute the isosurface using Marching Cubes Lewiner
+    #* Compute the isosurface using Marching Cubes Lewiner
     from skimage.measure import marching_cubes as mc
     verts, faces, normals, values = mc(dgrid_copy, isovalue, step_size=stepsize)  
-
+    np.random.seed(random_seed)
     if np.any(region_labels) != None: # if region labels are provided
 
-        #  Make a colorscale if no colorscale is provided
+        #*  Make a colorscale using random colors if no colorscale is provided
         if cscale == None:
             cvals = np.linspace(0, 1, (region_labels.max()).astype(int))
+            rand_ints = np.random.randint(low=0, high=256, size=(region_labels.max().astype(int),3))
+            
             cscale = [[cvals[i],
-                    "rgb(" + str(np.random.randint(0, 256)) + ',' + str(np.random.randint(0, 256)) + ',' + str(
-                        np.random.randint(0, 256)) + ')'] for i in range((region_labels.max()).astype(int))]
+                    "rgb(" + str(rand_ints[i][0]) + ',' + str(rand_ints[i][1]) + ',' + str(
+rand_ints[i][2]) + ')'] for i in range((region_labels.max()).astype(int))]
+
+
+            # cscale = [[cvals[i],
+            #         "rgb(" + str(np.random.randint(0, 256)) + ',' + str(np.random.randint(0, 256)) + ',' + str(
+            #             np.random.randint(0, 256)) + ')'] for i in range((region_labels.max()).astype(int))]
 
         #  Find the colour for the vertices
         from scipy.interpolate import RegularGridInterpolator as RGI
