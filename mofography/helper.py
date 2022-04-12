@@ -26,7 +26,7 @@ def find_coord_from_indices(indices, shape, ase_atoms):
     """
     import ase
     import numpy as np
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell())
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T
     return np.dot(cell, (indices/shape).T).T
 
 
@@ -61,7 +61,7 @@ def get_fractional_coordinates(points, ase_atoms):
     """    
     import numpy as np
     import ase
-    cell= ase.geometry.complete_cell(ase_atoms.get_cell()) 
+    cell= ase.geometry.complete_cell(ase_atoms.get_cell()).T 
     cell_inv = np.linalg.inv(cell)
     frac_coords = np.dot(cell_inv, points.T).T
     return frac_coords
