@@ -9,7 +9,9 @@
                                                                
  
 """
-
+# TODO Identify the different unique regions
+# TODO Fix the issue with  the border regions getting cut off
+# TODO connetections to graph
 # def canvas(with_attribution=True):
 #     """
 #     Placeholder function to show example docstring (NumPy format).
@@ -33,7 +35,12 @@
 #     return quote
 
 
-def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0 ):
+from numpy import dtype
+
+from mofography.helper import interpolate_labels
+
+
+def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0):
     """This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
     Bounding Box method  as implemented by the Glotzer group from Univ. of Michigan.
 
@@ -51,15 +58,16 @@ def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0 ):
     from freud.locality import AABBQuery
     from freud.box import Box
     import ase 
-    from ase.data import vdw_radii
-
+    # from ase.data import vdw_radii
+    from icecream import ic
+    import pandas as pd
     import numpy as np
 
-
     framework_atom_positions = ase_atoms.get_positions()
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell())
-    radii = vdw_radii[ase_atoms.get_atomic_numbers()]
-
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T # this needs to be an upper triangular matrix, essential column vectors, not row vectors
+    vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
+    radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
+    
     box = Box.from_matrix(cell, dimensions =3) # Define the box for Freud
     ab  = AABBQuery(box=box, points=framework_atom_positions) # Compute the AABB Tree
     # Perform the nearest neighbor query with n-neighbors (10 by default)
@@ -67,7 +75,7 @@ def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0 ):
     ab_r_nl = ab_r.toNeighborList(sort_by_distance=True) #convert query to neighborlist
     nls = ab_r_nl.point_indices.reshape(-1,n_neighbors)  # get the indices of the neighbors for each grid pt. to lookup the radii later
     dists =ab_r_nl.distances.reshape(-1,n_neighbors) # get the distances to the neighbors of each grid pt.
-
+    # print(ab, ab_r, ab_r_nl, nls, [radii[nl] for nl in nls])#, np.min(dists - [radii[nl] for nl in nls],axis=1))
     # return the minimum (shortest distance to the surface) in each row
     return np.min(dists - [radii[nl] for nl in nls],axis=1)
 
@@ -89,10 +97,10 @@ def dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000):
     #number of grid points in each direction 
     [nx, ny, nz] = (ase_atoms.get_cell_lengths_and_angles()[0:3] / spacing).astype(int) + 1
     gpoints = (da.stack(da.meshgrid(np.linspace(0, 1, nx), np.linspace(0,1, ny), np.linspace(0,1, nz), indexing='ij'),-1).reshape(-1, 3)).rechunk(chunksize,3)
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell()) # cell matrix
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T # cell matrix
     return da.dot(cell, gpoints.T).T, (nx,ny,nz) #return the actual coordinates
 
-def grid_from_atoms(ase_atoms, spacing=0.25, chunksize=50000, n_neighbors=10, probe_radius=0):
+def dgrid_from_atoms(ase_atoms, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0):
     """Compute distance grid from ase atoms objects
 
     :param ase_atoms: ASE atoms object
@@ -112,23 +120,24 @@ def grid_from_atoms(ase_atoms, spacing=0.25, chunksize=50000, n_neighbors=10, pr
     """    
     import numpy as np
     import dask.array as da
-    gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=chunksize) #mesh grid
+    gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
     dgrid = []
+
     for block in gpoints.blocks:
         dgrid.append(gpd_aabb(block.compute(), ase_atoms, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
-    return da.hstack(dgrid).rechunk(chunks=chunksize).reshape(shape) #return in correct shape
+    return da.hstack(dgrid).rechunk(chunks=block_size).reshape(shape) #return in correct shape
 
 
 
-def compute_dgrid_gpu(data, spacing=0.2, chunk_size=5000):
+def dgrid_from_atoms_gpu(ase_atoms, spacing=0.2, block_size=10000):
     """Code to compute the distance grid using the GPU
 
     :param data: ASE style atoms object
     :type data: ase.atoms
     :param spacing: grid spacing in A, defaults to 0.2
     :type spacing: float, optional
-    :param chunk_size: block size of the grid points array, number of grid points to be prcessed by each core of the CPU while talking to the GPU, defaults to 5000
-    :type chunk_size: int, optional
+    :param block_size: block size of the grid points array, number of grid points to be prcessed by each core of the CPU while talking to the GPU, defaults to 5000
+    :type block_size: int, optional
     :return: cupy 3D array with the distance values
     :rtype: cupy.array
     """
@@ -141,40 +150,44 @@ def compute_dgrid_gpu(data, spacing=0.2, chunk_size=5000):
     import ase
 
     # data    = read(path_to_cif)
-    fpoints = cp.asarray(data.get_scaled_positions() - 0.5)
-    cell = cp.asarray(ase.geometry.complete_cell(data.get_cell()))
+    fpoints = cp.asarray(ase_atoms.get_scaled_positions()  - 0.5)
+    cell = cp.asarray(ase.geometry.complete_cell(ase_atoms.get_cell())).T
     from ase.data import vdw_radii
-    radius_series = pd.Series({'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96,
-                            'B': 0.84, 'C': 0.73, 'N': 0.71, 'O': 0.66,
-                            'F': 0.57, 'Ne': 0.58, 'Na': 1.66, 'Mg': 1.41,
-                            'Al': 1.21, 'Si': 1.11, 'P': 1.07, 'S': 1.05,
-                            'Cl': 1.02, 'Ar': 1.06, 'K': 2.03, 'Ca': 1.76,
-                            'Sc': 1.70, 'Ti': 1.60, 'V': 1.53, 'Cr': 1.39,
-                            'Mn': 1.50, 'Fe': 1.42, 'Co': 1.38, 'Ni': 1.24,
-                            'Cu': 1.32, 'Zn': 1.22, 'Ga': 1.22, 'Ge': 1.20,
-                            'As': 1.19, 'Se': 1.20, 'Br': 1.20, 'Kr': 1.16,
-                            'Rb': 2.20, 'Sr': 1.95, 'Y': 1.90, 'Zr': 1.75,
-                            'Nb': 1.64, 'Mo': 1.54, 'Tc': 1.47, 'Ru': 1.46,
-                            'Rh': 1.42, 'Pd': 1.39, 'Ag': 1.45, 'Cd': 1.44,
-                            'In': 1.42, 'Sn': 1.39, 'Sb': 1.39, 'Te': 1.38,
-                            'I': 1.39, 'Xe': 1.40, 'Cs': 2.44, 'Ba': 2.15,
-                            'La': 2.07, 'Ce': 2.04, 'Pr': 2.03, 'Nd': 2.01,
-                            'Pm': 1.99, 'Sm': 1.98, 'Eu': 1.98, 'Gd': 1.96,
-                            'Tb': 1.94, 'Dy': 1.92, 'Ho': 1.92, 'Er': 1.89,
-                            'Tm': 1.90, 'Yb': 1.87, 'Lu': 1.87, 'Hf': 1.75,
-                            'Ta': 1.70, 'W': 1.62, 'Re': 1.51, 'Os': 1.44,
-                            'Ir': 1.41, 'Pt': 1.36, 'Au': 1.36, 'Hg': 1.32,
-                            'Tl': 1.45, 'Pb': 1.46, 'Bi': 1.48, 'Po': 1.40,
-                            'At': 1.50, 'Rn': 1.50, 'Fr': 2.60, 'Ra': 2.21,
-                            'Ac': 2.15, 'Th': 2.06, 'Pa': 2.00, 'U': 1.96,
-                            'Np': 1.90, 'Pu': 1.87, 'Am': 1.80, 'Cm': 1.69})
+    # radius_series = pd.Series({'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96,
+    #                         'B': 0.84, 'C': 0.73, 'N': 0.71, 'O': 0.66,
+    #                         'F': 0.57, 'Ne': 0.58, 'Na': 1.66, 'Mg': 1.41,
+    #                         'Al': 1.21, 'Si': 1.11, 'P': 1.07, 'S': 1.05,
+    #                         'Cl': 1.02, 'Ar': 1.06, 'K': 2.03, 'Ca': 1.76,
+    #                         'Sc': 1.70, 'Ti': 1.60, 'V': 1.53, 'Cr': 1.39,
+    #                         'Mn': 1.50, 'Fe': 1.42, 'Co': 1.38, 'Ni': 1.24,
+    #                         'Cu': 1.32, 'Zn': 1.22, 'Ga': 1.22, 'Ge': 1.20,
+    #                         'As': 1.19, 'Se': 1.20, 'Br': 1.20, 'Kr': 1.16,
+    #                         'Rb': 2.20, 'Sr': 1.95, 'Y': 1.90, 'Zr': 1.75,
+    #                         'Nb': 1.64, 'Mo': 1.54, 'Tc': 1.47, 'Ru': 1.46,
+    #                         'Rh': 1.42, 'Pd': 1.39, 'Ag': 1.45, 'Cd': 1.44,
+    #                         'In': 1.42, 'Sn': 1.39, 'Sb': 1.39, 'Te': 1.38,
+    #                         'I': 1.39, 'Xe': 1.40, 'Cs': 2.44, 'Ba': 2.15,
+    #                         'La': 2.07, 'Ce': 2.04, 'Pr': 2.03, 'Nd': 2.01,
+    #                         'Pm': 1.99, 'Sm': 1.98, 'Eu': 1.98, 'Gd': 1.96,
+    #                         'Tb': 1.94, 'Dy': 1.92, 'Ho': 1.92, 'Er': 1.89,
+    #                         'Tm': 1.90, 'Yb': 1.87, 'Lu': 1.87, 'Hf': 1.75,
+    #                         'Ta': 1.70, 'W': 1.62, 'Re': 1.51, 'Os': 1.44,
+    #                         'Ir': 1.41, 'Pt': 1.36, 'Au': 1.36, 'Hg': 1.32,
+    #                         'Tl': 1.45, 'Pb': 1.46, 'Bi': 1.48, 'Po': 1.40,
+    #                         'At': 1.50, 'Rn': 1.50, 'Fr': 2.60, 'Ra': 2.21,
+    #                         'Ac': 2.15, 'Th': 2.06, 'Pa': 2.00, 'U': 1.96,
+    #                         'Np': 1.90, 'Pu': 1.87, 'Am': 1.80, 'Cm': 1.69})
     # radii = cp.asarray(radius_series[data.get_chemical_symbols()].values).reshape(-1, 1)
-    radii = cp.asarray(vdw_radii[data.get_atomic_numbers()]).reshape(-1, 1)
-    [nx, ny, nz] = (data.get_cell_lengths_and_angles()[0:3] / spacing).astype(int) + 1
+    vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
+    radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
+    
+    # * the vdw radii mendeleev is in picometers
+    radii = cp.asarray(vdw_radii[ase_atoms.get_atomic_numbers()].values/100).reshape(-1, 1)
+    [nx, ny, nz] = (ase_atoms.get_cell_lengths_and_angles()[0:3] / spacing).astype(int) + 1
     #     print([nx,ny,nz])
     gpoints = da.stack(
         da.meshgrid(np.linspace(-0.5, 0.5, nx), np.linspace(-0.5, 0.5, ny), np.linspace(-0.5, 0.5, nz), indexing='ij'),
-        -1).reshape(-1, 3).rechunk(chunk_size, 3)
+        -1).reshape(-1, 3).rechunk(block_size, 3)
 
     #     def gpd(points, fpoints=fpoints, cell=cell, radii=radii):
     #         points = cp.asarray(points)
@@ -189,7 +202,7 @@ def compute_dgrid_gpu(data, spacing=0.2, chunk_size=5000):
         diff = cp.linalg.norm(diff, axis=1).reshape(-1, fpoints.shape[0]) - radii.T
         return cp.min(diff, axis=1)
 
-    gpoints_da = gpoints.map_blocks(gpd, chunks=(chunk_size, 1))
+    gpoints_da = gpoints.map_blocks(gpd, chunks=(block_size, 1))
 
     distance_grid = []
     from rich.progress import track
@@ -198,20 +211,22 @@ def compute_dgrid_gpu(data, spacing=0.2, chunk_size=5000):
         distance_grid.append(block.compute())
 
     #  Free the gpu memeory before returning the output
-    del data, cell, fpoints, radius_series, radii
+    del cell, fpoints, radii
     cp._default_memory_pool.free_all_blocks()
     cp._default_pinned_memory_pool.free_all_blocks()
     return np.hstack(distance_grid).reshape(nx, ny, nz)
 
 
 
-def regions_from_grid(dgrid, peak_min=2.0, mask_thickness=1):
+def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     """Computes the region segmentaion from the distance grid
 
     :param dgrid: 3D distance grid
     :type dgrid: numpy.array
-    :param peak_min:minimum height of the peak in angstrom, defaults to 2.0
-    :type peak_min: float, optional, defaults to 2.0 angstroms
+    # :param peak_min:minimum height of the peak in angstrom, defaults to 2.0
+    # :type peak_min: float, optional, defaults to 2.0 angstroms
+    :param relative_threshold: Minimum intensity of peaks, calculated as max(image) * relative_threshold, defaults to 0.1
+    :type relative_threshold: float, 
     :param mask_thickness:thickness of the framework cover. Points within this distance from the framework surface are not segmented, defaults to 1
     :type mask_thickness: float, optional
     :return:region labels, same shape as input grid. 0 refers to the back ground
@@ -220,16 +235,23 @@ def regions_from_grid(dgrid, peak_min=2.0, mask_thickness=1):
     from scipy import ndimage as ndi
     import numpy as np
     import sparse
+    # from helper import *
     from skimage import segmentation
     from skimage.morphology import extrema
-    peak_min =2
-    max_indices = np.where(extrema.h_maxima(dgrid, peak_min))
+    from skimage.feature import peak_local_max, corner_peaks
+    # peak_min =2
+    # max_indices = np.where(extrema.h_maxima(dgrid, peak_min))
+    # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
+    max_indices = np.array(corner_peaks(dgrid, **kwargs)).T
     markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
 
     probe = mask_thickness
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+    # ir = interpolate_labels(reg_labels)
+    # max_indices = (max_indices.T[np.argsort(ir(max_indices.T/dgrid.shape))]).T
     return reg_labels, max_indices
+
 
 
 def connections_from_regions(region_labels, ase_atoms):
@@ -237,10 +259,11 @@ def connections_from_regions(region_labels, ase_atoms):
 
     :param ase_atoms: ASE atoms object
     :type ase_atoms: ase.atoms
-    :param rlpbc: Periodic/Non periodic region labels output from the make_labels_grid function
+    :param rlpbc: Periodic/Non periodic region labels output from the regions_from_dgrid function
     :type rlpbc: 3D numpy.array
-    :return: A tuple with two elements, a 2D array of connected regions and the (N_windows, 3) 2D array of coordinates of the calculated window centers     
-    :rtype:  tuple
+    :return: np.array of shape (Nregions-choose-2 ,1) where Nregions is the number of unique regions. Each row has 
+    three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
+    :rtype:  numpy array
     """    
     from skimage.segmentation import find_boundaries
     import numpy as np
@@ -280,7 +303,7 @@ def connections_from_regions(region_labels, ase_atoms):
 
             return np.array([regs, True, window_centers], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
         else:
-            return np.array([regs, False, None])
+            return np.array([regs, False, None], dtype='object')
     
 
     # Find the outer boundary of each individual region
@@ -292,8 +315,41 @@ def connections_from_regions(region_labels, ase_atoms):
     # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
     return connections_list # for only the true connections use connections_list[:,[0,2]][np.where(connections_list[:,1]==True)] #np.vstack(check_list[np.where(flag_list[:, 0])]), np.round(np.vstack(flag_list[:, 1][np.where(flag_list[:, 0])]), decimals=2)
 
+def graph_from_connections(connections):
+    
+    """ Create a basic networkx graph (with no properties annotated) from the array of connections
+    :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
+    three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
+    :param connections: numpy array
 
+    :raises:
+
+    :rtype: a graph object of the class networkx.Graph
+    """
+    import networkx as nx 
+    import numpy as np
+    G = nx.Graph()
+    number_of_regions = np.max([c[0] for c  in connections])
+    G.add_nodes_from(list(range(1, number_of_regions)))
+    G.add_edges_from([c[0] for c in connections if c[1]])
+
+    return G
 
 # if __name__ == "__main__":
 #     # Do something if this file is invoked on its own
 #     print(canvas())
+def add_props_to_graph(G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None):
+    import numpy as np
+    import networkx as nx 
+    if np.any(node_props) != None:
+        for index in  range(len(node_props)):
+            d = {i+1:k for i,k in enumerate(node_props[index])}
+            nx.set_node_attributes(G, d, name=node_prop_names[index])
+    
+    if np.any(edge_props) != None:
+        for index in  range(len(edge_props)):
+            d = {i:k for i,k in zip(list(G.edges()), edge_props[index]) }
+            nx.set_edge_attributes(G, d, name=edge_prop_names[index])
+    
+    return G
+
