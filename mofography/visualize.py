@@ -10,11 +10,17 @@
                                                                  
  
 """
-from turtle import width
+
+# TODO draw pore graph
+# todo show the region wise properties well ?   
+
+
+
+from tenacity import retry
 
 
 global white_layout 
-white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=1000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
+white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=1000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75))
 global dark_layout 
 dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=1000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
 
@@ -70,7 +76,7 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
     import plotly.express as px
 
     dgrid_copy = copy.deepcopy(dgrid) # deepcopy of the grid
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell()) #get cell matrix
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T #get cell matrix
     #* Exclude the regions that are not selected
     if select != 'all':
         dgrid_copy[np.isin(region_labels, select, assume_unique=False, invert=True)] = -10
@@ -89,7 +95,7 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
             cscale = [[cvals[i],
                     "rgb(" + str(rand_ints[i][0]) + ',' + str(rand_ints[i][1]) + ',' + str(
 rand_ints[i][2]) + ')'] for i in range((region_labels.max()).astype(int))]
-        if type(cscale == 'str'):
+        if type(cscale) == 'str':
             cscale = getattr(px.colors.qualitative, cscale)
 
             # cscale = [[cvals[i],
@@ -112,14 +118,14 @@ rand_ints[i][2]) + ')'] for i in range((region_labels.max()).astype(int))]
         true_verts = np.dot(cell, (verts /region_labels.shape).T).T
         data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2], intensity=colours.astype(int),
                         hoverinfo='all', hovertext=hovertext, flatshading=False, colorscale=cscale, i=faces[:, 0],
-                        j=faces[:, 1], k=faces[:, 2], opacity=opacity, name='Isosurface',showlegend=True)
+                        j=faces[:, 1], k=faces[:, 2], opacity=opacity, name='isosurface',showlegend=True)
 
     else: #if no region labels are provided color by a flat color
 
         true_verts = np.dot(cell, (verts /dgrid.shape).T).T
         data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2],
                         hoverinfo='all', 
-                        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], opacity=opacity, color=color, name='Isosurface', showlegend=True)
+                        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], opacity=opacity, color=color, name='pore surface', showlegend=True)
     
     if stylize:    #some random style choices, purely personal preference. 
         #can be modified after ploting as well. see plotly docs.                
@@ -198,108 +204,167 @@ def plot_cell(ase_atoms, color='purple', name='cell'):
     import plotly.graph_objects as go
     from ase.io import read
 
-    A_unit =ase_atoms.get_cell()
+    A_unit =ase_atoms.get_cell().T
     cell_lines = draw_cell(A_unit)
     data_cell = go.Scatter3d(z=cell_lines[:, 2], y=cell_lines[:, 1], x=cell_lines[:, 0], mode='lines',
                             line=dict(color=color, width=8), name=name)
     return data_cell
 
 def get_default_colors():
-      """[summary]
-      Uses the ASE's jmol colorscheme as the defual for plotting the atoms.     
-      :return: [NOrmalized rgb values of the jmol colorscheme as included within ASE python module. ]
-      :rtype: [(N,3) numpy array of floats all within [0,1]]
-      """
-      from ase.data import colors
-      return colors.jmol_colors
-def draw_framework(data, colorscheme=get_default_colors(), opacity=[1.0, 1.0],dia_scale=1):
-      """ Take a grid3D object and plot the atoms and bonds after detecting them using PyMatGen and return
-      the Plotly scatter trace to be plotted alongside isosurfaces, windows and diffusion paths.  
-      :param t1: [grid3D object that needs to be plotted]
-      :type t1: [grid3D object]
-      """
-      from ase.io import read
-      from ase import neighborlist
-      # data = read(path_to_cif)
-      A_unit = data.get_cell().T
-      coord = data.get_positions()
-      names = data.get_chemical_symbols()
+    """[summary]
+    Uses the ASE's jmol colorscheme as the defual for plotting the atoms.     
+    :return: [NOrmalized rgb values of the jmol colorscheme as included within ASE python module. ]
+    :rtype: [(N,3) numpy array of floats all within [0,1]]
+    """
+    from ase.data import colors
+    return colors.jmol_colors
+def draw_framework(ase_atoms, colorscheme=get_default_colors(), opacity=[1.0, 1.0],dia_scale=1):
+    """ Take a grid3D object and plot the atoms and bonds after detecting them using PyMatGen and return
+    the Plotly scatter trace to be plotted alongside isosurfaces, windows and diffusion paths.  
+    :param t1: [grid3D object that needs to be plotted]
+    :type t1: [grid3D object]
+    """
+    from ase.io import read
+    from ase import neighborlist
+    # data = read(path_to_cif)
+    A_unit = ase_atoms.get_cell().T
+    coord = ase_atoms.get_positions()
+    names = ase_atoms.get_chemical_symbols()
 
-      def find_covalent_bonds(molecule):
-          import itertools
-          from pymatgen.core.bonds import CovalentBond
-          number_of_sites = len(molecule.sites)
-          bonds = []
-          for a, b in itertools.combinations(range(number_of_sites), 2):
-              if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=2.0):
-                  bonds.append([a, b])
-          return bonds
+    def find_covalent_bonds(molecule):
+        import itertools
+        from pymatgen.core.bonds import CovalentBond
+        number_of_sites = len(molecule.sites)
+        bonds = []
+        for a, b in itertools.combinations(range(number_of_sites), 2):
+            if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=2.0):
+                bonds.append([a, b])
+        return bonds
 
-      import numpy as np
-      from pymatgen.core.structure import Molecule
-      print("1. Creating Molecule ...")
-      # coord = np.dot(A_unit, (coord+[0.5,0.5,0.5]).T).T
-      mol = Molecule(names, coord)
-      print("2. Computing bonds ...")
-      bonds = find_covalent_bonds(mol)
-      # print(bonds)
-      # print(np.hstack(bonds))
-      edges_master = []
-      # bonds_atoms_list = []
-      for b in bonds:
-          edges_master.append(coord[b[0]])
-          edges_master.append(coord[b[1]])
-          edges_master.append([None, None, None])
+    import numpy as np
+    from pymatgen.core.structure import Molecule
+    print("1. Creating Molecule ...")
+    # coord = np.dot(A_unit, (coord+[0.5,0.5,0.5]).T).T
+    mol = Molecule(names, coord)
+    print("2. Computing bonds ...")
+    bonds = find_covalent_bonds(mol)
+    # print(bonds)
+    # print(np.hstack(bonds))
+    edges_master = []
+    # bonds_atoms_list = []
+    for b in bonds:
+        edges_master.append(coord[b[0]])
+        edges_master.append(coord[b[1]])
+        edges_master.append([None, None, None])
 
-          # * Append the atom id's that are in each bond, None is a spacer.
-          # bonds_atoms_list.append(b[0])
-          # bonds_atoms_list.append(b[1])
-          # bonds_atoms_list.append(None)
+        # * Append the atom id's that are in each bond, None is a spacer.
+        # bonds_atoms_list.append(b[0])
+        # bonds_atoms_list.append(b[1])
+        # bonds_atoms_list.append(None)
 
-      edges_master = np.vstack(edges_master)
-      # print(bonds_atoms_list)
-      print("3. Creating Plotly figure traces")
-      # * Figure out how to plot the framework atoms
-      import plotly.graph_objects as go
-      # atom_colors           = {'C':'teal', 'H':'yellow', 'O':'red', 'N':'blue ', 'Zn':'red', 'Zr': 'pink'} # this line needs to be updated.
-      # scatter_colors        = [atom_colors[t] for t in np.array(names)]
+    edges_master = np.vstack(edges_master)
+    # print(bonds_atoms_list)
+    print("3. Creating Plotly figure traces")
+    # * Figure out how to plot the framework atoms
+    import plotly.graph_objects as go
+    # atom_colors           = {'C':'teal', 'H':'yellow', 'O':'red', 'N':'blue ', 'Zn':'red', 'Zr': 'pink'} # this line needs to be updated.
+    # scatter_colors        = [atom_colors[t] for t in np.array(names)]
 
-      # * Create a color scale using ASE cpk colorlist.
-      from ase.data import colors
-      from sklearn.preprocessing import minmax_scale
-      cols = np.round(colorscheme * 255, decimals=0).astype(int)
-      colorlist = ["rgb(" + ",".join(c.astype(str)) + ")" for c in cols]
-      # atomic_numbers        = np.vstack(data.get_atomic_numbers())
-      # atom_colors           =   minmax_scale(np.linspace(0,103, 104), feature_range=(0,1))
-      atom_colors = np.linspace(0, 1, len(cols))
-      cscale = [[atom_colors[i], colorlist[i]] for i in range(len(colorlist))]
+    # * Create a color scale using ASE cpk colorlist.
+    from ase.data import colors
+    from sklearn.preprocessing import minmax_scale
+    cols = np.round(colorscheme * 255, decimals=0).astype(int)
+    colorlist = ["rgb(" + ",".join(c.astype(str)) + ")" for c in cols]
+    # atomic_numbers        = np.vstack(data.get_atomic_numbers())
+    # atom_colors           =   minmax_scale(np.linspace(0,103, 104), feature_range=(0,1))
+    atom_colors = np.linspace(0, 1, len(cols))
+    cscale = [[atom_colors[i], colorlist[i]] for i in range(len(colorlist))]
 
-      # * Hovertext for each point
-      hovertext = ['Atom No: ' + str(i) + ', Atom type: ' + names[i] for i in range(len(names))]
+    # * Hovertext for each point
+    hovertext = ['Atom No: ' + str(i) + ', Atom type: ' + names[i] for i in range(len(names))]
 
-      # * Scale the atom sizes beautifully.
-      # atom_dia              = f1.sigma_array*2-f1.sigma
-      atom_dia = 2 * neighborlist.natural_cutoffs(data)
-    #   print(atom_dia)
-      scatter_size = np.round(minmax_scale(atom_dia, feature_range=(12, 30))*dia_scale)
+    # * Scale the atom sizes beautifully.
+    # atom_dia              = f1.sigma_array*2-f1.sigma
+    atom_dia = 2 * neighborlist.natural_cutoffs(ase_atoms)
+#   print(atom_dia)
+    scatter_size = np.round(minmax_scale(atom_dia, feature_range=(12, 30))*dia_scale)
 
-      bond_atoms_diameter = np.array(atom_dia)[np.hstack(bonds)]
-      bond_atoms_Z = data.get_atomic_numbers()[np.hstack(bonds)] - 1  # The indices in the color scale start at 0, not 1.
-      bond_scatter_size = np.round(minmax_scale(bond_atoms_diameter, feature_range=(12, 35)))
+    bond_atoms_diameter = np.array(atom_dia)[np.hstack(bonds)]
+    bond_atoms_Z = ase_atoms.get_atomic_numbers()[np.hstack(bonds)] - 1  # The indices in the color scale start at 0, not 1.
+    bond_scatter_size = np.round(minmax_scale(bond_atoms_diameter, feature_range=(12, 35)))
 
-      data_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext,
-                                  marker=dict(opacity=opacity[0], size=scatter_size,
-                                              color=atom_colors[data.get_atomic_numbers() - 1], colorscale=cscale,
-                                              sizemode='diameter'), name='framework_atoms')
-      data_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
-                                line=dict(width=15, color='grey'), mode='lines', opacity=opacity[1],
-                                name='framework_bonds')
-      # data_framework          = go.Scatter3d(x=edges_master[:,0] , y=edges_master[:,1], z=edges_master[:,2] , line=dict(width=15, color='grey'), mode='markers+lines', hovertext=hovertext, marker=dict(opacity=opacity[0], size=bond_scatter_size, color=bond_atoms_Z, colorscale=cscale), opacity=opacity[1], name='Framework')
-      return data_scatter, data_edges
+    data_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext,
+                                marker=dict(opacity=opacity[0], size=scatter_size,
+                                            color=atom_colors[ase_atoms.get_atomic_numbers() - 1], colorscale=cscale,
+                                            sizemode='diameter'), showlegend=True, name='framework atoms', legendgroup='framework', legendgrouptitle_text='framework')
+    data_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
+                            line=dict(width=15, color='grey'), mode='lines', opacity=opacity[1],
+                            name='framework bonds',legendgroup='framework', showlegend=True, legendgrouptitle_text='framework')
+    # data_framework          = go.Scatter3d(x=edges_master[:,0] , y=edges_master[:,1], z=edges_master[:,2] , line=dict(width=15, color='grey'), mode='markers+lines', hovertext=hovertext, marker=dict(opacity=opacity[0], size=bond_scatter_size, color=bond_atoms_Z, colorscale=cscale), opacity=opacity[1], name='Framework')
+    return data_scatter, data_edges
 
-def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', marker_size=12, marker_line_color ='white', marker_symbol = 'circle', marker_line_width=1, line_color='black', line_width=2, hovertext=None):        
+def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', marker_size=12, marker_line_color ='white', marker_symbol = 'circle', marker_line_width=1, line_color='black', line_width=2, hovertext=None, text=None, **kwargs):        
+    
+        """ This is a short hand for the plotly go.Scatter3d function which returs a 3D scatter trace. Just keeping the basic options for a quick plot of scatter traces.
+        :type X: Arrya of 3D coordinates (N,3)
+        :param X: numpy.array
+    
+        :type name: name for the trace
+        :param name: str
+    
+        :type mode: One of 'markers', 'lines' or 'markers+lines'
+        :param mode: str
+    
+        :type marker_color: marker color, check plotly docs for acceptable colors.this list can be found here:https://community.plotly.com/t/plotly-colours-list/11730/3
+        :param marker_color: str
+    
+        :type marker_size: size of the marker, defaults to 12
+        :param marker_size: int
+    
+        :type marker_line_color: line color of the marker, defaults to white
+        :param marker_line_color: str
+    
+        :type marker_symbol: marker symbol, defaults to circle. check plotly docs for all the options
+        :param marker_symbol: str
+    
+        :type marker_line_width: line width of the marker outline. defaults to 1
+        :param marker_line_width: float
+    
+        :type line_color: color of the conncting lines in the scatter plot  defaults to black
+        :param line_color: str
+    
+        :type line_width: width of the line  defaults to 1.0
+        :param line_width: float
+    
+        :type hovertext: text to display on hover
+        :param hovertext: string or a list of strings of the same length as the data array
+    
+        :raises:
+    
+        :rtype: a scatter trace of the type plotly scatter3d, which can then be added to a plotly go.Figure or go.FigureWidget
+        """
+        import plotly.graph_objects as go 
+        return go.Scatter3d(x=X[:,0], y=X[:,1], z=X[:,2], mode=mode, marker =dict(color=marker_color, size=marker_size, symbol=marker_symbol, line=dict(color=marker_line_color, width=marker_line_width)), name=name, line=dict(color=line_color, width=line_width), text=None, hovertext=hovertext, **kwargs)
+
+def plot_graph(G):
+
+
+    import networkx as nx 
     import plotly.graph_objects as go 
-    return go.Scatter3d(x=X[:,0], y=X[:,1], z=X[:,2], mode=mode, marker =dict(color=marker_color, size=marker_size, symbol=marker_symbol, line=dict(color=marker_line_color, width=marker_line_width)), name=name, line=dict(color=line_color, width=line_width), hovertext=hovertext)
+    import numpy as np
+    coords = [n[1]['node_coords'] for n in G.nodes(data=True)]
+    edges_list = [] 
+    for edge in list(G.edges()):
+        edges_list.append(G.nodes(data=True)[edge[0]]['node_coords'])
+        edges_list.append(G.nodes(data=True)[edge[1]]['node_coords'])
+        edges_list.append([None, None, None])
+
+    nodes_trace = scatter3d(np.array(coords), name='nodes', showlegend=True, legendgroup='pore_graph', legendgrouptitle_text='pore graph')
+    edges_trace = scatter3d(np.array(edges_list), mode='lines', name='edges', line_width=8, showlegend=True, legendgroup='pore_graph', legendgrouptitle_text='pore graph')
+    
+    return nodes_trace, edges_trace
+
+    
 
 if __name__ == "__main__":
     # Do something if this file is invoked on its own
