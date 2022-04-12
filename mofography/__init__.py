@@ -4,6 +4,9 @@
 from .compute import *
 from .analyze import *
 from .visualize import *
+from .helper import *
+from .data import *
+
 
 # Handle versioneer
 from ._version import get_versions
