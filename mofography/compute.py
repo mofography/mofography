@@ -235,7 +235,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     from scipy import ndimage as ndi
     import numpy as np
     import sparse
-    # from helper import *
+    from .helper import interpolate_labels
     from skimage import segmentation
     from skimage.morphology import extrema
     from skimage.feature import peak_local_max, corner_peaks
@@ -248,9 +248,9 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     probe = mask_thickness
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
-    # ir = interpolate_labels(reg_labels)
-    # max_indices = (max_indices.T[np.argsort(ir(max_indices.T/dgrid.shape))]).T
-    return reg_labels, max_indices
+    ir = interpolate_labels(reg_labels)
+    max_indices = (max_indices.T[np.argsort(ir(max_indices.T/dgrid.shape))]).T
+    return reg_labels, max_indices.T
 
 
 
