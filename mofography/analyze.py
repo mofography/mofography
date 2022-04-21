@@ -82,7 +82,7 @@ def find_covalent_bonds_nl(data, nlist):
     bonds = []
     bond_order=[]
     radii = covalent_radii[data.get_atomic_numbers()]
-    frac = molecule.frac_coords
+    # frac = molecule.frac_coords
     for (a, b) in nlist:
         # First we check if the nearest image b from a is in the unit cell
         # if not we will add that site, similar to vesta
