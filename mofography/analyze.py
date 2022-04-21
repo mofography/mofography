@@ -40,3 +40,62 @@ def find_patterns_in_mofid(mofid, pattern_smiles):
     mofid_parts = mofid.split('.')
     
     return [detect_smiles_in_mol(mofid_parts[i].split(' ')[0], pattern_smiles) if 'MOFid' in mofid_parts[i] else detect_smiles_in_mol(mofid_parts[i], pattern_smiles) for i in range(1, len(mofid_parts)-2)]
+
+
+def find_covalent_bonds_nl(data, nlist):
+    """
+    It takes the data and the neighbor list and returns the bonds and bond orders. 
+    
+    The function is a bit long, but it's not too complicated. 
+    
+    The first thing we do is import the necessary modules. 
+    
+    Then we create a molecule object from the data. 
+    
+    We then create a list of bonds and bond orders. 
+    
+    We then create a list of covalent radii. 
+    
+    We then loop over the neighbor list. 
+    
+    We then check if the bond is covalent. 
+    
+    If it is, we add it to the list of bonds and bond orders. 
+    
+    We then return the bonds and bond orders. 
+    
+    Let's test it out.
+    
+    :param data: the atoms object
+    :param nlist: a list of nearest neighbors, which is a list of tuples. Each tuple is a pair of
+    indices of atoms
+    :return: the bonds and bond orders.
+    """
+    import itertools
+    from pymatgen.core.bonds import CovalentBond
+    from pymatgen.io.ase import AseAtomsAdaptor 
+    from ase.data import covalent_radii
+    import numpy as np
+
+    molecule = AseAtomsAdaptor.get_molecule(data)
+    number_of_sites = len(molecule.sites)
+    bonds = []
+    bond_order=[]
+    radii = covalent_radii[data.get_atomic_numbers()]
+    frac = molecule.
+    for (a, b) in nlist:
+        # First we check if the nearest image b from a is in the unit cell
+        # if not we will add that site, similar to vesta
+        
+        
+        
+        cov1 = radii[a]
+        cov2 = radii[b]
+        bond_test = CovalentBond(molecule.sites[a], molecule.sites[b])
+        
+        
+        if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=cov1+cov2, tol=0.1):
+            bonds.append([a, b])
+            bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+            # print(bonds, bond_order)
+    return np.array(bonds), np.array(bond_order)
