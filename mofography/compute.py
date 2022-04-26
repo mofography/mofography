@@ -40,7 +40,7 @@ from numpy import dtype
 from mofography.helper import find_coord_from_indices, interpolate_labels
 
 
-def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0):
+def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
     """This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
     Bounding Box method  as implemented by the Glotzer group from Univ. of Michigan.
 
@@ -65,8 +65,6 @@ def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0):
 
     framework_atom_positions = ase_atoms.get_positions()
     cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T # this needs to be an upper triangular matrix, essential column vectors, not row vectors
-    vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
-    radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
     
     box = Box.from_matrix(cell, dimensions =3) # Define the box for Freud
     ab  = AABBQuery(box=box, points=framework_atom_positions) # Compute the AABB Tree
@@ -100,7 +98,7 @@ def dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000):
     cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T # cell matrix
     return da.dot(cell, gpoints.T).T, (nx,ny,nz) #return the actual coordinates
 
-def dgrid_from_atoms(ase_atoms, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0):
+def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0):
     """Compute distance grid from ase atoms objects
 
     :param ase_atoms: ASE atoms object
@@ -122,14 +120,18 @@ def dgrid_from_atoms(ase_atoms, spacing=0.25, block_size=50000, n_neighbors=10, 
     import dask.array as da
     gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
     dgrid = []
-
+    import pandas as  pd 
+    if radii is None:
+        vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
+        radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
+    
     for block in gpoints.blocks:
-        dgrid.append(gpd_aabb(block.compute(), ase_atoms, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
+        dgrid.append(gpd_aabb(block.compute(), ase_atoms, radii, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
     return da.hstack(dgrid).rechunk(chunks=block_size).reshape(shape) #return in correct shape
 
 
 
-def dgrid_from_atoms_gpu(ase_atoms, spacing=0.2, block_size=10000):
+def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
     """Code to compute the distance grid using the GPU
 
     :param data: ASE style atoms object
@@ -152,7 +154,7 @@ def dgrid_from_atoms_gpu(ase_atoms, spacing=0.2, block_size=10000):
     # data    = read(path_to_cif)
     fpoints = cp.asarray(ase_atoms.get_scaled_positions()  - 0.5)
     cell = cp.asarray(ase.geometry.complete_cell(ase_atoms.get_cell())).T
-    from ase.data import vdw_radii
+    # from ase.data import vdw_radii
     # radius_series = pd.Series({'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96,
     #                         'B': 0.84, 'C': 0.73, 'N': 0.71, 'O': 0.66,
     #                         'F': 0.57, 'Ne': 0.58, 'Na': 1.66, 'Mg': 1.41,
@@ -178,11 +180,12 @@ def dgrid_from_atoms_gpu(ase_atoms, spacing=0.2, block_size=10000):
     #                         'Ac': 2.15, 'Th': 2.06, 'Pa': 2.00, 'U': 1.96,
     #                         'Np': 1.90, 'Pu': 1.87, 'Am': 1.80, 'Cm': 1.69})
     # radii = cp.asarray(radius_series[data.get_chemical_symbols()].values).reshape(-1, 1)
-    vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
-    radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
+    if radii is None:
+        vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
+        radii = cp.asarray(vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0).reshape(-1,1)
     
     # * the vdw radii mendeleev is in picometers
-    radii = cp.asarray(vdw_radii[ase_atoms.get_atomic_numbers()].values/100).reshape(-1, 1)
+        # radii = cp.asarray(vdw_radii[ase_atoms.get_atomic_numbers()].values/100).reshape(-1, 1)
     [nx, ny, nz] = (ase_atoms.get_cell_lengths_and_angles()[0:3] / spacing).astype(int) + 1
     #     print([nx,ny,nz])
     gpoints = da.stack(
@@ -260,7 +263,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
 
 
 
-def connections_from_regions(region_labels, ase_atoms):
+def connections_from_regions(region_labels, ase_atoms,distance_threshold=1.0):
     """Find the windows in a structure using the region_labels
 
     :param ase_atoms: ASE atoms object
@@ -304,7 +307,7 @@ def connections_from_regions(region_labels, ase_atoms):
             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
             
             # * Agglomerative
-            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=1.0, compute_full_tree=True).fit(window_points)
+            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=distance_threshold, compute_full_tree=True).fit(window_points)
             window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
 
             return np.array([regs, True, window_centers], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]

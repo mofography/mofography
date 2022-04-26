@@ -152,3 +152,42 @@ def atoms_from_mofdb_df(mofdb_df):
     # from rich.progress import track
     atoms_list = [read_cif_string(x) for x in mofdb_df['cif']]
     return np.array(atoms_list)
+
+def read_raspa_pdb(path_to_file):
+        """
+            created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
+            _ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __\
+            | '__/ _ \/ _` |/ _` | | '__/ _` / __| '_ \ / _` |  / /_)/ /\ /__\//
+            | | |  __/ (_| | (_| | | | | (_| \__ \ |_) | (_| | / ___/ /_// \/  \
+            |_|  \___|\__,_|\__,_| |_|  \__,_|___/ .__/ \__,_| \/  /___,'\_____/
+                                                |_|                            
+            Reads the output PDB movie file from RASPA into separate configurations, including the chemical symbols and
+            cell dimensions. 
+            :type path_to_file: str
+            :param path_to_file: path to the RASPA PDB file
+        
+            :raises:
+            Not sure.
+        
+            :rtype: a python dictionary with 'cells', 'symbols' and 'coord' which stand for cell dimensions, printed symbols and coordinates
+            """
+
+        import numpy as np
+
+        f = open(path_to_file).readlines()
+        start = np.where(["MODEL" in line for line in f])[0] + 2  # * Start of config
+        ends = np.where(["ENDMDL" in line for line in f])[0]  # End for config
+        cryst = np.where(["CRYST" in line for line in f])[0]  # box shape for the config
+
+        data = [f[start[i]:ends[i]] for i in range(len(start))]
+
+        coord = np.array([[np.array(line.split()[4:7]).astype(float) for line in d] for d in data])
+        cell_dims = np.array([np.array(line.split())[1:].astype(float) for line in f if "CRYST" in line])
+        symbols = np.array([[np.array(line.split()[2]) for line in d] for d in data])
+
+        output = {}
+        output['cells'] = cell_dims
+        output['coords'] = coord
+        output['symbols'] = symbols
+
+        return output
