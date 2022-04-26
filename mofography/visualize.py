@@ -18,6 +18,8 @@
 
 from tenacity import retry
 
+from mofography.analyze import sgraph_from_atoms
+
 
 global white_layout 
 white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75))
@@ -88,15 +90,22 @@ def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='a
     if np.any(region_labels) != None: # if region labels are provided
 
         #*  Make a colorscale using random colors if no colorscale is provided
-        if cscale == None:
+        if cscale is None:
             cvals = np.linspace(0, 1, (region_labels.max()).astype(int))
             rand_ints = np.random.randint(low=0, high=256, size=(region_labels.max().astype(int),3))
             
             cscale = [[cvals[i],
                     "rgb(" + str(rand_ints[i][0]) + ',' + str(rand_ints[i][1]) + ',' + str(
 rand_ints[i][2]) + ')'] for i in range((region_labels.max()).astype(int))]
-        if type(cscale) == 'str':
-            cscale = getattr(px.colors.qualitative, cscale)
+        if type(cscale) == str:
+            try:
+                cscale = getattr(px.colors.qualitative, cscale)
+            except:
+                try:
+                    cscale = getattr(px.colors.sequential, cscale)
+                except:
+                    pass
+
 
             # cscale = [[cvals[i],
             #         "rgb(" + str(np.random.randint(0, 256)) + ',' + str(np.random.randint(0, 256)) + ',' + str(
@@ -371,205 +380,252 @@ if __name__ == "__main__":
     # Do something if this file is invoked on its own
     print("You probably shouldn't call this by itself")
 
-def draw_framework2(data, bonds=None, bond_data=None, colorscheme=get_default_colors(), atoms_opacity=0.9,dia_scale=1, default_ring_sizes = [5,6,7,8]):
-    """
-    It takes in ase atoms object, bond list, bond data dictionary and returns a list of plotly traces
-    
-    :param data: ASE atoms object
-    :param bonds: a list of bonds in the form of [[0,1],[1,2],...]
-    :param bond_data: a dictionary of bond data. The keys are the names of the bond data, and the values
-    are the bond data
-    :param colorscheme: A dictionary of colors for each element. The default is the ASE CPK color scheme
-    :param atoms_opacity: opacity of the atoms
-    :param dia_scale: This is a scaling factor for the atom sizes, defaults to 1 (optional)
-    :param default_ring_sizes: list of integers, default = [5,6,7,8]
-    :return: A list of plotly traces.
-    """
-
-    from ase.io import read
-    from ase import neighborlist
-    from ase.data import covalent_radii 
-    # data = read(path_to_cif)
-    # A_unit = data.get_cell().T
-    coord = data.get_positions()
-    names = data.get_chemical_symbols()
 
 
+def draw_framework2(ase_atoms, bonds=None, bond_orders=None, show_aromatics=True, show_atom_labels=False, bond_data=None, bond_color=None, bond_opacity=0.9, colorscheme=get_default_colors(), atoms_opacity=0.9, dia_scale=1):
+        """
+        It takes an ASE atoms object and returns a list of plotly traces that can be used to plot the
+        framework
+        
+        :param ase_atoms: ASE atoms object
+        :param bonds: list of bonds in the form of [[0,1],[1,2],...]
+        :param bond_orders: A list of bond orders for each bond in the bonds list
+        :param show_rings: If True, the function will detect and plot aromatic rings, defaults to True
+        (optional)
+        :param bond_data: A dictionary of bond data. The keys are the names of the bond data, and the values
+        are the bond data. The bond data should be a list of the same length as the number of bonds in the
+        structure
+        :param colorscheme: A dictionary of colors for each element. The default is the ASE CPK color scheme
+        :param atoms_opacity: Opacity of the atoms
+        :param dia_scale: This is a scaling factor for the atom sizes, defaults to 1 (optional)
+        :param default_ring_sizes: list of integers, default = [5,6,7,8]
+        :return: A list of plotly.graph_objects.Scatter3d objects.
+        """
 
-    import numpy as np
-    from pymatgen.core import Molecule
-    # print("1. Creating Molecule ...")
-    mol = Molecule(names, coord)
+        # from ase.io import read
+        from ase import neighborlist
+        from .analyze import update_with_covalent_bonds, find_aromatic_cycles_in_sgraph
+        # from ase.data import covalent_radii 
+        # data = read(path_to_cif)
+        # A_unit = data.get_cell().T
+        coord = ase_atoms.get_positions()
+        names = ase_atoms.get_chemical_symbols()
 
 
-    # print(bonds_atoms_list)
-    print("Creating Plotly figure traces")
-    # * Figure out how to plot the framework atoms
 
-    import plotly.graph_objects as go
-
-
-    # * Create a color scale using ASE cpk colorlist.
-    from ase.data import colors
-    from sklearn.preprocessing import minmax_scale
-    colors_in_mof = colorscheme[data.get_atomic_numbers()]
-    cols = np.round(colors_in_mof * 255, decimals=0).astype(np.int)
-    colorlist = ["rgb(" + ",".join(c.astype(np.str)) + ")" for c in cols]
-    
-    # * Hovertext for each point
-    hovertext = ['Atom No: ' + str(i) + ', Atom type: ' + names[i] for i in range(len(names))]
-    
-    # * Scale the atom sizes beautifully.
-    atom_dia = 2 * neighborlist.natural_cutoffs(data)
-    # print(atom_dia)
-    scatter_size = np.round(minmax_scale(atom_dia, feature_range=(12, 30))*dia_scale)
+        import numpy as np
+        from pymatgen.core import Molecule
+        # print("1. Creating Molecule ...")
+        # mol = Molecule(names, coord)
 
 
-    traces=[]
-    print("creating atoms trace\n")
+        # print(bonds_atoms_list)
+        print("Creating Plotly figure traces")
+        # * Figure out how to plot the framework atoms
 
-    trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext,
-                                marker=dict(opacity=atoms_opacity, size=scatter_size,
-                                            color=colorlist,
-                                            sizemode='diameter'), name='framework atoms', text=names, textfont=dict(color=colorlist, size=20),surfaceaxis=-1)
-    traces.append(trace_scatter)
-    if bonds.any() != None:
+        import plotly.graph_objects as go
 
-        edges_master = []
-        print("bonds provided...")
-        print('creating bonds trace')
+        # * Create a color scale using ASE cpk colorlist.
+        from ase.data import colors
+        from sklearn.preprocessing import minmax_scale
+        cols = np.round(colorscheme * 255, decimals=0).astype(int)
+        colorlist = ["rgb(" + ",".join(c.astype(str)) + ")" for c in cols]
+        # atomic_numbers        = np.vstack(data.get_atomic_numbers())
+        # atom_colors           =   minmax_scale(np.linspace(0,103, 104), feature_range=(0,1))
+        atom_colors = np.linspace(0, 1, len(cols))
+        cscale = [[atom_colors[i], colorlist[i]] for i in range(len(colorlist))]
+
+        # * Hovertext for each point
+        hovertext = ['Atom No: ' + str(i) + ', Atom type: ' + names[i] for i in range(len(names))]
+
+        # * Scale the atom sizes beautifully.
+        # atom_dia              = f1.sigma_array*2-f1.sigma
+        atom_dia = 2 * neighborlist.natural_cutoffs(ase_atoms)
+
+        # # * Create a color scale using ASE cpk colorlist.
+        # from ase.data import colors
+        # from sklearn.preprocessing import minmax_scale
+        # colors_in_mof = colorscheme[ase_atoms.get_atomic_numbers()]
+        # cols = np.round(colors_in_mof * 255, decimals=0).astype(np.int)
+        # colorlist = ["rgb(" + ",".join(c.astype(np.str)) + ")" for c in cols]
+        
+        # # * Hovertext for each point
+        # hovertext = ['Atom No: ' + str(i) + ', Atom type: ' + names[i] for i in range(len(names))]
+        
+        # # * Scale the atom sizes beautifully.
+        # atom_dia = 2 * neighborlist.natural_cutoffs(ase_atoms)
+        # print(atom_dia)
+        scatter_size = np.round(minmax_scale(atom_dia, feature_range=(12, 30))*dia_scale)
+
+
+        traces=[]
+        print("1. Creating atoms trace\n")
+
+        trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext,
+                                    marker=dict(opacity=atoms_opacity, size=scatter_size,
+                                                color=atom_colors[ase_atoms.get_atomic_numbers()-1],
+                                                sizemode='diameter',colorscale=cscale), name='framework atoms', text=names, textfont=dict(color=colorlist, size=20),surfaceaxis=-1)
+        traces.append(trace_scatter)
+        
+        if bonds is None:
+            ase_atoms_updated = update_with_covalent_bonds(ase_atoms)
+            bonds = ase_atoms_updated.info['covalent_bonds']
+            if bond_orders is None:
+                bond_orders = ase_atoms_updated.info['covalent_bond_orders'] 
+            else:
+                raise Exception("You can't provide bond orders without providing a list of bonds!")
+        else:
+            ase_atoms_updated = ase_atoms
+
+        print("2. Creating bonds' trace\n")
+        edges_master = []   
         for b in bonds:
             edges_master.append(coord[b[0]])
             edges_master.append(coord[b[1]])
             edges_master.append([None, None, None])
-            # edges_master = np.vstack(edges_master)
-
-        # if bond order data is provided
-        if "bond orders" in bond_data.keys():
-            print("bond orders found in bond data dictionary")
-                
-            edges_master = np.vstack(edges_master)
-            bond_order = bond_data['bond orders']
+        
+        if bond_color is None:
+            bond_color = np.repeat(bond_orders,3)
+        elif type(bond_color)==str:
+            bond_color=bond_color
+        else:
+            bond_color = 'rgba(0,0,0,0.35)'
+        edges_master = np.vstack(edges_master)
+        print(bond_color)
+        try:
             trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
-                                    line=dict(width=15, color=np.repeat(bond_order,3), colorscale='aggrnyl', colorbar=dict(thickness=20, len=0.6, title='bond order')), mode='lines',
-                                    name='framework bonds')
-            traces.append(trace_edges)
-            import networkx as nx 
-            import pandas as pd
-            G = nx.Graph()
-            G.add_nodes_from([tuple((i, {'element':names[i]})) for i in range(data.get_global_number_of_atoms())])
-            # G.add_nodes_from([(i,j) for i,j in enumerate(mol.as_dict()['sites'])])
-            bond_types = pd.cut(bond_data['bond orders'], bins=[0,1, 2, 3], labels=['single', 'double', 'triple'])
-            G.add_edges_from([tuple((bonds[i][0], bonds[i][1], {'bond_order':bond_data['bond orders'][i], 'bond_type':bond_types[i]})) for i in range(len(bonds))])
-
-            # Detect and show requested rings
-            # bond_types = nx.get_edge_attributes(G, 'bond_type')
-            # Detect aromatic rings
-
-            small_cycles = [cycle for cycle in nx.cycles.cycle_basis(G, 0) if len(cycle) in default_ring_sizes]
-            # print(small_cycles)
-            bond_types = nx.get_edge_attributes(G,'bond_type')
-            cycles_edges = [list(zip(cycle,(cycle[1:]+cycle[:1]))) for cycle in small_cycles]
-            cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
-            selected_cycles = [np.all(np.array(cycle_bonds) == 'double') for cycle_bonds in cycle_bond_types]
-            aromatic_cycles = np.array(small_cycles)[selected_cycles]
-
-            # Find unique rings using SMILES
-            import pysmiles as ps 
-            cycle_graphs = [G.subgraph(cycle) for cycle in aromatic_cycles]
-            unique_cycle_indices = np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
-            unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
-
-            # from itertools import combinations 
-            import networkx.algorithms.isomorphism as isomo
-            # pairs = list(combinations(cycle_graphs,2))
-            
-            # is_iso = [isomo.ISMAGS(p[0], p[1], node_match=isomo.categorical_node_match('name',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None')).is_isomorphic(symmetry=True) for p in pairs]
-            # # print(sum(1 - is_iso))
-            # print(np.where(np.array(is_iso) == False)[0])
-            # ref_pairs = list(combinations(np.arange(len(aromatic_cycles)),2))
-            # print("Check isomorphism among the basis")
-            # unique_cycle_indices = []
-            # unique_cycle_indices.append(0)
-
-            # print(is_iso)
-            # if np.any(np.array(is_iso) == False):
-            #   for index in np.where(np.array(is_iso) == False)[0]:
-            #     # print(index)
-            #     print(ref_pairs[index])
-            #     unique_cycle_indices.append(ref_pairs[index][1])
-
-
-            # unique_cycle_indices = np.unique(unique_cycle_indices)
-            # # unique_aromatic_cycles.append(cycle_graphs[ref_pairs[index][1]])  
-            # unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
-
-            # print("Uniqu cycle indices")
-            # print(unique_cycle_indices)
-            # print("Unique aromatic cycles")
-            # print([list(cycle_graph.nodes(data=True)) for cycle_graph in unique_aromatic_cycles])
-            
-            # print("find all isomorphic rings in the structure")
-            isomorphic_aromatic_cycles = []
-            for graph in unique_aromatic_cycles:
-                
-                iso1 = isomo.ISMAGS(G, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
-                isomorphic_aromatic_cycles = isomorphic_aromatic_cycles + [list(subgraph.keys()) for subgraph in iso1.subgraph_isomorphisms_iter()]
-            
-            # Highlight and circle all aromatic rings
-            circle_data=[]
-            from numpy.core.numeric import cross
-            theta = np.linspace(0, 2*np.pi, 100)
-            xc = 0.5*np.cos(theta)
-            yc = 0.5*np.sin(theta) 
-            zc = np.ones(np.shape(xc))
-            circle_coord = np.array([xc, yc, zc]).T
-
-            from scipy.spatial.transform import Rotation as R
-
-            # ring circles
-            for ring in isomorphic_aromatic_cycles:
-                ring_coord = coord[ring]
-                ring_center = np.mean(ring_coord, axis=0)
-                ring_normal = np.cross(ring_coord[3]-ring_coord[2],ring_coord[2]-ring_coord[1])
-                ring_normal = ring_normal/np.linalg.norm(ring_normal)
-                r = R.align_vectors(ring_normal.reshape(-1,3),np.array([0,0,1]).reshape(-1,3))
-                new_circle = r[0].apply(circle_coord)
-                new_circle= new_circle + ring_center-np.mean(new_circle, axis=0) 
-                circle_data.append(new_circle)
-                circle_data.append([None, None, None])
-            circle_data = np.vstack(circle_data)
-            data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles')
-            traces.append(data_circle)
-
-
-
-            # ring highlight
-            ring_centers = []
-            for ring in isomorphic_aromatic_cycles:
-                ring_coord = coord[ring]
-                ring_centers.append(np.mean(ring_coord, axis=0))
-                ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], color='lightskyblue', opacity=0.1, alphahull=0, name='Benzene ring highlight')
-                traces.append(ring_highlight_trace)
-    else:
-        print("'bond orders' key not found in bond data\n")    
-        edges_master= np.vstack(edges_master)            
-        trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
-                                line=dict(width=15, color=np.repeat(bond_order,3), colorscale='aggrnyl', colorbar=dict(thickness=20, len=0.6, title='bond order')), mode='lines',
+                                line=dict(width=15, color=bond_color, colorscale='aggrnyl', colorbar=dict(thickness=20, len=0.6, title='bond order')), opacity=bond_opacity, mode='lines',
+                                name='framework bonds')
+        except:
+            trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
+                                line=dict(width=15, color='rgba(150,150,150,0.35)', colorscale='aggrnyl' ),opacity=bond_opacity, mode='lines',
                                 name='framework bonds')
         traces.append(trace_edges)
 
-    if bool(bond_data):
-        print("bond data found \n")
-        for key in bond_data.keys():
 
-            true_edges = edges_master[edges_master != None ].reshape(-2,3)
-            true_edges = 0.5*(true_edges[0::2]+true_edges[1::2])
-            trace_bond_data = go.Scatter3d(x=true_edges[:, 0], y=true_edges[:, 1], z=true_edges[:, 2], mode='text',  textfont=dict(color='white', size=9), text=np.round(bond_data[key],decimals=2).astype(str),
+        if show_aromatics:
+            print('\t2-a. Detecting and plotting aromatic rings\n')
+            # show aromatic rings 
+            # if bond order data is provided
+
+        # Detect and show requested rings
+            # bond_types = nx.get_edge_attributes(G, 'bond_type')
+            # Detect aromatic rings
+            G = sgraph_from_atoms(ase_atoms_updated)
+            isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(G)                 
+            # Highlight and circle all aromatic rings
+
+            ring_traces = plot_aromatic_rings(sgraph=G, isomorphic_aromatic_cycles=isomorphic_aromatic_cycles)
+            traces = traces + list(ring_traces)
+            # circle_data=[]
+            # from numpy.core.numeric import cross
+            # theta = np.linspace(0, 2*np.pi, 100)
+            # xc = 0.5*np.cos(theta)
+            # yc = 0.5*np.sin(theta) 
+            # zc = np.ones(np.shape(xc))
+            # circle_coord = np.array([xc, yc, zc]).T
+
+            # from scipy.spatial.transform import Rotation as R
+
+            # # ring circles
+            # for ring in isomorphic_aromatic_cycles:
+            #     ring_coord = coord[ring]
+            #     ring_center = np.mean(ring_coord, axis=0)
+            #     ring_normal = np.cross(ring_coord[3]-ring_coord[2],ring_coord[2]-ring_coord[1])
+            #     ring_normal = ring_normal/np.linalg.norm(ring_normal)
+            #     r = R.align_vectors(ring_normal.reshape(-1,3),np.array([0,0,1]).reshape(-1,3))
+            #     new_circle = r[0].apply(circle_coord)
+            #     new_circle= new_circle + ring_center-np.mean(new_circle, axis=0) 
+            #     circle_data.append(new_circle)
+            #     circle_data.append([None, None, None])
+            # circle_data = np.vstack(circle_data)
+            # data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles')
+            
+            # traces.append(data_circle)
+
+            # # ring highlight
+            # ring_centers = []
+            # for ring in isomorphic_aromatic_cycles:
+            #     ring_coord = coord[ring]
+            #     ring_centers.append(np.mean(ring_coord, axis=0))
+            #     ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], color='lightskyblue', opacity=0.1, alphahull=0, name='Benzene ring highlight')
+            #     traces.append(ring_highlight_trace)
+
+
+        if bool(bond_data):
+            print('4. Creating traces for additional bond data provided')
+            for key in bond_data.keys():
+
+                true_edges = edges_master[edges_master != None ].reshape(-2,3)
+                true_edges = 0.5*(true_edges[0::2]+true_edges[1::2])
+                trace_bond_data = go.Scatter3d(x=true_edges[:, 0], y=true_edges[:, 1], z=true_edges[:, 2], mode='text',  textfont=dict(color='white', size=9), text=list(map(str, bond_data[key])),
                                         name=key )
-            traces.append(trace_bond_data)
+                traces.append(trace_bond_data)
+        if show_atom_labels:
+            trace_atom_labels = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='text',  textfont=dict(color=colorlist, size=20), text=names,
+                                    name='atom labels' )
+            traces.append(trace_atom_labels)
+        return traces
 
-    trace_atom_labels = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='text',  textfont=dict(color=colorlist, size=20), text=names,
-                                name='atom labels' )
-    traces.append(trace_atom_labels)
-    return traces
+
+def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color='lightskyblue'):
+    """
+    It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
+    used to plot the aromatic cycles
+    
+    :param sgraph: the sgraph object
+    :param isomorphic_aromatic_cycles: a list of lists of node indices that are aromatic rings. If you
+    don't have this, you can set it to None and the function will try to find it for you
+    :param highlight_color: The color of the highlighted aromatic rings, defaults to lightskyblue
+    (optional)
+    :return: A tuple of the data_circle and ring_highlight_traces
+    """
+
+    from .analyze import find_aromatic_cycles_in_sgraph
+    import plotly.graph_objects as go
+    import numpy as np 
+
+    if not (isomorphic_aromatic_cycles is None):
+        try:
+            isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(sgraph)
+        except:
+            Exception('Cannot find aromatic cycles from sgraph! Please provide as input.')
+    circle_data=[]
+    from numpy.core.numeric import cross
+    theta = np.linspace(0, 2*np.pi, 100)
+    xc = 0.5*np.cos(theta)
+    yc = 0.5*np.sin(theta) 
+    zc = np.ones(np.shape(xc))
+    circle_coord = np.array([xc, yc, zc]).T
+
+    from scipy.spatial.transform import Rotation as R
+    import networkx as nx 
+    # coord  = nx.get_node_attributes(sgraph, "position")# ring circles
+    try :
+        coord = np.vstack(list(nx.get_node_attributes(sgraph, "position").values()))
+    except:
+        raise Exception("Cannot find position data in your sgraph")
+    for ring in isomorphic_aromatic_cycles:
+        ring_coord = coord[ring]
+        ring_center = np.mean(ring_coord, axis=0)
+        ring_normal = np.cross(ring_coord[3]-ring_coord[2],ring_coord[2]-ring_coord[1])
+        ring_normal = ring_normal/np.linalg.norm(ring_normal)
+        r = R.align_vectors(ring_normal.reshape(-1,3),np.array([0,0,1]).reshape(-1,3))
+        new_circle = r[0].apply(circle_coord)
+        new_circle= new_circle + ring_center-np.mean(new_circle, axis=0) 
+        circle_data.append(new_circle)
+        circle_data.append([None, None, None])
+    circle_data = np.vstack(circle_data)
+    data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles')
+    
+
+    # ring highlight
+    ring_centers = []
+    ring_highlight_traces = []
+    for ring in isomorphic_aromatic_cycles:
+        ring_coord = coord[ring]
+        ring_centers.append(np.mean(ring_coord, axis=0))
+        ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], color=highlight_color, opacity=0.1, alphahull=0, name='Aromatic ring highlight')
+        ring_highlight_traces.append(ring_highlight_trace)
+
+    return tuple([data_circle] + ring_highlight_traces)

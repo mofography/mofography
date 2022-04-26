@@ -9,6 +9,9 @@
                                                          
  
 """
+
+
+
 def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
     """
     It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of
@@ -27,7 +30,7 @@ def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
     isomo = ISMAGS(molecule, pattern, node_match =categorical_node_match('element', default='none'), edge_match=numerical_edge_match('order', default='100') )
     return list(isomo.subgraph_isomorphisms_iter())
 
-def find_patterns_in_mofid(mofid, pattern_smiles):
+def find_smiles_in_mofid(mofid, pattern_smiles):
     """
     It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each
     SMILES string is found in the MOFid string
@@ -42,60 +45,414 @@ def find_patterns_in_mofid(mofid, pattern_smiles):
     return [detect_smiles_in_mol(mofid_parts[i].split(' ')[0], pattern_smiles) if 'MOFid' in mofid_parts[i] else detect_smiles_in_mol(mofid_parts[i], pattern_smiles) for i in range(1, len(mofid_parts)-2)]
 
 
-def find_covalent_bonds_nl(data, nlist):
+# def find_covalent_bonds_nl(data, nlist):
+#     """
+#     It takes the data and the neighbor list and returns the bonds and bond orders. 
+    
+#     The function is a bit long, but it's not too complicated. 
+    
+#     The first thing we do is import the necessary modules. 
+    
+#     Then we create a molecule object from the data. 
+    
+#     We then create a list of bonds and bond orders. 
+    
+#     We then create a list of covalent radii. 
+    
+#     We then loop over the neighbor list. 
+    
+#     We then check if the bond is covalent. 
+    
+#     If it is, we add it to the list of bonds and bond orders. 
+    
+#     We then return the bonds and bond orders. 
+    
+#     Let's test it out.
+    
+#     :param data: the atoms object
+#     :param nlist: a list of nearest neighbors, which is a list of tuples. Each tuple is a pair of
+#     indices of atoms
+#     :return: the bonds and bond orders.
+#     """
+#     import itertools
+#     from pymatgen.core.bonds import CovalentBond
+#     from pymatgen.io.ase import AseAtomsAdaptor 
+#     from ase.data import covalent_radii
+#     import numpy as np
+
+#     molecule = AseAtomsAdaptor.get_molecule(data)
+#     number_of_sites = len(molecule.sites)
+#     bonds = []
+#     bond_order=[]
+#     radii = covalent_radii[data.get_atomic_numbers()]
+#     # frac = molecule.frac_coords
+#     for (a, b) in nlist:
+#         # First we check if the nearest image b from a is in the unit cell
+#         # if not we will add that site, similar to vesta
+        
+        
+        
+#         cov1 = radii[a]
+#         cov2 = radii[b]
+#         bond_test = CovalentBond(molecule.sites[a], molecule.sites[b])
+        
+        
+#         if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=cov1+cov2, tol=0.1):
+#             bonds.append([a, b])
+#             bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+#             # print(bonds, bond_order)
+#     return np.array(bonds), np.array(bond_order)
+
+# def check_bonds_in_nlist(ase_atoms, nlist):
+#     """
+#     > The function takes an ASE atoms object and a list of nearest neighbors and returns an updated ASE
+#     atoms object with the nearest neighbors added to the unit cell and the bonds and bond orders
+    
+#     :param ase_atoms: the atoms object from ASE
+#     :param nlist: a list of pairs of atoms that are nearest neighbors
+#     :return: the updated ase_atoms object, the bonds array, and the bond_order array.
+#     """
+#     from pymatgen.core.bonds import CovalentBond
+#     from pymatgen.io.ase import AseAtomsAdaptor 
+#     from ase.data import covalent_radii
+#     import numpy as np
+
+#     struct = AseAtomsAdaptor.get_structure(ase_atoms)
+#     bonds = []
+#     bond_order=[]
+#     radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+#     frac = struct.frac_coords
+#     for (a, b) in nlist:
+#         # First we check if the nearest image b from a is in the unit cell
+#         # if not we will add that site to the structure even if it is across 
+#         # periodic boundaries, similar to how VESTA does it
+#         cov1 = radii[a]
+#         cov2 = radii[b]
+
+            
+#         if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.1):
+#             bond_test = CovalentBond(struct.sites[a], struct.sites[b])
+#             dr = frac[a] - frac[b]
+#             shift = np.round(dr)
+#             if np.any(shift !=0):
+#                 new_site_frac =frac[b] + shift
+#                 new_site_coord =np.dot( ase_atoms.get_cell().T, new_site_frac).T
+#                 struct.append(species=struct[b].species, coords=new_site_coord, coords_are_cartesian=True, properties = {'image of': b})
+#                 b = struct.num_sites - 1 # the last one, the newly added site
+#             bonds.append([a, b])
+#             bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+        
+#     ase_atoms_updated = AseAtomsAdaptor.get_atoms(struct)
+            
+#     return ase_atoms_updated, np.array(bonds), np.array(bond_order)
+
+def voronoi_on_atoms(ase_atoms):
     """
-    It takes the data and the neighbor list and returns the bonds and bond orders. 
+    It takes an ASE atoms object and returns a freud Voronoi object
     
-    The function is a bit long, but it's not too complicated. 
-    
-    The first thing we do is import the necessary modules. 
-    
-    Then we create a molecule object from the data. 
-    
-    We then create a list of bonds and bond orders. 
-    
-    We then create a list of covalent radii. 
-    
-    We then loop over the neighbor list. 
-    
-    We then check if the bond is covalent. 
-    
-    If it is, we add it to the list of bonds and bond orders. 
-    
-    We then return the bonds and bond orders. 
-    
-    Let's test it out.
-    
-    :param data: the atoms object
-    :param nlist: a list of nearest neighbors, which is a list of tuples. Each tuple is a pair of
-    indices of atoms
-    :return: the bonds and bond orders.
+    :param ase_atoms: the atoms object from ASE
+    :return: The Voronoi object
     """
-    import itertools
+    from freud.box import Box 
+    from freud.locality import Voronoi
+    import numpy as np
+    import ase
+    points = ase_atoms.get_positions()
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell())
+    box = Box.from_matrix(cell, dimensions =3)
+
+    from freud.locality import Voronoi
+    voro = Voronoi(box=box, buffer=(ase_atoms.get_cell())/2)
+    voro.compute((box, points))
+    return voro
+
+def update_with_covalent_bonds(ase_atoms, nlist=None):
+    """
+    It takes an ASE atoms object and returns an ASE atoms object with the covalent bonds and bond orders
+    added to the info dictionary. 
+    
+    The function also takes an optional argument, nlist, which is a list of nearest neighbors. If nlist
+    is not provided, the function will calculate the nearest neighbors using the voronoi_on_atoms
+    function. 
+    
+    The function uses the pymatgen CovalentBond class to determine if two atoms are bonded. The
+    CovalentBond class uses the bond length and bond tolerance to determine if two atoms are bonded. The
+    bond length is the sum of the covalent radii of the two atoms. The bond tolerance is a user defined
+    parameter. The default value is 0.1. 
+    
+    The function also checks if the nearest image of an atom is in the unit cell. If not, the function
+    will add that site to the structure even if it is across
+    
+    :param ase_atoms: the atoms object you want to update
+    :param nlist: a list of pairs of atoms that are neighbors. If you don't have this, you can use the
+    voronoi_on_atoms function to get it
+    :return: AseAtomsAdaptor.get_atoms(struct)
+    """
+
     from pymatgen.core.bonds import CovalentBond
     from pymatgen.io.ase import AseAtomsAdaptor 
     from ase.data import covalent_radii
     import numpy as np
 
-    molecule = AseAtomsAdaptor.get_molecule(data)
-    number_of_sites = len(molecule.sites)
+    struct = AseAtomsAdaptor.get_structure(ase_atoms)
     bonds = []
     bond_order=[]
-    radii = covalent_radii[data.get_atomic_numbers()]
-    # frac = molecule.frac_coords
-    for (a, b) in nlist:
+    radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    frac = struct.frac_coords
+    if nlist is None:
+        voro = voronoi_on_atoms(ase_atoms)
+        nlist = voro.nlist
+        for (a, b) in nlist:
+            # First we check if the nearest image b from a is in the unit cell
+            # if not we will add that site to the structure even if it is across 
+            # periodic boundaries, similar to how VESTA does it
+            cov1 = radii[a]
+            cov2 = radii[b]
+
+                
+            if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.1):
+                bond_test = CovalentBond(struct.sites[a], struct.sites[b])
+                dr = frac[a] - frac[b]
+                shift = np.round(dr)
+                if np.any(shift !=0):
+                    new_site_frac =frac[b] + shift
+                    new_site_coord =np.dot( ase_atoms.get_cell().T, new_site_frac).T
+                    struct.append(species=struct[b].species, coords=new_site_coord, coords_are_cartesian=True, properties = {'image of': b})
+                    b = struct.num_sites - 1 # the last one, the newly added site
+                bonds.append([a, b])
+                bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+    else:
+        for (a, b) in nlist:
         # First we check if the nearest image b from a is in the unit cell
-        # if not we will add that site, similar to vesta
-        
-        
-        
-        cov1 = radii[a]
-        cov2 = radii[b]
-        bond_test = CovalentBond(molecule.sites[a], molecule.sites[b])
-        
-        
-        if CovalentBond.is_bonded(molecule.sites[a], molecule.sites[b], default_bl=cov1+cov2, tol=0.1):
-            bonds.append([a, b])
-            bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
-            # print(bonds, bond_order)
-    return np.array(bonds), np.array(bond_order)
+        # if not we will add that site to the structure even if it is across 
+        # periodic boundaries, similar to how VESTA does it
+            cov1 = radii[a]
+            cov2 = radii[b]
+
+                
+            if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.1):
+                bond_test = CovalentBond(struct.sites[a], struct.sites[b])
+                dr = frac[a] - frac[b]
+                shift = np.round(dr)
+                if np.any(shift !=0):
+                    new_site_frac =frac[b] + shift
+                    new_site_coord =np.dot( ase_atoms.get_cell().T, new_site_frac).T
+                    struct.append(species=struct[b].species, coords=new_site_coord, coords_are_cartesian=True, properties = {'image of': b})
+                    b = struct.num_sites - 1 # the last one, the newly added site
+                bonds.append([a, b])
+                bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+
+    ase_atoms_updated = AseAtomsAdaptor.get_atoms(struct)
+    ase_atoms_updated.info['covalent_bonds'] = bonds
+    ase_atoms_updated.info['covalent_bond_orders']=bond_order
+            
+    return ase_atoms_updated
+
+def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
+    """
+    > Find all cycles in the graph, then find all cycles that are composed of double bonds, then find
+    all unique cycles, then find all isomorphic cycles. 
+    
+    The function returns a list of lists, where each list contains the indices of the atoms in the
+    aromatic cycle. 
+    
+    Let's try it out on our example molecule:
+    
+    :param sgraph: The graph object that you want to find aromatic cycles in
+    :param default_ring_sizes: The ring sizes to consider
+    :return: A list of lists of nodes that are part of aromatic cycles.
+    """
+
+    import networkx as nx 
+    import numpy as np 
+    
+
+    small_cycles = [cycle for cycle in nx.cycles.cycle_basis(sgraph, 0) if len(cycle) in default_ring_sizes]
+    
+    
+    bond_types = nx.get_edge_attributes(sgraph,'bond_type')
+    cycles_edges = [list(zip(cycle,(cycle[1:]+cycle[:1]))) for cycle in small_cycles]
+    cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
+    # selected_cycles = [np.all(np.array(cycle_bonds) == 'double') for cycle_bonds in cycle_bond_types]
+    chosen_cycles = np.array(small_cycles)#[selected_cycles]
+
+    # Find unique rings using SMILES
+    import pysmiles as ps 
+    cycle_graphs = [sgraph.subgraph(cycle) for cycle in chosen_cycles]
+    unique_cycle_indices = np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
+    unique_chosen_cycles = np.array(cycle_graphs)[unique_cycle_indices]
+
+    # from itertools import combinations 
+    import networkx.algorithms.isomorphism as isomo
+    isomorphic_cycles = list([])
+    for cycle in unique_chosen_cycles:
+        graph = sgraph.subgraph(cycle)
+        iso1 = isomo.GraphMatcher(sgraph, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
+        isomorphic_cycles = isomorphic_cycles + [list(subgraph.keys()) for subgraph in iso1.subgraph_isomorphisms_iter()]
+    
+    return isomorphic_cycles
+
+def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
+    """
+    > Find all cycles in the graph, then find all cycles that are composed of double bonds, then find
+    all unique cycles, then find all isomorphic cycles. 
+    
+    The function returns a list of lists, where each list contains the indices of the atoms in the
+    aromatic cycle. 
+    
+    Let's try it out on our example molecule:
+    
+    :param sgraph: The graph object that you want to find aromatic cycles in
+    :param default_ring_sizes: The ring sizes to consider
+    :return: A list of lists of nodes that are part of aromatic cycles.
+    """
+
+    import networkx as nx 
+    import numpy as np 
+    
+
+    small_cycles = [cycle for cycle in nx.cycles.cycle_basis(sgraph, 0) if len(cycle) in default_ring_sizes]
+    
+    
+    bond_types = nx.get_edge_attributes(sgraph,'bond_type')
+    cycles_edges = [list(zip(cycle,(cycle[1:]+cycle[:1]))) for cycle in small_cycles]
+    cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
+    selected_cycles = [np.all(np.array(cycle_bonds) == 'double') for cycle_bonds in cycle_bond_types]
+    aromatic_cycles = np.array(small_cycles)[selected_cycles]
+
+    # Find unique rings using SMILES
+    # import pysmiles as ps 
+    cycle_graphs = [sgraph.subgraph(cycle) for cycle in aromatic_cycles]
+    unique_cycle_indices = find_unique_cycles(aromatic_cycles, sgraph) #np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
+    unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
+
+    # from itertools import combinations 
+    import networkx.algorithms.isomorphism as isomo
+    isomorphic_aromatic_cycles = list([])
+    for cycle in unique_aromatic_cycles:
+        graph = sgraph.subgraph(cycle)
+        iso1 = isomo.GraphMatcher(sgraph, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
+        isomorphic_aromatic_cycles = isomorphic_aromatic_cycles + [list(subgraph.keys()) for subgraph in iso1.subgraph_isomorphisms_iter()]
+    
+    return isomorphic_aromatic_cycles
+
+
+def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
+    """
+    It takes an ase atoms object and returns a networkx graph object with nodes and edges as atoms and
+    bonds respectively. 
+    
+    The node properties are the atomic properties of the atoms. The edge properties are the bond
+    properties. 
+    
+    The function also takes two optional arguments: 
+    
+    1. node_props_dict: A dictionary of node properties. The keys are the property names and the values
+    are the property values. 
+    
+    2. edge_props_dict: A dictionary of edge properties. The keys are the property names and the values
+    are the property values. 
+    
+    If the node_props_dict is not provided, the default set of node properties are: 
+    
+    1. position: The cartesian coordinates of the atoms. 
+    
+    2. scaled_position: The fractional coordinates of the atoms. 
+    
+    3. symbol: The chemical symbol of the atoms. 
+    
+    4. atomic_numbers: The atomic_numbers of the atoms
+    
+    :param ase_atoms: ASE atoms object
+    :param node_props_dict: A dictionary of node properties. The keys are the property names and the
+    values are the property values. The values should be a list of length equal to the number of atoms
+    in the ase_atoms object
+    :param edge_props_dict: A dictionary of edge properties. The keys are the property names and the
+    values are the property values. The values should be a list of length equal to the number of edges
+    :return: A graph object with nodes and edges.
+    """
+
+    
+    import networkx as nx 
+    import pandas as pd
+    from pymatgen.io.ase import AseAtomsAdaptor 
+    # struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    from pymatgen.analysis.graphs import StructureGraph 
+    from pymatgen.analysis.local_env import CrystalNN
+
+    # if use_crystalNN is False:
+    sgraph = nx.Graph()
+    struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    if not ('covalent_bonds' in ase_atoms.info.keys()):
+        Exception("Bond list not in the ase_atoms.info dictionary.\n Please call 'update_atoms_with_covalent_bonds(ase_atoms)' first. \n Or provide your own bond info under keys 'covalent_bonds' under ase_atoms.info.")
+    else:
+        if node_props_dict is None:
+            print('No node props provided, using default set: [position, scaled_position, element and atomic_number]')
+            node_props_dict = dict(position = ase_atoms.get_positions(), element = ase_atoms.get_chemical_symbols(), scaled_position = ase_atoms.get_scaled_positions(), atomic_number = ase_atoms.get_atomic_numbers())
+        bonds = ase_atoms.info['covalent_bonds']
+        # print(node_props_dict)
+        sgraph.add_nodes_from([tuple((i, {key:value[i] for key, value in node_props_dict.items()})) for i in range(ase_atoms.get_global_number_of_atoms())])
+        if edge_props_dict is None:
+            try:
+                print('No edge properties provided. Use the default set: [bond_order, bond_type]')
+                edge_props_dict = dict(bond_order = ase_atoms.info['covalent_bond_orders'], bond_type=get_bond_types(ase_atoms.info['covalent_bond_orders']))
+            except:
+                print("'covalent_bond_orders' not in ase_atoms.info. Hence no edge_properties added for now.")
+        sgraph.add_edges_from([tuple((bonds[i][0], bonds[i][1], {key:value[i] for key,value in edge_props_dict.items()})) for i in range(len(bonds))])
+    # else :
+    #     print('Making a pymatgen StructureGraph.graph using CrystalNN')
+    #     cnn = CrystalNN(weighted_cn=True, distance_cutoffs=(0.3,0.8), search_cutoff=5)
+    #     sgraph = StructureGraph.with_local_env_strategy(struct, strategy=cnn).graph
+    #     if node_props_dict is None:
+    #             print('No node props provided, using default set: [position, scaled_position, element and atomic_number]')
+    #             node_props_dict = dict(position = ase_atoms.get_positions(), element = ase_atoms.get_chemical_symbols(), scaled_position = ase_atoms.get_scaled_positions(), atomic_number = ase_atoms.get_atomic_numbers())
+    #             bonds = ase_atoms.info['covalent_bonds']
+    #     node_props_dict = {i:{key:value[i] for key, value in node_props_dict.items()} for i in range(ase_atoms.get_global_number_of_atoms())}
+    #     nx.set_node_attributes(sgraph,node_props_dict)
+    #     if edge_props_dict is None:
+    #             try:
+    #                 print('No edge properties provided. Use the default set: [bond_order, bond_type]')
+    #                 edge_props_dict = dict(bond_order = ase_atoms.info['covalent_bond_orders'], bond_type=get_bond_types(ase_atoms.info['covalent_bond_orders']))
+    #             except:
+    #                 print("'covalent_bond_orders' not in ase_atoms.info. Hence no edge_properties added for now.")
+    #                 edge_props_dict = {}
+    #     edge_props_dict = {edge:{key:value[i] for key, value in edge_props_dict.items()} for i, edge in enumerate(list(sgraph.edges()))}
+    #     nx.set_edge_attributes(sgraph, edge_props_dict)
+    return sgraph
+
+def get_bond_types(bond_orders):
+    """
+    It takes a list of bond orders and returns a list of bond types
+    
+    :param bond_orders: a list of bond orders, e.g. [1.0, 2.0, 1.0, 3.0]
+    :return: A pandas series with the bond types
+    """
+    import pandas as pd
+    return  pd.cut(bond_orders, bins=[0,1, 2, 3], labels=['single', 'double', 'triple'])
+
+
+def find_unique_cycles(list_of_cycles, graph):
+    """
+    > The function takes a list of cycles and a graph as input, and returns the indices of the unique
+    cycles in the list, after matching the 'element' of the nodes and the 'bond_order' of the edges
+    
+    The function is a bit long, so let's break it down. 
+    
+    First, we import the necessary libraries.
+    
+    :param list_of_cycles: a list of cycles, each cycle is a list of nodes
+    :param graph: the graph object
+    :return: The indices of the unique cycles in the list of cycles.
+    """
+    import networkx as nx 
+    import networkx.algorithms.isomorphism as isomo
+    sub_graphs = [graph.subgraph(cycle) for cycle in list_of_cycles]
+    import numpy as np
+    import itertools 
+    # [(i.nodes(data='element'), j.nodes(data='element')) for (i,j) in list(itertools.combinations(sub_graphs, r=2))]
+    # from networkx.algorithms import isomorphism as isomo 
+    em = isomo.numerical_edge_match('bond_order', 1)
+    nm = isomo.categorical_node_match('element','None')
+    iso_check = [isomo.is_isomorphic(*g,node_match=nm, edge_match=em) for g in itertools.combinations(sub_graphs, r= 2)]
+    to_delete = np.array(list(itertools.combinations(range(len(sub_graphs)),2)))[iso_check][:,1]
+    return np.delete(list(range(len(sub_graphs))), to_delete.astype(int))

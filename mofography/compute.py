@@ -37,7 +37,7 @@
 
 from numpy import dtype
 
-from mofography.helper import interpolate_labels
+from mofography.helper import find_coord_from_indices, interpolate_labels
 
 
 def gpd_aabb(grid_points, ase_atoms, n_neighbors=10, probe_radius=0.0):
@@ -235,14 +235,20 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     from scipy import ndimage as ndi
     import numpy as np
     import sparse
-    from .helper import interpolate_labels
+    from .helper import interpolate_labels, find_coord_from_indices
     from skimage import segmentation
     from skimage.morphology import extrema
     from skimage.feature import peak_local_max, corner_peaks
+    from sklearn.cluster import AgglomerativeClustering
     # peak_min =2
-    # max_indices = np.where(extrema.h_maxima(dgrid, peak_min))
+    # max_indices = np.array(np.where(extrema.h_maxima(dgrid, **kwargs))).T
     # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
     max_indices = np.array(corner_peaks(dgrid, **kwargs)).T
+    # Finding the local maxima of the corner response function.
+    
+    # ag = AgglomerativeClustering(n_clusters=None, linkage='average', distance_threshold=np.max(np.array(dgrid.shape))/5, compute_full_tree=True).fit(max_indices)
+    # max_indices= np.vstack([max_indices[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1]).astype(int)
+    # print(max_indices)
     markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
 
     probe = mask_thickness

@@ -18,6 +18,13 @@ sys.path.append(path_to_mgr)
 #### Compile a dataset easily from MOFDB
 # Here we are pulling the IZA database asynchronously
 #%%
+import mofography as mgr
+url='https://mof.tech.northwestern.edu/mofs/#.json'
+params={'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1} 
+headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'}
+mgr.get_number_of_pages(url=url, headers=headers, params=params)
+
+#%%
 import mofography as mgr 
 params = dict(vf_min=0.2, vf_max=1, database='IZA')
 df = mgr.get_data_from_mofdb(params=params)
@@ -158,9 +165,9 @@ flow1.visualize(flow_state=state)
 from prefect.engine.executors import DaskExecutor 
 from dask.distributed import LocalCluster, Client
 
-with Client(LocalCluster()) as client:
-    executor = DaskExecutor(address=client.scheduler.address)
-    state = flow1.run(executor=executor)
+client = Client(LocalCluster())
+executor = DaskExecutor(address=client.scheduler.address)
+state = flow1.run(executor=executor)
 #%%
 
 flow1.visualize(flow_state=state)
