@@ -12,6 +12,9 @@
 
 
 
+from grpc import StreamUnaryMultiCallable
+
+
 def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
     """
     It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of
@@ -146,7 +149,7 @@ def find_smiles_in_mofid(mofid, pattern_smiles):
             
 #     return ase_atoms_updated, np.array(bonds), np.array(bond_order)
 
-def voronoi_on_atoms(ase_atoms):
+def voronoi_on_atoms(ase_atoms, points=None):
     """
     It takes an ASE atoms object and returns a freud Voronoi object
     
@@ -157,7 +160,8 @@ def voronoi_on_atoms(ase_atoms):
     from freud.locality import Voronoi
     import numpy as np
     import ase
-    points = ase_atoms.get_positions()
+    if points is None:
+        points = ase_atoms.get_positions()  
     cell = ase.geometry.complete_cell(ase_atoms.get_cell())
     box = Box.from_matrix(cell, dimensions =3)
 
@@ -250,18 +254,31 @@ def update_with_covalent_bonds(ase_atoms, nlist=None):
 
 def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     """
-    > Find all cycles in the graph, then find all cycles that are composed of double bonds, then find
-    all unique cycles, then find all isomorphic cycles. 
+    > The function takes a graph and returns a list of cycles in the graph. 
     
-    The function returns a list of lists, where each list contains the indices of the atoms in the
-    aromatic cycle. 
+    The function is written in Python and uses the [NetworkX](https://networkx.github.io/) library. 
     
-    Let's try it out on our example molecule:
+    The function takes two arguments: 
     
-    :param sgraph: The graph object that you want to find aromatic cycles in
-    :param default_ring_sizes: The ring sizes to consider
-    :return: A list of lists of nodes that are part of aromatic cycles.
+    1. `sgraph`: The graph to be analyzed. 
+    2. `default_ring_sizes`: A list of integers that specify the sizes of rings to be considered. 
+    
+    The function returns a list of cycles in the graph. 
+    
+    The function first finds all the cycles in the graph using the `cycle_basis` function from NetworkX.
+    
+    
+    The function then filters the cycles based on the `default_ring_sizes` argument. 
+    
+    The function then finds the bond types of the edges in the cycles. 
+    
+    The function then finds the unique cycles in the graph using the `find_unique_cycles` function
+    
+    :param sgraph: The graph that you want to find cycles in
+    :param default_ring_sizes: The ring sizes you want to look for
+    :return: A list of lists of nodes that are in the same ring.
     """
+
 
     import networkx as nx 
     import numpy as np 
@@ -279,7 +296,8 @@ def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     # Find unique rings using SMILES
     import pysmiles as ps 
     cycle_graphs = [sgraph.subgraph(cycle) for cycle in chosen_cycles]
-    unique_cycle_indices = np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
+    unique_cycle_indices = find_unique_cycles(chosen_cycles)
+    # unique_cycle_indices = np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
     unique_chosen_cycles = np.array(cycle_graphs)[unique_cycle_indices]
 
     # from itertools import combinations 
@@ -339,50 +357,46 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
 
 def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
     """
-    It takes an ase atoms object and returns a networkx graph object with nodes and edges as atoms and
-    bonds respectively. 
-    
-    The node properties are the atomic properties of the atoms. The edge properties are the bond
-    properties. 
+    It takes an ase atoms object and returns a networkx graph object with the nodes and edges
+    corresponding to the atoms and bonds in the atoms object. 
     
     The function also takes two optional arguments: 
     
-    1. node_props_dict: A dictionary of node properties. The keys are the property names and the values
-    are the property values. 
+    1. node_props_dict: A dictionary of node properties. The keys are the names of the properties and
+    the values are the values of the properties. The values should be a list of the same length as the
+    number of atoms in the atoms object. 
     
-    2. edge_props_dict: A dictionary of edge properties. The keys are the property names and the values
-    are the property values. 
+    2. edge_props_dict: A dictionary of edge properties. The keys are the names of the properties and
+    the values are the values of the properties. The values should be a list of the same length as the
+    number of bonds in the atoms object. 
     
-    If the node_props_dict is not provided, the default set of node properties are: 
+    If the node_props_dict or edge_props_dict are not provided, the function will use the default set of
+    properties. 
     
-    1. position: The cartesian coordinates of the atoms. 
-    
-    2. scaled_position: The fractional coordinates of the atoms. 
-    
-    3. symbol: The chemical symbol of the atoms. 
-    
-    4. atomic_numbers: The atomic_numbers of the atoms
+    The default set of node properties are:
     
     :param ase_atoms: ASE atoms object
     :param node_props_dict: A dictionary of node properties. The keys are the property names and the
     values are the property values. The values should be a list of length equal to the number of atoms
-    in the ase_atoms object
+    in the structure
     :param edge_props_dict: A dictionary of edge properties. The keys are the property names and the
     values are the property values. The values should be a list of length equal to the number of edges
-    :return: A graph object with nodes and edges.
+    in the graph
+    :return: A networkx graph object.
     """
-
-    
+     
     import networkx as nx 
     import pandas as pd
-    from pymatgen.io.ase import AseAtomsAdaptor 
-    # struct = AseAtomsAdaptor.get_structure(ase_atoms)
-    from pymatgen.analysis.graphs import StructureGraph 
-    from pymatgen.analysis.local_env import CrystalNN
+    # from pymatgen.io.ase import AseAtomsAdaptor 
+    # # struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    # from pymatgen.analysis.graphs import StructureGraph 
+    # from pymatgen.analysis.local_env import CrystalNN
 
     # if use_crystalNN is False:
     sgraph = nx.Graph()
-    struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    # struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    # temp = StructureGraph.with_empty_graph(struct)
+    # sgraph.te
     if not ('covalent_bonds' in ase_atoms.info.keys()):
         Exception("Bond list not in the ase_atoms.info dictionary.\n Please call 'update_atoms_with_covalent_bonds(ase_atoms)' first. \n Or provide your own bond info under keys 'covalent_bonds' under ase_atoms.info.")
     else:

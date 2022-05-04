@@ -24,52 +24,31 @@ from mofography.analyze import sgraph_from_atoms
 global white_layout 
 white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75))
 global dark_layout 
-dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), height=800, width=2000, margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
+dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
 
 
 def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
-    """Creates a plolty mesh3D trace of an isosurface of a given value for a given 3D distance/energy grid. The surface can then
-    be colored by the regions or any other property
+    """
+    It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
+    returns a plotly Mesh3D trace object that can be plotted using the plotly library.
+    
+    :param dgrid: the density grid
+    :param isovalue: the value of the isosurface to be plotted
+    :param ase_atoms: ASE atoms object
+    :param region_labels: a 3D array of the same shape as the dgrid. This array contains the region
+    labels for each voxel
+    :param select: the region labels to be plotted. If 'all' is selected, all regions are plotted,
+    defaults to all (optional)
+    :param opacity: opacity of the surface
+    :param cscale: a colorscale for the regions. If None, a random colorscale is generated
+    :param color: color of the surface, defaults to blue (optional)
+    :param stepsize: The step size for the marching cubes algorithm, defaults to 1 (optional)
+    :param stylize: if True, will apply some random style choices, purely personal preference, defaults
+    to False (optional)
+    :param random_seed: int, optional, defaults to 0 (optional)
+    :return: A plotly Mesh3D trace
+    """
 
-    :param dgrid: 3D numpy array of grid values
-    :type dgrid: numpy.array
-    
-    :param isovalue: value at which the isosurface is calculated using marching cubes.
-    :type isovalue: float
-    
-    :param region_labels: 3D nmpy array of region labels or any other coloring function
-    :type region_labels: numpy.array
-    
-    :param ase_atoms: ASE atoms object containing crystallographic information.
-    :type ase_atoms: ase.atoms
-    
-    :param select: regions to select, useful for showing just one or more regions, defaults to 'all'
-    :type select: int or same type as the coloring function, optional
-    
-    :param opacity: opacity of the plotted isosurface, defaults to 1.0
-    :type opacity: float, optional
-    
-    :param cscale: colorscale used to color the plotting surface, defaults to a custom random colorscale everytime you plot
-    :type cscale: 
-        can be None: not used if region_labels are None, plots in constant color specified by the 'color' argument. Color names can be found in plotly docs or see this discussion
-        https://community.plotly.com/t/plotly-colours-list/11730/3
-        can be None: generates a random colorscale dictateby randome_seed argument if region_labels are provided 
-        can be a string: has to one of discrete colorscale names in plotly.express.colors.qualitative, with first letter capitalized, e.g. 'Pastel1', 'Plotly' etc.,
-        can be a list: which has to be one of plotly.express.colors.sequential/continuous/qualitative or a custom color scale as specified by plotly, optional, defaults to .
-    
-    :param color: color of the isosurface used only when colorscale is not specified, defaults to 'blue'
-    :type color: str, optional
-    
-    :param stepsize: whether to use all the grid points for the isosurface or to choose every nth point. Can be used to save visualization load on
-    less capable machines.  , defaults to 1
-    :type stepsize: int, optional
-    
-    :param stylize: secret set of styling options to make your surface look cool, purely personal preference. Refer to plotly
-    documentation for detailed options, defaults to False
-    :type stylize: bool, optiona    
-    
-    :param random_seed: set the random seed to generate the colors for colorscheme if cscale is not specified. Ensures consistency of colors with every execution. defaults to 0
-    :type random_seed: int, optional"""
 
     import numpy as np
     import copy
@@ -629,3 +608,6 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color
         ring_highlight_traces.append(ring_highlight_trace)
 
     return tuple([data_circle] + ring_highlight_traces)
+
+
+
