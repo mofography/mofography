@@ -1,6 +1,7 @@
 #%%
 import sys
 import os
+# from types import _Cell
 import numpy as np 
 
 import plotly.graph_objects as go
@@ -19,41 +20,42 @@ mat_graph = mgr.sgraph_from_atoms(mat_updated)
 
 
 
-# * Test the aromatic detection
-#%%
+#%% #* Compute the grid
 spacing=0.25
 import mofography as mgr
 from ase.data import covalent_radii 
 
 radii = covalent_radii[mat_updated.get_atomic_numbers()] 
 grid = mgr.dgrid_from_atoms(mat_atoms, radii=radii, spacing =spacing, block_size=20000)
-#%%
+#%% #* Compute the region segmentation
 regions, maxima = mgr.regions_from_dgrid(grid.compute(), mask_thickness=0.1, exclude_border=False, min_distance=int(0.5/spacing), threshold_abs=0.5, p_norm=2)
 #%%
 
-#%%
+#%% #* Find the windows and connected regions including the windows on the walls
 connections = mgr.connections_from_regions(region_labels=regions, maxima=maxima, ase_atoms=mat_updated, distance_threshold=1)
 pgraph = mgr.graph_from_connections(connections)
-#%%
+#%% #* Detect the bonds in the framework for plotting
 bonds = mat_updated.info['covalent_bonds']
 bond_orders = mat_updated.info['covalent_bond_orders']
-#%%
+#%% #* Extract the window coordinates from the previus output, create labels for the 
+#* cages and windows based on the cage sizes; tiny, small and big (1.44, 3.9, 6.2 )
+import pandas as pd
 windows = np.vstack([c[3] for c in connections if c[1]]) # pick out the window coordinates from connections
 cage_radii = grid.compute()[tuple(maxima.T)]
-import pandas as pd
 cage_labels = pd.cut(cage_radii, bins=[0,2,4,7], labels = [ 'tiny','small', 'big'])
 connected_cage_labels = [cage_labels[c[0]-1] for c in connections if c[1]]
 window_labels2 = np.array(['-'.join((c[0],c[1])) for c in connected_cage_labels])
 window_labels1 = np.array(['-'.join((str(c[0][0]),str(c[0][1]))) for c in connections if c[1]])
 window_labels3 = np.array([c[2] for c in connections if c[1]])
 window_labels = [w1+"<br>"+w2+'<br>'+w3 for w1,w2,w3 in zip(window_labels1, window_labels2, window_labels3)]
-#%%
+#%% #* read teh cation coordinates
 cations = mgr.read_raspa_pdb('./Movie_LTA96_1.1.1_298.150000_0.000000_component_K_0.pdb')
-#%%
+#%% #* Create an linear interpolator for the regions for assigning arbitrary points (indices) to regions
 interpolator = mgr.interpolate_labels(regions)
 # for config in cations['coords']:
 #     interpolator(mgr.get_fractional_coordinates(config, mat_atoms))
 # %%
+# * Assign ion to cage
 def get_cage_for_ions(coords, cage_labels, interpolator, ase_atoms):
     """
     > For each ion in the `coords` array, find the cage label at the fractional coordinates of the ion
@@ -76,7 +78,7 @@ def get_cage_for_ions(coords, cage_labels, interpolator, ase_atoms):
             print(np.min(coord))
             pass
     return np.vstack(output_labels)
-#%%
+#%% #* Plot everything with or without PBC
 index = 500
 ion_region_labels = [str(x) for x in interpolator(mgr.get_fractional_coordinates(cations['coords'][index], ase_atoms=mat_atoms)).astype(int)]
 import sparse
@@ -87,10 +89,10 @@ fig = go.Figure(data= [
                 # mgr.plot_surface_dgrid(grid.compute(), isovalue=1.0, opacity=0.5,stepsize=1, region_labels = mgr.apply_pbc3(regions,maxima), select=[22,23,25,26,34],ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
                 # mgr.plot_surface_dgrid(grid.compute(), isovalue=1.0, opacity=1,stepsize=1, region_labels = mgr.apply_pbc3(regions, maxima), select=np.delete(np.unique(regions),[22,23,25,26,34]),ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
                 mgr.plot_cell(mat_updated),
-                mgr.scatter3d(mgr.find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=mat_updated), name='local maxima',marker_color = grid.compute()[tuple(maxima.T)], hovertext= [i+' '+j for i,j in zip(cage_labels, list(map(str, np.round(grid.compute()[tuple(maxima.T)],decimals=2))))] ),
-                mgr.scatter3d(windows, name='windows',marker_color = 'yellowgreen', marker_size=20, opacity=0.5, hovertext=window_labels),
+                mgr.scatter3d(mgr.find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=mat_updated), name='local maxima',marker_color = grid.compute()[tuple(maxima.T)], marker_size=15, hovertext= [i+' '+j for i,j in zip(cage_labels, list(map(str, np.round(grid.compute()[tuple(maxima.T)],decimals=2))))] ),
+                mgr.scatter3d(windows, name='windows',marker_color = 'yellowgreen', marker_size=10, opacity=0.5, hovertext=window_labels),
                 # mgr.scatter3d(wall_window_coordinates, name='wall_windows',marker_color = 'cyan', marker_size=24, opacity=0.75),
-                mgr.scatter3d(cations['coords'][index], name='ions', marker_color =  interpolator(mgr.get_fractional_coordinates(cations['coords'][index], ase_atoms=mat_atoms)).astype(int), marker_size=15, opacity=1, hovertext= ion_region_labels),
+                mgr.scatter3d(cations['coords'][index], name='ions', marker_color =  interpolator(mgr.get_fractional_coordinates(cations['coords'][index], ase_atoms=mat_atoms)).astype(int), marker_size=20, opacity=1, hovertext= ion_region_labels),
                 *mgr.draw_framework2(mat_updated, bonds=bonds, bond_orders=bond_orders, show_aromatics=False, bond_color='grey', bond_opacity=0.5)
                 ], layout= mgr.dark_layout)
 fig.write_html('lta.html')
@@ -98,7 +100,7 @@ fig.write_html('lta.html')
 # hist, bins = np.histogram(grid.compute()[tuple(maxima.T)], bins=100)
 # binC = (bins[1:] + bins[:-1])/2
 # go.Figure(data = [go.Scatter(x=binC, y=hist, mode='lines', name='dhist')], layout=mgr.white_layout)
-# %%
+# %% #* Assign ion to the nearest window
 def nearest_window_and_distance(coords, ase_atoms, windows, window_labels=None, cut_off=1.0, n_neighbors=4):
     """
     > For each ion, find the nearest window and assign the ion to that window if the distance is less
@@ -119,11 +121,20 @@ def nearest_window_and_distance(coords, ase_atoms, windows, window_labels=None, 
     distances = nls.distances.reshape(-1, n_neighbors)
     if window_labels is None:
         window_labels = list(range(len(windows)))   
-    return np.vstack([[window_labels[i], d] for i,d in zip(point_indices[:,0], distances[:,0]) ]).astype('object')
+    return np.vstack([[window_labels[i], d] if d <= cut_off else ['not_close_enough', d] for i,d in zip(point_indices[:,0], distances[:,0]) ]).astype('object')
+
+#%% #* Label the ions to the nearest window (not_close_enough for ions that are too far)
+labeled_ions =nearest_window_and_distance(np.vstack(cations['coords']), ase_atoms=mat_atoms, windows=windows, window_labels=window_labels, cut_off=1.5)
+
 
 #%%
-labeled_ions =nearest_window_and_distance(np.vstack(cations['coords']), ase_atoms=mat_atoms, windows=windows, window_labels=window_labels, cut_off=1.5)
-#%%
-from ase.io import read, write
-write('./mat_atoms.cube',images=mat_atoms, data=grid)
+#* Print out the important ion fractions
+print('Fraction too far from windows: {0}'.format(np.mean(np.mean(labeled_ions[:,0]=='not_close_enough'))))
+#* Fraction of ions near the big-big windows
+print('Fraction near big-big windows: {0}'.format(np.mean([('big-big' in l) for l in labeled_ions[:,0]])))
+print('Fraction near small-big windows: {0}'.format(np.mean([np.logical_or('small-big' in l, 'big-small' in l) for l in labeled_ions[:,0]])))
+print('Fraction near small-tiny windows: {0}'.format(np.mean([np.logical_or('small-tiny' in l, 'tiny-small' in l) for l in labeled_ions[:,0]])))
+print('Fraction near big-tiny windows: {0}'.format(np.mean([np.logical_or('big-tiny' in l, 'tiny-big' in l) for l in labeled_ions[:,0]])))
+# np.mean([('big-big' in l) for l in labeled_ions[:,0]])
+
 # %% 
