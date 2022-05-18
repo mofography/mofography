@@ -35,9 +35,10 @@
 #     return quote
 
 
-from numpy import dtype
 
-from mofography.helper import find_coord_from_indices, interpolate_labels
+
+
+from mofography.helper import interpolate_labels
 
 
 def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
@@ -244,24 +245,35 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     from skimage.feature import peak_local_max, corner_peaks
     from sklearn.cluster import AgglomerativeClustering
     # peak_min =2
-    # max_indices = np.array(np.where(extrema.h_maxima(dgrid, **kwargs))).T
+    # max_indices = np.vstack(np.where(extrema.h_maxima(dgrid, h=0.5)))
+    # max_indices = np.vstack(np.where(extrema.local_maxima(dgrid)))
     # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
-    max_indices = np.array(corner_peaks(dgrid, **kwargs)).T
+    # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
     # Finding the local maxima of the corner response function.
     
     # ag = AgglomerativeClustering(n_clusters=None, linkage='average', distance_threshold=np.max(np.array(dgrid.shape))/5, compute_full_tree=True).fit(max_indices)
     # max_indices= np.vstack([max_indices[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1]).astype(int)
     # print(max_indices)
+    # markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
+
+    probe = mask_thickness
+    import dask.array as da
+    # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
+    # max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, **kwargs)).T
+    max_indices = np.array(peak_local_max(dgrid,  **kwargs)).T
     markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
 
     probe = mask_thickness
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
+    #* Now interpolate the region labels and sort the maxima in the correct order    
     ir = interpolate_labels(reg_labels)
     max_indices = (max_indices.T[np.argsort(ir(max_indices.T/dgrid.shape))]).T
     return reg_labels, max_indices.T
 
-def connections_from_regions(region_labels, maxima, ase_atoms, wall_windows=True, distance_threshold=1.0):
+def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
 
     """
     It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
@@ -281,14 +293,12 @@ def connections_from_regions(region_labels, maxima, ase_atoms, wall_windows=True
     from skimage.segmentation import find_boundaries
     import numpy as np
     import itertools
-    from tqdm import tqdm
-    from ase.io import read
     import ase
     # from sklearn.cluster import DBSCAN 
     # from sklearn.preprocessing import StandardScaler
     from icecream import ic
     from sklearn.cluster import AgglomerativeClustering
-    from .helper import interpolate_labels
+    from .helper import interpolate_labels, get_fractional_coordinates
     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
     
     def check_connected(regs):
@@ -311,76 +321,113 @@ def connections_from_regions(region_labels, maxima, ase_atoms, wall_windows=True
             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
             
             # * Agglomerative
-            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=distance_threshold, compute_full_tree=True).fit(window_points)
+            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
             window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
-
-            return np.array([regs, True,'internal', window_centers], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
+            window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
+            window_radii = np.array(dinterp(window_fractional))
+            return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
         else:
-            return np.array([regs, False,'internal', None], dtype='object')
+            return np.array([regs, False,'internal', None, None], dtype='object')
     
-
+    dinterp = interpolate_labels(dgrid)
     # * Find the outer boundary of each individual region
-    outer = np.stack([find_boundaries(region_labels == reg, mode='outer') for reg in range(1, np.max(region_labels) + 1)])
+    regions_to_check = np.delete(np.unique(region_labels),0)
+    outer = np.stack([find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check])
     
     # * Check for connectedness between regions
-    check_list = np.vstack(list(itertools.combinations(range(1, np.max(region_labels) + 1), 2))) # list of pairs of region labels
+    check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
     connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
     # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
     
     #* Windows on the wall are to be calculated
     if wall_windows:
-        connections_list.append(get_wall_windows(region_labels, maxima, ase_atoms))
+        wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
+        if len(wwl)>0:
+            connections_list.append(wwl)
     return np.vstack(connections_list)
     # return np.vstack([c for c in np.vstack(connections_list) if c[1]])# for only the true connections use connections_list[:,[0,2]][np.where(connections_list[:,1]==True)] #np.vstack(check_list[np.where(flag_list[:, 0])]), np.round(np.vstack(flag_list[:, 1][np.where(flag_list[:, 0])]), decimals=2))
 
-def get_wall_windows(regions, maxima, ase_atoms):
-    """
-    > It finds the windows in the walls of the simulation box, and returns the indices of the regions
-    that are in the window
+# def get_wall_windows(regions, maxima, ase_atoms):
+#     """
+#     > It finds the windows in the walls of the simulation box, and returns the indices of the regions
+#     that are in the window
     
-    :param regions: the regions array
-    :param maxima: the maxima of the regions
-    :param ase_atoms: ASE atoms object
+#     :param regions: the regions array
+#     :param maxima: the maxima of the regions
+#     :param ase_atoms: ASE atoms object
+#     """
+#     import numpy as np
+#     from .helper import find_coord_from_indices
+#     wall_windows = []
+#     shape =regions.shape
+#     for a in [0,1,2]:
+        
+#         llr = regions.take(indices=0 ,axis=a) #* left wall
+#         rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
+
+#         ll = [l for l in np.delete(np.unique(llr),0) if maxima[l-1][a]!=0] #* unique regions in left wall whose maxima are not on the wall
+#         rr = [ r for r in np.delete(np.unique(rrr),0) if maxima[r-1][a]!=shape[a]-1]#* unique regions in the right wall whose maxima are not on the wall
+#         left_right_map = np.vectorize(dict(zip(llr.flatten(), rrr.flatten())).get)
+#         right_left_map = np.vectorize(dict(zip(rrr.flatten(), llr.flatten())).get)
+#         ll_2 = [l for l in ll if maxima[left_right_map(l)-1][a]!=shape[a]-1]
+#         rr_2 = [r for r in rr if maxima[right_left_map(r)-1][a]!=0]
+        
+#         if len(ll_2)>0:
+#             #* Mean of the indices of each windowed region in the left nad right wall, only if the opposite wall maxima is not on the wall
+#             wls = np.vstack([np.vstack(np.where(llr==l)).mean(axis=1) for l in ll_2 ])
+#             #* Add the third index value, in the correct position, 0 for left wall, shape[axis] - 1 for the right wall
+#             wls = np.insert(wls,[a], np.zeros((len(wls),1)), axis=1)
+#             wls = find_coord_from_indices(wls, shape=shape, ase_atoms=ase_atoms)
+#             # * use the map to come up with the correct touching regions
+#             ll_p =  left_right_map(ll_2) #[np.unique(rrr[np.where(llr==l)])[0] for l in ll ]
+#             left_windows  = [[np.array([r1, r2]), True,'periodic', np.array(wc).reshape(-1,3)] for r1, r2,wc in zip(ll, ll_p, wls)]
+#             wall_windows.append(left_windows) 
+    
+#         if len(rr_2)>0:    
+#             wrs = np.vstack([np.vstack(np.where(rrr==r)).mean(axis=1) for r in rr_2 ])
+#             wrs = np.insert(wrs,[a], (shape[a]-1)*np.ones((len(wrs),1)), axis=1)
+#             wrs = find_coord_from_indices(wrs, shape=shape, ase_atoms=ase_atoms)
+#             rr_p = right_left_map(rr_2) # [np.unique(llr[np.where(rrr==r)])[0] for r in rr ]
+#             right_windows = [[np.array([r1, r2]), True,'periodic', np.array(wc).reshape(-1,3)] for r1, r2,wc in zip(rr, rr_p, wrs)]
+#             #* Append the newly found window indices
+#             wall_windows.append(right_windows)
+    
+#     if len(wall_windows)>0:
+#         wall_windows =  np.vstack(wall_windows)
+#     return wall_windows
+
+
+
+
+
+def get_periodic_map(regions, maxima, maxima_radii, **kwargs):
+    """
+    It takes a list of regions and a list of maxima and returns a dictionary that maps each region to
+    its periodic image
+    
+    :param regions: a 3D array of integers, where each integer represents a region
+    :param maxima: the maximum value of each dimension of the grid
+    :return: A dictionary with the keys being the regions and the values being the periodic regions.
+    """
+    # r1 = apply_pbc(regions, maxima, **kwargs)
+    return dict(zip(regions.flatten(), apply_pbc(regions, maxima, maxima_radii, **kwargs).flatten()))
+
+
+def apply_periodic_map(input_array, periodic_map):
+    """
+    It takes an array of integers and a dictionary that maps integers to integers, and returns an array
+    of integers that is the result of applying the dictionary to the input array
+    
+    :param input_array: a numpy array of integers
+    :param periodic_map: a dictionary that maps the input values to the output values
+    :return: the value of the key in the dictionary.
     """
     import numpy as np
-    from .helper import find_coord_from_indices
-    wall_windows = []
-    shape =regions.shape
-    for a in [0,1,2]:
-        
-        llr = regions.take(indices=0 ,axis=a) #* left wall
-        rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
-
-        ll = [l for l in np.delete(np.unique(llr),0) if maxima[l-1][a]!=0] #* unique regions in left wall whose maxima are not on the wall
-        rr = [ r for r in np.delete(np.unique(rrr),0) if maxima[r-1][a]!=shape[a]-1]#* unique regions in the right wall whose maxima are not on the wall
-
-        #* Mean of the indices of each windowed region in the left nad right wall
-        wls = np.vstack([np.vstack(np.where(llr==l)).mean(axis=1) for l in ll ])
-        wrs = np.vstack([np.vstack(np.where(rrr==r)).mean(axis=1) for r in rr ])
-        
-        #* Add the third index, in the correct position, 0 for left wall, shape[axis] - 1 for the right wall
-        wls = np.insert(wls,[a], np.zeros((len(wls),1)), axis=1)
-        wrs = np.insert(wrs,[a], (shape[a]-1)*np.ones((len(wrs),1)), axis=1)
-        
-        wls = find_coord_from_indices(wls, shape=shape, ase_atoms=ase_atoms)
-        wrs = find_coord_from_indices(wrs, shape=shape, ase_atoms=ase_atoms)
-
-        #* make a list of region numbers corresponding to each side
-        #* under the dangerous assumption that the walls are symmetric looking 
-        #* when it comes to non background patches
-        ll_p = [np.unique(rrr[np.where(llr==l)])[0] for l in ll ]
-        rr_p = [np.unique(llr[np.where(rrr==r)])[0] for r in rr ]
-
-        left_windows  = [[np.array([r1, r2]), True,'periodic', wc] for r1, r2,wc in zip(ll, ll_p, wls)]
-        right_windows = [[np.array([r1, r2]), True,'periodic', wc] for r1, r2,wc in zip(rr, rr_p, wrs)]
-
-        #* Append the newly found window indices
-        wall_windows.append(left_windows) 
-        wall_windows.append(right_windows)
-    wall_windows =  np.vstack(wall_windows)
-    return wall_windows
-
-def graph_from_connections(connections):
+    return np.vectorize(periodic_map.get)(input_array)
+# if __name__ == "__main__":
+#     # Do something if this file is invoked on its own
+#     print(canvas())
+def graph_from_connections(connections, only_use_internal=True):
     
     """ Create a basic networkx graph (with no properties annotated) from the array of connections
     :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
@@ -395,14 +442,15 @@ def graph_from_connections(connections):
     import numpy as np
     G = nx.Graph()
     number_of_regions = np.max([c[0] for c  in connections])
-    G.add_nodes_from(list(range(1, number_of_regions)))
-    G.add_edges_from([c[0] for c in connections if c[1]])
+    print(number_of_regions)
+    G.add_nodes_from(range(1, number_of_regions+1)) 
+    if only_use_internal:# range stops one short
+        G.add_edges_from([c[0] for c in connections if np.logical_and(c[1], c[2] =='internal')])
+    else:
+        G.add_edges_from([c[0] for c in connections if c[1]])
 
     return G
 
-# if __name__ == "__main__":
-#     # Do something if this file is invoked on its own
-#     print(canvas())
 def add_props_to_graph(G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None):
     import numpy as np
     import networkx as nx 
@@ -442,87 +490,136 @@ def AABB_on_atoms(ase_atoms, points=None):
     # Perform the nearest neighbor query with n-neighbors (10 by default)
         
     return ab
+def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 
-def apply_pbc3(region_labels,maxima):
-        """
-        It takes a 3D array of labels and a list of local maxima and returns a new array of labels where the
-        labels of the local maxima which fall on the edges of the array are replaced by the labels of the
-        corresponding local maxima on the opposite edge
+    import numpy as np
+    from icecream import ic
+    from .helper import find_coord_from_indices, interpolate_labels
+    wall_windows = []
+    shape =regions.shape
+    dinterp = interpolate_labels(dgrid)
+    for a in [0,1,2]:
+        ic.enable()
+        ic(a)
+        llr = regions.take(indices=0 ,axis=a) #* left wall
+        rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
+
+        map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())), axis=0)
+        map_list = np.vstack([m for m in map_list if np.all(m!=0)])
+        flags = np.vstack([[maxima[k - 1][a]>wall_thickness, maxima[v-1][a]<(shape[a]-wall_thickness)] for k,v in map_list])    
+        flags = np.logical_and(flags[:,0],flags[:,1])
+        # window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1) for i,m in enumerate(map_list) if flags[i]]
+        wregs_l  = [(np.array([m[0], m[1]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
+        wregs_r  = [(np.array([m[1], m[0]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
+        window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1).T for i, m in enumerate(map_list) if flags[i]]
+        ic(window_indices)
+        if np.any(flags):
+            window_indices_l = np.insert(np.vstack(window_indices), [a], np.zeros((len(window_indices),1)), axis=1  )
+            window_indices_r = np.insert(np.vstack(window_indices), [a], (shape[a] -1)*np.ones((len(window_indices),1)), axis=1 )
+            window_radii_l = np.vstack(dinterp(window_indices_l/regions.shape))
+            window_radii_r = np.vstack(dinterp(window_indices_r/regions.shape))
+            window_coords_l = find_coord_from_indices(window_indices_l, shape=shape, ase_atoms=ase_atoms)
+            window_coords_r = find_coord_from_indices(window_indices_r, shape=shape, ase_atoms=ase_atoms)
+            ic(window_coords_l)
+            ic(window_coords_r)
+            window_rows_l = np.vstack([[*w, np.array([ window_coords_l[i] ]), window_radii_l[i]] for i,w in enumerate(wregs_l)])
+            window_rows_r = np.vstack([[*w, np.array([ window_coords_r[i] ]), window_radii_r[i]] for i,w in enumerate(wregs_r)])
+            wall_windows.append(window_rows_l) 
+            wall_windows.append(window_rows_r) 
+            
+    if len(wall_windows)>0:
+        wall_windows =  np.vstack(wall_windows)
+    return wall_windows
+
+def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2):
+
+    import copy
+    # a = 0 
+    import numpy as np
+    from icecream import ic
+    ic.disable()
+    regions_pbc = copy.deepcopy(regions)
+    shape = regions.shape
+    import networkx as nx
+    g1= nx.Graph()
+    g1.add_nodes_from(range(len(np.unique(regions))))
+
+    for a in [0,1,2]:
         
-        :param region_labels: a 3D array of integers, where each integer is a label for a region
-        :param maxima: a list of the coordinates of the local maxima
-        :return: the region_labels_pbc.
-        """
+        ic(a)
+        llr = regions_pbc.take(indices=0 ,axis=a) #* left wall
+        rrr = regions_pbc.take(indices=shape[a]-1 ,axis=a)  #* right wall
 
-        import numpy as np
-        import copy
-        import sparse
-        localmaxi= sparse.COO(maxima.T, 1, shape=region_labels.shape).todense()
+        # ic(dict(zip(llr.flatten(), rrr.flatten())))
+        # ic(dict(zip(rrr.flatten(),llr.flatten())))
+        # dlist = [dict(sorted(zip(llr.flatten(), rrr.flatten()))),dict(sorted(zip(rrr.flatten(),llr.flatten())))]
 
-        def edge_mask(x):
-            import numpy as np
-            mask = np.ones(x.shape, dtype=bool)
-            mask[x.ndim * (slice(1, -1),)] = False
-            return mask
+        #* Check left vs right wall
+        # map_dict = dlist[0]
+        # map_dict.pop(0)
+        # ic(map_dict)
 
-        wallmaxi = np.vstack(
-            np.where(np.logical_and(edge_mask(region_labels), localmaxi))).T  # Maimxa which fall on the wall.
-        # keep_these = region_labels[np.where(np.logical_and(edge_mask(region_labels), localmaxi))] # We wanna keep these labels
 
-        region_labels_pbc = copy.deepcopy(region_labels)
+        map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
+        ic(map_list)
+        reg_numbers = np.vstack([(k, v) for k,v in map_list])
+        flags = np.vstack([[maxima[k-1][a]<wall_thickness, maxima[v-1][a]>(shape[a]-wall_thickness)] for k,v in map_list])
+        # flags = np.logical_or(flags[:,0],flags[:,1,])
+        # flags = np.logical_or(flllags[:,0],flags[:,1,])
+        flags1 = np.logical_and(flags[:,0], flags[:,1])
+        flags2 = np.logical_xor(flags[:,0], flags[:,1])
+        reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
+        flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))][0] if flags2[i] else False for i,f in enumerate(flags)])
+        # flags3 = np.vstack([ True if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
+        # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
+        
+        ic(flags)
+        flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
+        ic(flags1)    
+        ic(flags2)    
+        ic(flags3)    
+        ic(flags)       # flags = [True if flags1[i] else True if np.logical_and(flags2[i], flags3[i] ) else False for i,f in enumerate(flags)]
+        g1.add_edges_from(reg_numbers[np.where(flags)])
+        # ic(flags) 
 
-        # * Round the localmaxi which are only slightly inside the box
-        rounded_wallmaxi = np.round(wallmaxi / region_labels.shape, decimals=1)
+        # map_dict = dlist[1]
+        # map_dict.pop(0)
+        # ic(map_dict)
+        # reg_numbers = np.vstack([(k, v) for k,v in map_dict.items()])
+        # flags = np.vstack([[maxima[v-1][a]<wall_thickness, maxima[k-1][a]>(shape[a]-wall_thickness)] for k,v in map_dict.items()])
+        # # flags = np.logical_or(flags[:,0],flags[:,1,])
+        # ic(flags)
+        # flags1 = np.logical_and(flags[:,0], flags[:,1])
+        # flags2 = np.logical_xor(flags[:,0], flags[:,1])
+        # reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
+        # flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))] if flags2[i] else False for i,f in enumerate(flags)])
+        # # flags3 = np.vstack([maxima_radii[r[f]-1] < maxima_radii[r[np.invert(f)]-1] if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
+        # # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
+        
+        # flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
+        # g1.add_edges_from(reg_numbers[np.where(flags)])
 
-        near_walls = np.where(rounded_wallmaxi) == 0  # * Roll backward for this one
-        far_walls = np.where(rounded_wallmaxi) == 1  # * Roll forward for this one
+        # ic(flags1)    
+        # ic(flags2)    
+        # ic(flags3)    
+        # ic(flags)    
+    conn = nx.connected_components(g1)
+    # ic(list(conn))
+    # ic(list(G.edges()))
+    # ic([c for c in list(conn)])
+    for i,c in enumerate(conn):
+        for r in c:
+            regions_pbc[np.where(regions==r)] = i
+            ic('replace {0} with {1}'.format(r, i))
 
-        # * points of the wall
-        lw = rounded_wallmaxi[:, 0] == 0
-        rw = rounded_wallmaxi[:, 0] == 1
-        bw = rounded_wallmaxi[:, 2] == 0
-        tw = rounded_wallmaxi[:, 2] == 1
-        hw = rounded_wallmaxi[:, 1] == 0
-        fw = rounded_wallmaxi[:, 1] == 1
-        # print(rounded_wallmaxi)
-        # print(wallmaxi[bw])
-        # * Lists for each of the walls
-        # lw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[region_labels.shape[0]-1, 0, 0])]] for i in range(len(wallmaxi)) if lw[i]] # left wall replace with right wall
-        # rw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[-region_labels.shape[0]+1, 0, 0])]] for i in range(len(wallmaxi)) if rw[i]] # right wall replace with left wall
-        # bw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[0, 0, region_labels.shape[2]-1])]] for i in range(len(wallmaxi)) if bw[i]] # bottom wall replace with top wall
-        # tw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[0, 0, -region_labels.shape[2]+1])]] for i in range(len(wallmaxi)) if tw[i]] # top wall replace with bottom wall
-        # hw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[0, region_labels.shape[1]-1, 0])]] for i in range(len(wallmaxi)) if hw[i]] # hind wall replace with front wall
-        # fw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple(wallmaxi[i] +[0, -region_labels.shape[1]+1, 0])]] for i in range(len(wallmaxi)) if fw[i]] # front wall replace iwth hind wall
+    # if reindex:
+    #     # * Re-index the regions so that it runs from zero to N-regions.
+    #     old_labels = np.unique(regions_pbc)  # This is sorted already
+    #     number_of_regions = len(old_labels)
+    #     new_labels = range(number_of_regions)
 
-        lw_list = [[region_labels[tuple(wallmaxi[i])],
-                    region_labels[tuple([region_labels.shape[0] - 1, wallmaxi[i][1], wallmaxi[i][2]])]] for i in
-                    range(len(wallmaxi)) if lw[i]]  # left wall replace with right wall
-        rw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple([0, wallmaxi[i][1], wallmaxi[i][2]])]] for i in
-                    range(len(wallmaxi)) if rw[i]]  # right wall replace with left wall
-        bw_list = [[region_labels[tuple(wallmaxi[i])],
-                    region_labels[tuple([wallmaxi[i][0], wallmaxi[i][1], region_labels.shape[2] - 1])]] for i in
-                    range(len(wallmaxi)) if bw[i]]  # bottom wall replace with top wall
-        tw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple([wallmaxi[i][0], wallmaxi[i][1], 0])]] for i in
-                    range(len(wallmaxi)) if tw[i]]  # top wall replace with bottom wall
-        hw_list = [[region_labels[tuple(wallmaxi[i])],
-                    region_labels[tuple([wallmaxi[i][0], region_labels.shape[1] - 1, wallmaxi[i][2]])]] for i in
-                    range(len(wallmaxi)) if hw[i]]  # hind wall replace with front wall
-        fw_list = [[region_labels[tuple(wallmaxi[i])], region_labels[tuple([wallmaxi[i][0], 0, wallmaxi[i][2]])]] for i in
-                    range(len(wallmaxi)) if fw[i]]  # front wall replace iwth hind wall
-        list_lengths = [len(lw_list), len(rw_list), len(bw_list), len(tw_list), len(hw_list), len(fw_list)]
-        # if np.count_nonzero(list_lengths) > 0:
-        merge_list = np.vstack([l for l in [lw_list, rw_list, bw_list, tw_list, hw_list, fw_list] if len(l) != 0])
-        for m in merge_list:
-            if np.sum(region_labels_pbc == m[1]) > 0:
-                region_labels_pbc[region_labels_pbc == m[1]] = m[0]
-
-        # * Re-index the regions so that it runs from zero to N-regions.
-        old_labels = np.unique(region_labels_pbc)  # This is sorted already
-        number_of_regions = len(old_labels)
-        new_labels = range(number_of_regions)
-
-        # * Replace the old-labels with new
-        for i in range(number_of_regions):
-            region_labels_pbc[region_labels_pbc == old_labels[i]] = new_labels[i]
-        return region_labels_pbc
+    #     # * Replace the old-labels with new
+    #     for i in range(number_of_regions):
+    #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
+    return regions_pbc
 
