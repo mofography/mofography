@@ -25,6 +25,8 @@ global white_layout
 white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75))
 global dark_layout 
 dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
+global epic_layout
+epic_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1, bgcolor='white', font=dict(color='black')), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 
 def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
@@ -334,13 +336,15 @@ def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', 
         import plotly.graph_objects as go 
         return go.Scatter3d(x=X[:,0], y=X[:,1], z=X[:,2], mode=mode, marker =dict(color=marker_color, size=marker_size, symbol=marker_symbol, line=dict(color=marker_line_color, width=marker_line_width)), name=name, line=dict(color=line_color, width=line_width), text=None, hovertext=hovertext, **kwargs)
 
-def plot_graph(G):
+def plot_pore_graph(G):
 
 
     import networkx as nx 
     import plotly.graph_objects as go 
     import numpy as np
     coords = [n[1]['node_coords'] for n in G.nodes(data=True)]
+    coords = np.vstack(coords)
+    # print(coords)
     edges_list = [] 
     for edge in list(G.edges()):
         edges_list.append(G.nodes(data=True)[edge[0]]['node_coords'])
