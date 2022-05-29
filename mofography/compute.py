@@ -255,9 +255,10 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     # max_indices= np.vstack([max_indices[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1]).astype(int)
     # print(max_indices)
     # markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
-
+    from icecream import ic 
     probe = mask_thickness
     import dask.array as da
+    import warnings
     # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
 
     # max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, **kwargs)).T
@@ -268,10 +269,32 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
 
+
+    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
+    if len(new_max_indices.T) < len(max_indices.T):
+        warnings.warn('Some maxima excluded as they fell inside the mask_thickness')
+    
+    markers_sparse = sparse.COO(new_max_indices, 1, shape=dgrid.shape)
+
+    probe = mask_thickness
+    import dask.array as da
+    reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
     #* Now interpolate the region labels and sort the maxima in the correct order    
-    ir = interpolate_labels(reg_labels)
-    max_indices = (max_indices.T[np.argsort(ir(max_indices.T/dgrid.shape))]).T
-    return reg_labels, max_indices.T
+    sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
+    new_max_indices = (new_max_indices.T[sort_index]).T
+    # ir = interpolate_labels(reg_labels)
+    # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
+    
+    # # new_max_indices = []
+    # old_labels = np.unique(reg_labels)  # This is sorted already
+    # number_of_regions = len(old_labels)
+    # new_labels = range(number_of_regions)
+
+    # # * Replace the old-labels with new
+    # for i in range(number_of_regions):
+    #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
+    return reg_labels, new_max_indices.T
 
 def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
 
@@ -300,13 +323,15 @@ def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_wi
     from sklearn.cluster import AgglomerativeClustering
     from .helper import interpolate_labels, get_fractional_coordinates
     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
-    
+    from icecream import ic
     def check_connected(regs):
         import numpy as np
         i = regs[0]
         j = regs[1]
+        ic.disable()
+        ic(regs)
     
-        check_flag = np.logical_or(np.logical_and(region_labels == i, outer[j - 1]), np.logical_and(region_labels == j, outer[i - 1]))
+        check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
         if np.sum(check_flag) > 0:
             # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
             windices = np.vstack(np.where(check_flag)).T  # * (N,3)
@@ -320,9 +345,12 @@ def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_wi
             # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
             
+            # if len(window_points) >1:
             # * Agglomerative
             ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
             window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
+        # else:
+            # window_centers = window_points
             window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
             window_radii = np.array(dinterp(window_fractional))
             return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
@@ -332,8 +360,9 @@ def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_wi
     dinterp = interpolate_labels(dgrid)
     # * Find the outer boundary of each individual region
     regions_to_check = np.delete(np.unique(region_labels),0)
-    outer = np.stack([find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check])
-    
+    ic(regions_to_check)
+    outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
+    ic(len(outer))
     # * Check for connectedness between regions
     check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
     connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
@@ -427,7 +456,7 @@ def apply_periodic_map(input_array, periodic_map):
 # if __name__ == "__main__":
 #     # Do something if this file is invoked on its own
 #     print(canvas())
-def graph_from_connections(connections, only_use_internal=True):
+def graph_from_connections(connections, maxima, only_use_internal=True):
     
     """ Create a basic networkx graph (with no properties annotated) from the array of connections
     :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
@@ -441,9 +470,10 @@ def graph_from_connections(connections, only_use_internal=True):
     import networkx as nx 
     import numpy as np
     G = nx.Graph()
-    number_of_regions = np.max([c[0] for c  in connections])
-    print(number_of_regions)
-    G.add_nodes_from(range(1, number_of_regions+1)) 
+    # number_of_regions = np.max([c[0] for c  in connections])
+    number_of_nodes = len(maxima) #np.max([c[0] for c  in connections])
+    # print(number_of_nodes)
+    G.add_nodes_from(range(1, number_of_nodes+1)) 
     if only_use_internal:# range stops one short
         G.add_edges_from([c[0] for c in connections if np.logical_and(c[1], c[2] =='internal')])
     else:
@@ -499,7 +529,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
     shape =regions.shape
     dinterp = interpolate_labels(dgrid)
     for a in [0,1,2]:
-        ic.enable()
+        ic.disable()
         ic(a)
         llr = regions.take(indices=0 ,axis=a) #* left wall
         rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
