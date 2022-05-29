@@ -26,7 +26,7 @@ white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=Fal
 global dark_layout 
 dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
 global epic_layout
-epic_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1, bgcolor='white', font=dict(color='black')), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+epic_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=0.5, font=dict(size=10),bgcolor='rgba(0,0,0,0)'), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 
 def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
@@ -613,5 +613,137 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color
 
     return tuple([data_circle] + ring_highlight_traces)
 
+#* Functions for ease
+def trimesh_from_pyvista(pv_mesh):
+    """
+    `trimesh_from_pyvista(pv_mesh)` takes a PyVista mesh and returns a Trimesh mesh
+    
+    :param pv_mesh: a pyvista mesh object
+    :return: A trimesh object.
+    """
+    import trimesh
+    faces_array = pv_mesh.faces.reshape((pv_mesh.n_faces,4))[:,1:]
+    tmesh = trimesh.Trimesh(pv_mesh.points, faces_array)
+    return tmesh
 
+def spheres_for_atoms(ase_atoms,radii=None, scale=0.8):
+    """
+    It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
+    radius and center corresponding to the atom's covalent radius and position.
+    
+    :param ase_atoms: an ase atoms object
+    :param radii: the radii of the spheres. If None, the covalent radii from ase.data.covalent_radii are
+    used
+    :param scale: the scale of the sphere radius
+    :return: A list of trimesh objects.
+    """
+    import numpy as np
+    import pyvista as pv 
+    from ase.data import covalent_radii 
+    natoms = ase_atoms.get_global_number_of_atoms()
+    if radii is None:
+        radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    positions =ase_atoms.get_positions()
+    spheres = [pv.Sphere(radius=radii[i]*scale, center=positions[i],theta_resolution=20, phi_resolution=20) for i in range(natoms)]
+    spheres_tmesh= [trimesh_from_pyvista(s) for s in spheres]
+    return spheres_tmesh
+
+def cylinders_for_bonds(bonds,ase_atoms, radius=0.25):
+    """
+    It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
+    list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
+    height equal to half the bond length
+    
+    :param bonds: a list of pairs of atom indices
+    :param ase_atoms: an ASE atoms object
+    :return: A list of trimesh objects.
+    """
+    import numpy as np
+    import pyvista as pv
+    positions = ase_atoms.get_positions()
+    bond_coords = np.array([positions[b] for b in bonds])
+    directions  = bond_coords[:,1] - bond_coords[:,0]
+    centers = (bond_coords[:,0] + bond_coords[:,1])/2
+    heights = np.linalg.norm(directions, axis=1)
+    cylinders = [pv.Cylinder(center=c, direction=d, resolution=25, radius=radius, height=h).triangulate() for c,d,h in zip(centers, directions, heights)]
+    cylinders_tmesh = [trimesh_from_pyvista(c) for c in cylinders]
+    return cylinders_tmesh
+
+    """
+    > This function takes an ASE atoms object and returns a trimesh object that contains spheres and
+    cylinders for the atoms and bonds, respectively. 
+    
+    The function is a bit more complicated than it needs to be because it has to handle the case where
+    the bonds are not provided. In that case, it uses the `mofography` package to calculate the bonds. 
+    
+    The function also has a few optional arguments that allow you to customize the appearance of the
+    spheres and cylinders. 
+    
+    Let's try it out on a simple example: 
+    
+    # Example
+    
+    :param ase_atoms: an ase.Atoms object
+    :param bonds: a list of pairs of atom indices. If None, then the bonds are calculated from the atoms
+    :param colormap: a dictionary of colors for each atomic number
+    :param bond_rgba_array: the color of the bonds
+    :param kwargs_spheres: 
+    :param kwargs_cylinders: radius of the cylinder
+    :return: A trimesh object
+    """
+def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128,128,128,255], kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25)):
+    import trimesh 
+    import numpy as np 
+    if colormap is None:
+        from ase.data.colors import cpk_colors 
+        colormap = cpk_colors
+    if bonds is None:
+        import mofography as mgr
+        ase_atoms_updated= mgr.update_with_covalent_bonds(ase_atoms)
+        ase_atoms = ase_atoms_updated
+        import mofography as mgr
+        atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
+        bonds = np.vstack(list(atoms_graph.edges()))
+    
+    spheres = spheres_for_atoms(ase_atoms, **kwargs_spheres)
+    atomic_numbers =ase_atoms.get_atomic_numbers()
+    for i,s in enumerate(spheres):
+        s.visual.vertex_colors = cpk_colors[atomic_numbers[i]]
+    cylinders = cylinders_for_bonds(bonds,ase_atoms, **kwargs_cylinders)
+    for i,c in enumerate(cylinders):
+        c.visual.vertex_colors = bond_rgba_array #cpk_colors[atomic_numbers[i]]
+    combined = trimesh.util.concatenate([spheres+cylinders])
+
+    return combined
+
+
+def plot_framework_mesh(combined, stylize=False):
+    """
+    It takes a combined framework object and returns a plotly mesh trace
+    
+    :param combined: the combined mesh object
+    :param stylize: if True, the mesh will be rendered with a nice lighting effect, defaults to False
+    (optional)
+    :return: A mesh object
+    """
+
+    import plotly.graph_objects as go 
+    verts = combined.vertices
+    faces= combined.faces
+    colors = ['rgba('+ ','.join(c.astype(str))+')' for c in combined.visual.vertex_colors]
+    framework_mesh_trace= go.Mesh3d(x=verts[:,0], y=verts[:,1], z=verts[:,2], flatshading=False, i=faces[:,0], j=faces[:,1], k=faces[:,2], vertexcolor=colors, showlegend=True, showscale=False, name='framework')
+    if stylize:
+        framework_mesh_trace.update(               lighting=dict(ambient=0.18,
+                                            diffuse=1,
+                                            fresnel=0.1,
+                                            specular=1,
+                                            roughness=0.05,
+                                            facenormalsepsilon=1e-15,
+                                            vertexnormalsepsilon=1e-15),
+                                lightposition=dict(x=10,
+                                            y=10,
+                                            z=30
+                                                ),showscale=False
+                )
+    return framework_mesh_trace
 
