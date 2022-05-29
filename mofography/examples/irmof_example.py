@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.io as pio
 
-pio.renderers.default ='notebook_connected'
+pio.renderers.default ='browser'
 # pio.renderers.default ='browser'
 
 # * change this to path on your machine
@@ -21,7 +21,9 @@ from ase.io import read
 # filename = './TestCIFs/P1-Cu-BTC.cif'
 filename ='./TestCIFs/P1-IRMOF-1.cif'
 mat_atoms = read(filename)
-
+#%%
+frame_mesh = mgr.mesh_for_atoms(mat_atoms)
+frame_mesh_trace = mgr.plot_framework_mesh(frame_mesh, stylize=True)
 #%%
 #* If you want to make supercell for some reason, uncomment this line
 # * but, it will slow down the calculation might be better to replicate at the end
@@ -48,16 +50,20 @@ radii = covalent_radii[mat_updated.get_atomic_numbers()]
 grid = mgr.dgrid_from_atoms(mat_atoms, radii=radii, spacing =spacing, block_size=20000)
 #%% 
 #* Compute the region segmentation and the size of the maxima (cages/pockets)
-regions, maxima = mgr.regions_from_dgrid(grid.compute(), mask_thickness=0.5, exclude_border=False, min_distance=int(2/spacing), threshold_abs=1, p_norm=np.inf)
+regions, maxima = mgr.regions_from_dgrid(grid.compute(), mask_thickness=1.0, exclude_border=False, min_distance=int(2/spacing), threshold_abs=1, p_norm=np.inf)
 maxima_radii = grid.compute()[tuple(maxima.T)]
 
 #%% 
 #* Find the windows and connected regions including the windows on the walls
 connections = mgr.connections_from_regions(region_labels=regions, maxima=maxima, dgrid=grid.compute(), ase_atoms=mat_updated,minimum_window_separation=1, wall_windows=True)
 #%% 
+# #* Create a pore graph (optional, comment corresponding line in fig)
+G = mgr.graph_from_connections(connections, maxima)
+G = mgr.add_props_to_graph(G, node_props = [mgr.find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=mat_updated)], node_prop_names=['node_coords'])
+#%% 
 # * Let's make some cage labels with the cage radii (same as maxima_radii)
 cage_radii = grid.compute()[tuple(maxima.T)]
-cage_labels = [str(c)+'\u212b' for c in np.round(cage_radii, decimals =2)]
+cage_labels = [str(c)+' \u212b' for c in np.round(cage_radii, decimals =2)]
 #%%
 #* Let's make some window labels for showing on hover as information
 windows = np.vstack([c[3] for c in connections if c[1]])
@@ -69,19 +75,17 @@ window_labels = [w1+"<br>"+w2+"<br>"+w3 for w1,w2,w3 in zip(window_labels1, wind
 #* Plot everything
 fig = go.Figure(data= [
 
-                mgr.plot_surface_dgrid(grid.compute(), isovalue=1.0, opacity=1,stepsize=1, region_labels = regions, select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
+                mgr.plot_surface_dgrid(grid.compute(), isovalue=2.00, opacity=1,stepsize=1, region_labels = regions, select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
                 mgr.plot_cell(mat_updated),
                 mgr.scatter3d(mgr.find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=mat_updated), name='local maxima',marker_color = grid.compute()[tuple(maxima.T)], marker_size=15, hovertext= [str(i+1)+' '+j for i,j in enumerate(cage_labels)] ),
                 mgr.scatter3d(windows, name='windows',marker_color = 'yellowgreen', marker_size=10, opacity=0.5, hovertext=window_labels),
-                *mgr.draw_framework2(mat_updated, bonds=bonds, bond_orders=bond_orders, show_aromatics=False, bond_color='grey', bond_opacity=0.5)
-                ], layout= mgr.epic_layout)
+                *mgr.plot_pore_graph(G),
+                frame_mesh_trace,
+                # *mgr.draw_framework2(mat_updated, bonds=bonds, bond_orders=bond_orders, show_aromatics=False, bond_color='grey', bond_opacity=0.5)
+                ], layout= mgr.dark_layout)
 # fig.write_html('lta.html')
-fig.show()
+# fig.show()
 
-#%% 
-# #* Create a pore graph (optional, comment corresponding line in fig)
-G = mgr.graph_from_connections(connections)
-G = mgr.add_props_to_graph(G, node_props = [mgr.find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=mat_updated)], node_prop_names=['node_coords'])
 
 # %% 
 #* Get the periodic map that would transform the regions into regions with PBC
@@ -94,13 +98,13 @@ windows = np.vstack([c[3] for c in connections if c[1]])
 wregs = mgr.apply_periodic_map(np.vstack([c[0] for c in connections if c[1] for w in c[3]]), periodic_map=pmap)
 wregs_labels  =np.array(['-'.join((str(w[0]),str(w[1]))) for w in wregs]) # regions
 window_labels2 = np.array([c[2] for c in connections if c[1] for w in c[3] if c[1]]) # internal or periodic
-window_labels3 = np.array([str(c[4])+'\u212b' for c in connections if c[1] for w in c[3] if c[1]]) # size
+window_labels3 = np.array([str(c[4])+ ' \u212b' for c in connections if c[1] for w in c[3] if c[1]]) # size
 window_labels = [w1+"<br>"+w2+"<br>"+w3 for w1,w2,w3 in zip(wregs_labels, window_labels2, window_labels3)]
 
 # %% #* Plot again with PBC map applied
 fig = go.Figure(data= [
 
-                mgr.plot_surface_dgrid(grid.compute(), isovalue=2, opacity=1,stepsize=1, region_labels = mgr.apply_periodic_map(regions, pmap), select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
+                mgr.plot_surface_dgrid(grid.compute(), isovalue=1.75, opacity=1,stepsize=1, region_labels = mgr.apply_periodic_map(regions, pmap), select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
                 # mgr.plot_surface_dgrid(grid.compute(), isovalue=1.5, opacity=1,stepsize=1, region_labels =regions_pbc, select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
                 # Plotting the regions with periodic boundary conditions.
                 # mgr.plot_surface_dgrid(grid.compute(), isovalue=1.5, opacity=1,stepsize=1, region_labels =apply_pbc(regions, maxima, wall_thickness=0.02), select='all',ase_atoms = mat_updated, stylize=True, cscale=None, random_seed=123), 
@@ -114,6 +118,7 @@ fig = go.Figure(data= [
                 # mgr.scatter3d(wall_window_coordinates, name='wall_windows',marker_color = 'cyan', marker_size=24, opacity=0.75),
                 # mgr.scatter3d(cations['coords'][index], name='ions', marker_color =  interpolator(mgr.get_fractional_coordinates(cations['coords'][index], ase_atoms=mat_atoms)).astype(int), marker_size=20, opacity=1, hovertext= ion_region_labels),
                 *mgr.plot_pore_graph(G),
+                frame_mesh_trace,
                 *mgr.draw_framework2(mat_updated , bonds=bonds, bond_orders=bond_orders, show_aromatics=False,bond_color='white', bond_opacity=0.25)
                 ], layout= mgr.dark_layout)
 
