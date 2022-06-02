@@ -16,6 +16,7 @@
 
 
 
+from random import triangular
 from tenacity import retry
 
 from mofography.analyze import sgraph_from_atoms
@@ -26,7 +27,7 @@ white_layout = dict(template='plotly_white',  scene=dict(xaxis=dict(zeroline=Fal
 global dark_layout 
 dark_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1))
 global epic_layout
-epic_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=0.5, font=dict(size=10),bgcolor='rgba(0,0,0,0)'), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+epic_layout = dict(template='plotly_dark',  scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False), margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=-0.1, y=1.1, font=dict(size=10),bgcolor='rgba(0,0,0,0)'), plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 
 def plot_surface_dgrid(dgrid, isovalue,  ase_atoms,region_labels=None, select='all', opacity=1.0, cscale=None, color='blue',  stepsize=1, stylize=False, random_seed=0):
@@ -551,7 +552,7 @@ def draw_framework2(ase_atoms, bonds=None, bond_orders=None, show_aromatics=True
         return traces
 
 
-def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color='lightskyblue'):
+def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, kwargs_rings=dict(mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles'), kwargs_highlight = dict(color='lightskyblue', opacity=0.3, alphahull=-1, name='Aromatic ring highlight')):
     """
     It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
     used to plot the aromatic cycles
@@ -568,7 +569,7 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color
     import plotly.graph_objects as go
     import numpy as np 
 
-    if not (isomorphic_aromatic_cycles is None):
+    if isomorphic_aromatic_cycles is None:
         try:
             isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(sgraph)
         except:
@@ -599,19 +600,138 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, highlight_color
         circle_data.append(new_circle)
         circle_data.append([None, None, None])
     circle_data = np.vstack(circle_data)
-    data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles')
+    data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], **kwargs_rings)
     
 
-    # ring highlight
-    ring_centers = []
-    ring_highlight_traces = []
-    for ring in isomorphic_aromatic_cycles:
-        ring_coord = coord[ring]
-        ring_centers.append(np.mean(ring_coord, axis=0))
-        ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], color=highlight_color, opacity=0.1, alphahull=0, name='Aromatic ring highlight')
-        ring_highlight_traces.append(ring_highlight_trace)
+    
+    import pyvista as pv 
+    ring_coords = [coord[r] for r in isomorphic_aromatic_cycles]
+    ring_centers = [np.mean(coord[r], axis=0) for r in isomorphic_aromatic_cycles]
+    # ring_normals = [np.cross(co[3]-co[2], co[2]-co[1]) for co in ring_coords]
+    # ring_points = [np.vstack((r,c)) for r,c in zip(ring_coords,ring_centers)]
+    polys = [pv.Polygon(center = c, radius=np.linalg.norm(r[0]-c)*0.95, normal = np.cross(r[3]-r[2],r[2]-r[1]), n_sides=len(coord)).delaunay_2d() for r,c in zip(ring_coords, ring_centers)]
+    
+    # polys = [pv.PolyData(rp).delaunay_2d(inplace=True).subdivide(2, subfilter='butterfly', inplace=True) for rp in ring_points]
+    # polygons = [pv.Polygon(center = c ,radius=np.linalg.norm(co[0]-c), normal = n, n_sides = len(co)).triangulate() for  co,c,n in zip(ring_coords, ring_centers, ring_normals)]
+    verts = [p.points for p in polys]
+    faces = [p.faces.reshape((-1,4))[:,1:] for p in polys]
+    ring_highlight_traces = [go.Mesh3d(x=v[:,0],y=v[:,1],z=v[:,2], i=f[:,0], j=f[:,1], k=f[:,2],**kwargs_highlight) for v,f in zip(verts, faces)]
+    
+    # aromatic_graphs = [sgraph.subgraph(g) for g in isomorphic_aromatic_cycles]
+    # aromatic_vectorize = [np.vectorize({an:i for i,an in enumerate(a.nodes())}.get) for a in aromatic_graphs]
+    # aromatic_tri_faces = [v(np.vstack(list(a.edges()))) for a,v in zip(aromatic_graphs,aromatic_vectorize)]
+    # from icecream import ic
+    # ic.disable()
+    # # ring highlight
+    
+    # ring_centers = []
+    # ring_highlight_traces = []
+    
+    # for i,ring in enumerate(isomorphic_aromatic_cycles):
+    #     ring_coord = coord[ring]
+    #     ring_centers.append(np.mean(ring_coord, axis=0))
+        
+    #     faces = np.insert(aromatic_tri_faces[i],2,len(ring_coord), axis=1)
+    #     ring_coord = np.vstack((ring_coord , (np.mean(ring_coord, axis=0))))
+    #     ic(faces)
+    #     ic(ring_coord)
+    #     # ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], i=faces[:,0], j=faces[:,1], k=faces[:,2],**kwargs_highlight)
+    #     ring_highlight_trace = go.Mesh3d(x=highlight.vertices[:,0],y=highlight.vertices[:,1],z=highlight.vertices[:,2], i=highlight.faces[:,0], j=highlight.faces[:,1], k=highlight.faces[:,2],**kwargs_highlight)
+    #     # ring_highlight_trace = go.Surface(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], **kwargs_highlight)
+    #     ring_highlight_traces.append(ring_highlight_trace)
 
     return tuple([data_circle] + ring_highlight_traces)
+
+
+
+def plot_cycle_highlights(sgraph, cycles_to_highlight, kwargs_highlight = dict(color='lightskyblue', opacity=0.3, alphahull=-1, name='Aromatic ring highlight')):
+    """
+    It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
+    used to plot the aromatic cycles
+    
+    :param sgraph: the sgraph object
+    :param isomorphic_aromatic_cycles: a list of lists of node indices that are aromatic rings. If you
+    don't have this, you can set it to None and the function will try to find it for you
+    :param highlight_color: The color of the highlighted aromatic rings, defaults to lightskyblue
+    (optional)
+    :return: A tuple of the data_circle and ring_highlight_traces
+    """
+
+    # from .analyze import find_aromatic_cycles_in_sgraph
+    import plotly.graph_objects as go
+    import numpy as np 
+
+    # if cycles_to_hightlight is None:
+    #     try:
+    #         cycles_to_hightlight = find_aromatic_cycles_in_sgraph(sgraph)
+    #     except:
+    #         Exception('Cannot find aromatic cycles from sgraph! Please provide as input.')
+    # circle_data=[]
+    # from numpy.core.numeric import cross
+    # theta = np.linspace(0, 2*np.pi, 100)
+    # xc = 0.5*np.cos(theta)
+    # yc = 0.5*np.sin(theta) 
+    # zc = np.ones(np.shape(xc))
+    # circle_coord = np.array([xc, yc, zc]).T
+
+    # from scipy.spatial.transform import Rotation as R
+    import networkx as nx 
+    # coord  = nx.get_node_attributes(sgraph, "position")# ring circles
+
+    try :
+        coord = np.vstack(list(nx.get_node_attributes(sgraph, "position").values()))
+    except:
+        raise Exception("Cannot find position data in your sgraph")
+    # for ring in cycles_to_hightlight:
+    #     ring_coord = coord[ring]
+    #     ring_center = np.mean(ring_coord, axis=0)
+    #     ring_normal = np.cross(ring_coord[3]-ring_coord[2],ring_coord[2]-ring_coord[1])
+    #     ring_normal = ring_normal/np.linalg.norm(ring_normal)
+    #     r = R.align_vectors(ring_normal.reshape(-1,3),np.array([0,0,1]).reshape(-1,3))
+    #     new_circle = r[0].apply(circle_coord)
+    #     new_circle= new_circle + ring_center-np.mean(new_circle, axis=0) 
+    #     circle_data.append(new_circle)
+    #     circle_data.append([None, None, None])
+    # circle_data = np.vstack(circle_data)
+    # data_circle = go.Scatter3d(x=circle_data[:,0], y=circle_data[:,1], z=circle_data[:,2], **kwargs_rings)
+    
+
+    
+    import pyvista as pv 
+    ring_coords = [coord[r] for r in cycles_to_highlight]
+    ring_centers = [np.mean(coord[r], axis=0) for r in cycles_to_highlight]
+    # ring_normals = [np.cross(co[3]-co[2], co[2]-co[1]) for co in ring_coords]
+    ring_points = [np.vstack((r,c)) for r,c in zip(ring_coords,ring_centers)]
+    polys = [pv.PolyData(rp).delaunay_2d().subdivide_adaptive() for rp in ring_points]
+    # polygons = [pv.Polygon(center = c ,radius=np.linalg.norm(co[0]-c), normal = n, n_sides = len(co)).triangulate() for  co,c,n in zip(ring_coords, ring_centers, ring_normals)]
+    verts = [p.points for p in polys]
+    faces = [p.faces.reshape((-1,4))[:,1:] for p in polys]
+    cycle_highlight_traces = [go.Mesh3d(x=v[:,0],y=v[:,1],z=v[:,2], i=f[:,0], j=f[:,1], k=f[:,2],**kwargs_highlight) for v,f in zip(verts, faces)]
+    
+    # aromatic_graphs = [sgraph.subgraph(g) for g in isomorphic_aromatic_cycles]
+    # aromatic_vectorize = [np.vectorize({an:i for i,an in enumerate(a.nodes())}.get) for a in aromatic_graphs]
+    # aromatic_tri_faces = [v(np.vstack(list(a.edges()))) for a,v in zip(aromatic_graphs,aromatic_vectorize)]
+    # from icecream import ic
+    # ic.disable()
+    # # ring highlight
+    
+    # ring_centers = []
+    # ring_highlight_traces = []
+    
+    # for i,ring in enumerate(isomorphic_aromatic_cycles):
+    #     ring_coord = coord[ring]
+    #     ring_centers.append(np.mean(ring_coord, axis=0))
+        
+    #     faces = np.insert(aromatic_tri_faces[i],2,len(ring_coord), axis=1)
+    #     ring_coord = np.vstack((ring_coord , (np.mean(ring_coord, axis=0))))
+    #     ic(faces)
+    #     ic(ring_coord)
+    #     # ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], i=faces[:,0], j=faces[:,1], k=faces[:,2],**kwargs_highlight)
+    #     ring_highlight_trace = go.Mesh3d(x=highlight.vertices[:,0],y=highlight.vertices[:,1],z=highlight.vertices[:,2], i=highlight.faces[:,0], j=highlight.faces[:,1], k=highlight.faces[:,2],**kwargs_highlight)
+    #     # ring_highlight_trace = go.Surface(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], **kwargs_highlight)
+    #     ring_highlight_traces.append(ring_highlight_trace)
+
+    return tuple(cycle_highlight_traces)
 
 #* Functions for ease
 def trimesh_from_pyvista(pv_mesh):
@@ -626,7 +746,7 @@ def trimesh_from_pyvista(pv_mesh):
     tmesh = trimesh.Trimesh(pv_mesh.points, faces_array)
     return tmesh
 
-def spheres_for_atoms(ase_atoms,radii=None, scale=0.8):
+def spheres_for_atoms(ase_atoms,radii=None, scale=0.8, colormap=None):
     """
     It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
     radius and center corresponding to the atom's covalent radius and position.
@@ -640,15 +760,25 @@ def spheres_for_atoms(ase_atoms,radii=None, scale=0.8):
     import numpy as np
     import pyvista as pv 
     from ase.data import covalent_radii 
+    from ase.data.colors import cpk_colors
     natoms = ase_atoms.get_global_number_of_atoms()
     if radii is None:
         radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    if colormap is None:
+        colormap = cpk_colors
     positions =ase_atoms.get_positions()
     spheres = [pv.Sphere(radius=radii[i]*scale, center=positions[i],theta_resolution=20, phi_resolution=20) for i in range(natoms)]
     spheres_tmesh= [trimesh_from_pyvista(s) for s in spheres]
+    atomic_numbers =ase_atoms.get_atomic_numbers()
+    for i,s in enumerate(spheres_tmesh):
+        # s.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+        # s.visual.material.baseColorFactor= colormap[atomic_numbers[i]]
+        # s.visual.material.metallicFactor=1.0
+        # s.visual.material.roughnesFactor=0.15
+        s.visual.vertex_colors =colormap[atomic_numbers[i]]
     return spheres_tmesh
 
-def cylinders_for_bonds(bonds,ase_atoms, radius=0.25):
+def cylinders_for_bonds(bonds,ase_atoms, radius=0.25, bond_rgba_array=[128,128,128,255]):
     """
     It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
     list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
@@ -667,8 +797,16 @@ def cylinders_for_bonds(bonds,ase_atoms, radius=0.25):
     heights = np.linalg.norm(directions, axis=1)
     cylinders = [pv.Cylinder(center=c, direction=d, resolution=25, radius=radius, height=h).triangulate() for c,d,h in zip(centers, directions, heights)]
     cylinders_tmesh = [trimesh_from_pyvista(c) for c in cylinders]
+    for i,c in enumerate(cylinders_tmesh):
+    # c.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+    # c.visual.material.baseColorFactor= bond_rgba_array #cpk_colors[atomic_numbers[i]]
+    # c.visual.material.metallicFactor=1.0
+    # c.visual.material.roughnesFactor=0.15
+        c.visual.vertex_colors = bond_rgba_array #cpk_colors[atomic_numbers[i]]
     return cylinders_tmesh
 
+
+def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128,128,128,255], kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False):
     """
     > This function takes an ASE atoms object and returns a trimesh object that contains spheres and
     cylinders for the atoms and bonds, respectively. 
@@ -691,30 +829,49 @@ def cylinders_for_bonds(bonds,ase_atoms, radius=0.25):
     :param kwargs_cylinders: radius of the cylinder
     :return: A trimesh object
     """
-def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128,128,128,255], kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25)):
     import trimesh 
     import numpy as np 
     if colormap is None:
         from ase.data.colors import cpk_colors 
         colormap = cpk_colors
     if bonds is None:
-        import mofography as mgr
-        ase_atoms_updated= mgr.update_with_covalent_bonds(ase_atoms)
-        ase_atoms = ase_atoms_updated
-        import mofography as mgr
-        atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
-        bonds = np.vstack(list(atoms_graph.edges()))
+        if 'covalent_bonds' in ase_atoms.info.keys():
+            bonds= ase_atoms.info['covalent_bonds']
+        else:
+            import mofography as mgr
+            ase_atoms_updated= mgr.update_with_covalent_bonds(ase_atoms)
+            ase_atoms = ase_atoms_updated
+
+            atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
+            bonds = np.vstack(list(atoms_graph.edges()))
     
     spheres = spheres_for_atoms(ase_atoms, **kwargs_spheres)
     atomic_numbers =ase_atoms.get_atomic_numbers()
-    for i,s in enumerate(spheres):
-        s.visual.vertex_colors = cpk_colors[atomic_numbers[i]]
+    # for i,s in enumerate(spheres):
+    #     # s.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+    #     # s.visual.material.baseColorFactor= colormap[atomic_numbers[i]]
+    #     # s.visual.material.metallicFactor=1.0
+    #     # s.visual.material.roughnesFactor=0.15
+    #     s.visual.vertex_colors =colormap[atomic_numbers[i]]
     cylinders = cylinders_for_bonds(bonds,ase_atoms, **kwargs_cylinders)
-    for i,c in enumerate(cylinders):
-        c.visual.vertex_colors = bond_rgba_array #cpk_colors[atomic_numbers[i]]
-    combined = trimesh.util.concatenate([spheres+cylinders])
 
-    return combined
+
+    combined = trimesh.util.concatenate(spheres,cylinders)
+    if return_scene:
+        for i,s in enumerate(spheres):
+            s.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+            s.visual.material.baseColorFactor= colormap[atomic_numbers[i]]
+            s.visual.material.metallicFactor=1.0
+            s.visual.material.roughnesFactor=0.15
+
+        for i,c in enumerate(cylinders):
+            c.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+            c.visual.material.baseColorFactor= bond_rgba_array #cpk_colors[atomic_numbers[i]]
+            c.visual.material.metallicFactor=1.0
+            c.visual.material.roughnesFactor=0.15
+        return trimesh.Scene(cylinders+spheres)
+    else:
+        return combined
 
 
 def plot_framework_mesh(combined, stylize=False):

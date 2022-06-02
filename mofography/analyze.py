@@ -12,7 +12,9 @@
 
 
 
-from grpc import StreamUnaryMultiCallable
+
+
+from enum import unique
 
 
 def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
@@ -214,7 +216,7 @@ def update_with_covalent_bonds(ase_atoms, nlist=None):
             cov2 = radii[b]
 
                 
-            if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.1):
+            if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.2):
                 bond_test = CovalentBond(struct.sites[a], struct.sites[b])
                 dr = frac[a] - frac[b]
                 shift = np.round(dr)
@@ -224,7 +226,7 @@ def update_with_covalent_bonds(ase_atoms, nlist=None):
                     struct.append(species=struct[b].species, coords=new_site_coord, coords_are_cartesian=True, properties = {'image of': b})
                     b = struct.num_sites - 1 # the last one, the newly added site
                 bonds.append([a, b])
-                bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
+                bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.2))
     else:
         for (a, b) in nlist:
         # First we check if the nearest image b from a is in the unit cell
@@ -296,19 +298,23 @@ def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     # Find unique rings using SMILES
     import pysmiles as ps 
     cycle_graphs = [sgraph.subgraph(cycle) for cycle in chosen_cycles]
-    unique_cycle_indices = find_unique_cycles(chosen_cycles)
+    unique_cycles = set(tuple(sorted(a)) for a in chosen_cycles)
+    unique_cycles = [list(u) for u in unique_cycles]
+    unique_chosen_cycles = find_chemically_unique_cycles(unique_cycles, sgraph)
+    # unique_cycle_indices = find_unique_cycles(chosen_cycles, sgraph)
     # unique_cycle_indices = np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
-    unique_chosen_cycles = np.array(cycle_graphs)[unique_cycle_indices]
+    # unique_chosen_cycles = np.array(cycle_graphs)[unique_cycle_indices]
 
-    # from itertools import combinations 
+    from itertools import combinations 
     import networkx.algorithms.isomorphism as isomo
     isomorphic_cycles = list([])
     for cycle in unique_chosen_cycles:
         graph = sgraph.subgraph(cycle)
         iso1 = isomo.GraphMatcher(sgraph, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
         isomorphic_cycles = isomorphic_cycles + [list(subgraph.keys()) for subgraph in iso1.subgraph_isomorphisms_iter()]
-    
+    isomorphic_cycles = [list(b) for b in set(tuple(sorted(c)) for c in isomorphic_cycles)]
     return isomorphic_cycles
+    # return unique_cycles
 
 def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     """
@@ -328,7 +334,8 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     import networkx as nx 
     import numpy as np 
     
-
+    from icecream import ic 
+    ic.disable()
     small_cycles = [cycle for cycle in nx.cycles.cycle_basis(sgraph, 0) if len(cycle) in default_ring_sizes]
     
     
@@ -337,23 +344,30 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
     selected_cycles = [np.all(np.array(cycle_bonds) == 'double') for cycle_bonds in cycle_bond_types]
     aromatic_cycles = np.array(small_cycles)[selected_cycles]
-
-    # Find unique rings using SMILES
-    # import pysmiles as ps 
+    ic(aromatic_cycles)
+    
     cycle_graphs = [sgraph.subgraph(cycle) for cycle in aromatic_cycles]
-    unique_cycle_indices = find_unique_cycles(aromatic_cycles, sgraph) #np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
-    unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
-
+    unique_cycles = set(tuple(sorted(a)) for a in aromatic_cycles)
+    unique_cycles = [list(u) for u in unique_cycles]
+    chemically_unique_cycles = np.array(unique_cycles)[find_chemically_unique_cycles(unique_cycles, sgraph)]
+    # unique_cycle_indices = find_unique_cycles(aromatic_cycles, sgraph) #np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
+    # unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
+    ic(chemically_unique_cycles)
+    print(chemically_unique_cycles)
+    print(len(chemically_unique_cycles))
     # from itertools import combinations 
     import networkx.algorithms.isomorphism as isomo
     isomorphic_aromatic_cycles = list([])
-    for cycle in unique_aromatic_cycles:
+    isomorphic_aromatic_cycles = []# list([])
+    for cycle in chemically_unique_cycles:
         graph = sgraph.subgraph(cycle)
         iso1 = isomo.GraphMatcher(sgraph, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
         isomorphic_aromatic_cycles = isomorphic_aromatic_cycles + [list(subgraph.keys()) for subgraph in iso1.subgraph_isomorphisms_iter()]
-    
+        # ic(list(iso1.subgraph_isomorphisms_iter()))
+        # isomorphic_aromatic_cycles.append(list(iso1.subgraph_isomorphisms_iter()))#[subgraph.keys() for subgraph in iso1.subgraph_isomorphisms_iter()])
+    isomorphic_aromatic_cycles = [list(b) for b in set(tuple(sorted(c)) for c in isomorphic_aromatic_cycles)]
     return isomorphic_aromatic_cycles
-
+    # return unique_cycles
 
 def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
     """
@@ -445,7 +459,7 @@ def get_bond_types(bond_orders):
     return  pd.cut(bond_orders, bins=[0,1, 2, 3], labels=['single', 'double', 'triple'])
 
 
-def find_unique_cycles(list_of_cycles, graph):
+def find_chemically_unique_cycles(list_of_cycles, graph):
     """
     > The function takes a list of cycles and a graph as input, and returns the indices of the unique
     cycles in the list, after matching the 'element' of the nodes and the 'bond_order' of the edges
@@ -462,11 +476,39 @@ def find_unique_cycles(list_of_cycles, graph):
     import networkx.algorithms.isomorphism as isomo
     sub_graphs = [graph.subgraph(cycle) for cycle in list_of_cycles]
     import numpy as np
-    import itertools 
+    import itertools
+    from icecream import ic 
+    ic.disable() 
     # [(i.nodes(data='element'), j.nodes(data='element')) for (i,j) in list(itertools.combinations(sub_graphs, r=2))]
     # from networkx.algorithms import isomorphism as isomo 
-    em = isomo.numerical_edge_match('bond_order', 1)
+    em = isomo.categorical_edge_match('bond_type', default='single')
+    nm = isomo.categorical_node_match('element',default='None')
+    iso_check = [isomo.GraphMatcher(*g,node_match=nm, edge_match=em).is_isomorphic() for g in itertools.combinations(sub_graphs, r= 2)]
+    ic(iso_check)
+    if len(iso_check) >0:
+        to_delete = np.array(list(itertools.combinations(range(len(sub_graphs)),2)))[iso_check][:,1]
+        return np.delete(list(range(len(sub_graphs))), to_delete.astype(int))
+    else:
+        raise Exception(" No cycles of given lengths found!")
+            
+       
+def find_pattern_in_sgraph(sgraph, pattern):
+    """
+    It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the
+    pattern graph to the nodes of the original graph
+    
+    :param sgraph: the graph we want to search for the pattern in
+    :param pattern: The pattern graph to be searched for
+    :return: A list of dictionaries. Each dictionary has the node labels of the pattern as keys and the
+    node labels of the sgraph as values.
+    """
+
+
+    import networkx as nx 
+    import networkx.algorithms.isomorphism as isomo
+    import numpy as np
+
+    em = isomo.categorical_edge_match('bond_type', 'single')
     nm = isomo.categorical_node_match('element','None')
-    iso_check = [isomo.is_isomorphic(*g,node_match=nm, edge_match=em) for g in itertools.combinations(sub_graphs, r= 2)]
-    to_delete = np.array(list(itertools.combinations(range(len(sub_graphs)),2)))[iso_check][:,1]
-    return np.delete(list(range(len(sub_graphs))), to_delete.astype(int))
+    iso_parts = isomo.GraphMatcher(sgraph, pattern, node_match = nm , edge_match= em)
+    return list(iso_parts.subgraph_isomorphisms_iter())
