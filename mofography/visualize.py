@@ -609,7 +609,7 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, kwargs_rings=di
     ring_centers = [np.mean(coord[r], axis=0) for r in isomorphic_aromatic_cycles]
     # ring_normals = [np.cross(co[3]-co[2], co[2]-co[1]) for co in ring_coords]
     # ring_points = [np.vstack((r,c)) for r,c in zip(ring_coords,ring_centers)]
-    polys = [pv.Polygon(center = c, radius=np.linalg.norm(r[0]-c)*0.95, normal = np.cross(r[3]-r[2],r[2]-r[1]), n_sides=len(coord)).delaunay_2d() for r,c in zip(ring_coords, ring_centers)]
+    polys = [pv.Polygon(center = c, radius=np.linalg.norm(r[0]-c)*0.95, normal = np.cross(r[3]-r[2],r[2]-r[1]), n_sides=len(r)).delaunay_2d() for r,c in zip(ring_coords, ring_centers)]
     
     # polys = [pv.PolyData(rp).delaunay_2d(inplace=True).subdivide(2, subfilter='butterfly', inplace=True) for rp in ring_points]
     # polygons = [pv.Polygon(center = c ,radius=np.linalg.norm(co[0]-c), normal = n, n_sides = len(co)).triangulate() for  co,c,n in zip(ring_coords, ring_centers, ring_normals)]

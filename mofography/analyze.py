@@ -353,8 +353,8 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     # unique_cycle_indices = find_unique_cycles(aromatic_cycles, sgraph) #np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
     # unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
     ic(chemically_unique_cycles)
-    print(chemically_unique_cycles)
-    print(len(chemically_unique_cycles))
+    # print(chemically_unique_cycles)
+    # print(len(chemically_unique_cycles))
     # from itertools import combinations 
     import networkx.algorithms.isomorphism as isomo
     isomorphic_aromatic_cycles = list([])
