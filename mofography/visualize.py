@@ -17,9 +17,10 @@
 
 
 from random import triangular
+from matplotlib.pyplot import show
 from tenacity import retry
 
-from mofography.analyze import sgraph_from_atoms
+from mofography.analyze import sgraph_from_atoms, update_with_covalent_bonds
 
 
 global white_layout 
@@ -301,6 +302,7 @@ def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', 
         :param X: numpy.array
     
         :type name: name for the trace
+        
         :param name: str
     
         :type mode: One of 'markers', 'lines' or 'markers+lines'
@@ -336,6 +338,23 @@ def scatter3d(X, name='trace name here', mode='markers', marker_color = 'blue', 
         """
         import plotly.graph_objects as go 
         return go.Scatter3d(x=X[:,0], y=X[:,1], z=X[:,2], mode=mode, marker =dict(color=marker_color, size=marker_size, symbol=marker_symbol, line=dict(color=marker_line_color, width=marker_line_width)), name=name, line=dict(color=line_color, width=line_width), text=None, hovertext=hovertext, **kwargs)
+
+#*  Funciton to plot the region adjacency graph
+def plot_rag(G, **kwargs):
+    # node_trace = []
+    import numpy as np
+    import plotly.graph_objects as go
+    edge_trace = []
+    for edge in G.edges():
+        if 0 not in edge:
+            n1, n2 = edge
+            edge_trace.append(G.nodes[n1]['centroid'])
+            edge_trace.append(G.nodes[n2]['centroid'])
+            edge_trace.append([None, None, None])
+    edge_trace=np.vstack(edge_trace)
+    print(edge_trace)
+    return go.Scatter3d(x=edge_trace[:,0], y=edge_trace[:,1],z=edge_trace[:,2], **kwargs)
+
 
 def plot_pore_graph(G):
 
@@ -499,7 +518,7 @@ def draw_framework2(ase_atoms, bonds=None, bond_orders=None, show_aromatics=True
             isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(G)                 
             # Highlight and circle all aromatic rings
 
-            ring_traces = plot_aromatic_rings(sgraph=G, isomorphic_aromatic_cycles=isomorphic_aromatic_cycles)
+            ring_traces = plot_aromatic_rings(ase_atoms=ase_atoms_updated, isomorphic_aromatic_cycles=isomorphic_aromatic_cycles)
             traces = traces + list(ring_traces)
             # circle_data=[]
             # from numpy.core.numeric import cross
@@ -552,7 +571,7 @@ def draw_framework2(ase_atoms, bonds=None, bond_orders=None, show_aromatics=True
         return traces
 
 
-def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, kwargs_rings=dict(mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles'), kwargs_highlight = dict(color='lightskyblue', opacity=0.3, alphahull=-1, name='Aromatic ring highlight')):
+def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None, kwargs_rings=dict(mode='lines', line=dict(color='white',width=2), showlegend=False, name='Aromatic Cloud', legendgroup='aromatic circles'), kwargs_highlight = dict(color='skyblue', opacity=0.25, alphahull=-1, name='Aromatic ring highlight')):
     """
     It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
     used to plot the aromatic cycles
@@ -564,8 +583,13 @@ def plot_aromatic_rings(sgraph, isomorphic_aromatic_cycles=None, kwargs_rings=di
     (optional)
     :return: A tuple of the data_circle and ring_highlight_traces
     """
+    from .analyze import find_aromatic_cycles_in_sgraph, update_with_covalent_bonds, sgraph_from_atoms
+    
+    if not ('covalent_bonds' in ase_atoms.info.keys()):
+        ase_atoms = update_with_covalent_bonds(ase_atoms)
 
-    from .analyze import find_aromatic_cycles_in_sgraph
+
+    sgraph = sgraph_from_atoms(ase_atoms)
     import plotly.graph_objects as go
     import numpy as np 
 
@@ -746,7 +770,7 @@ def trimesh_from_pyvista(pv_mesh):
     tmesh = trimesh.Trimesh(pv_mesh.points, faces_array)
     return tmesh
 
-def spheres_for_atoms(ase_atoms,radii=None, scale=0.8, colormap=None):
+def spheres_for_atoms(ase_atoms,radii=None, scale=0.8, colormap=None,theta_resolution=20, phi_resolution=20):
     """
     It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
     radius and center corresponding to the atom's covalent radius and position.
@@ -767,7 +791,7 @@ def spheres_for_atoms(ase_atoms,radii=None, scale=0.8, colormap=None):
     if colormap is None:
         colormap = cpk_colors
     positions =ase_atoms.get_positions()
-    spheres = [pv.Sphere(radius=radii[i]*scale, center=positions[i],theta_resolution=20, phi_resolution=20) for i in range(natoms)]
+    spheres = [pv.Sphere(radius=radii[i]*scale, center=positions[i],theta_resolution=theta_resolution, phi_resolution=phi_resolution) for i in range(natoms)]
     spheres_tmesh= [trimesh_from_pyvista(s) for s in spheres]
     atomic_numbers =ase_atoms.get_atomic_numbers()
     for i,s in enumerate(spheres_tmesh):
@@ -778,7 +802,43 @@ def spheres_for_atoms(ase_atoms,radii=None, scale=0.8, colormap=None):
         s.visual.vertex_colors =colormap[atomic_numbers[i]]
     return spheres_tmesh
 
-def cylinders_for_bonds(bonds,ase_atoms, radius=0.25, bond_rgba_array=[128,128,128,255]):
+def spheres_for_positions(positions,radii=None, scale=0.8, color=[[255,255,255,1]], theta_resolution=20, phi_resolution=20):
+    """
+    It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
+    radius and center corresponding to the atom's covalent radius and position.
+    
+    :param ase_atoms: an ase atoms object
+    :param radii: the radii of the spheres. If None, the covalent radii from ase.data.covalent_radii are
+    used
+    :param scale: the scale of the sphere radius
+    :return: A list of trimesh objects.
+    """
+    import numpy as np
+    import pyvista as pv 
+    from ase.data import covalent_radii 
+    from ase.data.colors import cpk_colors
+    natoms = len(positions) 
+    # if radii is None:
+    #     radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    if colormap is None:
+        colormap = cpk_colors
+    if radii is None:
+        radii = [3.0]*len(positions)
+    spheres = [pv.Sphere(radius=radii[i]*scale, center=positions[i],theta_resolution=theta_resolution, phi_resolution=phi_resolution) for i in range(natoms)]
+    spheres_tmesh= [trimesh_from_pyvista(s) for s in spheres]
+    # atomic_numbers =ase_atoms.get_atomic_numbers()
+    if len(color)==1:
+        color = color*len(positions)
+    for i,s in enumerate(spheres_tmesh):
+        # s.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
+        # s.visual.material.baseColorFactor= colormap[atomic_numbers[i]]
+        # s.visual.material.metallicFactor=1.0
+        # s.visual.material.roughnesFactor=0.15
+        s.visual.vertex_colors = color[i]
+    return spheres_tmesh
+
+
+def cylinders_for_bonds(bonds,ase_atoms, radius=0.25, bond_rgba_array=[128,128,128,255], cylinder_resolution=25):
     """
     It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
     list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
@@ -795,7 +855,7 @@ def cylinders_for_bonds(bonds,ase_atoms, radius=0.25, bond_rgba_array=[128,128,1
     directions  = bond_coords[:,1] - bond_coords[:,0]
     centers = (bond_coords[:,0] + bond_coords[:,1])/2
     heights = np.linalg.norm(directions, axis=1)
-    cylinders = [pv.Cylinder(center=c, direction=d, resolution=25, radius=radius, height=h).triangulate() for c,d,h in zip(centers, directions, heights)]
+    cylinders = [pv.Cylinder(center=c, direction=d, resolution=cylinder_resolution, radius=radius, height=h).triangulate() for c,d,h in zip(centers, directions, heights)]
     cylinders_tmesh = [trimesh_from_pyvista(c) for c in cylinders]
     for i,c in enumerate(cylinders_tmesh):
     # c.visual =trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial())
@@ -841,9 +901,9 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128,12
             import mofography as mgr
             ase_atoms_updated= mgr.update_with_covalent_bonds(ase_atoms)
             ase_atoms = ase_atoms_updated
-
-            atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
-            bonds = np.vstack(list(atoms_graph.edges()))
+            bonds =ase_atoms.info['covalent_bonds']
+            # atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
+            # bonds = np.vstack(list(atoms_graph.edges()))
     
     spheres = spheres_for_atoms(ase_atoms, **kwargs_spheres)
     atomic_numbers =ase_atoms.get_atomic_numbers()
@@ -874,16 +934,22 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128,12
         return combined
 
 
-def plot_framework_mesh(combined, stylize=False):
+def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh={}, kwargs_highlight={}):
     """
-    It takes a combined framework object and returns a plotly mesh trace
+    It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
+    of the aromatic rings.
     
-    :param combined: the combined mesh object
-    :param stylize: if True, the mesh will be rendered with a nice lighting effect, defaults to False
+    :param ase_atoms: an ase.Atoms object
+    :param show_rings: if True, will plot the aromatic rings as well, defaults to True (optional)
+    :param stylize: if True, will apply some lighting and other effects to the mesh, defaults to False
     (optional)
-    :return: A mesh object
+    :param kwargs_frame_mesh: keyword arguments for mesh_for_atoms
+    :param kwargs_highlight: keyword arguments for plot_aromatic_rings
+    :return: A tuple of plotly traces.
     """
 
+    from .analyze import update_with_covalent_bonds
+    combined= mesh_for_atoms(ase_atoms, **kwargs_frame_mesh)
     import plotly.graph_objects as go 
     verts = combined.vertices
     faces= combined.faces
@@ -902,5 +968,91 @@ def plot_framework_mesh(combined, stylize=False):
                                             z=30
                                                 ),showscale=False
                 )
-    return framework_mesh_trace
+    traces = (framework_mesh_trace,)
+    if show_rings:
+        if not ('covalent_bonds' in ase_atoms.info.keys()):
+            ase_atoms = update_with_covalent_bonds(ase_atoms)
+        # sgraph = sgraph_from_atoms(ase_atoms=ase_atoms)
+        aromatic_rings_trace = plot_aromatic_rings(ase_atoms,**kwargs_highlight)
+        traces = (framework_mesh_trace, *aromatic_rings_trace)
+    return traces
 
+def plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d ):
+    """
+    It takes a combined framework object and returns a plotly mesh trace
+    
+    :param combined: the combined mesh object
+    :param stylize: if True, the mesh will be rendered with a nice lighting effect, defaults to False
+    (optional)
+    :return: A mesh object
+    """
+    import trimesh
+    if len(mesh) > 1:
+        mesh = trimesh.util.concatenate(mesh)
+    else:
+        mesh = mesh[0]
+    import plotly.graph_objects as go 
+    verts = mesh.vertices
+    faces= mesh.faces
+    colors = ['rgba('+ ','.join(c.astype(str))+')' for c in mesh.visual.vertex_colors]
+
+    kwargs_plotly_mesh3d.setdefault('name', 'mesh')
+    kwargs_plotly_mesh3d.setdefault('flatshading',False)
+    kwargs_plotly_mesh3d.setdefault('vertexcolor', colors)
+    kwargs_plotly_mesh3d.setdefault('showlegend', True)
+    kwargs_plotly_mesh3d.setdefault('showscale',False)
+    if 'color' in kwargs_plotly_mesh3d.keys():
+        kwargs_plotly_mesh3d.pop('vertexcolor')
+    mesh_trace= go.Mesh3d(x=verts[:,0], y=verts[:,1], z=verts[:,2], i=faces[:,0], j=faces[:,1], k=faces[:,2], **kwargs_plotly_mesh3d)
+    if stylize:
+        mesh_trace.update(               lighting=dict(ambient=0.18,
+                                            diffuse=1,
+                                            fresnel=0.1,
+                                            specular=1,
+                                            roughness=0.05,
+                                            facenormalsepsilon=1e-15,
+                                            vertexnormalsepsilon=1e-15),
+                                lightposition=dict(x=10,
+                                            y=10,
+                                            z=30
+                                                ),showscale=False
+                )
+    # traces = ( mesh_trace,)
+
+    return mesh_trace
+
+def plot_everything(everything):
+    """
+    It takes in the output of the do_it_all function and returns a plotly figure
+    
+    :param everything: a tuple of the following:
+    :return: A plotly figure object.
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    from .analyze import update_with_covalent_bonds
+    from .helper import find_coord_from_indices
+    updated_hkust1, grid, regions, maxima, connections, pgraph = everything
+    cage_radii = grid.compute()[tuple(maxima.T)]
+    cage_labels = [str(c)+' \u212b' for c in np.round(cage_radii, decimals =2)]
+    #%%
+    #* Let's make some window labels for showing on hover as information
+    windows = np.vstack([c[3] for c in connections if c[1]])
+    window_labels1 = np.array(['-'.join((str(c[0][0]),str(c[0][1]))) for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels2 = np.array([c[2] for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels3 = np.array([str(c[4]) for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels = [w1+"<br>"+w2+"<br>"+w3 for w1,w2,w3 in zip(window_labels1, window_labels2, window_labels3)]
+    kwargs_frame_mesh={'kwargs_spheres':dict(phi_resolution=10, theta_resolution=10), 'kwargs_cylinders':dict(cylinder_resolution=10)}
+    frame_trace=plot_framework_as_mesh(ase_atoms=updated_hkust1, show_rings=True, stylize=True, kwargs_frame_mesh=kwargs_frame_mesh)
+    fig = go.Figure(data= [
+
+                    plot_surface_dgrid(grid.compute(), isovalue=2.00, opacity=1,stepsize=1, region_labels = regions, select='all',ase_atoms = updated_hkust1, stylize=True, cscale=None, random_seed=123), 
+                    plot_cell(updated_hkust1),
+                    scatter3d(find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=updated_hkust1), name='local maxima',marker_color = grid.compute()[tuple(maxima.T)], marker_size=15, hovertext= [str(i+1)+' '+j for i,j in enumerate(cage_labels)] ),
+                    scatter3d(windows, name='windows',marker_color = 'yellowgreen', marker_size=10, opacity=0.5, hovertext=window_labels),
+                    *plot_pore_graph(pgraph),
+                    *frame_trace,
+                    # *mgr.draw_framework2(mat_updated, bonds=bonds, bond_orders=bond_orders, show_aromatics=False, bond_color='grey', bond_opacity=0.5)
+                    ], layout= dark_layout)
+    # fig.write_html('lta.html')
+    return fig
