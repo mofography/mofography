@@ -326,6 +326,7 @@ def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_wi
     from icecream import ic
     def check_connected(regs):
         import numpy as np
+        from sklearn.cluster import AgglomerativeClustering
         i = regs[0]
         j = regs[1]
         ic.disable()
@@ -426,8 +427,54 @@ def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_wi
 #     return wall_windows
 
 
+def get_region_props_for_regions(regions):
+    """
+    It takes a list of regions and returns a list of region properties
+    
+    :param regions: The labeled image
+    """
+    from skimage.measure import regionprops
+    return regionprops(regions)
 
+def add_maxima_to_rag(G, maxima):
+    """
+    It takes a graph and a list of maxima and adds the maxima to the graph as a node attribute
+    
+    :param G: the graph
+    :param maxima: a list of maxima for each region in the graph
+    :return: A graph with the maxima added to the nodes.
+    """
 
+    if len(G.nodes()) != len(maxima):
+        raise ValueError('The number of nodes in the graph and the number of maxima do not match')
+    else:
+        # regionprops = get_region_props_for_regions(G.nodes())
+        for n, m in zip(G.nodes(), maxima):
+            G.nodes[n]['maxima'] = m
+    return G
+# def add_size_dist_to_graph(G, dgrid):
+
+def add_psd_to_rag(G, region_props, bins):
+    import numpy as np 
+    
+    for region_prop in region_props:    
+        G.nodes[region_prop['label']]['psd_x'] = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[0]
+        G.nodes[region_prop['label']]['psd_y'] = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[1]
+    return G
+
+def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms):
+    import numpy as np
+    # * compute a region adjacency graph from skimage
+    from skimage.future import graph 
+    from .helper import find_coord_from_indices
+    gr_mean = graph.rag_mean_color(dgrid, regions)
+    from skimage.measure import regionprops 
+    # * add the centroid property to the rag nodes
+    region_props = regionprops(regions)
+    for region_prop in region_props:
+        gr_mean.nodes[region_prop['label']]['centroid'] = find_coord_from_indices( indices = np.array(region_prop['centroid']), ase_atoms=ase_atoms,shape=dgrid.shape)
+    
+    return gr_mean
 
 def get_periodic_map(regions, maxima, maxima_radii, **kwargs):
     """
@@ -653,3 +700,22 @@ def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2):
     #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
     return regions_pbc
 
+
+def do_it_all(ase_atoms,spacing=0.25):
+    """
+    > It takes an ase atoms object of the mof, and returns a list of objects that are useful for analyzing the pore
+    network of the material
+    
+    :param ase_atoms: the atoms object
+    :param spacing: the spacing of the grid
+    :return: updated_atoms, grid,regions, maxima, connections, pgraph
+    """
+    from .helper import find_coord_from_indices
+    from .analyze import update_with_covalent_bonds
+    updated_atoms =update_with_covalent_bonds(ase_atoms)
+    grid = dgrid_from_atoms(ase_atoms=ase_atoms, spacing=spacing)
+    regions, maxima =regions_from_dgrid(grid.compute(), mask_thickness=1.5, exclude_border=False, min_distance=int(2/spacing), threshold_abs=1)
+    connections = connections_from_regions(maxima=maxima, region_labels=regions,ase_atoms=ase_atoms,dgrid=grid.compute(),minimum_window_separation=1,wall_windows=True)
+    pgraph = graph_from_connections(connections, maxima, only_use_internal=True)
+    pgraph = add_props_to_graph(pgraph, node_props = [find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=updated_atoms)], node_prop_names=['node_coords'])
+    return [updated_atoms, grid,regions, maxima, connections, pgraph]
