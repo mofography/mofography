@@ -11,7 +11,6 @@
 """
 # TODO Identify the different unique regions
 # TODO Fix the issue with  the border regions getting cut off
-# TODO connetections to graph
 # def canvas(with_attribution=True):
 #     """
 #     Placeholder function to show example docstring (NumPy format).
@@ -38,7 +37,7 @@
 
 
 
-from mofography.helper import interpolate_labels
+
 
 
 def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
@@ -436,57 +435,142 @@ def get_region_props_for_regions(regions):
     from skimage.measure import regionprops
     return regionprops(regions)
 
-def add_maxima_to_rag(G, maxima):
+def add_maxima_to_rag(G, maxima,  maxima_radii, shape, ase_atoms):
     """
-    It takes a graph and a list of maxima and adds the maxima to the graph as a node attribute
+    > This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms
+    object and adds the maxima and maxima radii to the graph. 
+    
+    Let's look at the function in more detail. 
+    
+    The first thing we do is import the `find_coord_from_indices` function from the `helper` module. 
+    
+    Next, we check to make sure that the number of nodes in the graph is equal to the number of maxima.
+    If not, we raise a `ValueError`. 
+    
+    If the number of nodes in the graph is equal to the number of maxima, we loop through the nodes and
+    maxima and add the maxima indices, cartesian coordinates and maxima radii to the graph. 
+    
+
     
     :param G: the graph
-    :param maxima: a list of maxima for each region in the graph
-    :return: A graph with the maxima added to the nodes.
+    :param maxima: the indices of the maxima (2nd output of regions_from_grid routine)
+    :param maxima_radii: the radius of the maxima
+    :param shape: the shape of the image
+    :param ase_atoms: The atoms object from ASE
+    :return: The graph with the maxima added to the nodes
     """
+    
 
+    from .helper import find_coord_from_indices
     if len(G.nodes()) != len(maxima):
         raise ValueError('The number of nodes in the graph and the number of maxima do not match')
     else:
         # regionprops = get_region_props_for_regions(G.nodes())
         for n, m in zip(G.nodes(), maxima):
-            G.nodes[n]['maxima'] = m
+            G.nodes[n]['maxima'] = find_coord_from_indices(maxima[G.nodes[n]['labels'][0]-1], shape=shape, ase_atoms=ase_atoms) #* add the coordinates of the maxima to the node
+            G.nodes[n]['maxima_indices'] = maxima[G.nodes[n]['labels'][0]-1] #* add the indcies of the maxima 
+            G.nodes[n]['maxima_radii'] =maxima_radii[G.nodes[n]['labels'][0]-1] #* add the indcies of the maxima 
     return G
 # def add_size_dist_to_graph(G, dgrid):
 
-def add_psd_to_rag(G, region_props, bins):
-    import numpy as np 
+def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
+    """
+    > This function takes a graph, a list of region properties, a list of bins, an ase atoms object, and
+    a shape, and adds the psd to the graph. 
     
+    For each region, we calculate the distances between the centroid and the coordinates. 
+    
+    Then we calculate the histogram of the distances. 
+    
+    Then we calculate the bin centers. 
+    
+    Then we add the bin centers and the histogram to the graph. 
+    
+    Then we return the graph. 
+    
+    Note that these distance histograms or centroids do not account for periodic boundary conditions.
+    To include periodic boundary conditions, use the add_psd_to_rag_with_pbc function.
+    
+    :param G: the graph
+    :param region_props: a list of dictionaries, each dictionary contains the properties of a region
+    :param bins: The number of bins to use for the histogram
+    :param ase_atoms: The atoms object from ASE
+    :param shape: shape of the image
+    :return: The graph with the psd_x and psd_y attributes added to the nodes.
+    """
+
+
+    import numpy as np 
+    from .helper import find_coord_from_indices 
     for region_prop in region_props:    
-        G.nodes[region_prop['label']]['psd_x'] = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[0]
-        G.nodes[region_prop['label']]['psd_y'] = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[1]
+        distances= np.linalg.norm(find_coord_from_indices(region_prop['centroid'] - region_prop['coords'], shape=shape, ase_atoms=ase_atoms), axis=1)
+
+        G.nodes[region_prop['label']]['psd_y'], bin_edges = np.histogram(distances, bins=bins, density=True, )
+        # bin_edges = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[1]
+        bin_centers = (bin_edges[1:]+bin_edges[:-1])/2
+        G.nodes[region_prop['label']]['psd_x'] = bin_centers
     return G
 
-def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms):
+def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None):
+    """
+    > It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each
+    region as a node property
+    
+    :param regions: the regions that we computed from the distance grid
+    :param dgrid: the distance grid
+    :param ase_atoms: the atoms object from ase
+    :return: A region adjacency graph
+    """
+    
     import numpy as np
     # * compute a region adjacency graph from skimage
     from skimage.future import graph 
     from .helper import find_coord_from_indices
     gr_mean = graph.rag_mean_color(dgrid, regions)
+    
     from skimage.measure import regionprops 
     # * add the centroid property to the rag nodes
     region_props = regionprops(regions)
     for region_prop in region_props:
+        #add the coordinates of the centroid to the node
         gr_mean.nodes[region_prop['label']]['centroid'] = find_coord_from_indices( indices = np.array(region_prop['centroid']), ase_atoms=ase_atoms,shape=dgrid.shape)
+        gr_mean.nodes[region_prop['label']]['centroid_indices'] = region_prop['centroid'] # * add the indices of the centroid to the node
+    gr_mean.remove_node(0)
+    if maxima is not None:
+        maxima_radii = dgrid[tuple(maxima.T)] # * radii of the maxima
+        gr_mean = add_maxima_to_rag(gr_mean, maxima, maxima_radii, regions.shape, ase_atoms)
+        for edge in gr_mean.edges():
+            gr_mean.edges[edge]['weight'] = np.linalg.norm(gr_mean.nodes[edge[0]]['maxima'] - gr_mean.nodes[edge[1]]['maxima'])
+    else:
+        for edge in gr_mean.edges():
+            gr_mean.edges[edge]['weight'] = np.linalg.norm(gr_mean.nodes[edge[0]]['centroid'] - gr_mean.nodes[edge[1]]['centroid'])
     
     return gr_mean
 
-def get_periodic_map(regions, maxima, maxima_radii, **kwargs):
+def get_periodic_map(regions, maxima, maxima_radii, return_conn=False, **kwargs):
     """
-    It takes a list of regions and a list of maxima and returns a dictionary that maps each region to
-    its periodic image
+    It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary
+    that maps each region to the nearest maximum.
     
-    :param regions: a 3D array of integers, where each integer represents a region
-    :param maxima: the maximum value of each dimension of the grid
-    :return: A dictionary with the keys being the regions and the values being the periodic regions.
+    :param regions: a 3D array of integers, where each integer is a region index, obtained from regions_from_dgrid function
+    :param maxima: the 3D indices of the maxima, obtained from regions_from_dgrid function
+    :param maxima_radii: the list of radii of the maxima (in Angstrom)
+    :param return_conn: if True, returns the connectivity groups of the regions, defaults to False
+    (optional)
+    :return: a dictionary with the keys being the starting region indices and the values being the periodic group of
+    the regions.
+
+    then to apply this periodic map to regions, use: 
+        np.vectorize(periodic_map.get)(regions)
     """
+    
+    
     # r1 = apply_pbc(regions, maxima, **kwargs)
-    return dict(zip(regions.flatten(), apply_pbc(regions, maxima, maxima_radii, **kwargs).flatten()))
+    if return_conn:
+        return apply_pbc(regions, maxima, maxima_radii, return_conn=return_conn, **kwargs)
+    else:
+        return dict(zip(regions.flatten(), apply_pbc(regions, maxima, maxima_radii, **kwargs).flatten()))
+
 
 
 def apply_periodic_map(input_array, periodic_map):
@@ -529,6 +613,20 @@ def graph_from_connections(connections, maxima, only_use_internal=True):
     return G
 
 def add_props_to_graph(G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None):
+    """
+    The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and
+    edge attributes.
+
+
+    :param G: the graph
+    :param node_props: a list of lists, where each list contains the node properties for a given node property
+    :param node_prop_names: list of names of node properties
+    :param edge_props: a list of lists, where each list contains the edge properties for a given edge property
+    :param edge_prop_names: list of strings, names of edge properties
+    :return: A graph with the node and edge properties added to it.
+    """
+
+
     import numpy as np
     import networkx as nx 
     if np.any(node_props) != None:
@@ -608,7 +706,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
         wall_windows =  np.vstack(wall_windows)
     return wall_windows
 
-def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2):
+def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2, return_conn =False):
 
     import copy
     # a = 0 
@@ -698,7 +796,10 @@ def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2):
     #     # * Replace the old-labels with new
     #     for i in range(number_of_regions):
     #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
-    return regions_pbc
+    if return_conn:
+        return list(nx.connected_components(g1))[1:]
+    else:
+        return regions_pbc
 
 
 def do_it_all(ase_atoms,spacing=0.25):
@@ -719,3 +820,109 @@ def do_it_all(ase_atoms,spacing=0.25):
     pgraph = graph_from_connections(connections, maxima, only_use_internal=True)
     pgraph = add_props_to_graph(pgraph, node_props = [find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=updated_atoms)], node_prop_names=['node_coords'])
     return [updated_atoms, grid,regions, maxima, connections, pgraph]
+
+def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
+    """
+    > For each group of nodes that are connected by periodic boundary conditions, find the centroid of
+    the group and add it to the graph as a node attribute. 
+    
+    The function takes in a graph, a list of properties, a list of groups of nodes that are connected by
+    periodic boundary conditions, an ASE atoms object, and the shape of the image. 
+    
+    The function first makes a copy of the graph. Then, it loops through each group of nodes that are
+    connected by periodic boundary conditions. For each group, it finds the indices of the properties
+    that correspond to the nodes in the group. If there is more than one node in the group, it finds the
+    centroid of the group by taking the circular mean of the coordinates of the nodes in the group. If
+    there is only one node in the group, it finds the centroid of the node by taking the mean of the
+    coordinates of the node. Finally, it adds the centroid of the group
+    
+    :param rag: the Region Adjacency Graph object from skimage (skimage.future.graph.rag class)
+    :param props: a list of dictionaries, each dictionary contains the label and the coordinates of the
+    centroid of the cluster
+    :param pbc_groups: a list of lists, where each list contains the labels of the atoms that are
+    connected by periodic boundary conditions
+    :param ase_atoms: the atoms object from ASE
+    :param shape: shape of the image
+    :return: The rag is being returned with the centroid_pbc added to the nodes.
+    """
+
+
+    from scipy import stats 
+    import numpy as np 
+    import copy
+    from .helper import find_coord_from_indices
+    G = copy.deepcopy(rag)
+    prop_labels = np.array([prop['label'] for prop in props])
+    for group in pbc_groups[1:]: #* 0 is always the background
+        prop_indices = [np.where(prop_labels==g)[0][0] for g in group]
+        # print(group, prop_indices)
+        if len(group)>1:
+            coords = np.vstack([props[pi]['coords'] for pi in prop_indices])/shape 
+            # print(coords.shape)
+            centroid = stats.circmean(coords, axis=0, low=0, high=1)
+            for i, g in enumerate(group):
+                G.nodes[props[prop_indices[i]]['label']]['centroid_pbc'] = mgr.find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+        else:
+            pi = np.where(prop_labels==list( group )[0])[0][0]
+            # print(pi)
+            coords = props[pi]['coords']/shape
+            centroid = np.mean(coords, axis=0)
+            G.nodes[props[pi]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+    return G
+
+def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
+
+
+    def get_pbc_distances(coords, centroid_pbc, ase_atoms):
+        
+        from ase.geometry import complete_cell 
+        cell = complete_cell(ase_atoms.get_cell())
+        # cell_inv = np.linalg.inv(cell) 
+        df = coords - centroid_pbc
+        df = (df - np.round(df))
+        distances = np.linalg.norm(np.dot(cell, df.T).T, axis=1)
+        return distances
+
+    from scipy import stats 
+    import numpy as np 
+    import copy
+    from .helper import find_coord_from_indices
+    # shape = regions.shape
+    G = copy.deepcopy(rag)
+    prop_labels = np.array([prop['label'] for prop in props])
+    for group in pbc_groups: 
+        prop_indices = [np.where(prop_labels==g)[0][0] for g in group]
+        # print(group, prop_indices)
+        if len(group)>1:
+            #* fractional coordinates of all the points present in this group
+            coords = np.vstack([props[pi]['coords'] for pi in prop_indices])/shape 
+            # print(coords.shape)
+            #* pbc centroid of the group in fractional coordinates
+            centroid = stats.circmean(coords, axis=0, low=0, high=1)
+            #* distances for the group in cartesian units
+            distances = get_pbc_distances(coords, centroid, ase_atoms)
+            # * histogram of the distances and bin centers
+            psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+            psd_x_pbc = (bine[1:] + bine[:-1])/2
+            # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+            for i, g in enumerate(group):
+                G.nodes[props[prop_indices[i]]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+                G.nodes[props[prop_indices[i]]['label']]['psd_x_pbc'] = psd_x_pbc
+                G.nodes[props[prop_indices[i]]['label']]['psd_y_pbc'] = psd_y_pbc
+        else:
+            pi = np.where(prop_labels==list( group )[0])[0][0]
+            # print(pi)
+            #* get coordinates and centroids
+            coords = props[pi]['coords']/shape
+            centroid = np.mean(coords, axis=0)
+            # * histogram of the distances and bin centers
+            distances = get_pbc_distances(coords, centroid, ase_atoms)
+            psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+            psd_x_pbc = (bine[1:] + bine[:-1])/2
+
+            # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+            G.nodes[props[pi]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+            G.nodes[props[pi]['label']]['psd_x_pbc'] = psd_x_pbc
+            G.nodes[props[pi]['label']]['psd_y_pbc'] = psd_y_pbc
+    
+    return G
