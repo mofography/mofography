@@ -871,12 +871,42 @@ def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
     return G
 
 def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
+    """
+    > It takes a rag, a list of properties, a list of pbc groups, a list of bins, an ase atoms object
+    and a shape and returns a region adjacency graph with pbc properties added to it. 
+    
+    Let's see how we can use this function. 
+    
+    First, we need to get the pbc groups. 
+    
+    We can do that using the `get_pbc_groups` function and setting return_conn option to True (it is False by default)
+    
+    Let's see how we can use it.
+    
+    :param rag: the region adjacency graph
+    :param props: list of dictionaries containing the properties of each region
+    :param pbc_groups: list of lists of labels of regions that are connected by periodic boundary
+    conditions
+    :param bins: the bins for the histogram
+    :param ase_atoms: ASE atoms object
+    :param shape: shape of the image
+    :return: The graph with the pbc properties added to the nodes.
+    """
 
 
     def get_pbc_distances(coords, centroid_pbc, ase_atoms):
+        """
+        > The function takes the coordinates of the grid points in the region, the centroid of the region, and
+        the atoms object, and returns the distances of the grid points from the periodic region centroid
+        
+        :param coords: the coordinates of the atoms in the cluster
+        :param centroid_pbc: the centroid of the cluster in the PBC frame
+        :param ase_atoms: ASE atoms object
+        :return: The distances between the centroid and the atoms in the cluster.
+        """
         
         from ase.geometry import complete_cell 
-        cell = complete_cell(ase_atoms.get_cell())
+        cell = complete_cell(ase_atoms.get_cell()).T
         # cell_inv = np.linalg.inv(cell) 
         df = coords - centroid_pbc
         df = (df - np.round(df))
