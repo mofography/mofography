@@ -1278,3 +1278,46 @@ def make_bg_image( type='radial', cmap='plasma_r'):
                     sizing="stretch",
                     layer="below")
     return image
+def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
+    """
+    Plot the paths in a RAG.
+
+    Parameters
+    ----------
+    rag : nx.Graph
+        The region adjacency graph.
+    paths : list
+        A list of paths in the RAG.
+    colorscale : str, optional
+        The colorscale to use for the paths, by default 'Pastel'
+
+    Returns
+    -------
+    list
+        A list of Plotly traces.
+    """
+    import plotly.graph_objects as go 
+    import networkx as nx 
+    import random
+    import plotly.express as px 
+    # coordinates = []
+    # hovertext=[]
+    # marker_color = []
+    path_traces =[]
+    colorscale = getattr(px.colors.qualitative, colorscale)
+    for i,path in enumerate(paths):
+        # coordinates = coordinates+list(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+        maxima_dict= nx.get_node_attributes(rag, 'maxima')
+        coordinates= np.vstack(map(maxima_dict.get, path))
+        # coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+        # coordinates.append([None, None, None])
+        # hovertext = hovertext + ['Path: '+str(i)]*len(path)
+        hovertext ='Path: '+str(i)        # hovertext.append(None)
+        # marker_color= marker_color+ [random.choice(colorscale)]*len(path)
+        marker_color= random.choice(colorscale)
+        line_color = 'yellow'
+        # marker_color.append('rgb(0,0,0)')
+        path_trace = go.Scatter3d(x=coordinates[:,0], y=coordinates[:,1], z=coordinates[:,2], mode='markers+lines', marker=dict(size=25, color=marker_color),line=dict(width=10,color=line_color), hovertext=hovertext, name='Path:'+str(i) ,**kwargs)
+        path_traces.append(path_trace)
+    
+    return path_traces
