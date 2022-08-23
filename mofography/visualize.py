@@ -1300,6 +1300,7 @@ def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
     import networkx as nx 
     import random
     import plotly.express as px 
+    import numpy as np
     # coordinates = []
     # hovertext=[]
     # marker_color = []

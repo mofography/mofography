@@ -359,6 +359,7 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     import networkx.algorithms.isomorphism as isomo
     isomorphic_aromatic_cycles = list([])
     isomorphic_aromatic_cycles = []# list([])
+    
     for cycle in chemically_unique_cycles:
         graph = sgraph.subgraph(cycle)
         iso1 = isomo.GraphMatcher(sgraph, graph, node_match=isomo.categorical_node_match('element',default='None'), edge_match=isomo.categorical_edge_match('bond_type',default='None'))
@@ -366,6 +367,7 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
         # ic(list(iso1.subgraph_isomorphisms_iter()))
         # isomorphic_aromatic_cycles.append(list(iso1.subgraph_isomorphisms_iter()))#[subgraph.keys() for subgraph in iso1.subgraph_isomorphisms_iter()])
     isomorphic_aromatic_cycles = [list(b) for b in set(tuple(sorted(c)) for c in isomorphic_aromatic_cycles)]
+    
     return isomorphic_aromatic_cycles
     # return unique_cycles
 
