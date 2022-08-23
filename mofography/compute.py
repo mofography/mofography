@@ -1029,3 +1029,183 @@ def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
             G.nodes[props[pi]['label']]['psd_y_pbc'] = psd_y_pbc
     
     return G
+def add_clustering_to_rag(rag2, distance_threshold = 0.25, return_cluster_obj = False):
+    """
+    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
+    the nodes.
+    
+    :param rag2: the RAG object
+    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
+    clusters
+    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
+    False (optional)
+    :return: The rag2 object with the cluster labels added to the nodes.
+    """
+    
+    import numpy as np 
+
+    # *  get the data array, while reordering to match the node order   
+    X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
+
+    # * do the clustering using agglomerative clustering 
+    from sklearn.cluster import AgglomerativeClustering 
+    clustering = AgglomerativeClustering(compute_full_tree=True, linkage='single', distance_threshold = distance_threshold, n_clusters=None).fit(X)
+    
+    #* Add the clustering info to rag
+    for i in rag2.nodes():
+        rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
+
+    if return_cluster_obj:
+        return (rag2, clustering)
+    else:
+        return rag2
+def compare_two_paths(p1, p2, rag):
+    """
+    It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
+    contains a node in the first path and a node in the second path
+    
+    :param p1: a list of tuples, each tuple is a coordinate in the path
+    :param p2: the path to be compared to p1
+    :param rag: the region adjacency graph
+    """
+    import networkx.algorithms.isomorphism as iso
+    g1 = rag.subgraph(p1)
+    g2 = rag.subgraph(p2)
+    nm = iso.categorical_node_match('cluster', default='None')
+    return iso.is_isomorphic(g1, g2, node_match=nm)
+
+def find_isomorphic_path_groups(list_of_paths,rag):
+    import itertools 
+    import networkx as nx
+    gg = nx.Graph()
+    for i in range(len(list_of_paths)):
+        gg.add_node(i)
+    indices = list(itertools.combinations(range(len(list_of_paths)), 2))
+    for i,p in enumerate(itertools.combinations(list_of_paths,2)):
+        # /else:
+        if compare_two_paths(p[0], p[1], rag):
+            # print(p)
+            gg.add_edge(indices[i][0], indices[i][1])
+    # * get a list tof groups of paths that are isomorphic 
+    ccgg = list(nx.connected_components(gg))
+    grouped_paths = [[list_of_paths[i] for i in cg] for cg in ccgg]
+    return grouped_paths
+
+def calc_path_components(rag, path: list):
+    """
+    Calculate the PCA components of a path in a RAG.
+
+    Parameters
+    ----------
+    rag : nx.Graph
+        The RAG to calculate the PCA components for.
+    path : list
+        The path to calculate the PCA components for.
+
+    Returns
+    -------
+    np.ndarray
+        The PCA components of the path.
+    """
+    import numpy as np
+    import networkx as nx
+    from sklearn.decomposition import PCA 
+    from sklearn.preprocessing import StandardScaler
+    pca_cart = PCA(n_components=np.min([len(path)-1,3]))
+    pca_frac= PCA(n_components=np.min([len(path)-1,3]))
+    maxima_coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima_indices').values())
+    # maxima_fractional = mgr.get_fractional_coordinates(maxima_cartesian, ase_atoms)
+    maxima_coordinates= StandardScaler().fit_transform(maxima_coordinates)
+    pca_cart.fit(maxima_coordinates)
+    # pca_frac.fit(maxima_fractional)
+    # flag = np.logical_and(pca_cart.explained_variance_ratio_[0] > threshold, pca_frac.explained_variance_ratio_[0] > threshold)
+    # flag = pca_cart.explained_variance_ratio_[0] > threshold
+    
+    # print(path, pca.explained_variance_ratio_)
+    # return (pca_cart.explained_variance_ratio_, pca_frac.explained_variance_ratio_, flag )
+    return pca_cart.explained_variance_ratio_
+
+def find_paths(regions, rag2):
+
+    import numpy as np 
+    #* Now we are going to go face by face, and find all the paths 
+    #* that have source on starting face and destination on one of the other 5 faces
+    import networkx as nx 
+    all_paths = list(nx.all_pairs_bellman_ford_path(rag2, weight='weight'))
+    # all_paths = list(nx.all_pairs_dijkstra_path(rag2, weight='weight'))
+    # all_paths = list(nx.all_pairs_dijkstra_path(rag2, weight='weight'))
+        #* make a subset of these paths to check later for channels
+    check_these_paths =[]
+
+    shape = regions.shape 
+    map_list=[]
+    for a  in [0,1,2]:
+            llr = regions.take(indices=0 ,axis=a) #* left wall
+            rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
+            map_list.append(np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0))
+    # map_list = np.vstack(map_list)
+
+
+    #* check in the forward direction
+    for a in [0,1,2]: #* along the three faces (directions) of the cube
+        for thing in all_paths: #* loop over the tuples in all_paths
+            paths = list(thing[1].items())[1:] #* all paths starting from source
+            for dest, path in paths: #* the first entry is the source node, second is a dictionary of paths
+                if(len(path)>1):
+                    # print(len(path))
+                    for node_i,node in list(enumerate(path))[1:]:  
+                        #* check in the forward direction
+                        # source_nodes = np.unique(wall_list[a*2+0])
+                        source_nodes = map_list[a][:,0]
+                        # print(node_i, node, path, source_nodes)
+                        #* only the starting node should be on the starting face
+                        if np.isin(node, source_nodes):
+                            break 
+                        # destination_nodes  =   np.unique([v for i,w in enumerate(wall_list) for v in w  if i!=a*2+0])
+                        # destination_nodes= np.unique(wall_list[a*2+1])
+                        destination_nodes= map_list[a][:,1]
+                        if np.logical_and(*[np.isin(thing[0],source_nodes),np.isin(node,destination_nodes)]): #* thing = (source, {dest1:path1,dest2:path2,... })
+                            check_these_paths.append(path[:node_i+1]) #* grab that path up to that node
+                            # * add a path only once, once a destination is reached, move on to the next path.
+                            break
+                #* Add the single node paths to the list of paths to check
+                # * where a single node occupies the whole path
+                # if (len(path)==1):
+                #     source_nodes = np.unique(wall_list[a*2+0])
+                #     if np.isin(path[0], source_nodes):
+                #         check_these_paths.append(path)
+
+    #* Check in the backward direction
+    for a in [0,1,2]: #* along the three faces (directions) of the cube
+        for thing in all_paths: #* loop over the tuples in all_paths
+            paths = list(thing[1].items())[1:] #* all paths starting from source
+            for dest, path in paths: #* the first entry is the source node, second is a dictionary of paths
+                if(len(path)>1):
+                    # print(len(path))
+                    for node_i,node in list(enumerate(path))[1:]:  
+                        #* check in the backward direction
+                        # source_nodes = np.unique(wall_list[a*2+1])
+                        source_nodes = map_list[a][:,1]
+                        # print(node_i,node, path, source_nodes)
+                        #* only the starting node should be on the starting face
+                        if np.isin(node, source_nodes):
+                            break 
+                        # destination_nodes  =   np.unique([v for i,w in enumerate(wall_list) for v in w  if i!=a*2+1])
+                        # destination_nodes= np.unique(wall_list[a*2+0])
+                        destination_nodes= map_list[a][:,0]
+                        if np.logical_and(*[np.isin(thing[0],source_nodes),np.isin(node,destination_nodes)]): #* thing = (source, {dest1:path1,dest2:path2,... })
+                            check_these_paths.append(path[:node_i+1]) #* grab that path up to that node
+                            # * add a path only once, once a destination is reached, move on to the next path.
+                            break
+                            #* Add the single node paths to the list of paths to check
+
+
+    #region #* Remove paths that non unique, in terms of repetiion indepent of order (assuming that no relevant paths are cyclic)
+    frozen_paths = [] 
+    check_these_paths_new=[]
+    for i, p in enumerate(check_these_paths):
+        if frozenset(p) not in frozen_paths:
+            frozen_paths.append(frozenset(p))
+            check_these_paths_new.append(p)
+    checks = [calc_path_components(rag2,p) for p in check_these_paths_new]
+    return checks, check_these_paths_new
