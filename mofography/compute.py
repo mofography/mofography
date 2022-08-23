@@ -221,7 +221,80 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 
 
 
-def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
+# def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
+#     """Computes the region segmentaion from the distance grid
+
+#     :param dgrid: 3D distance grid
+#     :type dgrid: numpy.array
+#     # :param peak_min:minimum height of the peak in angstrom, defaults to 2.0
+#     # :type peak_min: float, optional, defaults to 2.0 angstroms
+#     :param relative_threshold: Minimum intensity of peaks, calculated as max(image) * relative_threshold, defaults to 0.1
+#     :type relative_threshold: float, 
+#     :param mask_thickness:thickness of the framework cover. Points within this distance from the framework surface are not segmented, defaults to 1
+#     :type mask_thickness: float, optional
+#     :return:region labels, same shape as input grid. 0 refers to the back ground
+#     :rtype: 3D numpy.array same shape and input grid
+#     """    
+#     from scipy import ndimage as ndi
+#     import numpy as np
+#     import sparse
+#     from .helper import interpolate_labels, find_coord_from_indices
+#     from skimage import segmentation
+#     from skimage.morphology import extrema
+#     from skimage.feature import peak_local_max, corner_peaks
+#     from sklearn.cluster import AgglomerativeClustering
+#     # peak_min =2
+#     # max_indices = np.vstack(np.where(extrema.h_maxima(dgrid, h=0.5)))
+#     # max_indices = np.vstack(np.where(extrema.local_maxima(dgrid)))
+#     # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
+#     # max_indices = np.array(peak_local_max(dgrid, **kwargs)).T
+#     # Finding the local maxima of the corner response function.
+    
+#     # ag = AgglomerativeClustering(n_clusters=None, linkage='average', distance_threshold=np.max(np.array(dgrid.shape))/5, compute_full_tree=True).fit(max_indices)
+#     # max_indices= np.vstack([max_indices[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1]).astype(int)
+#     # print(max_indices)
+#     # markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
+#     from icecream import ic 
+#     probe = mask_thickness
+#     import dask.array as da
+#     import warnings
+#     # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
+#     # max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, **kwargs)).T
+#     max_indices = np.array(peak_local_max(dgrid,  **kwargs)).T
+#     markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
+
+#     probe = mask_thickness
+#     import dask.array as da
+#     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
+
+#     new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
+#     if len(new_max_indices.T) < len(max_indices.T):
+#         warnings.warn('Some maxima excluded as they fell inside the mask_thickness')
+    
+#     markers_sparse = sparse.COO(new_max_indices, 1, shape=dgrid.shape)
+
+#     probe = mask_thickness
+#     import dask.array as da
+#     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+
+#     #* Now interpolate the region labels and sort the maxima in the correct order    
+#     sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
+#     new_max_indices = (new_max_indices.T[sort_index]).T
+#     # ir = interpolate_labels(reg_labels)
+#     # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
+    
+#     # # new_max_indices = []
+#     # old_labels = np.unique(reg_labels)  # This is sorted already
+#     # number_of_regions = len(old_labels)
+#     # new_labels = range(number_of_regions)
+
+#     # # * Replace the old-labels with new
+#     # for i in range(number_of_regions):
+#     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
+#     return reg_labels, new_max_indices.T
+def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=False):
     """Computes the region segmentaion from the distance grid
 
     :param dgrid: 3D distance grid
@@ -238,7 +311,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     from scipy import ndimage as ndi
     import numpy as np
     import sparse
-    from .helper import interpolate_labels, find_coord_from_indices
+    # from .helper import interpolate_labels, find_coord_from_indices
     from skimage import segmentation
     from skimage.morphology import extrema
     from skimage.feature import peak_local_max, corner_peaks
@@ -261,12 +334,13 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
 
     # max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, **kwargs)).T
-    max_indices = np.array(peak_local_max(dgrid,  **kwargs)).T
+    # max_indices = np.array(peak_local_max(dgrid,  **kwargs)).T
+    max_indices = np.vstack(np.where(extrema.h_maxima(dgrid,  h=h)))
     markers_sparse = sparse.COO(max_indices, 1, shape=dgrid.shape)
 
     probe = mask_thickness
     import dask.array as da
-    reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+    reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=compactness)
 
 
     new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
@@ -277,7 +351,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
 
     probe = mask_thickness
     import dask.array as da
-    reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int))
+    reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=compactness)
 
     #* Now interpolate the region labels and sort the maxima in the correct order    
     sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
@@ -294,7 +368,6 @@ def regions_from_dgrid(dgrid, mask_thickness=1, **kwargs):
     # for i in range(number_of_regions):
     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
     return reg_labels, new_max_indices.T
-
 def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
 
     """
