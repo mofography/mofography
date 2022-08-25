@@ -112,5 +112,5 @@ paths_hd_trace= mgr.plot_paths(rag2,path_groups_hd, legendgroup='2', legendgroup
 fig = go.Figure(data=[*frame_trace, *paths_1d_trace, *paths_hd_trace,cell_trace, surface_trace, rag_trace]).update(layout=mgr.dark_layout)
 fig.show()
 #
-#endregion
+
 # %%
