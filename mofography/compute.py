@@ -1044,7 +1044,7 @@ def add_clustering_to_rag(rag2, distance_threshold = 0.25, return_cluster_obj = 
     
     import numpy as np 
     import networkx as nx 
-    
+
     # *  get the data array, while reordering to match the node order   
     X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
 
@@ -1075,10 +1075,12 @@ def compare_two_paths(p1, p2, rag):
     nm = iso.categorical_node_match('cluster', default='None')
     return iso.is_isomorphic(g1, g2, node_match=nm)
 
-def find_isomorphic_path_groups(list_of_paths,rag):
+def find_isomorphic_path_groups(list_of_paths,rag, cluster=True):
     import itertools 
     import networkx as nx
     gg = nx.Graph()
+    if cluster:
+        rag = add_clustering_to_rag(rag)
     for i in range(len(list_of_paths)):
         gg.add_node(i)
     indices = list(itertools.combinations(range(len(list_of_paths)), 2))
