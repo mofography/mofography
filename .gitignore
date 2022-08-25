@@ -109,3 +109,10 @@ ENV/
 .idea/
 examples/*.glb
 examples/*.gltf
+mofography/examples/taichi_test.py
+mofography/examples/taichi_rendering.py
+mofography/examples/test_beautiful_atoms.py
+mofography/examples/test_animation.py
+mofography/examples/irmof_garbage_animation.py
+mofography/examples/Tutorial_7_files/*
+mofography/examples/TestCIFs/*
