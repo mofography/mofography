@@ -1043,7 +1043,8 @@ def add_clustering_to_rag(rag2, distance_threshold = 0.25, return_cluster_obj = 
     """
     
     import numpy as np 
-
+    import networkx as nx 
+    
     # *  get the data array, while reordering to match the node order   
     X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
 
