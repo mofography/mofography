@@ -28,9 +28,9 @@ copyright = ("2022, Arun Gopalan. Project structure based on the "
 author = 'Arun Gopalan'
 
 # The short X.Y version
-version = ''
+version = '0.5'
 # The full version, including alpha/beta/rc tags
-release = ''
+release = '0.5'
 
 
 # -- General configuration ---------------------------------------------------
@@ -50,13 +50,22 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
+    'myst_nb',
+    # 'RunNotebook'
 ]
 
 autosummary_generate = True
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
-
+myst_enable_extensions = [
+    "amsmath",
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "html_image",
+]
+myst_url_schemes = ("http", "https", "mailto")
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -64,7 +73,7 @@ templates_path = ['_templates']
 # You can specify multiple suffix as a list of string:
 #
 # source_suffix = ['.rst', '.md']
-source_suffix = '.rst'
+source_suffix = {'.rst':'restructuredtext',    '.ipynb': 'myst-nb'}
 
 # The master toctree document.
 master_doc = 'index'
@@ -105,7 +114,7 @@ html_static_path = ['_static']
 html_theme_options = {
 
     # Set the name of the project to appear in the navigation.
-    'nav_title': 'Project Name',
+    'nav_title': 'mofography',
 
     # Set you GA account ID to enable tracking
     # 'google_analytics_account': 'UA-XXXXX',
@@ -119,17 +128,19 @@ html_theme_options = {
     'color_accent': 'light-blue',
 
     # Set the repo location to get a badge with stats
-    'repo_url': 'https://github.com/project/project/',
-    'repo_name': 'Project',
+    'repo_url': 'https://github.com/arung-northwestern/mofography/',
+    'repo_name': 'mofography',
 
     # Visible levels of the global TOC; -1 means unlimited
-    'globaltoc_depth': 3,
+    'globaltoc_depth': 1,
     # If False, expand all TOC entries
-    'globaltoc_collapse': False,
+    'globaltoc_collapse': True,
     # If True, show hidden TOC entries
     'globaltoc_includehidden': False,
 }
-
+html_sidebars = {
+    "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
+}
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
 #

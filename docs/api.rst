@@ -4,4 +4,8 @@ API Documentation
 .. autosummary::
    :toctree: autosummary
 
-   mofography.canvas
+   mofography.visualize
+   mofography.compute
+   mofography.analyze
+   mofography.data
+   mofography.helper
