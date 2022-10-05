@@ -699,10 +699,10 @@ def draw_framework2(ase_atoms, bonds=None, bond_orders=None, show_aromatics=True
 
 
 def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
-                        kwargs_rings=dict(mode='lines', line=dict(color='white', width=2), showlegend=False,
-                                          name='Aromatic Cloud', legendgroup='aromatic circles'),
-                        kwargs_highlight=dict(color='skyblue', opacity=0.25, alphahull=-1,
-                                              name='Aromatic ring highlight')):
+                        kwargs_rings=dict(mode='lines', line=dict(color='white', width=2), showlegend= False,
+                                        legendgroup='aromatics', legendgrouptitle_text='Aromatic rings', name='Aromatic rings'),
+                        kwargs_highlight=dict(color='skyblue', opacity=0.5, alphahull=-1, showlegend=False,
+                        legendgroup='aromatics', legendgrouptitle_text='Aromatic rings', name='Aromatic highlights')):
     """
     It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
     used to plot the aromatic cycles
@@ -1096,13 +1096,13 @@ def get_isosurface_mesh(data, isoval,cell, spacing=(1,1,1), stepsize=1 ):
     mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
     return mesh
 
-def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh={}, kwargs_aromatic_rings={}):
+def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={}):
     """
     It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
     of the aromatic rings.
     
     :param ase_atoms: an ase.Atoms object
-    :param show_rings: if True, will plot the aromatic rings as well, defaults to True (optional)
+    :param show_rings: if True, will plotO the aromatic rings as well, defaults to True (optional)
     :param stylize: if True, will apply some lighting and other effects to the mesh, defaults to False
     (optional)
     :param kwargs_frame_mesh: keyword arguments for mesh_for_atoms
@@ -1111,14 +1111,13 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
     """
 
     from .analyze import update_with_covalent_bonds
-    combined = mesh_for_atoms(ase_atoms, **kwargs_frame_mesh)
+    combined = mesh_for_atoms(ase_atoms, **kwargs_mesh_for_atoms)
     import plotly.graph_objects as go
     verts = combined.vertices
     faces = combined.faces
     colors = ['rgba(' + ','.join(c.astype(str)) + ')' for c in combined.visual.vertex_colors]
     framework_mesh_trace = go.Mesh3d(x=verts[:, 0], y=verts[:, 1], z=verts[:, 2], flatshading=False, i=faces[:, 0],
-                                     j=faces[:, 1], k=faces[:, 2], vertexcolor=colors, showlegend=True, showscale=False,
-                                     name='framework')
+                                     j=faces[:, 1], k=faces[:, 2], vertexcolor=colors, **kwargs_frame_mesh) 
     if stylize:
         framework_mesh_trace.update(lighting=dict(ambient=0.18,
                                                   diffuse=1,
@@ -1130,7 +1129,7 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
                                     lightposition=dict(x=10,
                                                        y=10,
                                                        z=30
-                                                       ), showscale=False
+                                                       ), **kwargs_frame_mesh
                                     )
     traces = (framework_mesh_trace,)
     if show_rings:
@@ -1139,6 +1138,9 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
         # sgraph = sgraph_from_atoms(ase_atoms=ase_atoms)
         aromatic_rings_trace = plot_aromatic_rings(ase_atoms, **kwargs_aromatic_rings)
         traces = (framework_mesh_trace, *aromatic_rings_trace)
+        # group all the traces into the same legend
+        for t in traces:
+            t['legendgroup'] = traces[0]['legendgroup']
     return traces
 
 
