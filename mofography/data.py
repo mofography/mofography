@@ -1,14 +1,14 @@
-"""
-Gathering, analyzing and maniupulating large data for mofography
-██████╗  █████╗ ████████╗ █████╗ 
-██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-██║  ██║███████║   ██║   ███████║
-██║  ██║██╔══██║   ██║   ██╔══██║
-██████╔╝██║  ██║   ██║   ██║  ██║
-╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+# """
+# Gathering, analyzing and maniupulating large data for mofography
+# ██████╗  █████╗ ████████╗ █████╗ 
+# ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
+# ██║  ██║███████║   ██║   ███████║
+# ██║  ██║██╔══██║   ██║   ██╔══██║
+# ██████╔╝██║  ██║   ██║   ██║  ██║
+# ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
                                 
 
-"""
+# """
 
 # TODO figure out how to use these routines to pull data from a python file
 # TODO without using boiler plate code as much as possible

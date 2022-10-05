@@ -1,15 +1,15 @@
-"""
+# """
  
- Visualization subroutines for mofography
- ██╗   ██╗██╗███████╗██╗   ██╗ █████╗ ██╗     ██╗███████╗███████╗
- ██║   ██║██║██╔════╝██║   ██║██╔══██╗██║     ██║╚══███╔╝██╔════╝
- ██║   ██║██║███████╗██║   ██║███████║██║     ██║  ███╔╝ █████╗  
- ╚██╗ ██╔╝██║╚════██║██║   ██║██╔══██║██║     ██║ ███╔╝  ██╔══╝  
-  ╚████╔╝ ██║███████║╚██████╔╝██║  ██║███████╗██║███████╗███████╗
-   ╚═══╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝╚══════╝
+#  Visualization subroutines for mofography
+#  ██╗   ██╗██╗███████╗██╗   ██╗ █████╗ ██╗     ██╗███████╗███████╗
+#  ██║   ██║██║██╔════╝██║   ██║██╔══██╗██║     ██║╚══███╔╝██╔════╝
+#  ██║   ██║██║███████╗██║   ██║███████║██║     ██║  ███╔╝ █████╗  
+#  ╚██╗ ██╔╝██║╚════██║██║   ██║██╔══██║██║     ██║ ███╔╝  ██╔══╝  
+#   ╚████╔╝ ██║███████║╚██████╔╝██║  ██║███████╗██║███████╗███████╗
+#    ╚═══╝  ╚═╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝╚══════╝╚══════╝
                                                                  
  
-"""
+# """
 
 # TODO draw pore graph
 # todo show the region wise properties well ?   
@@ -140,24 +140,29 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
                        color='blue', stepsize=1, stylize=False, random_seed=0):
     """
     It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
-    returns a plotly Mesh3D trace object that can be plotted using the plotly library.
+    returns a plotly mesh3d object that can be plotted using plotly
     
-    :param dgrid: the density grid
-    :param isovalue: the value of the isosurface to be plotted
-    :param ase_atoms: ASE atoms object
-    :param region_labels: a 3D array of the same shape as the dgrid. This array contains the region
-    labels for each voxel
-    :param select: the region labels to be plotted. If 'all' is selected, all regions are plotted,
-    defaults to all (optional)
-    :param opacity: opacity of the surface
-    :param cscale: a colorscale for the regions. If None, a random colorscale is generated
-    :param color: color of the surface, defaults to blue (optional)
-    :param stepsize: The step size for the marching cubes algorithm, defaults to 1 (optional)
-    :param stylize: if True, will apply some random style choices, purely personal preference, defaults
-    to False (optional)
-    :param random_seed: int, optional, defaults to 0 (optional)
-    :return: A plotly Mesh3D trace
+    Args:
+      dgrid: the density grid
+      isovalue: the value of the isosurface to be plotted
+      ase_atoms: ASE atoms object
+      region_labels: a 3D array of the same shape as the density grid. Each voxel in the density grid is
+    assigned a label. The labels are used to color the surface.
+      select: a list of region labels to plot. If 'all' is selected, all regions are plotted. Defaults
+    to all
+      opacity: The opacity of the surface.
+      cscale: a colorscale for the regions. If None, a random colorscale is generated.
+      color: color of the cell. Defaults to blue
+      stepsize: The step size for the marching cubes algorithm. Defaults to 1
+      stylize: if True, will apply some random style choices, purely personal preference. Defaults to
+    False
+      random_seed: This is used to generate the random colors for the regions. If you want to reproduce
+    the same colors, use the same random seed. Defaults to 0
+    
+    Returns:
+      a plotly mesh3d object.
     """
+
 
     import numpy as np
     import copy
@@ -256,17 +261,19 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
 
     return data_plot
 def plot_cell(ase_atoms, color='purple', name='cell'):
-    """Returns a a plotly scatter3D line trace for the 3D unit cell
-
-    :param ase_atoms: ASE atoms object
-    :type ase_atoms: ase.atoms
-    :param color: line color for the unit cell. Can be any of the plotly colors, refer to plotly docs or see here 
-    https://community.plotly.com/t/plotly-colours-list/11730/3  for a list, defaults to 'purple'
-    :type color: str, optional
-    :param name: Name of the trace, defaults to 'cell'
-    :type name: str, optional
     """
-
+    It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit
+    cell of the atoms object
+    
+    Args:
+      ase_atoms: the atoms object from ASE
+      color: the color of the cell lines. Defaults to purple
+      name: the name of the cell. Defaults to cell
+    
+    Returns:
+      A plotly graph object
+    """
+    
     def draw_cell(A):
         import numpy as np
         avec = A[:, 0].T
@@ -1013,27 +1020,20 @@ def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[128, 128
 def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128, 128, 128, 255],
                    kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False):
     """
-    > This function takes an ASE atoms object and returns a trimesh object that contains spheres and
-    cylinders for the atoms and bonds, respectively. 
+    > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
+    notebook
     
-    The function is a bit more complicated than it needs to be because it has to handle the case where
-    the bonds are not provided. In that case, it uses the `mofography` package to calculate the bonds. 
-    
-    The function also has a few optional arguments that allow you to customize the appearance of the
-    spheres and cylinders. 
-    
-    Let's try it out on a simple example: 
-    
-    # Example
-    
-    :param ase_atoms: an ase.Atoms object
-    :param bonds: a list of pairs of atom indices. If None, then the bonds are calculated from the atoms
+    :param ase_atoms: an ASE atoms object
+    :param bonds: a list of bonds, where each bond is a list of two atom indices
     :param colormap: a dictionary of colors for each atomic number
-    :param bond_rgba_array: the color of the bonds
-    :param kwargs_spheres: 
-    :param kwargs_cylinders: radius of the cylinder
-    :return: A trimesh object
+    :param bond_rgba_array: The color of the bonds
+    :param kwargs_spheres: dict of arguments for the spheres, see the spheres_for_atom function
+    :param kwargs_cylinders: radius of the cylinder, see the cylinders_for_bonds function
+    :param return_scene: if True, returns a trimesh.Scene object, which can be rendered with the
+    trimesh.Scene.show() method, defaults to False (optional)
+    :return: A trimesh.Scene object.
     """
+
     import trimesh
     import numpy as np
     if colormap is None:
@@ -1096,7 +1096,7 @@ def get_isosurface_mesh(data, isoval,cell, spacing=(1,1,1), stepsize=1 ):
     mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
     return mesh
 
-def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh={}, kwargs_highlight={}):
+def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh={}, kwargs_aromatic_rings={}):
     """
     It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
     of the aromatic rings.
@@ -1137,7 +1137,7 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
         if not ('covalent_bonds' in ase_atoms.info.keys()):
             ase_atoms = update_with_covalent_bonds(ase_atoms)
         # sgraph = sgraph_from_atoms(ase_atoms=ase_atoms)
-        aromatic_rings_trace = plot_aromatic_rings(ase_atoms, **kwargs_highlight)
+        aromatic_rings_trace = plot_aromatic_rings(ase_atoms, **kwargs_aromatic_rings)
         traces = (framework_mesh_trace, *aromatic_rings_trace)
     return traces
 
