@@ -53,11 +53,11 @@ extensions = [
     'myst_nb',
     # 'RunNotebook'
 ]
-
+autodoc_typehints = "description"
 autosummary_generate = True
 napoleon_google_docstring = False
 napoleon_use_param = False
-napoleon_use_ivar = True
+napoleon_use_ivar = False
 myst_enable_extensions = [
     "amsmath",
     "colon_fence",
@@ -136,7 +136,7 @@ html_theme_options = {
     # If False, expand all TOC entries
     'globaltoc_collapse': True,
     # If True, show hidden TOC entries
-    'globaltoc_includehidden': False,
+    'globaltoc_includehidden':True,
 }
 html_sidebars = {
     "**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]
