@@ -66,3 +66,19 @@ def get_fractional_coordinates(points, ase_atoms):
     frac_coords = np.dot(cell_inv, points.T).T
     return frac_coords
 
+def zoom_grid(grid, zoom_factor):
+    """
+    It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by
+    the zoom factor
+    
+    :param grid: the grid to be zoomed
+    :param zoom_factor: The zoom factor along the axes. If a float, zoom is the same for each axis. If
+    an array, zoom should contain one value for each axis
+    :return: A dask array
+    """
+
+
+    import numpy as np
+    import dask.array as da
+    from scipy.ndimage import zoom
+    return da.from_array(zoom(grid, zoom_factor, mode = 'grid-wrap', order=1))
