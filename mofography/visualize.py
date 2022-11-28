@@ -18,11 +18,11 @@
 
 global white_layout
 white_layout = dict(template='plotly_white',
-                    scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False),
+                    scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False, aspectmode='data'),
                     margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='toggleitem'))
 global dark_layout
 dark_layout = dict(template='plotly_dark',
-                   scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False),
+                   scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False, aspectmode='data'),
                    margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1, groupclick='toggleitem'))
 global epic_layout
 epic_layout = dict(template='plotly_dark',
@@ -137,7 +137,7 @@ epic_layout = dict(template='plotly_dark',
 
 #     return data_plot
 def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
-                       color='blue', stepsize=1, stylize=False, random_seed=0):
+                       color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :', **kwargs_mesh):
     """
     It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
     returns a plotly mesh3d object that can be plotted using plotly
@@ -178,6 +178,13 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
     # * Compute the isosurface using Marching Cubes Lewiner as usual
     from skimage.measure import marching_cubes as mc
     verts, faces, normals, values = mc(dgrid, isovalue, step_size=stepsize)
+
+
+
+    # replace default **kwargs_mesh with user defined ones
+
+    name = kwargs_mesh.pop('name', '{} A isosurface'.format(isovalue))
+    showlegend = kwargs_mesh.pop('showlegend', True)
 
     #* creae trimesh from verts and faces 
     # mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals = normals, process=False)
@@ -230,11 +237,11 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
         #* Generate values to color by using the interpolated region labels
         colours = rl(verts)
         #  Find the actual coordinates of the vertices for plotting
-        hovertext = ["Region: " + str(int(c)) for c in colours]
+        hovertext = [hover_label + str(int(c)) for c in colours]
         true_verts = np.dot(cell, (verts / region_labels.shape).T).T
         data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2], intensity=colours.astype(int), intensitymode='vertex',
                               hoverinfo='all', hovertext=hovertext, flatshading=False, colorscale=cscale, i=faces[:, 0],
-                              j=faces[:, 1], k=faces[:, 2], opacity=opacity, name='isosurface', showlegend=True)
+                              j=faces[:, 1], k=faces[:, 2], opacity=opacity, name=name, showlegend=showlegend, **kwargs_mesh)
 
     else:  # if no region labels are provided color by a flat color
 
@@ -242,7 +249,7 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
         data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2],
                               hoverinfo='all',
                               i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], opacity=opacity, color=color,
-                              name='pore surface', showlegend=True)
+                              name=name , showlegend=showlegend, **kwargs_mesh)
 
     if stylize:  # some random style choices, purely personal preference.
         # can be modified after ploting as well. see plotly docs.
@@ -724,9 +731,10 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
     import numpy as np
 
     if isomorphic_aromatic_cycles is None:
-        print('we went here')
+        print('isomorphic aromatic cycles is None, trying to calculate')
         try:
             isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(sgraph)
+            print(isomorphic_aromatic_cycles)
         except:
             Exception('Cannot find aromatic cycles from sgraph! Please provide as input.')
     circle_data = []
@@ -745,60 +753,61 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
     except:
         raise Exception("Cannot find position data in your sgraph")
     print(isomorphic_aromatic_cycles)
-    if len(isomorphic_aromatic_cycles) >0:
-        for ring in isomorphic_aromatic_cycles:
-            ring_coord = coord[ring]
-            ring_center = np.mean(ring_coord, axis=0)
-            ring_normal = np.cross(ring_coord[3] - ring_coord[2], ring_coord[2] - ring_coord[1])
-            ring_normal = ring_normal / np.linalg.norm(ring_normal)
-            r = R.align_vectors(ring_normal.reshape(-1, 3), np.array([0, 0, 1]).reshape(-1, 3))
-            new_circle = r[0].apply(circle_coord)
-            new_circle = new_circle + ring_center - np.mean(new_circle, axis=0)
-            circle_data.append(new_circle)
-            circle_data.append([None, None, None])
-        circle_data = np.vstack(circle_data)
-        data_circle = go.Scatter3d(x=circle_data[:, 0], y=circle_data[:, 1], z=circle_data[:, 2], **kwargs_rings)
+    if isomorphic_aromatic_cycles is not None:
+        if len(isomorphic_aromatic_cycles) >0:
+            for ring in isomorphic_aromatic_cycles:
+                ring_coord = coord[ring]
+                ring_center = np.mean(ring_coord, axis=0)
+                ring_normal = np.cross(ring_coord[3] - ring_coord[2], ring_coord[2] - ring_coord[1])
+                ring_normal = ring_normal / np.linalg.norm(ring_normal)
+                r = R.align_vectors(ring_normal.reshape(-1, 3), np.array([0, 0, 1]).reshape(-1, 3))
+                new_circle = r[0].apply(circle_coord)
+                new_circle = new_circle + ring_center - np.mean(new_circle, axis=0)
+                circle_data.append(new_circle)
+                circle_data.append([None, None, None])
+            circle_data = np.vstack(circle_data)
+            data_circle = go.Scatter3d(x=circle_data[:, 0], y=circle_data[:, 1], z=circle_data[:, 2], **kwargs_rings)
 
-        import pyvista as pv
-        ring_coords = [coord[r] for r in isomorphic_aromatic_cycles]
-        ring_centers = [np.mean(coord[r], axis=0) for r in isomorphic_aromatic_cycles]
-        # ring_normals = [np.cross(co[3]-co[2], co[2]-co[1]) for co in ring_coords]
-        # ring_points = [np.vstack((r,c)) for r,c in zip(ring_coords,ring_centers)]
-        polys = [pv.Polygon(center=c, radius=np.linalg.norm(r[0] - c) * 0.95, normal=np.cross(r[3] - r[2], r[2] - r[1]),
-                            n_sides=len(r)).delaunay_2d() for r, c in zip(ring_coords, ring_centers)]
+            import pyvista as pv
+            ring_coords = [coord[r] for r in isomorphic_aromatic_cycles]
+            ring_centers = [np.mean(coord[r], axis=0) for r in isomorphic_aromatic_cycles]
+            # ring_normals = [np.cross(co[3]-co[2], co[2]-co[1]) for co in ring_coords]
+            # ring_points = [np.vstack((r,c)) for r,c in zip(ring_coords,ring_centers)]
+            polys = [pv.Polygon(center=c, radius=np.linalg.norm(r[0] - c) * 0.95, normal=np.cross(r[3] - r[2], r[2] - r[1]),
+                                n_sides=len(r)).delaunay_2d() for r, c in zip(ring_coords, ring_centers)]
 
-        # polys = [pv.PolyData(rp).delaunay_2d(inplace=True).subdivide(2, subfilter='butterfly', inplace=True) for rp in ring_points]
-        # polygons = [pv.Polygon(center = c ,radius=np.linalg.norm(co[0]-c), normal = n, n_sides = len(co)).triangulate() for  co,c,n in zip(ring_coords, ring_centers, ring_normals)]
-        verts = [p.points for p in polys]
-        faces = [p.faces.reshape((-1, 4))[:, 1:] for p in polys]
-        ring_highlight_traces = [
-            go.Mesh3d(x=v[:, 0], y=v[:, 1], z=v[:, 2], i=f[:, 0], j=f[:, 1], k=f[:, 2], **kwargs_highlight) for v, f in
-            zip(verts, faces)]
+            # polys = [pv.PolyData(rp).delaunay_2d(inplace=True).subdivide(2, subfilter='butterfly', inplace=True) for rp in ring_points]
+            # polygons = [pv.Polygon(center = c ,radius=np.linalg.norm(co[0]-c), normal = n, n_sides = len(co)).triangulate() for  co,c,n in zip(ring_coords, ring_centers, ring_normals)]
+            verts = [p.points for p in polys]
+            faces = [p.faces.reshape((-1, 4))[:, 1:] for p in polys]
+            ring_highlight_traces = [
+                go.Mesh3d(x=v[:, 0], y=v[:, 1], z=v[:, 2], i=f[:, 0], j=f[:, 1], k=f[:, 2], **kwargs_highlight) for v, f in
+                zip(verts, faces)]
 
-    # aromatic_graphs = [sgraph.subgraph(g) for g in isomorphic_aromatic_cycles]
-    # aromatic_vectorize = [np.vectorize({an:i for i,an in enumerate(a.nodes())}.get) for a in aromatic_graphs]
-    # aromatic_tri_faces = [v(np.vstack(list(a.edges()))) for a,v in zip(aromatic_graphs,aromatic_vectorize)]
-    # from icecream import ic
-    # ic.disable()
-    # # ring highlight
+        # aromatic_graphs = [sgraph.subgraph(g) for g in isomorphic_aromatic_cycles]
+        # aromatic_vectorize = [np.vectorize({an:i for i,an in enumerate(a.nodes())}.get) for a in aromatic_graphs]
+        # aromatic_tri_faces = [v(np.vstack(list(a.edges()))) for a,v in zip(aromatic_graphs,aromatic_vectorize)]
+        # from icecream import ic
+        # ic.disable()
+        # # ring highlight
 
-    # ring_centers = []
-    # ring_highlight_traces = []
+        # ring_centers = []
+        # ring_highlight_traces = []
 
-    # for i,ring in enumerate(isomorphic_aromatic_cycles):
-    #     ring_coord = coord[ring]
-    #     ring_centers.append(np.mean(ring_coord, axis=0))
+        # for i,ring in enumerate(isomorphic_aromatic_cycles):
+        #     ring_coord = coord[ring]
+        #     ring_centers.append(np.mean(ring_coord, axis=0))
 
-    #     faces = np.insert(aromatic_tri_faces[i],2,len(ring_coord), axis=1)
-    #     ring_coord = np.vstack((ring_coord , (np.mean(ring_coord, axis=0))))
-    #     ic(faces)
-    #     ic(ring_coord)
-    #     # ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], i=faces[:,0], j=faces[:,1], k=faces[:,2],**kwargs_highlight)
-    #     ring_highlight_trace = go.Mesh3d(x=highlight.vertices[:,0],y=highlight.vertices[:,1],z=highlight.vertices[:,2], i=highlight.faces[:,0], j=highlight.faces[:,1], k=highlight.faces[:,2],**kwargs_highlight)
-    #     # ring_highlight_trace = go.Surface(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], **kwargs_highlight)
-    #     ring_highlight_traces.append(ring_highlight_trace)
+        #     faces = np.insert(aromatic_tri_faces[i],2,len(ring_coord), axis=1)
+        #     ring_coord = np.vstack((ring_coord , (np.mean(ring_coord, axis=0))))
+        #     ic(faces)
+        #     ic(ring_coord)
+        #     # ring_highlight_trace = go.Mesh3d(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], i=faces[:,0], j=faces[:,1], k=faces[:,2],**kwargs_highlight)
+        #     ring_highlight_trace = go.Mesh3d(x=highlight.vertices[:,0],y=highlight.vertices[:,1],z=highlight.vertices[:,2], i=highlight.faces[:,0], j=highlight.faces[:,1], k=highlight.faces[:,2],**kwargs_highlight)
+        #     # ring_highlight_trace = go.Surface(x=ring_coord[:,0],y=ring_coord[:,1],z=ring_coord[:,2], **kwargs_highlight)
+        #     ring_highlight_traces.append(ring_highlight_trace)
 
-        return tuple([data_circle] + ring_highlight_traces)
+            return tuple([data_circle] + ring_highlight_traces)
     else:
         return tuple([])
 
@@ -909,7 +918,7 @@ def trimesh_from_pyvista(pv_mesh):
     return tmesh
 
 
-def spheres_for_atoms(ase_atoms, radii=None, scale=0.8, colormap=None, theta_resolution=20, phi_resolution=20):
+def spheres_for_atoms(ase_atoms, radii=None, scale=0.8, colormap=None, theta_resolution=10, phi_resolution=10):
     """
     It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
     radius and center corresponding to the atom's covalent radius and position.
@@ -985,9 +994,46 @@ def spheres_for_positions(positions, radii=None, scale=0.8, color=[[255, 255, 25
         # s.visual.material.roughnesFactor=0.15
         s.visual.vertex_colors = color[i]
     return spheres_tmesh
+def plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name='adsorbates', pbc=[1,1,1] ):
+    
+
+    from .data import read_raspa_pdb 
+    import numpy as np
+
+    data = read_raspa_pdb(pdb_file)
+    coords = data['coords'][index]
+    sym = data['symbols'][index]
+    sym = [str(c) for c in sym]
+    cell = data['cells'][index]
+    nmolecules = len(coords)//natoms # numbre of co2 molecules
+    #conver to ase atoms object
+    from ase import Atoms 
+    atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1,1,1])
+
+    # we also need teh co2 bonds for plotting
+    # in this case this is easy, since we know the bonds are 1-2 and 2-3
+    if len(bonds_in_ref)==0:
+        bonds = []
+        for i in range(nmolecules):
+            for a in range(natoms-1):
+                bonds.append([i*natoms+a, i*natoms+a+1])
+    else:
+        bonds = []
+        for i in range(nmolecules):
+            for b in bonds_in_ref:
+                bonds.append([i*natoms + b[0], i*natoms+b[1]])
+                # bonds.append([i*natoms+1, i*natoms+a2])
+            
+    
+
+    mol_mesh = mesh_for_atoms(ase_atoms =atoms, bonds =bonds)
+    mol_mesh_trace = plot_mesh([mol_mesh] , name=trace_name, stylize=True)
+    atoms.info['covalent_bonds']=bonds
+    mol_mesh_trace = add_hoverdata_to_atoms_traces(mol_mesh_trace, atoms)
+    return mol_mesh_trace
 
 
-def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[128, 128, 128, 255], cylinder_resolution=25):
+def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[127, 128, 129, 255], cylinder_resolution=15):
     """
     It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
     list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
@@ -1017,7 +1063,7 @@ def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[128, 128
     return cylinders_tmesh
 
 
-def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[128, 128, 128, 255],
+def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 128, 129, 255],
                    kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False):
     """
     > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
@@ -1096,6 +1142,8 @@ def get_isosurface_mesh(data, isoval,cell, spacing=(1,1,1), stepsize=1 ):
     mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
     return mesh
 
+
+
 def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={}):
     """
     It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
@@ -1131,6 +1179,7 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
                                                        z=30
                                                        ), **kwargs_frame_mesh
                                     )
+    framework_mesh_trace = add_hoverdata_to_atoms_traces(framework_mesh_trace, ase_atoms)
     traces = (framework_mesh_trace,)
     if show_rings:
         if not ('covalent_bonds' in ase_atoms.info.keys()):
@@ -1141,8 +1190,58 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
         # group all the traces into the same legend
         for t in traces:
             t['legendgroup'] = traces[0]['legendgroup']
+    
+
+    
+    # traces = update_framework_mesh_with_hoverdata(traces, ase_atoms,)
+
+
     return traces
 
+def add_hoverdata_to_atoms_traces(atoms_trace, ase_atoms, bond_rgba=[127,128,129,255]):
+# bond_rgba = [127,128,129,255]
+
+    bonds = ase_atoms.info['covalent_bonds']
+
+    import ase 
+    from ase.data import atomic_masses as am  
+    import numpy as np 
+    atomic_numbers = ase_atoms.get_atomic_numbers() #actual atomic numbers in the material
+    chemical_symbols =ase_atoms.get_chemical_symbols()
+    atomic_masses =am[atomic_numbers]
+    positions = ase_atoms.get_positions()
+
+    vertexcolors = np.array(atoms_trace['vertexcolor'])
+
+    # Find the number of vertices per sphere by dividing the total vertices that belong to spheres
+    # by the number of atoms.
+    bond_rgba_string = 'rgba('+','.join(np.array(bond_rgba).astype(str))+')'
+    vertices_per_sphere = int(len(vertexcolors[vertexcolors!=bond_rgba_string])/ase_atoms.get_number_of_atoms())
+    vertex_atom_ids = np.repeat(np.arange(ase_atoms.get_number_of_atoms()), vertices_per_sphere)
+    vertex_chemical_symbols = np.repeat(chemical_symbols, vertices_per_sphere)
+    vertex_atomic_masses = np.repeat(atomic_masses, vertices_per_sphere)
+    vertex_atomic_numbers = np.repeat(atomic_numbers, vertices_per_sphere)
+    vertex_positions = np.repeat(np.round(positions, decimals=4), vertices_per_sphere, axis=0)
+    vertex_positions = [ ' '.join(v.astype(str)) for v in vertex_positions]
+
+    number_of_bonds = len(bonds)
+    vertices_per_bond = int(len(vertexcolors[vertexcolors==bond_rgba_string])/number_of_bonds)
+    bond_atom_ids = np.repeat(bonds, vertices_per_bond, axis=0)
+    bond_atom_ids = [ 'Bond between atoms '+ ' and '.join(v.astype(str)) for v in bond_atom_ids]
+
+
+    #make the hovertext list for atoms 
+    hovertext_atoms = ['Id:'+ str(i) +'<br>' +'Element:'+s+'<br> Mass:'+str(m)+'<br> Position:'+p for i,s,m,p in zip(vertex_atom_ids, vertex_chemical_symbols, vertex_atomic_masses, vertex_positions)]
+
+    #ake hover text for bonds
+    hovertext_bonds = bond_atom_ids
+
+    #combine the two lists
+    hovertext = hovertext_atoms + hovertext_bonds
+
+
+    atoms_trace['hovertext']=hovertext # this isthe frameowk trace
+    return atoms_trace
 
 def plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d):
     """
@@ -1237,6 +1336,15 @@ def plot_everything(everything):
     return fig
 
 def make_bg_image( type='radial', cmap='plasma_r'):
+    """
+    It takes a 2D array and a colormap and returns a plotly image object that can be used as a
+    background image
+    
+    :param type: 'radial', 'left_to_right', 'bottom_to_top', defaults to radial (optional)
+    :param cmap: The colormap to use, defaults to plasma_r (optional)
+    :return: A plotly image object
+    """
+
     import plotly.graph_objects as go 
     import numpy as np
     from PIL import Image
@@ -1324,3 +1432,189 @@ def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
         path_traces.append(path_trace)
     
     return path_traces
+
+
+def plot_windows(connections, **kwargs):
+    """
+    It takes a list of connections and returns a plotly scatter trace of the windows.
+    
+    :param connections: a list of lists, output from the connections from regions function
+    :return: A plotly scatter 3D trace of the windows
+    """
+
+
+
+    import numpy as np 
+    import plotly.graph_objects as go
+
+
+
+    #* Let's make some window labels for showing on hover as information
+    windows = np.vstack([c[3] for c in connections if c[1]])
+    window_labels1 = np.array(['-'.join((str(c[0][0]),str(c[0][1]))) for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels2 = np.array([c[2] for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels3 = np.array([str(c[4]) for c in connections if c[1] for w in c[3] if c[1]])
+    window_labels = [w1+"<br>"+w2+"<br>"+w3 for w1,w2,w3 in zip(window_labels1, window_labels2, window_labels3)]
+
+
+
+    #set defaults for kwargs
+    name = kwargs.get('name', 'windows')
+    marker_color = kwargs.get('marker_color', 'yellowgreen')
+    marker_size = kwargs.get('marker_size', 10)
+    opacity = kwargs.get('opacity', 0.5)
+    hovertext = kwargs.get('hovertext', window_labels)
+    #remove the entires from kwargs that we have already read in
+    kwargs.pop('name', None)
+    kwargs.pop('marker_color', None)
+    kwargs.pop('marker_size', None)
+    kwargs.pop('opacity', None)
+    kwargs.pop('hovertext', None)
+
+
+    #return the scatter trace
+    return go.Scatter3d(x=windows[:,0], y=windows[:,1], z=windows[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity), hovertext=hovertext, name=name, **kwargs)
+
+
+def plot_maxima(dgrid, maxima, ase_atoms, **kwargs):
+    """
+    It takes in a 3D grid of data, a list of indices of local maxima, and an ASE atoms object, and
+    returns a plotly scatter3d object with the local maxima plotted as points.
+    
+    :param dgrid: the density grid
+    :param maxima: the indices of the local maxima
+    :param ase_atoms: the atoms object from ASE
+    :return: A plotly scatter3d object
+    """
+
+
+    import numpy as np 
+    import plotly.graph_objects as go
+
+    from .helper import find_coord_from_indices
+    maxima_coords = find_coord_from_indices(maxima, dgrid.shape,ase_atoms)
+    #set defaults for kwargs
+    cage_radii = dgrid[tuple(maxima.T)]
+    # angstrom = str('\u212b').encode('utf-8', errors='ignore').decode('utf-8')
+    # a = a.encode('ascii', 'ignore')
+    cage_labels = [('{} A').format(c) for c in np.round(cage_radii, decimals =2)]
+    hovertext = [str(i+1)+' '+j for i,j in enumerate(cage_labels)]
+
+    # read entries from kwargs, with defaults
+    name = kwargs.get('name', 'local maxima')
+    marker_size = kwargs.get('marker_size', 15)
+    opacity = kwargs.get('opacity', 0.85)
+    marker_color = kwargs.get('marker_color', cage_radii)
+    hovertext = kwargs.get('hovertext', hovertext)
+    marker_colorscale = kwargs.get('marker_colorscale', 'Viridis')
+    #remove the entries we have already read 
+    kwargs.pop('name', None)
+    kwargs.pop('marker_size', None)
+    kwargs.pop('opacity', None)
+    kwargs.pop('marker_color', None)
+    kwargs.pop('hovertext', None)
+
+
+    return go.Scatter3d(x=maxima_coords[:,0], y=maxima_coords[:,1], z=maxima_coords[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity, colorscale=marker_colorscale), hovertext=hovertext, name=name, **kwargs)
+
+def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False):
+    """
+    > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group. 
+    
+    Let's see how it works:
+    
+    :param rag: the region adjacency graph
+    :param pbc_groups: a list of sets of nodes that are connected by periodic boundary conditions
+    :return: A plotly figure object
+    """
+
+    import plotly.graph_objects as go
+    import plotly.express as px 
+    import networkx as nx 
+    import numpy as np
+    if cscale is None:
+        cscale = px.colors.qualitative.Alphabet
+    unique_clusters = np.unique(list(nx.get_node_attributes(rag,'cluster').values()))
+
+    cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
+    traces = []
+    if no_pbc:
+        for node in list(rag.nodes().keys()): 
+            # node = np.min(list(g))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x'], y=rag.nodes[node]['psd_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
+    else:
+        for i,g in enumerate(pbc_groups): 
+            node = np.min(list(g))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
+            # traces.append(go.Bar(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=0.5, name='PBC group: {}'.format(i+1) ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
+    
+    return traces
+def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False):
+
+
+    import plotly.graph_objects as go
+    import plotly.express as px 
+    import networkx as nx 
+    import numpy as np
+    if cscale is None:
+        cscale = px.colors.qualitative.Alphabet
+    unique_clusters = np.unique(list(nx.get_node_attributes(rag,'cluster').values()))
+
+    cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
+    traces = []
+    if no_pbc:
+        for node in list(rag.nodes().keys()): 
+            # node = np.min(list(g))
+            traces.append(go.Scatter(x=rag.nodes[node]['vdw_hist_x'], y=rag.nodes[node]['vdw_hist_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Region: {}'.format(node) , name='Region: '+ str(rag.nodes[node]['labels'][0])))
+    else:
+       # * pick one group from each cluster type
+        types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
+        ctypes, cindices = np.unique(types_list,return_inverse=True)
+        # for c in ctypes:
+        types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
+        # types_counts = [len(t) for t in types_indices]
+        type_selection = [np.random.choice(ti ,1, replace=False)  for i,ti in enumerate(types_indices)]
+        # print(types_list, ctypes, cindices, types_indices, type_selection)
+
+        for i,ts in enumerate(type_selection):
+            g = pbc_groups[ts[0]] 
+            node = np.min(list(g))           
+            traces.append(go.Bar(x=rag.nodes[node]['vdw_hist_x_pbc'], y=rag.nodes[node]['vdw_hist_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=1.0, name='Cluster (cavity type): '+ctypes[i] ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
+    return traces
+
+def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
+    """
+    > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of
+    the atoms in the list
+    
+    :param ase_atoms: an ase atoms object
+    :param subset: a list of atom ids that you want to plot
+    :return: A plotly mesh3D trace that can be added to a plotly figure
+    """
+
+    from .analyze import sgraph_from_atoms, update_with_covalent_bonds
+
+    import networkx as nx
+    mat_graph = sgraph_from_atoms(ase_atoms)
+    sg = mat_graph.subgraph(subset)
+    cell = ase_atoms.get_cell()
+    from ase import Atoms
+    #make atoms object from the subgraph
+    atoms = Atoms(symbols=list(nx.get_node_attributes(sg, 'element').values()), positions = list(nx.get_node_attributes(sg, 'position').values()), cell=cell)
+    atoms_ = update_with_covalent_bonds(atoms)
+    atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
+    # bonds = [list(e) for e in sg.edges()]
+    # atoms.info['covalent_bonds'] = bonds
+
+    # lets put some defualt values in for the kwargs
+    stylize = kwargs.get('stylize', True)
+    show_rings = kwargs.get('show_rings', True)
+    trace_name = kwargs.get('trace_name', 'subset')
+
+    kwargs.pop('stylize', None)
+    kwargs.pop('show_rings', None)
+    kwargs.pop('trace_name', None)
+
+    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, trace_name=trace_name, **kwargs)    
+
+    return atoms_trace
