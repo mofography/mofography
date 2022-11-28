@@ -286,7 +286,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 #     # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
     
 #     # # new_max_indices = []
-#     # old_labels = np.unique(reg_labels)  # This is sorted already
+#     # old_labels = np.unique(reg_labels)  # This is sorted aalreadylready
 #     # number_of_regions = len(old_labels)
 #     # new_labels = range(number_of_regions)
 
@@ -294,7 +294,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 #     # for i in range(number_of_regions):
 #     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
 #     return reg_labels, new_max_indices.T
-def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=False):
+def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactness=0):
     """Computes the region segmentaion from the distance grid
 
     :param dgrid: 3D distance grid
@@ -343,9 +343,14 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=False):
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=compactness)
 
 
+
+    # print(keep_these)
+    # new_max_indices = max_indices[keep_these-1].T
+
     new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
     if len(new_max_indices.T) < len(max_indices.T):
         warnings.warn('Some maxima excluded as they fell inside the mask_thickness')
+        # warnings.warn('Some maxima excluded as they the regions were less that 0.001 of the box')
     
     markers_sparse = sparse.COO(new_max_indices, 1, shape=dgrid.shape)
 
@@ -353,6 +358,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=False):
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=compactness)
 
+    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
     #* Now interpolate the region labels and sort the maxima in the correct order    
     sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
     new_max_indices = (new_max_indices.T[sort_index]).T
@@ -360,15 +366,32 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=False):
     # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
     
     # # new_max_indices = []
-    # old_labels = np.unique(reg_labels)  # This is sorted already
+    # old_labels = np.unique(reg_labels)  # This is sorted aalreadylready
     # number_of_regions = len(old_labels)
     # new_labels = range(number_of_regions)
 
     # # * Replace the old-labels with new
     # for i in range(number_of_regions):
     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
+
+    # Lets clean out the regions that are too small 
+    # props = regionprops(reg_labels)
+    # print([(p.label, p.area/dgrid.size) for p in props])
+    # len([(p.label, p.area/dgrid.size) for p in props if p.area > dgrid.size/1000])
+    # keep_these = [p.label for p in props if p.area > dgrid.size/1000]
+    # maxima2 = np.vstack([new_max_indices.T[k-1] for k in keep_these])
+    # markers_sparse = sparse.COO(maxima2.T, 1, shape=dgrid.shape)
+
+    # probe = mask_thickness
+    # import dask.array as da
+    # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=False)
+
+    # new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
+ 
+
     return reg_labels, new_max_indices.T
-def connections_from_regions(region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
+
+def connections_from_regions():
 
     """
     It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
@@ -660,30 +683,30 @@ def apply_periodic_map(input_array, periodic_map):
 # if __name__ == "__main__":
 #     # Do something if this file is invoked on its own
 #     print(canvas())
-def graph_from_connections(connections, maxima, only_use_internal=True):
+# def graph_from_connections(connections, maxima, only_use_internal=True):
     
-    """ Create a basic networkx graph (with no properties annotated) from the array of connections
-    :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
-    three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
-    :param connections: numpy array
+#     """ Create a basic networkx graph (with no properties annotated) from the array of connections
+#     :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
+#     three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
+#     :param connections: numpy array
 
-    :raises:
+#     :raises:
 
-    :rtype: a graph object of the class networkx.Graph
-    """
-    import networkx as nx 
-    import numpy as np
-    G = nx.Graph()
-    # number_of_regions = np.max([c[0] for c  in connections])
-    number_of_nodes = len(maxima) #np.max([c[0] for c  in connections])
-    # print(number_of_nodes)
-    G.add_nodes_from(range(1, number_of_nodes+1)) 
-    if only_use_internal:# range stops one short
-        G.add_edges_from([c[0] for c in connections if np.logical_and(c[1], c[2] =='internal')])
-    else:
-        G.add_edges_from([c[0] for c in connections if c[1]])
+#     :rtype: a graph object of the class networkx.Graph
+#     """
+#     import networkx as nx 
+#     import numpy as np
+#     G = nx.Graph()
+#     # number_of_regions = np.max([c[0] for c  in connections])
+#     number_of_nodes = len(maxima) #np.max([c[0] for c  in connections])
+#     # print(number_of_nodes)
+#     G.add_nodes_from(range(1, number_of_nodes+1)) 
+#     if only_use_internal:# range stops one short
+#         G.add_edges_from([c[0] for c in connections if np.logical_and(c[1], c[2] =='internal')])
+#     else:
+#         G.add_edges_from([c[0] for c in connections if c[1]])
 
-    return G
+#     return G
 
 def add_props_to_graph(G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None):
     """
@@ -779,100 +802,102 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
         wall_windows =  np.vstack(wall_windows)
     return wall_windows
 
-def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2, return_conn =False):
+# def apply_pbc(regions, maxima, maxima_radii, wall_thickness=2, return_conn =False):
 
-    import copy
-    # a = 0 
-    import numpy as np
-    from icecream import ic
-    ic.disable()
-    regions_pbc = copy.deepcopy(regions)
-    shape = regions.shape
-    import networkx as nx
-    g1= nx.Graph()
-    g1.add_nodes_from(range(len(np.unique(regions))))
+#     import copy
+#     # a = 0 
+#     import numpy as np
+#     from icecream import ic
+#     ic.disable()
+#     regions_pbc = copy.deepcopy(regions)
+#     shape = regions.shape
+#     import networkx as nx
+#     g1= nx.Graph()
+#     g1.add_nodes_from(range(len(np.unique(regions))))
 
-    for a in [0,1,2]:
+#     for a in [0,1,2]:
         
-        ic(a)
-        llr = regions_pbc.take(indices=0 ,axis=a) #* left wall
-        rrr = regions_pbc.take(indices=shape[a]-1 ,axis=a)  #* right wall
+#         ic(a)
+#         llr = regions_pbc.take(indices=0 ,axis=a) #* left wall
+#         rrr = regions_pbc.take(indices=shape[a]-1 ,axis=a)  #* right wall
 
-        # ic(dict(zip(llr.flatten(), rrr.flatten())))
-        # ic(dict(zip(rrr.flatten(),llr.flatten())))
-        # dlist = [dict(sorted(zip(llr.flatten(), rrr.flatten()))),dict(sorted(zip(rrr.flatten(),llr.flatten())))]
+#         # ic(dict(zip(llr.flatten(), rrr.flatten())))
+#         # ic(dict(zip(rrr.flatten(),llr.flatten())))
+#         # dlist = [dict(sorted(zip(llr.flatten(), rrr.flatten()))),dict(sorted(zip(rrr.flatten(),llr.flatten())))]
 
-        #* Check left vs right wall
-        # map_dict = dlist[0]
-        # map_dict.pop(0)
-        # ic(map_dict)
+#         #* Check left vs right wall
+#         # map_dict = dlist[0]
+#         # map_dict.pop(0)
+#         # ic(map_dict)
 
 
-        map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
-        ic(map_list)
-        reg_numbers = np.vstack([(k, v) for k,v in map_list])
-        flags = np.vstack([[maxima[k-1][a]<wall_thickness, maxima[v-1][a]>(shape[a]-wall_thickness)] for k,v in map_list])
-        # flags = np.logical_or(flags[:,0],flags[:,1,])
-        # flags = np.logical_or(flllags[:,0],flags[:,1,])
-        flags1 = np.logical_and(flags[:,0], flags[:,1])
-        flags2 = np.logical_xor(flags[:,0], flags[:,1])
-        reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
-        flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))][0] if flags2[i] else False for i,f in enumerate(flags)])
-        # flags3 = np.vstack([ True if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
-        # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
+#         map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
+#         map_list = map_list[np.all(map_list!=0,axis=1)]
+#         ic(map_list)
+#         if len(map_list)> 0:
+#             reg_numbers = np.vstack([(k, v) for k,v in map_list])
+#             flags = np.vstack([[maxima[k-1][a]<wall_thickness, maxima[v-1][a]>(shape[a]-wall_thickness)] for k,v in map_list])
+#             # flags = np.logical_or(flags[:,0],flags[:,1,])
+#             # flags = np.logical_or(flllags[:,0],flags[:,1,])
+#             flags1 = np.logical_and(flags[:,0], flags[:,1])
+#             flags2 = np.logical_xor(flags[:,0], flags[:,1])
+#             reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
+#             flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))][0] if flags2[i] else False for i,f in enumerate(flags)])
+#             # flags3 = np.vstack([ True if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
+#             # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
         
-        ic(flags)
-        flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
-        ic(flags1)    
-        ic(flags2)    
-        ic(flags3)    
-        ic(flags)       # flags = [True if flags1[i] else True if np.logical_and(flags2[i], flags3[i] ) else False for i,f in enumerate(flags)]
-        g1.add_edges_from(reg_numbers[np.where(flags)])
-        # ic(flags) 
+#             ic(flags)
+#             flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
+#             ic(flags1)    
+#             ic(flags2)    
+#             ic(flags3)    
+#             ic(flags)       # flags = [True if flags1[i] else True if np.logical_and(flags2[i], flags3[i] ) else False for i,f in enumerate(flags)]
+#             g1.add_edges_from(reg_numbers[np.where(flags)])
+#             # ic(flags) 
 
-        # map_dict = dlist[1]
-        # map_dict.pop(0)
-        # ic(map_dict)
-        # reg_numbers = np.vstack([(k, v) for k,v in map_dict.items()])
-        # flags = np.vstack([[maxima[v-1][a]<wall_thickness, maxima[k-1][a]>(shape[a]-wall_thickness)] for k,v in map_dict.items()])
-        # # flags = np.logical_or(flags[:,0],flags[:,1,])
-        # ic(flags)
-        # flags1 = np.logical_and(flags[:,0], flags[:,1])
-        # flags2 = np.logical_xor(flags[:,0], flags[:,1])
-        # reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
-        # flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))] if flags2[i] else False for i,f in enumerate(flags)])
-        # # flags3 = np.vstack([maxima_radii[r[f]-1] < maxima_radii[r[np.invert(f)]-1] if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
-        # # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
+#             # map_dict = dlist[1]
+#             # map_dict.pop(0)
+#             # ic(map_dict)
+#             # reg_numbers = np.vstack([(k, v) for k,v in map_dict.items()])
+#             # flags = np.vstack([[maxima[v-1][a]<wall_thickness, maxima[k-1][a]>(shape[a]-wall_thickness)] for k,v in map_dict.items()])
+#             # # flags = np.logical_or(flags[:,0],flags[:,1,])
+#             # ic(flags)
+#             # flags1 = np.logical_and(flags[:,0], flags[:,1])
+#             # flags2 = np.logical_xor(flags[:,0], flags[:,1])
+#             # reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
+#             # flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))] if flags2[i] else False for i,f in enumerate(flags)])
+#             # # flags3 = np.vstack([maxima_radii[r[f]-1] < maxima_radii[r[np.invert(f)]-1] if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
+#             # # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
         
-        # flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
-        # g1.add_edges_from(reg_numbers[np.where(flags)])
+#             # flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
+#             # g1.add_edges_from(reg_numbers[np.where(flags)])
 
-        # ic(flags1)    
-        # ic(flags2)    
-        # ic(flags3)    
-        # ic(flags)    
-    conn = nx.connected_components(g1)
-    # ic(list(conn))
-    # ic(list(G.edges()))
-    # ic([c for c in list(conn)])
-    for i,c in enumerate(conn):
-        for r in c:
-            regions_pbc[np.where(regions==r)] = i
-            ic('replace {0} with {1}'.format(r, i))
+#             # ic(flags1)    
+#             # ic(flags2)    
+#             # ic(flags3)    
+#             # ic(flags)    
+#     conn = nx.connected_components(g1)
+#     # ic(list(conn))
+#     # ic(list(G.edges()))
+#     # ic([c for c in list(conn)])
+#     for i,c in enumerate(conn):
+#         for r in c:
+#             regions_pbc[np.where(regions==r)] = i
+#             ic('replace {0} with {1}'.format(r, i))
 
-    # if reindex:
-    #     # * Re-index the regions so that it runs from zero to N-regions.
-    #     old_labels = np.unique(regions_pbc)  # This is sorted already
-    #     number_of_regions = len(old_labels)
-    #     new_labels = range(number_of_regions)
+#     # if reindex:
+#     #     # * Re-index the regions so that it runs from zero to N-regions.
+#     #     old_labels = np.unique(regions_pbc)  # This is sorted aalreadylready
+#     #     number_of_regions = len(old_labels)
+#     #     new_labels = range(number_of_regions)
 
-    #     # * Replace the old-labels with new
-    #     for i in range(number_of_regions):
-    #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
-    if return_conn:
-        return list(nx.connected_components(g1))[1:]
-    else:
-        return regions_pbc
+#     #     # * Replace the old-labels with new
+#     #     for i in range(number_of_regions):
+#     #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
+#     if return_conn:
+#         return list(nx.connected_components(g1))[1:]
+#     else:
+#         return regions_pbc
 
 
 def do_it_all(ase_atoms,spacing=0.25):
@@ -934,7 +959,7 @@ def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
             # print(coords.shape)
             centroid = stats.circmean(coords, axis=0, low=0, high=1)
             for i, g in enumerate(group):
-                G.nodes[props[prop_indices[i]]['label']]['centroid_pbc'] = mgr.find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+                G.nodes[props[prop_indices[i]]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
         else:
             pi = np.where(prop_labels==list( group )[0])[0][0]
             # print(pi)
@@ -1029,7 +1054,7 @@ def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
             G.nodes[props[pi]['label']]['psd_y_pbc'] = psd_y_pbc
     
     return G
-def add_clustering_to_rag(rag2, distance_threshold = 0.25, return_cluster_obj = False):
+def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kwargs):
     """
     > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
     the nodes.
@@ -1046,20 +1071,110 @@ def add_clustering_to_rag(rag2, distance_threshold = 0.25, return_cluster_obj = 
     import networkx as nx 
 
     # *  get the data array, while reordering to match the node order   
+    if no_pbc:
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values())
+    else:
     X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
 
     # * do the clustering using agglomerative clustering 
     from sklearn.cluster import AgglomerativeClustering 
-    clustering = AgglomerativeClustering(compute_full_tree=True, linkage='single', distance_threshold = distance_threshold, n_clusters=None).fit(X)
+
+    # get kwargs that are passed, if not set defaults
+    affinity = kwargs.get('affinity', 'euclidean')
+    linkage = kwargs.get('linkage', 'single')
+    n_clusters = kwargs.get('n_clusters', None)
+    connectivity = kwargs.get('connectivity', None)
+    compute_full_tree = kwargs.get('compute_full_tree', True)
+    distance_threshold = kwargs.get('distance_threshold', 0.25)
+    compute_distances = kwargs.get('compute_distances', False)
+
+    if len(X) > 1:
+        clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
     
     #* Add the clustering info to rag
     for i in rag2.nodes():
         rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
+        if return_cluster_obj:
+            return (rag2, clustering)
+        else:
+            return rag2
+    elif len(X) == 1:
+        # rag2.nodes[1]['cluster'] = '1'
+        nx.set_node_attributes(rag2, '1', 'cluster')
+        print('Only one node in the graph')
+        return rag2
+    else: 
+        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
 
+def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
+    """
+    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
+    the nodes.
+    
+    :param rag2: the RAG object
+    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
+    clusters
+    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
+    False (optional)
+    :return: The rag2 object with the cluster labels added to the nodes.
+    """
+    
+    import numpy as np 
+    import networkx as nx 
+
+    # *  get the data array, while reordering to match the node order   
+    if no_pbc:
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values())
+    else:
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
+
+    if use_kpca:
+        # get kwargs that are passed, if not set defaults
+        kernel = kwargs_pca.get('kernel', 'cosine')
+
+        # do the kernal PCA on X 
+        from sklearn.decomposition import KernelPCA
+        kpc = KernelPCA(**kwargs_pca).fit(X)
+        X = kpc.transform(X)
+
+        #* if you cannot solve for eigen values use regular PCA
+        # * usually happens when there is only one pocket in the framework
+        if X.shape[1]==0:
+            X = kpc.X_fit_
+
+
+
+    # * do the clustering using agglomerative clustering 
+    from sklearn.cluster import AgglomerativeClustering 
+
+    # get kwargs that are passed, if not set defaults
+    affinity = kwargs_cluster.get('affinity', 'euclidean')
+    linkage = kwargs_cluster.get('linkage', 'single')
+    n_clusters = kwargs_cluster.get('n_clusters', None)
+    connectivity = kwargs_cluster.get('connectivity', None)
+    compute_full_tree = kwargs_cluster.get('compute_full_tree', True)
+    distance_threshold = kwargs_cluster.get('distance_threshold', 0.25)
+    compute_distances = kwargs_cluster.get('compute_distances', False)
+
+    if len(X) > 1:
+        clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
+        
+        #* Add the clustering info to rag
+        for i in rag2.nodes():
+            rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
     if return_cluster_obj:
         return (rag2, clustering)
     else:
         return rag2
+    elif len(X) == 1:
+        # rag2.nodes[1]['cluster'] = '1'
+        nx.set_node_attributes(rag2, '1', 'cluster')
+        print('Only one node in the graph')
+        return rag2
+    else: 
+        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
+
+
 def compare_two_paths(p1, p2, rag):
     """
     It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
