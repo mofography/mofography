@@ -845,7 +845,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 #             flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))][0] if flags2[i] else False for i,f in enumerate(flags)])
 #             # flags3 = np.vstack([ True if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
 #             # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
-        
+            
 #             ic(flags)
 #             flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
 #             ic(flags1)    
@@ -868,7 +868,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 #             # flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))] if flags2[i] else False for i,f in enumerate(flags)])
 #             # # flags3 = np.vstack([maxima_radii[r[f]-1] < maxima_radii[r[np.invert(f)]-1] if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
 #             # # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
-        
+            
 #             # flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
 #             # g1.add_edges_from(reg_numbers[np.where(flags)])
 
@@ -1074,7 +1074,7 @@ def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kw
     if no_pbc:
         X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values())
     else:
-    X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
 
     # * do the clustering using agglomerative clustering 
     from sklearn.cluster import AgglomerativeClustering 
@@ -1090,10 +1090,10 @@ def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kw
 
     if len(X) > 1:
         clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
-    
-    #* Add the clustering info to rag
-    for i in rag2.nodes():
-        rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
+        
+        #* Add the clustering info to rag
+        for i in rag2.nodes():
+            rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
         if return_cluster_obj:
             return (rag2, clustering)
         else:
@@ -1162,10 +1162,10 @@ def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, 
         #* Add the clustering info to rag
         for i in rag2.nodes():
             rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
-    if return_cluster_obj:
-        return (rag2, clustering)
-    else:
-        return rag2
+        if return_cluster_obj:
+            return (rag2, clustering)
+        else:
+            return rag2
     elif len(X) == 1:
         # rag2.nodes[1]['cluster'] = '1'
         nx.set_node_attributes(rag2, '1', 'cluster')
@@ -1327,3 +1327,744 @@ def find_paths(regions, rag2):
             check_these_paths_new.append(p)
     checks = [calc_path_components(rag2,p) for p in check_these_paths_new]
     return checks, check_these_paths_new
+
+def get_connections_for_rag(rag,region_labels, maxima,ase_atoms,dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
+
+    
+
+    def find_windows(regs):
+        
+
+            import numpy as np
+            from sklearn.cluster import AgglomerativeClustering
+            i = regs[0]
+            j = regs[1]
+            check_flag = np.logical_or(np.logical_and(region_labels== i, outer.get(j)), np.logical_and(region_labels== j, outer.get(i)))
+            if np.sum(check_flag) > 0:
+                # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
+                windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+                window_points = np.dot(A_unit, (windices /region_labels.shape).T).T  # * (N,3)
+                # ic(window_points)
+                # * No clustering
+                # window_centers = np.mean(window_points, axis=0)
+                
+                # * DBScan
+                # X_scaled = StandardScaler().fit_transform(window_points)
+                # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
+                # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+                
+                # if len(window_points) >1:
+                # * Agglomerative
+                ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
+                window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
+            # else:
+                # window_centers = window_points
+                window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
+                window_radii = np.array(dinterp(window_fractional))
+                return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
+            else:
+                return np.array([regs, False,'internal', None, None], dtype='object')
+
+    #* find the internal windows
+    from skimage.segmentation import find_boundaries
+    from .helper import interpolate_labels, get_fractional_coordinates
+    import ase
+    import numpy as np
+    connected_regions = np.vstack(list(rag.edges()))
+    list_of_region_indices = np.delete(np.unique(region_labels),0)
+    outer = {reg:find_boundaries(region_labels== reg, mode='outer') for reg in list_of_region_indices}
+    dinterp = interpolate_labels(dgrid)
+    minimum_window_separation = 1.0
+    A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T    
+
+    connections= [find_windows(regs) for regs in rag.edges]
+
+    #* Windows on the wall are to be calculated (periodic windows)
+    if wall_windows:
+        wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
+        if len(wwl)>0:
+            connections = connections+wwl.tolist()
+    
+    return connections
+
+
+def get_sampling_paths_for_region(region_index, connections, dgrid, maxima,  shape, ase_atoms):
+    """
+    > It finds the paths from the maxima of a region to the windows of that region
+    
+    :param region_index: the index of the region you want to find the paths for
+    :param connections: a list of tuples, each tuple contains the indices of the connected regions and
+    the window coordinates
+    :param dgrid: the distance grid
+    :param maxima: the indices of the maxima of the region
+    :param shape: shape of the grid
+    :param ase_atoms: ASE atoms object
+    :return: The paths are being returned.
+    """
+
+    import numpy as np
+    from .helper import get_fractional_coordinates
+    #* maxima of the regiuon 
+    region_maxima_index = maxima[region_index-1]
+
+    #* let's find the indices ofthe windows of that region
+    connected_regions = np.vstack([c[0] for c in connections])
+    region_window_coords = np.vstack(np.array(connections)[np.any(connected_regions==region_index, axis=1)][:,-2])
+    region_window_frac_coords = get_fractional_coordinates(region_window_coords, ase_atoms)
+    region_window_indices = (region_window_frac_coords*shape).astype(int)
+
+    #* dijkstra path finding
+    import dijkstra3d 
+
+    # * use exp field this works fine.
+    field = np.exp(-(dgrid - dgrid.min()))
+
+    # * find the paths
+    paths = []
+    for wc in region_window_indices:
+        paths.append(dijkstra3d.dijkstra(field, region_maxima_index, wc, connectivity=26))
+
+    return paths
+
+
+def sample_path(path_indices, points_per_path=100):
+    """
+    It takes a list of points and returns a list of points that are evenly spaced along the path defined
+    by the input points using spline interpolation
+    
+    :param path_indices: a numpy array of shape (n,3) where n is the number of points in the path
+    :param points_per_path: The number of points to sample along the path, defaults to 100 (optional)
+    :return: a list of points that are evenly spaced along the path.
+    """
+
+    from scipy.interpolate import splprep, splev  
+    import numpy as np
+
+    tck, u = splprep([path_indices[:,0],path_indices[:,1],path_indices[:,2]], s=0)
+    x  = np.linspace(0,1,points_per_path)
+    new_points = np.array(splev(x, tck)).T
+    return new_points
+
+
+
+def get_distances_for_path(path_indices, shape, ase_atoms, n_neighbors=10, radii=None):
+    """
+    > For each grid point, find the nearest neighbors, and return the minimum distance to the nearest
+    neighbor minus the covalent radius of the neighbor
+    
+    :param path_indices: the indices of the path
+    :param shape: the shape of the grid
+    :param ase_atoms: the ase atoms object for the framework
+    :param n_neighbors: the number of neighbors to consider for each grid point, defaults to 10
+    (optional)
+    :param radii: the covalent radii of the atoms in the structure. If not provided, they will be
+    calculated from the atomic numbers using ase.data.covalent_radii
+    :return: The distances between the atoms and the grid points.
+    """
+
+    from .helper import find_coord_from_indices
+    import numpy as np
+    from ase.data import covalent_radii
+    if radii is None:
+        radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    ab = AABB_on_atoms(ase_atoms)
+    ab_r = ab.query(find_coord_from_indices(path_indices, shape, ase_atoms), query_args=dict(mode='nearest', num_neighbors=n_neighbors, exclude_ii=True))
+
+    ab_r_nl = ab_r.toNeighborList(sort_by_distance=True) #convert query to neighborlist
+    nls = ab_r_nl.point_indices.reshape(-1,n_neighbors)  # get the indices of the neighbors for each grid pt. to lookup the radii later
+    dists =ab_r_nl.distances.reshape(-1,n_neighbors) # get the distances to the neighbors of each grid pt.
+    values =  np.min(dists - [radii[nl] for nl in nls],axis=1)
+    return values
+
+
+
+def get_psd_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms, n_neighbors=10, radii=None, points_per_path=1000, set_bins=50, return_bins=False):
+    """
+    This function takes in a region index, the connections between regions, the distance grid, the
+    maxima, the shape of the distance grid, the ase atoms object, the number of neighbors to consider,
+    the radii of the atoms, the number of points to sample along the path, the number of bins to use for
+    the histogram, and a boolean to return the bins or not. 
+    
+    It returns the histogram values and the bins if return_bins is True, otherwise it returns just the
+    histogram values.
+    
+    :param region_index: The index of the region for which you want to get the psd
+    :param connections: list of tuples of the form (region_index, region_index)
+    :param dgrid: distance grid
+    :param maxima: the maxima of the distance map
+    :param shape: shape of the grid
+    :param ase_atoms: ASE atoms object
+    :param n_neighbors: number of neighbors to consider for each point in the path, defaults to 10
+    (optional)
+    :param radii: list of radii for which you want to calculate the psd. If you want to calculate the
+    psd for a single radius, then you can pass a single value
+    :param points_per_path: number of points to sample along the path, defaults to 1000 (optional)
+    :param set_bins: The number of bins to use for the histogram, defaults to 50 (optional)
+    :param return_bins: If True, returns the bin centers as well as the histogram values, defaults to
+    False (optional)
+    :return: the psd for a given region.
+    """
+
+    import numpy as np
+    #* get the paths 
+    connected_regions = np.vstack([c[0] for c in connections])
+    if np.any(connected_regions == region_index):
+
+
+        #* get the paths 
+        paths = get_sampling_paths_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms)
+
+
+        #* resample the paths to make them finer
+        paths = [sample_path(path, points_per_path=points_per_path) for path in paths]
+
+        #* get the distances for each path
+        distances = []
+        for path in paths:
+            distances.append(get_distances_for_path(path, dgrid.shape, ase_atoms, n_neighbors=n_neighbors,radii=radii))
+
+        #* get the psd for all the paths
+        vals, bins = np.histogram(np.concatenate(distances), density=True, bins=set_bins)
+        # binc = (bins[1:]+bins[:-1])/2
+        if return_bins:
+            binc = (bins[1:]+bins[:-1])/2
+            return vals, binc
+        else:
+            return vals
+    else:
+        print('The region {} is not connected to any other region. Hence unable to detect cavity axis for sampling'.format(region_index))
+        return 'NaN', 'NaN'
+
+def apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=1, return_conn =False, minimum_overlap_fraction=0.05):
+    """
+    It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions
+    applied
+    
+    :param regions: the regions array
+    :param maxima: the list of maxima
+    :param maxima_radii: the radius of each region
+    :param ase_atoms: The atoms object from ASE
+    :param wall_thickness: The thickness of the wall in Angstroms, defaults to 1 (optional)
+    :param return_conn: if True, returns a list of lists of connected regions, defaults to False
+    (optional)
+    :param minimum_overlap_fraction: This is the minimum fraction of overlap at the wall region between two regions for
+    them to be considered for connected via PBC. Then we check the maxima locations also to make sure, they are not separated by periodic windows.
+    :return: a list of connected components. Each connected component is a list of regions a.k.a the PBC group.
+    """
+
+
+
+    import copy
+    # a = 0 
+    import numpy as np
+    from icecream import ic
+    ic.disable()
+    regions_pbc = copy.deepcopy(regions)
+    shape = regions.shape
+    import networkx as nx
+    g1= nx.Graph()
+    g1.add_nodes_from(range(len(np.unique(regions))))
+
+
+
+    #* we need to recompute the wall thickness for non orthorhombic cells 
+    #* for this we shall use the perpendicualr length , which is the norm of the reciprocal lattice vector in each direction
+    from ase import geometry
+
+
+    #* let's compute the perpendicular length of each voxel
+    #* we will use the reciprocal lattice vectors to do this
+    #* we need this to determine how many voxels we need to select as the wall of the unit cell in each direction
+    la = ase_atoms.get_cell_lengths_and_angles()[0]/regions.shape[0]
+    lb = ase_atoms.get_cell_lengths_and_angles()[1]/regions.shape[1]
+    lc = ase_atoms.get_cell_lengths_and_angles()[2]/regions.shape[2]
+    alpha = ase_atoms.get_cell_lengths_and_angles()[3] * (np.pi/180.0)
+    beta = ase_atoms.get_cell_lengths_and_angles()[4] * (np.pi/180.0)
+    gamma = ase_atoms.get_cell_lengths_and_angles()[5] * (np.pi/180.0)
+    vol = ase_atoms.get_volume()/regions.size
+    eA = [la, 0, 0]
+    eB = [lb*np.cos(gamma), lb*np.sin(gamma), 0]
+    eC = [lc*np.cos(beta), lc*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/np.sin(gamma), vol/(la*lb*np.sin(gamma))]
+
+    la_perp =  vol/np.linalg.norm(np.cross(eB, eC))
+    lb_perp =  vol/np.linalg.norm(np.cross(eC, eA))
+    lc_perp =  vol/np.linalg.norm(np.cross(eA, eB))
+
+
+    wall_cells = np.ceil([wall_thickness/la_perp, wall_thickness/lb_perp, wall_thickness/lc_perp]).astype(int)
+
+    for a in [0,1,2]:
+        
+        # ic(a)
+        # print('a', a)
+
+        #* Here we are comparing the left wall and the right wall, so to get th ecorrespoding regions, 
+        #* we have to mirror the right wall
+        llr = regions_pbc.take(indices=np.arange(0, wall_cells[a]) ,axis=a) #* left wall
+        rrr = regions_pbc.take(indices=np.arange(shape[a]-1, shape[a]-1-wall_cells[a], -1) ,axis=a)  #* right wall
+        llf = llr.flatten()
+        rrf = rrr.flatten()
+        # ic(dict(zip(llr.flatten(), rrr.flatten())))
+        # ic(dict(zip(rrr.flatten(),llr.flatten())))
+        # dlist = [dict(sorted(zip(llr.flatten(), rrr.flatten()))),dict(sorted(zip(rrr.flatten(),llr.flatten())))]
+
+        #* Check left vs right wall
+        # map_dict = dlist[0]
+        # map_dict.pop(0)
+        # ic(map_dict)
+
+
+        map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
+        map_list = map_list[np.all(map_list!=0,axis=1)]
+        ic(map_list)
+        # print('map_list', map_list)
+        if len(map_list)> 0:
+
+            # * forwards check
+            reg_numbers = np.vstack([(k, v) for k,v in map_list])
+
+
+            #* let's compute and prnt percentage overlap between pairs of mapping regions
+            #* let's filter those connections with less thant 10% overlap
+            sumlist = [np.sum(llf==r[0]) for r in reg_numbers]
+            matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+            fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+
+            #* flags where there should be a left to right connection 
+            left_right = [f> minimum_overlap_fraction for f in fractional_overlap]
+
+            
+            # reg_numbers = reg_numbers[np.where([f > minimum_overlap_fraction for f in fractional_overlap])]
+            # print('left-right\n')
+            # print(list(zip(reg_numbers, fractional_overlap)))
+
+            # * backwards check
+
+            # #* let's compute and prnt percentage overlap between pairs of mapping regions
+            # #* let's filter those connections with less thant minimum overlap fraction
+            sumlist = [np.sum(rrf==r[1]) for r in reg_numbers]
+            matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+            fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+            
+            #* flags where there should be a right to left connection
+            right_left = [f> minimum_overlap_fraction for f in fractional_overlap]
+            
+            # print('right-left\n')
+            # print(list(zip(reg_numbers, fractional_overlap)))
+            # now let's combine the two flags
+            pick_these = np.logical_or(left_right, right_left)
+
+            reg_numbers = reg_numbers[pick_these]
+            # print(pick_these)
+            # print()
+            # print(reg_numbers, 'reg numbers after picking')
+            if len(reg_numbers)>0:
+                flags = np.vstack([[maxima[r[0]-1][a]<wall_cells[a], maxima[r[1]-1][a]>(shape[a]-wall_cells[a])] for r in reg_numbers])
+                # flags = np.logical_or(flags[:,0],flags[:,1,])
+                # flags = np.logical_or(flllags[:,0],flags[:,1,])
+                flags1 = np.logical_and(flags[:,0], flags[:,1])
+                # print('flags1\n',list(zip(reg_numbers,flags1)))
+                
+                flags2 = np.logical_xor(flags[:,0], flags[:,1])
+                # print('flags2\n',list(zip(reg_numbers,flags2)))
+                reg_radii = np.vstack([[maxima_radii[r[0]-1], maxima_radii[r[1]-1]] for r in reg_numbers])
+                flags3 = np.vstack([reg_radii[i][np.where(f)]<reg_radii[i][np.where(np.invert(f))][0] if flags2[i] else False for i,f in enumerate(flags)])
+                # print('flags3\n',list(zip(reg_numbers,flags3)))
+                # flags3 = np.vstack([ True if flags2[i] else False for i,f,r  in enumerate(list(zip(flags, reg_numbers)))])
+                # reg_radii = [maxima_radii[r[0]-1], maxima_radii[r[1]-1] for r in reg_numbers]
+                
+                flags = [flags1[i] if flags1[i] else flags2[i] if flags3[i] else False for i,f in enumerate(flags)]
+                # print('after checks\n',list(zip(reg_numbers,flags)))
+                # ic(flags1)    
+                # ic(flags2)    
+                # ic(flags3)    
+                # ic(flags)       # flags = [True if flags1[i] else True if np.logical_and(flags2[i], flags3[i] ) else False for i,f in enumerate(flags)]
+                
+                #* filter based on region numbers
+                reg_numbers = reg_numbers[np.where(flags)]
+                
+                # g1.add_edges_from(reg_numbers[np.where(flags)])
+                g1.add_edges_from(reg_numbers)
+
+
+    conn = nx.connected_components(g1)
+    # ic(list(conn))
+    # ic(list(G.edges()))
+    # ic([c for c in list(conn)])
+    for i,c in enumerate(conn):
+        for r in c:
+            regions_pbc[np.where(regions==r)] = i
+            ic('replace {0} with {1}'.format(r, i))
+
+    # if reindex:
+    #     # * Re-index the regions so that it runs from zero to N-regions.
+    #     old_labels = np.unique(regions_pbc)  # This is sorted aalreadylready
+    #     number_of_regions = len(old_labels)
+    #     new_labels = range(number_of_regions)
+
+    #     # * Replace the old-labels with new
+    #     for i in range(number_of_regions):
+    #         regions_pbc[regions_pbc== old_labels[i]] = new_labels[i]
+    if return_conn:
+        return list(nx.connected_components(g1))[1:]
+    else:
+        return regions_pbc
+
+def add_pbc_to_rag(rag, pbc_groups):
+    """
+    It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG
+
+    :param rag: the region adjacency graph
+    :param pbc_groups: a list of lists of labels that are in the same periodic boundary condition group
+    :return: A rag with the pbc_group attribute added to each node.
+    """
+    import numpy as np
+    for node in rag.nodes:
+        pbc_index = np.where([rag.nodes[node]['labels'][0] in list(g) for g in pbc_groups] )[0][0]
+        rag.nodes[node]['pbc_group'] = pbc_index
+    return rag
+#region  # * Energy grid functions
+#######################################################
+############################
+# * Let's put the energy grid functions in this section
+############################
+
+
+def get_repetitions_to_meet_cutoff(ase_atoms, cutoff=12.5):
+    """
+    It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each
+    direction that are needed to ensure that the cutoff distance is satisfied
+    
+    :param ase_atoms: ASE atoms object
+    :param cutoff: the cutoff distance for the pairwise interactions
+    :return: The number of repetitions in each direction to meet the cutoff.
+    """
+
+    import numpy as np
+    la, lb, lc, alpha, beta, gamma = ase_atoms.get_cell_lengths_and_angles()
+    alpha, beta, gamma = np.radians(alpha), np.radians(beta), np.radians(gamma)
+    vol = ase_atoms.get_volume()
+    eA = [la, 0, 0]
+    eB = [lb*np.cos(gamma), lb*np.sin(gamma), 0]
+    eC = [lc*np.cos(beta), lc*(np.cos(alpha)-np.cos(beta)*np.cos(gamma))/np.sin(gamma), vol/(la*lb*np.sin(gamma))]
+    A=[eA, eB, eC]
+    A = np.array(A)
+    A = A.T
+    A_inv = np.linalg.inv(A)
+    lx_unit, ly_unit, lz_unit = vol/np.linalg.norm(np.cross(eB, eC)), vol/np.linalg.norm(np.cross(eC, eA)), vol/np.linalg.norm(np.cross(eA, eB))
+    nx_cells, ny_cells, nz_cells = int(np.ceil(2*cutoff/lx_unit)), int(np.ceil(2*cutoff/ly_unit)), int(np.ceil(2*cutoff/lz_unit))
+    return nx_cells, ny_cells, nz_cells
+
+
+def repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5):
+    """
+    It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new
+    forcefield that are repeated in such a way that the vdw cutoff is met
+    
+    :param ase_atoms: the atoms object from ASE
+    :param forcefield_mixed: the forcefield parameters for the mixed system
+    :param cutoff: the cutoff distance for the forcefield
+    :return: ase_atoms_repeat is a supercell of ase_atoms, forcefield_mixed_repeat is a tiled array of
+    forcefield_mixed
+    """
+
+
+    # * let's find the repetitions needed to meet cutoff
+    import numpy as np
+    repeats =get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    nrepeats = np.prod(repeats)
+
+    
+    # * make the P matrix for the supercell
+    P = np.eye(3)
+    from ase.build import make_supercell 
+    nrepeats = np.prod(repeats)
+    np.fill_diagonal(P, val=list(repeats))
+
+
+    # * let's repeat everything
+    ase_atoms_repeat = make_supercell(ase_atoms, P)
+
+    forcefield_mixed_repeat = np.tile(forcefield_mixed, (nrepeats,1))
+    return ase_atoms_repeat, forcefield_mixed_repeat
+
+def gpe_aabb2(grid_points,positions, cell,forcefield_mixed,cutoff):
+
+    import numpy as np
+
+    from freud.locality import AABBQuery
+    ab_r=AABBQuery(cell,positions).query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
+    # ab_r=aabb_object.query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
+    ab_r_nl=ab_r.toNeighborList(sort_by_distance=True)#convertquerytoneighborlist
+    #nls=ab_r_nl.point_indices.reshape(-1,n_neighbors)#gettheindicesoftheneighborsforeachgridpt.tolookuptheradiilater
+    #dists=ab_r_nl.distances.reshape(-1,n_neighbors)#getthedistancestotheneighborsofeachgridpt.
+    #print(ab,ab_r,ab_r_nl,nls,[radii[nl]fornlinnls])#,np.min(dists-[radii[nl]fornlinnls],axis=1))
+    #returntheminimum(shortestdistancetothesurface)ineachrow
+
+
+    indices = ab_r_nl.point_indices # * frame indices within cutoff at each grid point
+    distances = ab_r_nl.distances # * distances to frame indices at each grid point
+    segments = ab_r_nl.segments # * number of frame indices at each grid point
+    inter_params = np.take(forcefield_mixed, indices, axis=0) # * get the parameters for each frame index at each grid point
+    sig  = inter_params[:,1] # * get the sigma values for each frame index at each grid point
+    eps  = inter_params[:,0]    # * get the epsilon values for each frame index at each grid point
+    sd = np.power(np.divide(sig, distances), 6) # * (sigma/distance)^6
+    # sig = np.array([forcefield[i][1] for i in indices])
+    # eps = np.array([forcefield[i][0] for i in indices])
+
+    # print(len(indices),len(distances),len(segments),len(sig),len(eps)) #, np.take(forcefield, indices))
+    v = np.add.reduceat(np.multiply(4*eps, ((sd)**2-(sd))), segments) # * sum the energy contributions for each grid point
+    # E = np.add.reduceat(4*eps*((sig/distances)**12-(sig/distances)**6), segments, axis=0)
+
+
+    # E = [lj_sum(d, s, e) for d, s, e in zip(distances, sig, eps)]
+
+    # return np.vstack(E).reshape(-1,1)
+    return v
+
+
+def gpe_aabb(grid_points,aabb_object,forcefield_mixed,cutoff):
+    """
+    It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff
+    distance, and returns the energy of each grid point
+    
+    :param grid_points: the points you want to evaluate the energy at
+    :param aabb_object: aabb object from the aabbquery class from freud
+    :param forcefield_mixed: a numpy array of shape (n,2) where n is the number of atoms in the system.
+    The first column is the epsilon parameter and the second column is the sigma parameter
+    :param cutoff: the cutoff distance for the neighbor search
+    :return: The energy of each grid point.
+    """
+
+    # def lj_sum(dists, sig, eps):
+    #     return np.sum(4*eps*((sig/dists)**12-(sig/dists)**6))
+
+    #Performthenearestneighborquerywithn-neighbors(10bydefault)
+
+
+    import numpy as np
+    ab_r=aabb_object.query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
+
+
+    ab_r_nl=ab_r.toNeighborList(sort_by_distance=True)#convertquerytoneighborlist
+    #nls=ab_r_nl.point_indices.reshape(-1,n_neighbors)#gettheindicesoftheneighborsforeachgridpt.tolookuptheradiilater
+    #dists=ab_r_nl.distances.reshape(-1,n_neighbors)#getthedistancestotheneighborsofeachgridpt.
+    #print(ab,ab_r,ab_r_nl,nls,[radii[nl]fornlinnls])#,np.min(dists-[radii[nl]fornlinnls],axis=1))
+    #returntheminimum(shortestdistancetothesurface)ineachrow
+    indices = ab_r_nl.point_indices
+    distances = ab_r_nl.distances
+    segments = ab_r_nl.segments
+    inter_params = np.take(forcefield_mixed, indices, axis=0)
+    sig  = inter_params[:,1]
+    eps  = inter_params[:,0]
+    sd = np.power(np.divide(sig, distances), 6)
+    # sig = np.array([forcefield[i][1] for i in indices])
+    # eps = np.array([forcefield[i][0] for i in indices])
+
+    # print(len(indices),len(distances),len(segments),len(sig),len(eps)) #, np.take(forcefield, indices))
+    v = np.add.reduceat(np.multiply(4*eps, ((sd)**2-(sd))), segments)
+    # E = np.add.reduceat(4*eps*((sig/distances)**12-(sig/distances)**6), segments, axis=0)
+
+
+    # E = [lj_sum(d, s, e) for d, s, e in zip(distances, sig, eps)]
+
+    # return np.vstack(E).reshape(-1,1)
+    return v
+
+# def aabb_for_atoms(ase_atoms):
+
+#     from freud.locality import AABBQuery
+#     from freud.box import Box
+#     import ase
+#     #fromase.dataimportvdw_radii
+#     import pandas as pd
+#     import numpy as np
+
+#     framework_atom_positions=ase_atoms.get_positions()
+#     cell=ase.geometry.complete_cell(ase_atoms.get_cell()).T#thisneedstobeanuppertriangularmatrix,essentialcolumnvectors,notrowvectors
+
+#     box=Box.from_matrix(cell,dimensions=3)#DefinetheboxforFreud
+#     aabb=AABBQuery(box=box,points=framework_atom_positions)#ComputetheAABBTree
+
+#     return aabb
+
+def egrid_from_atoms2(ase_atoms, spacing=0.5, blocksize=20000, forcefield_mixed= None, cutoff=12.5, probe_symbol='He', return_ncells=False, precompute=True):
+    """
+    > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid. 
+    
+    The function is a bit long, but it's not too complicated. 
+    
+    The first part of the function is just to get the grid points. 
+    
+    The second part is to get the forcefield parameters for the atoms. 
+    
+    The third part is to get the positions of the atoms in the unit cell, and to get the unit cell
+    vectors. 
+    
+    The fourth part is to repeat the unit cell to get the positions of the atoms in the repeated unit
+    cell. 
+    
+    The fifth part is to map the grid point energy function onto the grid points. 
+    
+    The sixth part is to reshape the grid points into a 3D array. 
+    
+    The seventh part is to return the grid points. 
+    
+    The eighth part is to return the number of repetitions of the unit cell if that return_ncells parameter is turned on.
+    
+    :param ase_atoms: an ase atoms object
+    :param spacing: the spacing of the grid points
+    :param blocksize: the size of the chunks that the grid is split into. This is important for memory
+    management, defaults to 20000 (optional)
+    :param forcefield_mixed: This is a list of the forcefield parameters for each atom in the unit cell
+    :param cutoff: the cutoff distance for the Lennard-Jones potential
+    :param probe_symbol: the symbol of the probe atom used to calculate the van der Waals radii,
+    defaults to He (optional)
+    :param return_ncells: if True, returns the number of cells needed to meet the cutoff, defaults to
+    False (optional)
+    :param precompute: if True, then the AABB is precomputed and passed to the function. If False, then
+    the positions and cell are passed to the function, defaults to True (optional)
+    :return: The grid2 is a dask array, which is a lazy array. It is not computed until you call
+    compute() on it.
+    """
+    
+    import dask.array as da
+    import numpy as np
+    from .data import mix_lorentz_berthelot
+    from .data import forcefields
+    import ase 
+    # import mofography as mgr 
+    grid, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=blocksize)
+    
+    # ab = aabb_for_atoms(ase_atoms)
+    if forcefield_mixed is None:
+        forcefield_mixed = mix_lorentz_berthelot(ase_atoms, forcefield = forcefields['uff'], probe_symbol=probe_symbol)
+    # grid.rechunk(chunks=(10000,3))
+
+
+    # * Now here use the the repeated box to get the framework atom positions
+    # * also the grid point coordinates now only span one unit cell, since others are simply copies
+
+    from ase.build import make_supercell 
+    P = np.eye(3)
+    repeats =get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    nrepeats = np.prod(repeats)
+    np.fill_diagonal(P, val=list(repeats))
+
+
+    # * let's repeat everything
+    ase_atoms_repeat = make_supercell(ase_atoms, P)
+    positions_repeat =ase_atoms_repeat.get_positions()
+    cell_repeat = ase.geometry.complete_cell(ase_atoms_repeat.get_cell()).T
+    forcefield_mixed_repeat  = np.tile(forcefield_mixed, (nrepeats,1))
+    
+    # mix_lorentz_berthelot(ase_atoms_repeat, forcefield = forcefields['uff'], probe_symbol=probe_symbol)
+    if precompute:
+        ab_repeat = AABB_on_atoms(ase_atoms_repeat)
+        # * map the grid point energy function that uses position and cell, on to the grid points
+        grid2 = da.map_blocks(gpe_aabb, grid, ab_repeat, forcefield_mixed_repeat, cutoff=cutoff, dtype=np.float64,drop_axis=1)
+        grid2 = grid2.reshape(shape)
+        grid2 = da.from_array(grid2.compute(scheduler='threads')).rechunk(chunks=(10,10,10)).reshape(shape)
+    
+    else:
+        # * map the grid point energy function that uses position and cell, on to the grid points
+        grid2 = da.map_blocks(gpe_aabb2, grid,positions_repeat, cell_repeat, forcefield_mixed_repeat, cutoff=cutoff, dtype=np.float64,drop_axis=1)
+        grid2 = grid2.reshape(shape)
+
+    if return_ncells:
+        return grid2, get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    else:
+        return grid2
+
+def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False):
+    
+    from .helper import find_coord_from_indices
+    import numpy as np
+    # * repeat the ase atoms and forcefield to meet cutoff    
+    # nrepeats = np.prod(mgr.get_repetitions_to_meet_cutoff(ase_atoms, cutoff))
+    ase_atoms_repeat, forcefield_mixed_repeat = repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff)
+    # import numpy as np  
+
+    # * get aabb object on repeated system
+    ab_repeat = AABB_on_atoms(ase_atoms_repeat)
+    # nrepeats = np.prod(mgr.get_repetitions_to_meet_cutoff(ase))
+
+    # ase_atom_repeat = mgr.get_aseatoms_to_meet_cutoff(ase_atoms, cutoff)
+    # forcefield_mixed_repeat = np.tile()
+    # * get region indices for the regions in the group
+    prop_labels = np.array([prop['label'] for prop in props])
+    prop_indices = [np.where(prop_labels==g)[0][0] for g in group]
+    
+    # * this group has more than one entry, assuming it is a pbc group
+    if len(group)>1:
+
+        #* grid indices of all the points present in this group
+        coords_indices = np.vstack([props[pi]['coords'] for pi in prop_indices])
+
+
+        # * get the actual grid point coordinates from indices for the pbc_group
+        coords =find_coord_from_indices(coords_indices, shape, ase_atoms) 
+
+        # * get the grid point energies for the points in the group
+        energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
+
+    else:
+
+        pi = np.where(prop_labels==list( group )[0])[0][0]
+        # print(pi)
+        #* get coordinates and centroids
+        coords_indices = props[pi]['coords']
+        coords = find_coord_from_indices(coords_indices, shape, ase_atoms)
+        # centroid = np.mean(coords, axis=0)
+        # * histogram of the distances and bin centers
+        energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
+
+    if return_coords:
+        return energies, coords
+    else:
+        return energies
+
+def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_mixed, shape, bins_energy=None , cutoff=12.5, minimum_npockets_per_type=3, add_energies=False):
+
+    import numpy as np 
+    import networkx as nx
+    if 'cluster' not in rag.nodes[1].keys():
+        raise ValueError('RAG must have a cluster attribute. Follow examples in docs to add clustering to RAG')
+    else:
+        types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
+
+        if bins_energy is None:
+            bins_energy = np.linspace(-3000, 100, 100)
+        
+        # list(nx.get_node_attributes(rag2, 'cluster').values())
+        ctypes, cindices = np.unique(types_list,return_inverse=True)
+        # for c in ctypes:
+        types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
+        types_counts = [len(t) for t in types_indices]
+        type_selection = [np.random.choice(ti , minimum_npockets_per_type, replace=False) if types_counts[i]>minimum_npockets_per_type else ti  for i,ti in enumerate(types_indices)]
+
+        import itertools  
+        merged_type_selection = [list(itertools.chain(*[list(pbc_groups[t]) for t in ts])) for ts in type_selection]
+        energies_list = [get_energies_for_group(mts, props, ase_atoms, forcefield_mixed, shape) for mts in merged_type_selection]
+        histograms_bins= [np.histogram(e, bins=bins_energy, density=False) for e in energies_list]
+        ehistograms = [hb[0] for hb in histograms_bins]
+        ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+        ehists_data = [ehistograms[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)]
+        ebins_data =  [ebincenters[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)] 
+
+
+        for node in rag.nodes():
+            rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[cindices[rag.nodes[node]['pbc_group']]]
+            rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[cindices[rag.nodes[node]['pbc_group']]]
+        # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+        # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+        if add_energies:
+            for node in rag.nodes():
+                rag.nodes[node]['energies']=energies_list[cindices[rag.nodes[node]['pbc_group']]]
+            
+            # energies_nodes = [energies_list[c] for c in cindices]
+            # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+        
+    return rag
+
+#endregion
