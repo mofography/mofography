@@ -40,8 +40,8 @@ cell_trace = mgr.plot_cell(mat_updated, color='purple')
 #add the above traces to plolty and make a figure
 import plotly.graph_objects as go
 import plotly.io as pio 
-# pio.renderers.default='browser'
-pio.renderers.default='notebook_connected'
+pio.renderers.default='browser'
+# pio.renderers.default='notebook_connected'
 
 # chose between white dark and epic layouts in mgr 
 # don't forget the * in front ofthe framework trace to unpack frameowork and aromatic rings and hightlights.
@@ -65,7 +65,34 @@ atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
 # bonds = [list(e) for e in sg.edges()]
 # atoms.info['covalent_bonds'] = bonds
 atoms_trace = mgr.plot_framework_as_mesh(atoms_, show_rings=True, stylize =True)
-fig = go.Figure(data=[*atoms_trace]).update(layout=mgr.white_layout).update_layout(legend_groupclick='togglegroup')
+fig = go.Figure(data=[*atoms_trace, co2_mesh_trace]).update(layout=mgr.white_layout).update_layout(legend_groupclick='togglegroup')
 fig.show()
 
 # %%
+from ase.data.colors import cpk_colors
+print(cpk_colors)
+# %%
+def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
+    import networkx as nx
+    mat_graph = mgr.sgraph_from_atoms(ase_atoms)
+    sg = mat_graph.subgraph(subset)
+    cell = ase_atoms.get_cell()
+    #make atoms object from the subgraph
+    atoms = Atoms(symbols=list(nx.get_node_attributes(sg, 'element').values()), positions = list(nx.get_node_attributes(sg, 'position').values()), cell=cell)
+    atoms_ = mgr.update_with_covalent_bonds(atoms)
+    atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
+    # bonds = [list(e) for e in sg.edges()]
+    # atoms.info['covalent_bonds'] = bonds
+
+    # lets put some defualt values in for the kwargs
+    stylize = kwargs.get('stylize', True)
+    show_rings = kwargs.get('show_rings', True)
+    trace_name = kwargs.get('trace_name', 'subset')
+
+    kwargs.pop('stylize', None)
+    kwargs.pop('show_rings', None)
+    kwargs.pop('trace_name', None)
+
+    atoms_trace = mgr.plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, trace_name=trace_name, **kwargs)    
+
+    return atoms_trace

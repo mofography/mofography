@@ -1079,7 +1079,7 @@ def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kw
         print('Only one node in the graph')
         return rag2
     else: 
-        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
+        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_psd_to_rag_with_pbc() first.')
 
 def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
     """
@@ -1148,7 +1148,73 @@ def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, 
         return rag2
     else: 
         raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
+def add_clustering_to_rag_pca2(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
+    """
+    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
+    the nodes.
+    
+    :param rag2: the RAG object
+    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
+    clusters
+    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
+    False (optional)
+    :return: The rag2 object with the cluster labels added to the nodes.
+    """
+    
+    import numpy as np 
+    import networkx as nx 
 
+    # *  get the data array, while reordering to match the node order   
+    if no_pbc:
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y').items())).values())
+    else:
+        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y_pbc').items())).values())
+
+    if use_kpca:
+        # get kwargs that are passed, if not set defaults
+        kernel = kwargs_pca.get('kernel', 'cosine')
+
+        # do the kernal PCA on X 
+        from sklearn.decomposition import KernelPCA
+        kpc = KernelPCA(**kwargs_pca).fit(X)
+        X = kpc.transform(X)
+
+        #* if you cannot solve for eigen values use regular PCA
+        # * usually happens when there is only one pocket in the framework
+        if X.shape[1]==0:
+            X = kpc.X_fit_
+
+
+
+    # * do the clustering using agglomerative clustering 
+    from sklearn.cluster import AgglomerativeClustering 
+
+    # get kwargs that are passed, if not set defaults
+    affinity = kwargs_cluster.get('affinity', 'euclidean')
+    linkage = kwargs_cluster.get('linkage', 'single')
+    n_clusters = kwargs_cluster.get('n_clusters', None)
+    connectivity = kwargs_cluster.get('connectivity', None)
+    compute_full_tree = kwargs_cluster.get('compute_full_tree', True)
+    distance_threshold = kwargs_cluster.get('distance_threshold', 0.25)
+    compute_distances = kwargs_cluster.get('compute_distances', False)
+
+    if len(X) > 1:
+        clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
+        
+        #* Add the clustering info to rag
+        for i in rag2.nodes():
+            rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
+        if return_cluster_obj:
+            return (rag2, clustering)
+        else:
+            return rag2
+    elif len(X) == 1:
+        # rag2.nodes[1]['cluster'] = '1'
+        nx.set_node_attributes(rag2, '1', 'cluster')
+        print('Only one node in the graph')
+        return rag2
+    else: 
+        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
 
 def compare_two_paths(p1, p2, rag):
     """
@@ -1698,6 +1764,18 @@ def add_pbc_to_rag(rag, pbc_groups):
         pbc_index = np.where([rag.nodes[node]['labels'][0] in list(g) for g in pbc_groups] )[0][0]
         rag.nodes[node]['pbc_group'] = pbc_index
     return rag
+
+def clustering_grid_from_regions(regions, rag2):
+    import numpy as np
+    regions_cluster = np.zeros(regions.shape)
+    if 'cluster' not in rag2.nodes[1].keys():
+        rag2 = add_clustering_to_rag(rag2)
+    else:
+        for i in range(1, len(rag2.nodes)+1):
+            regions_cluster[np.where(regions==rag2.nodes[i]['labels'][0])] = int(rag2.nodes[i]['cluster'])+1
+    return regions_cluster
+
+
 #region  # * Energy grid functions
 #######################################################
 ############################
@@ -1999,7 +2077,7 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
     else:
         return energies
 
-def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_mixed, shape, bins_energy=None , cutoff=12.5, minimum_npockets_per_type=3, add_energies=False):
+def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_mixed, shape, bins_energy=None , density=True, cutoff=12.5, minimum_npockets_per_type=3, add_energies=False):
 
     import numpy as np 
     import networkx as nx
@@ -2021,7 +2099,7 @@ def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_m
         import itertools  
         merged_type_selection = [list(itertools.chain(*[list(pbc_groups[t]) for t in ts])) for ts in type_selection]
         energies_list = [get_energies_for_group(mts, props, ase_atoms, forcefield_mixed, shape) for mts in merged_type_selection]
-        histograms_bins= [np.histogram(e, bins=bins_energy, density=False) for e in energies_list]
+        histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
         ehistograms = [hb[0] for hb in histograms_bins]
         ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
         ehists_data = [ehistograms[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)]
@@ -2041,5 +2119,44 @@ def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_m
             # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
         
     return rag
+
+def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=True, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False):
+    import numpy as np 
+    import networkx as nx
+    if bins_energy is None:
+        bins_energy = np.linspace(-3000, 100, 100)
+    if use_pbc:
+        if pbc_groups is None:
+            raise ValueError('pbc_groups must be provided if use_pbc=True')
+        else:
+            energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for g in pbc_groups]
+            histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+            ehistograms = [hb[0] for hb in histograms_bins]
+            ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+            for i, node in enumerate(rag.nodes()):
+                rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[rag.nodes[node]['pbc_group']]
+                rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[rag.nodes[node]['pbc_group']]
+
+    else:
+        energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for node in rag.nodes()]
+        histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+        ehistograms = [hb[0] for hb in histograms_bins]
+        ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+
+
+        for i, node in enumerate(rag.nodes()):
+            rag.nodes[node]['vdw_hist_y']=ehistograms[i]
+            rag.nodes[node]['vdw_hist_x']=ebincenters[i]
+    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+    if add_energies:
+        for i,node in rag.nodes():
+            rag.nodes[node]['energies']=energies_list[i]
+            
+            # energies_nodes = [energies_list[c] for c in cindices]
+            # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+        
+    return rag
+
 
 #endregion
