@@ -734,7 +734,7 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
         print('isomorphic aromatic cycles is None, trying to calculate')
         try:
             isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(sgraph)
-            print(isomorphic_aromatic_cycles)
+            # print(isomorphic_aromatic_cycles)
         except:
             Exception('Cannot find aromatic cycles from sgraph! Please provide as input.')
     circle_data = []
@@ -752,7 +752,7 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
         coord = np.vstack(list(nx.get_node_attributes(sgraph, "position").values()))
     except:
         raise Exception("Cannot find position data in your sgraph")
-    print(isomorphic_aromatic_cycles)
+    # print(isomorphic_aromatic_cycles)
     if isomorphic_aromatic_cycles is not None:
         if len(isomorphic_aromatic_cycles) >0:
             for ring in isomorphic_aromatic_cycles:
@@ -1583,6 +1583,7 @@ def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False):
     return traces
 
 def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
+
     """
     > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of
     the atoms in the list
