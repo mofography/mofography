@@ -322,7 +322,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     # print(keep_these)
     # new_max_indices = max_indices[keep_these-1].T
 
-    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
+    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1,p_norm=2)).T
     if len(new_max_indices.T) < len(max_indices.T):
         warnings.warn('Some maxima excluded as they fell inside the mask_thickness')
         # warnings.warn('Some maxima excluded as they the regions were less that 0.001 of the box')
@@ -333,10 +333,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     import dask.array as da
     reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=compactness)
 
-    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
-    #* Now interpolate the region labels and sort the maxima in the correct order    
-    sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
-    new_max_indices = (new_max_indices.T[sort_index]).T
+    new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, p_norm=2)).T
     # ir = interpolate_labels(reg_labels)
     # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
     
@@ -349,7 +346,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     # for i in range(number_of_regions):
     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
 
-    # Lets clean out the regions that are too small 
+    # # *  Lets clean out the regions that are too small 
     # props = regionprops(reg_labels)
     # print([(p.label, p.area/dgrid.size) for p in props])
     # len([(p.label, p.area/dgrid.size) for p in props if p.area > dgrid.size/1000])
@@ -357,11 +354,14 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     # maxima2 = np.vstack([new_max_indices.T[k-1] for k in keep_these])
     # markers_sparse = sparse.COO(maxima2.T, 1, shape=dgrid.shape)
 
-    # probe = mask_thickness
-    # import dask.array as da
+    # # probe = mask_thickness
+    # # import dask.array as da
     # reg_labels = segmentation.watershed(-dgrid, ndi.label(markers_sparse.todense())[0], mask=(dgrid>probe).astype(int), compactness=False)
-
     # new_max_indices = np.array(peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1)).T
+
+    #* Now interpolate the region labels and sort the maxima in the correct order    
+    sort_index = np.argsort([reg_labels[tuple(m)] for m in new_max_indices.T])
+    new_max_indices = (new_max_indices.T[sort_index]).T
  
 
     return reg_labels, new_max_indices.T
@@ -1148,73 +1148,118 @@ def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, 
         return rag2
     else: 
         raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
-def add_clustering_to_rag_pca2(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
-    """
-    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
-    the nodes.
+# def add_clustering_to_rag_pca2(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
+#     """
+#     > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
+#     the nodes.
     
-    :param rag2: the RAG object
-    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
-    clusters
-    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
-    False (optional)
-    :return: The rag2 object with the cluster labels added to the nodes.
-    """
+#     :param rag2: the RAG object
+#     :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
+#     clusters
+#     :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
+#     False (optional)
+#     :return: The rag2 object with the cluster labels added to the nodes.
+#     """
     
-    import numpy as np 
-    import networkx as nx 
+#     import numpy as np 
+#     import networkx as nx 
+#     from sklearn.preprocessing import MinMaxScaler
+#     # *  get the data array, while reordering to match the node order   
+#     if no_pbc:
+#         X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y').items())).values())
+#     else:
+#         X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y_pbc').items())).values())
 
-    # *  get the data array, while reordering to match the node order   
-    if no_pbc:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y').items())).values())
-    else:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'vdw_hist_y_pbc').items())).values())
+#     if use_kpca:
+#         # get kwargs that are passed, if not set defaults
+#         kernel = kwargs_pca.get('kernel', 'cosine')
 
-    if use_kpca:
-        # get kwargs that are passed, if not set defaults
-        kernel = kwargs_pca.get('kernel', 'cosine')
+#         # do the kernal PCA on X 
+#         from sklearn.decomposition import KernelPCA
+#         kpc = KernelPCA(**kwargs_pca).fit(X)
+#         X = kpc.transform(X)
 
-        # do the kernal PCA on X 
-        from sklearn.decomposition import KernelPCA
-        kpc = KernelPCA(**kwargs_pca).fit(X)
-        X = kpc.transform(X)
-
-        #* if you cannot solve for eigen values use regular PCA
-        # * usually happens when there is only one pocket in the framework
-        if X.shape[1]==0:
-            X = kpc.X_fit_
+#         #* if you cannot solve for eigen values use regular PCA
+#         # * usually happens when there is only one pocket in the framework
+#         if X.shape[1]==0:
+#             X = kpc.X_fit_
 
 
 
-    # * do the clustering using agglomerative clustering 
-    from sklearn.cluster import AgglomerativeClustering 
+#     # * do the clustering using agglomerative clustering 
+#     from sklearn.cluster import AgglomerativeClustering 
 
-    # get kwargs that are passed, if not set defaults
-    affinity = kwargs_cluster.get('affinity', 'euclidean')
-    linkage = kwargs_cluster.get('linkage', 'single')
-    n_clusters = kwargs_cluster.get('n_clusters', None)
-    connectivity = kwargs_cluster.get('connectivity', None)
-    compute_full_tree = kwargs_cluster.get('compute_full_tree', True)
-    distance_threshold = kwargs_cluster.get('distance_threshold', 0.25)
-    compute_distances = kwargs_cluster.get('compute_distances', False)
+#     # get kwargs that are passed, if not set defaults
+#     affinity = kwargs_cluster.get('affinity', 'euclidean')
+#     linkage = kwargs_cluster.get('linkage', 'single')
+#     n_clusters = kwargs_cluster.get('n_clusters', None)
+#     connectivity = kwargs_cluster.get('connectivity', None)
+#     compute_full_tree = kwargs_cluster.get('compute_full_tree', True)
+#     distance_threshold = kwargs_cluster.get('distance_threshold', None)
+#     compute_distances = kwargs_cluster.get('compute_distances', False)
 
-    if len(X) > 1:
-        clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
+#     if len(X) > 1:
+#         clustering = AgglomerativeClustering(compute_full_tree=compute_full_tree, connectivity=connectivity, compute_distances=compute_distances, linkage=linkage, distance_threshold = distance_threshold, n_clusters=n_clusters, affinity=affinity).fit(X)
         
-        #* Add the clustering info to rag
-        for i in rag2.nodes():
-            rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
-        if return_cluster_obj:
-            return (rag2, clustering)
-        else:
-            return rag2
-    elif len(X) == 1:
-        # rag2.nodes[1]['cluster'] = '1'
-        nx.set_node_attributes(rag2, '1', 'cluster')
-        print('Only one node in the graph')
-        return rag2
-    else: 
-        raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
+#         #* Add the clustering info to rag
+#         for i in rag2.nodes():
+#             rag2.nodes[i]['cluster'] = str(clustering.labels_[i-1])
+#         if return_cluster_obj:
+#             return (rag2, clustering)
+#         else:
+#             return rag2
+#     elif len(X) == 1:
+#         # rag2.nodes[1]['cluster'] = '1'
+#         nx.set_node_attributes(rag2, '1', 'cluster')
+#         print('Only one node in the graph')
+#         return rag2
+#     else: 
+#         raise ValueError('No PSD with PBC data in the RAG (pore graph). Call add_pbc_psd_to_rag() first.')
+
+def add_clustering_to_rag_energy(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=True, pbc_groups=None, cutoff=12.8,sample_fraction=1):
+    
+
+    import networkx as nx 
+    import itertools
+    from scipy.stats import ks_2samp
+    import numpy as np
+    if use_pbc:
+        if pbc_groups is None:
+            raise ValueError('pbc_groups must be provided if use_pbc=True')
+        # * we will classifying the pbc groups
+        energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff,sample_fraction=sample_fraction) for g in pbc_groups]
+        # * test the samples using ks2samp
+        ks_graph = nx.Graph()
+        ks_graph.add_nodes_from(range(len(pbc_groups)))
+        for i,j in itertools.combinations(range(len(pbc_groups)), 2):
+            print(f'ks test for {pbc_groups[i]} and {pbc_groups[j]} is {ks_2samp(energies_list[i], energies_list[j])}')
+            ks = ks_2samp(energies_list[i], energies_list[j])
+            if ks[1] > 0.05:
+                ks_graph.add_edge(i,j)
+        conn = list(nx.connected_components(ks_graph))
+        print('connected components are: ', conn)
+        
+        energy_groups = [set(itertools.chain.from_iterable(np.array(pbc_groups)[list(c)])) for c in conn]
+    
+        # * add the cluster info to the rag
+        for i in rag.nodes():
+            rag.nodes[i]['cluster_energy_pbc'] = str(np.where([i in g for g in energy_groups])[0][0])
+    else:
+        # * we will be working with the actual nodes (regions)
+        energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff,sample_fraction=sample_fraction) for node in rag.nodes()]
+        ks_graph = nx.Graph()
+        ks_graph.add_nodes_from(range(len(rag.nodes())))
+        for i,j in itertools.combinations(len(rag.nodes()), 2):
+            ks = ks_2samp(energies_list[i], energies_list[j])
+            if ks[1] > 0.05:
+                ks_graph.add_edge(i,j)
+        conn = list(nx.connected_components(ks_graph))
+        #* add the clustering info  to the rag
+        for i in rag.nodes():
+            rag.nodes[i]['cluster_energy_nopbc'] = str(np.where([i in g for g in conn])[0][0])
+    return rag        
+        # energy_groups = [set(itertools.chain.from_iterable(np.array(pbc_groups)[list(c)])) for c in conn]
+#%%
 
 def compare_two_paths(p1, p2, rag):
     """
@@ -1700,6 +1745,7 @@ def apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=1, return
             # print()
             # print(reg_numbers, 'reg numbers after picking')
             if len(reg_numbers)>0:
+                # TODO: Here we are asuuming the region indices to be in order, causes error in older skimage versions fix using props['labels]
                 flags = np.vstack([[maxima[r[0]-1][a]<wall_cells[a], maxima[r[1]-1][a]>(shape[a]-wall_cells[a])] for r in reg_numbers])
                 # flags = np.logical_or(flags[:,0],flags[:,1,])
                 # flags = np.logical_or(flllags[:,0],flags[:,1,])
@@ -1765,14 +1811,14 @@ def add_pbc_to_rag(rag, pbc_groups):
         rag.nodes[node]['pbc_group'] = pbc_index
     return rag
 
-def clustering_grid_from_regions(regions, rag2):
+def clustering_grid_from_regions(regions, rag2, cluster_key='cluster'):
     import numpy as np
     regions_cluster = np.zeros(regions.shape)
-    if 'cluster' not in rag2.nodes[1].keys():
-        rag2 = add_clustering_to_rag(rag2)
+    if cluster_key not in rag2.nodes[1].keys():
+        ValueError('The cluster_key is not in the rag2 nodes, call add_clustering_to_rag_* function first')
     else:
         for i in range(1, len(rag2.nodes)+1):
-            regions_cluster[np.where(regions==rag2.nodes[i]['labels'][0])] = int(rag2.nodes[i]['cluster'])+1
+            regions_cluster[np.where(regions==rag2.nodes[i]['labels'][0])] = int(rag2.nodes[i][cluster_key])+1
     return regions_cluster
 
 
@@ -2029,10 +2075,11 @@ def egrid_from_atoms2(ase_atoms, spacing=0.5, blocksize=20000, forcefield_mixed=
     else:
         return grid2
 
-def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False):
+def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False, block_size=20000, sample_fraction=1):
     
     from .helper import find_coord_from_indices
     import numpy as np
+    import dask.array as da
     # * repeat the ase atoms and forcefield to meet cutoff    
     # nrepeats = np.prod(mgr.get_repetitions_to_meet_cutoff(ase_atoms, cutoff))
     ase_atoms_repeat, forcefield_mixed_repeat = repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff)
@@ -2057,11 +2104,27 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
 
         # * get the actual grid point coordinates from indices for the pbc_group
         coords =find_coord_from_indices(coords_indices, shape, ase_atoms) 
+        
+        # * if there are too many points, it might be better to random sample
+        if sample_fraction < 1:
+            # * sample the coordinates
+            ncoords = coords.shape[0]
+            ncoords_sample = int(ncoords*sample_fraction)
+            print(f'{ncoords_sample} points sampled for energy for pbc group {group}')
+            coords = coords[np.random.choice(ncoords, ncoords_sample, replace=False),:]
+
+
+        # * convert the coords to a dask array and chunk it 
+        coords = da.from_array(coords, chunks=(block_size,3))
+
+        #* map the gpe_aabb function on the coords and compute the energies
+        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute(scheduler='threads')
 
         # * get the grid point energies for the points in the group
-        energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
+        # energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
 
     else:
+        #* if it is only one entry in the pbc group
 
         pi = np.where(prop_labels==list( group )[0])[0][0]
         # print(pi)
@@ -2069,67 +2132,86 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
         coords_indices = props[pi]['coords']
         coords = find_coord_from_indices(coords_indices, shape, ase_atoms)
         # centroid = np.mean(coords, axis=0)
-        # * histogram of the distances and bin centers
-        energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
+
+        #* convert coords into a  dask array and chunk it
+        coords = da.from_array(coords, chunks=(block_size,3))
+
+        # * if there are too many points it might be better to randomly sample
+        if sample_fraction < 1:
+            # * sample the coordinates
+            ncoords = coords.shape[0]
+            ncoords_sample = int(ncoords*sample_fraction)
+            print(f'{ncoords_sample} points sampled for energy for pbc group {group}')
+            coords = coords[np.random.choice(ncoords, ncoords_sample, replace=False),:]
+
+        # * compute the enrgies in parallel
+        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute(scheduler='threads') 
+        # energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
 
     if return_coords:
         return energies, coords
     else:
         return energies
 
-def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_mixed, shape, bins_energy=None , density=True, cutoff=12.5, minimum_npockets_per_type=3, add_energies=False):
+# def add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, forcefield_mixed, shape, bins_energy=None , density=True, cutoff=12.5, minimum_npockets_per_type=3, add_energies=False):
 
-    import numpy as np 
-    import networkx as nx
-    if 'cluster' not in rag.nodes[1].keys():
-        raise ValueError('RAG must have a cluster attribute. Follow examples in docs to add clustering to RAG')
-    else:
-        types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
+#     import numpy as np 
+#     import networkx as nx
+#     if 'cluster' not in rag.nodes[1].keys():
+#         raise ValueError('RAG must have a cluster attribute. Follow examples in docs to add clustering to RAG')
+#     else:
+#         types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
 
-        if bins_energy is None:
-            bins_energy = np.linspace(-3000, 100, 100)
+#         if bins_energy is None:
+#             bins_energy = np.linspace(-3000, 100, 100)
         
-        # list(nx.get_node_attributes(rag2, 'cluster').values())
-        ctypes, cindices = np.unique(types_list,return_inverse=True)
-        # for c in ctypes:
-        types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
-        types_counts = [len(t) for t in types_indices]
-        type_selection = [np.random.choice(ti , minimum_npockets_per_type, replace=False) if types_counts[i]>minimum_npockets_per_type else ti  for i,ti in enumerate(types_indices)]
+#         # list(nx.get_node_attributes(rag2, 'cluster').values())
+#         ctypes, cindices = np.unique(types_list,return_inverse=True)
+#         # for c in ctypes:
+#         types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
+#         types_counts = [len(t) for t in types_indices]
+#         type_selection = [np.random.choice(ti , minimum_npockets_per_type, replace=False) if types_counts[i]>minimum_npockets_per_type else ti  for i,ti in enumerate(types_indices)]
 
-        import itertools  
-        merged_type_selection = [list(itertools.chain(*[list(pbc_groups[t]) for t in ts])) for ts in type_selection]
-        energies_list = [get_energies_for_group(mts, props, ase_atoms, forcefield_mixed, shape) for mts in merged_type_selection]
-        histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
-        ehistograms = [hb[0] for hb in histograms_bins]
-        ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
-        ehists_data = [ehistograms[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)]
-        ebins_data =  [ebincenters[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)] 
+#         import itertools  
+#         merged_type_selection = [list(itertools.chain(*[list(pbc_groups[t]) for t in ts])) for ts in type_selection]
+#         energies_list = [get_energies_for_group(mts, props, ase_atoms, forcefield_mixed, shape) for mts in merged_type_selection]
+#         histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+#         ehistograms = [hb[0] for hb in histograms_bins]
+#         ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+#         ehists_data = [ehistograms[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)]
+#         ebins_data =  [ebincenters[cindices[i]] for i,g in enumerate(pbc_groups) for gg in list(g)] 
 
 
-        for node in rag.nodes():
-            rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[cindices[rag.nodes[node]['pbc_group']]]
-            rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[cindices[rag.nodes[node]['pbc_group']]]
-        # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
-        # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
-        if add_energies:
-            for node in rag.nodes():
-                rag.nodes[node]['energies']=energies_list[cindices[rag.nodes[node]['pbc_group']]]
+#         for node in rag.nodes():
+#             rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[cindices[rag.nodes[node]['pbc_group']]]
+#             rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[cindices[rag.nodes[node]['pbc_group']]]
+#         # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+#         # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+#         if add_energies:
+#             for node in rag.nodes():
+#                 rag.nodes[node]['energies']=energies_list[cindices[rag.nodes[node]['pbc_group']]]
             
-            # energies_nodes = [energies_list[c] for c in cindices]
-            # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+#             # energies_nodes = [energies_list[c] for c in cindices]
+#             # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
         
-    return rag
+#     return rag
 
-def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=True, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False):
+
+
+
+def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=False, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False, sample_fraction=1):
     import numpy as np 
     import networkx as nx
-    if bins_energy is None:
-        bins_energy = np.linspace(-3000, 100, 100)
+    # if bins_energy is None:
+        # bins_energy = np.linspace(-3000, 100, 25)
     if use_pbc:
         if pbc_groups is None:
             raise ValueError('pbc_groups must be provided if use_pbc=True')
+        
         else:
-            energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for g in pbc_groups]
+            energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for g in pbc_groups]
+            if bins_energy is None:
+                hist, bins_energy = np.histogram(np.hstack(energies_list), bins=30, density=density)
             histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
             ehistograms = [hb[0] for hb in histograms_bins]
             ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
@@ -2138,7 +2220,7 @@ def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=
                 rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[rag.nodes[node]['pbc_group']]
 
     else:
-        energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for node in rag.nodes()]
+        energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
         histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
         ehistograms = [hb[0] for hb in histograms_bins]
         ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
@@ -2158,5 +2240,41 @@ def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=
         
     return rag
 
+# def add_vdw_hist_to_rag2(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=False, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False):
+#     import numpy as np 
+#     import networkx as nx
+#     if bins_energy is None:
+#         bins_energy = np.linspace(-3000, 100, 25)
+#     if use_pbc:
+#         if pbc_groups is None:
+#             raise ValueError('pbc_groups must be provided if use_pbc=True')
+#         else:
+#             energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for g in pbc_groups]
+#             histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+#             ehistograms = [hb[0] for hb in histograms_bins]
+#             ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+#             for i, node in enumerate(rag.nodes()):
+#                 rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[rag.nodes[node]['pbc_group']]
+#                 rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[rag.nodes[node]['pbc_group']]
 
+#     else:
+#         energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff) for node in rag.nodes()]
+#         histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+#         ehistograms = [hb[0] for hb in histograms_bins]
+#         ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+
+
+#         for i, node in enumerate(rag.nodes()):
+#             rag.nodes[node]['vdw_hist_y']=ehistograms[i]
+#             rag.nodes[node]['vdw_hist_x']=ebincenters[i]
+#     # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+#     # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+#     if add_energies:
+#         for i,node in rag.nodes():
+#             rag.nodes[node]['energies']=energies_list[i]
+            
+#             # energies_nodes = [energies_list[c] for c in cindices]
+#             # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+        
+    return rag
 #endregion

@@ -1517,7 +1517,7 @@ def plot_maxima(dgrid, maxima, ase_atoms, **kwargs):
 
     return go.Scatter3d(x=maxima_coords[:,0], y=maxima_coords[:,1], z=maxima_coords[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity, colorscale=marker_colorscale), hovertext=hovertext, name=name, **kwargs)
 
-def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False):
+def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
     """
     > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group. 
     
@@ -1534,22 +1534,22 @@ def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False):
     import numpy as np
     if cscale is None:
         cscale = px.colors.qualitative.Alphabet
-    unique_clusters = np.unique(list(nx.get_node_attributes(rag,'cluster').values()))
+    unique_clusters = np.unique(list(nx.get_node_attributes(rag,cluster_key).values()))
 
     cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
     traces = []
     if no_pbc:
         for node in list(rag.nodes().keys()): 
             # node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['psd_x'], y=rag.nodes[node]['psd_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x'], y=rag.nodes[node]['psd_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node][cluster_key]), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
     else:
         for i,g in enumerate(pbc_groups): 
             node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], mode='markers+lines', line_color = cmap.get(rag.nodes[node][cluster_key]), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
             # traces.append(go.Bar(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=0.5, name='PBC group: {}'.format(i+1) ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
     
     return traces
-def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False):
+def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
 
 
     import plotly.graph_objects as go
@@ -1558,28 +1558,31 @@ def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False):
     import numpy as np
     if cscale is None:
         cscale = px.colors.qualitative.Alphabet
-    unique_clusters = np.unique(list(nx.get_node_attributes(rag,'cluster').values()))
+    unique_clusters = np.unique(list(nx.get_node_attributes(rag,cluster_key).values()))
 
     cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
     traces = []
     if no_pbc:
         for node in list(rag.nodes().keys()): 
             # node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['vdw_hist_x'], y=rag.nodes[node]['vdw_hist_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node]['cluster']), hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Region: {}'.format(node) , name='Region: '+ str(rag.nodes[node]['labels'][0])))
+            traces.append(go.Scatter(x=rag.nodes[node]['vdw_hist_x'], y=rag.nodes[node]['vdw_hist_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node][cluster_key]), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Region: {}'.format(node) , name='Region: '+ str(rag.nodes[node]['labels'][0])))
     else:
-       # * pick one group from each cluster type
-        types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
-        ctypes, cindices = np.unique(types_list,return_inverse=True)
-        # for c in ctypes:
-        types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
-        # types_counts = [len(t) for t in types_indices]
-        type_selection = [np.random.choice(ti ,1, replace=False)  for i,ti in enumerate(types_indices)]
-        # print(types_list, ctypes, cindices, types_indices, type_selection)
+        # * pick one group from each cluster type
+        # types_list = [rag.nodes[list(g)[0]]['cluster'] for g in pbc_groups]
+        # ctypes, cindices = np.unique(types_list,return_inverse=True)
+        # # for c in ctypes:
+        # types_indices = [np.where([t==c for t in types_list])[0] for c in ctypes]
+        # # types_counts = [len(t) for t in types_indices]
+        # type_selection = [np.random.choice(ti ,1, replace=False)  for i,ti in enumerate(types_indices)]
+        # # print(types_list, ctypes, cindices, types_indices, type_selection)
 
-        for i,ts in enumerate(type_selection):
-            g = pbc_groups[ts[0]] 
-            node = np.min(list(g))           
-            traces.append(go.Bar(x=rag.nodes[node]['vdw_hist_x_pbc'], y=rag.nodes[node]['vdw_hist_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=1.0, name='Cluster (cavity type): '+ctypes[i] ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
+         # for i,ts in enumerate(type_selection):
+        #     g = pbc_groups[ts[0]] 
+        #     node = np.min(list(g))           
+        #     traces.append(go.Bar(x=rag.nodes[node]['vdw_hist_x_pbc'], y=rag.nodes[node]['vdw_hist_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=1.0, name='Cluster (cavity type): '+ctypes[i] ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
+        for i,g in enumerate(pbc_groups):
+            node = np.min(list(g)) # pick any node from the group, they all have the same cluster index. here we are picking the first one
+            traces.append(go.Bar(x=rag.nodes[node]['vdw_hist_x_pbc'], y=rag.nodes[node]['vdw_hist_y_pbc'], marker_color=cmap.get(rag.nodes[node][cluster_key]), marker_opacity=1.0, name='PBC group: {}'.format(i) ,hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
     return traces
 
 def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
