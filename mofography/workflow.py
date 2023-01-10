@@ -23,7 +23,7 @@ def quick_cluster(mat_atoms,
                   bins=None,
                   block_size=50000, a=1, b=1, c=1, 
                   density=True,
-                  distance_threshold=0.25, minimum_overlap_fraction=0.5, show_figures=True, renderer='browser', use_energy_for_clustering=True, sample_fraction=0.5, return_these_vars=[]):  # distance threshold for agglomerative clustering
+                  distance_threshold=0.25, minimum_overlap_fraction=0.5, make_figures=True, renderer='browser', use_energy_for_clustering=True, sample_fraction=0.5, return_these_vars=[]):  # distance threshold for agglomerative clustering
     # # # * Pick a random material from the database
     # if chosen is None:
     #     chosen = random.choice(np.arange(len(iza_atoms)))
@@ -143,11 +143,11 @@ def quick_cluster(mat_atoms,
         rag2 = add_vdw_hist_to_rag(rag2, props, mat_atoms, forcefield_mixed, regions.shape, use_pbc=True, pbc_groups=pbc_groups, sample_fraction=sample_fraction, density=density)
         rag2 = add_clustering_to_rag_energy(rag=rag2, props=props, pbc_groups=pbc_groups, ase_atoms=mat_atoms, forcefield_mixed =forcefield_mixed, shape=regions.shape, use_pbc=True, sample_fraction=sample_fraction)
         regions_cluster =  clustering_grid_from_regions(regions, rag2, cluster_key='cluster_energy_pbc')
-        if show_figures:
+        if make_figures:
             vdw_traces = plot_vdw_hists(rag2, pbc_groups, cscale=cscale, cluster_key='cluster_energy_pbc')
             fig_vdw = go.Figure(data=vdw_traces)
-            fig_vdw.update_layout(xaxis_title='Distance to centroid (\u212b)', yaxis_title='Normalized histogram')
-            fig_vdw.show(renderer=renderer)
+            fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
+            # fig_vdw.show(renderer=renderer)
     else:
         rag2, cluster_obj =  add_clustering_to_rag_pca(rag2, no_pbc=False, kwargs_cluster=dict(distance_threshold=distance_threshold, kernel='linear'), return_cluster_obj=True, kwargs_pca=dict(
             kernel='cosine'))  # * do clustering of the regions with PCA and default settings (clustering kernel='linear', linkage='single', distance='euclidean', pca kernel ='cosine')
@@ -163,14 +163,14 @@ def quick_cluster(mat_atoms,
         #-------------------------------------------------#
         # * get the 3D array of cluster labels
         regions_cluster =  clustering_grid_from_regions(regions, rag2)
-        if show_figures:
+        if make_figures:
             # * plot the cavity histogram for each pbc group
             csd_traces =  plot_psds(rag2, pbc_groups, cscale=cscale)
             fig_vdw = go.Figure(data=csd_traces)
-            fig_vdw.update_layout(xaxis_title='Distance to centroid (\u212b)', yaxis_title='Normalized histogram')
-            fig_vdw.show(renderer=renderer)
+            fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
+            # fig_vdw.show(renderer=renderer)
 
-    if show_figures:
+    if make_figures:
 
 
         # * Plot the distance isosurface at 1.75 A colored in different ways
@@ -200,7 +200,7 @@ def quick_cluster(mat_atoms,
         # fig_full_visual = go.Figure(data=[surface_trace, surface_trace_pbc, surface_trace_cluster, *frame_trace, cell_trace, maxima_trace, windows_trace])
         fig_full_visual.update(layout= white_layout)
         fig_full_visual.update_layout(scene=dict(aspectmode='data'))
-        fig_full_visual.show(renderer=renderer)
+        # fig_full_visual.show(renderer=renderer)
 
         
     # # # * compute and plot the energy histograms for each pbc group
@@ -218,8 +218,12 @@ def quick_cluster(mat_atoms,
         # list_return_objects = [val for i,val in enumerate(values) if args[i] in return_these_vars]
         list_return_objects = [frame.f_locals[var] for var in return_these_vars]
 
-        return list_return_objects
+        return list_return_objects + [[fig_full_visual, fig_vdw]]
     else:
         print('No return objects specified, possible options to pass in list_return_strings are:')
         # print(callers_local_vars)
         print(frame.f_locals.keys())
+        if make_figures:
+            print('Returning the figures if make_figures=True')
+            return [fig_full_visual, fig_vdw]
+
