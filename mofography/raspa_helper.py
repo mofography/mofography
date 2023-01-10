@@ -160,19 +160,19 @@ def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
     df = pd.DataFrame(output, columns=['Number', 'U_total', 'U_total_fit', 'Number_molpg', 'Isos'])
     os.chdir(cwd)
     return df
-        """
-        It takes a list of folder paths, and a temperature, and returns a dictionary of the
-        isosteric heat fits for each folder
-        
-        :param list_of_folder_paths: a list of strings, each string being the path to a folder
-        containing RASPA output files
-        :param T: temperature in K
-        :param order: the order of the polynomial fit
-        :return: A dictionary of the form {folder_path: isos_fit_for_raspa_folder(folder_path,
-        T, order)}
-        """
-def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
 
+def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
+    """
+    It takes a list of folder paths, and a temperature, and returns a dictionary of the
+    isosteric heat fits for each folder
+    
+    :param list_of_folder_paths: a list of strings, each string being the path to a folder
+    containing RASPA output files
+    :param T: temperature in K
+    :param order: the order of the polynomial fit
+    :return: A dictionary of the form {folder_path: isos_fit_for_raspa_folder(folder_path,
+    T, order)}
+    """
     from tqdm import tqdm
     isos_heats_dict = {}
     for folder in tqdm(list_of_folder_paths):
