@@ -1,4 +1,6 @@
 def make_raspa_input_for_cif(folder_path, raspa_settings_dict, other_files_to_copy, templates_dir, template_name):
+    
+    
     import jinja2 as jj 
     import shutil
     import os 
@@ -11,11 +13,14 @@ def make_raspa_input_for_cif(folder_path, raspa_settings_dict, other_files_to_co
         shutil.copy(os.path.abspath(f), os.path.abspath(folder_path))
 
 def get_isotherm_df_for_raspa_folder(path_to_folder):
-    '''
-    This function takes a path to a folder containing a raspa output file and returns a dataframe with the isotherm data
-    :param path_to_folder: path to the folder containing the raspa output files
-    :return: a dataframe with the isotherm data
-    '''
+    """
+    It takes a list of paths to folders containing raspa output files and returns a dictionary with the
+    isotherm data
+    
+    :param path_to_folder: the path to the folder containing the raspa output files
+    :return: A dictionary with the isotherm data
+    """
+
     import numpy as np
     import os
     import glob
@@ -155,7 +160,19 @@ def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
     df = pd.DataFrame(output, columns=['Number', 'U_total', 'U_total_fit', 'Number_molpg', 'Isos'])
     os.chdir(cwd)
     return df
+        """
+        It takes a list of folder paths, and a temperature, and returns a dictionary of the
+        isosteric heat fits for each folder
+        
+        :param list_of_folder_paths: a list of strings, each string being the path to a folder
+        containing RASPA output files
+        :param T: temperature in K
+        :param order: the order of the polynomial fit
+        :return: A dictionary of the form {folder_path: isos_fit_for_raspa_folder(folder_path,
+        T, order)}
+        """
 def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
+
     from tqdm import tqdm
     isos_heats_dict = {}
     for folder in tqdm(list_of_folder_paths):
@@ -164,6 +181,14 @@ def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
 
 
 
+    """
+    It reads a RASPA pdb file and returns a list of ASE atoms objects
+    
+    :param pdb_file: the file name of the pdb file
+    :param index_list: list of indices of the configurations to be read. If None, all configurations are
+    read
+    :return: A list of atoms objects.
+    """
 def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=None, trace_name='adsorbates', pbc=[1, 1, 1]):
 
     from ase import Atoms
@@ -186,6 +211,16 @@ def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=No
 
 # TODO: Implement for natoms > 1
 def apply_region_map_to_raspa_pdb(pdb_file, regions_cluster_super, natoms_per_molecule=1, index_list=None):
+    """
+    It takes a pdb file and a region map and returns a dictionary of the number of atoms in each region
+    
+    :param pdb_file: the pdb file you want to analyze
+    :param regions_cluster_super: the supercell regions map
+    :param natoms_per_molecule: number of atoms per molecule. This is currently only implemented for 1,
+    defaults to 1 (optional)
+    :param index_list: list of indices of atoms to use in the pdb file. If None, all atoms are used
+    :return: A dictionary with the number of atoms in each cluster type and the total number of atoms.
+    """
 
     import numpy as np
     from .helper import interpolate_labels
@@ -218,6 +253,18 @@ def apply_region_map_to_raspa_pdb(pdb_file, regions_cluster_super, natoms_per_mo
 
 
 def block_pockets_at_random_and_write(file_path, rag, ase_atoms, random_seed=123):
+    """
+    > This function takes a graph, ase atoms object, and a file path, and writes a file with the
+    fractional coordinates of the centroids of the pockets in the graph, and the radius of the pockets
+    
+    :param file_path: the path to the file you want to write the blocking information to
+    :param rag: the networkx graph object
+    :param ase_atoms: ASE atoms object
+    :param random_seed: the random seed to use for the random number generator, defaults to 123
+    (optional)
+    :return: The blocking_fractions and _ are being returned.
+    """
+
     from .helper import get_fractional_coordinates
     import numpy as np
     import networkx as nx
@@ -238,8 +285,9 @@ def block_pockets_at_random_and_write(file_path, rag, ase_atoms, random_seed=123
         pockets_to_block_centroids = np.vstack([centroid_dict[p] for p in pockets_to_block])
         pockets_to_block_sizes = np.vstack([size_dict[p] for p in pockets_to_block])
         scaled_centroids = get_fractional_coordinates(pockets_to_block_centroids, ase_atoms)
+        scaled_centroids = np.round(scaled_centroids,2)
         for i,s in enumerate(scaled_centroids):
-            blocking_file.write(str(s[0])+'\t'+str(s[1])+'\t'+str(s[2])+'\t'+str(pockets_to_block_sizes[i][0])+'\n')
+            blocking_file.write(str(s[0])+'\t'+str(s[1])+'\t'+str(s[2])+'\t'+str(np.round(pockets_to_block_sizes[i][0],2))+'\n')
     blocking_file.close()
     return blocking_fractions, _
 
