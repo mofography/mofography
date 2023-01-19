@@ -23,7 +23,7 @@ def quick_cluster(mat_atoms,
                   bins=None,
                   block_size=50000, a=1, b=1, c=1, 
                   density=True,
-                  distance_threshold=0.25, minimum_overlap_fraction=0.5, make_figures=True, renderer='browser', use_energy_for_clustering=True, sample_fraction=0.5, return_these_vars=[]):  # distance threshold for agglomerative clustering
+                  distance_threshold=0.25, minimum_overlap_fraction=0.5, make_figures=True, renderer='browser', use_energy_for_clustering=True, sample_fraction=0.5, cscale=None,return_these_vars=[]):  # distance threshold for agglomerative clustering
     # # # * Pick a random material from the database
     # if chosen is None:
     #     chosen = random.choice(np.arange(len(iza_atoms)))
@@ -59,6 +59,9 @@ def quick_cluster(mat_atoms,
     :param list_return_strings: list of strings, the names of the variables you want to return
     """
 
+
+    
+
     import numpy as np 
 
     #* to find and return variables 
@@ -88,9 +91,9 @@ def quick_cluster(mat_atoms,
     from .compute import dgrid_from_atoms,regions_from_dgrid,apply_pbc, get_rag_from_regions_and_grid,add_pbc_to_rag, add_psd_to_rag, add_psd_to_rag_with_pbc, add_clustering_to_rag_pca, clustering_grid_from_regions,add_clustering_to_rag_energy, add_vdw_hist_to_rag
     from .data import mix_lorentz_berthelot
     from .visualize import plot_surface_dgrid, plot_framework_as_mesh, plot_cell, plot_maxima, plot_psds, white_layout, plot_vdw_hists
-
-    #* set colorscale for plotting, make things consistent across the two figures
-    cscale = px.colors.qualitative.Plotly
+    if cscale is None:
+        #* set colorscale for plotting, make things consistent across the two figures
+        cscale = px.colors.qualitative.Alphabet
 
     #* bins for the cavity feature histogram
     if bins is None:
@@ -178,6 +181,40 @@ def quick_cluster(mat_atoms,
                                                region_labels=regions, cscale=cscale, stylize=True, name='Raw segmentation', hover_label='Region :')
         surface_trace_pbc =  plot_surface_dgrid(grid.compute(),isoval, select='all', ase_atoms=mat_updated,
                                                    region_labels=regions_pbc-1, cscale=cscale, stylize=True, name='PBC groups', hover_label='PBC Group :')
+        
+
+        # ## * mesh 
+        # # * Compute the isosurface using Marching Cubes Lewiner as usual
+        # from skimage.measure import marching_cubes as mc
+        # verts, faces, normals, values = mc(grid.compute(), isoval, step_size=1)
+
+        # # * create a dictionary of colors for the cluster types
+        # import networkx as nx
+        # unique_clusters = np.unique(list(nx.get_node_attributes(rag2, 'cluster').values())).astype(int)
+        # cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
+        # cmap[-1]=cscale[-1]
+
+
+        # # * create an interpolator for the cluster grid
+        # from scipy.interpolate import RegularGridInterpolator as RGI
+        # xx = np.linspace(0,regions_cluster.shape[0] - 1,regions_cluster.shape[0])
+        # yy = np.linspace(0,regions_cluster.shape[1] - 1,regions_cluster.shape[1])
+        # zz = np.linspace(0,regions_cluster.shape[2] - 1,regions_cluster.shape[2])
+        # rl = RGI((xx, yy, zz),regions_cluster-1, method='nearest') # starts from -1 for backgroudn and then 0, 1, 2 etc  for pocket types
+        
+
+        # colours = rl(verts)
+        # #  Find the actual coordinates of the vertices for plotting
+        # from ase.geometry import complete_cell
+        # hovertext = ['Pocket type:' + str(int(c)) for c in colours]
+        # cell = complete_cell(mat_updated.get_cell())
+        # true_verts = np.dot(cell, (verts / regions_cluster.shape).T).T
+        # vertexcolors = [cmap[c] for c in colours]
+        # surface_trace_cluster = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2], vertexcolor=vertexcolors,
+        #                       hoverinfo='all', hovertext=hovertext, flatshading=False, colorscale=cscale, i=faces[:, 0],
+        #                       j=faces[:, 1], k=faces[:, 2], opacity=1, name='Pocket types', showlegend=False)
+
+
         surface_trace_cluster =  plot_surface_dgrid(grid.compute(),isoval, select='all', ase_atoms=mat_updated,
                                                        region_labels=regions_cluster-1, cscale=cscale, stylize=True, name='Cavity types', hover_label='Cavity type :')
 

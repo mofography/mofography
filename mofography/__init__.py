@@ -6,6 +6,8 @@ from .analyze import *
 from .visualize import *
 from .helper import *
 from .data import *
+from .workflow import *
+from .raspa_helper import *
 
 
 # Handle versioneer

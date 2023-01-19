@@ -1534,18 +1534,24 @@ def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster')
     import numpy as np
     if cscale is None:
         cscale = px.colors.qualitative.Alphabet
-    unique_clusters = np.unique(list(nx.get_node_attributes(rag,cluster_key).values()))
+    unique_clusters = np.unique(list(nx.get_node_attributes(rag,cluster_key).values())).astype(float).astype(int)
 
-    cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
+    from plotly.express.colors import sample_colorscale
+    
+    from scipy.interpolate import interp1d
+    mm = interp1d([0,np.max(unique_clusters)], [0,1])
+    cmap = dict(zip(unique_clusters, sample_colorscale(cscale, mm(unique_clusters))))
+    
+    #  cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
     traces = []
     if no_pbc:
         for node in list(rag.nodes().keys()): 
             # node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['psd_x'], y=rag.nodes[node]['psd_y'], mode='markers+lines', line_color = cmap.get(rag.nodes[node][cluster_key]), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x'], y=rag.nodes[node]['psd_y'], mode='markers+lines', line_color = cmap.get(int(float(rag.nodes[node][cluster_key]))), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
     else:
         for i,g in enumerate(pbc_groups): 
             node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], mode='markers+lines', line_color = cmap.get(rag.nodes[node][cluster_key]), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
+            traces.append(go.Scatter(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], mode='markers+lines', line_color = cmap.get(int(float(rag.nodes[node][cluster_key]))), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
             # traces.append(go.Bar(x=rag.nodes[node]['psd_x_pbc'], y=rag.nodes[node]['psd_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=0.5, name='PBC group: {}'.format(i+1) ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
     
     return traces
