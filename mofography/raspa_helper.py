@@ -181,15 +181,15 @@ def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
 
 
 
+def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=None, trace_name='adsorbates', pbc=[1, 1, 1]):
     """
     It reads a RASPA pdb file and returns a list of ASE atoms objects
     
-    :param pdb_file: the file name of the pdb file
-    :param index_list: list of indices of the configurations to be read. If None, all configurations are
-    read
+    :param pdb_file: the name of the pdb file
+    :param index_list: a list of indices of the configurations you want to extract from the pdb file. If
+    you want all of them, just leave it as None
     :return: A list of atoms objects.
     """
-def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=None, trace_name='adsorbates', pbc=[1, 1, 1]):
 
     from ase import Atoms
     import numpy as np
