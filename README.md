@@ -51,10 +51,24 @@ of course, replace `path_to_mofography` with the relative path to the mofography
 
 ```python
 import mofography as mgr
-
+from ase.io import read
+mat_atoms = read('path_to_mofography/examples/TestCIFs/P1-IRMOF-1.cif')
 
 ```
 
+### Where to find some tutorials: 
+
+You can find some tutorials in [Docs](https://arung-northwestern.github.io/mofography/docs)
+
+Currently, there are only a few tutorials, here's a recommended order to go through them:
+
+- Get a feel for the whole thing [Quick cluster](https://arung-northwestern.github.io/mofography/docs/quick_cluster.ipynb)
+- Basic structure analysis [Basic structure analysis](https://arung-northwestern.github.io/mofography/docs/basic_structure_io.ipynb)
+- Basic structure visualization [Basic structure visualization](https://arung-northwestern.github.io/mofography/docs/quick_structure_visualization.ipynb)
+- Finer control over structure visualization [Advanced structure visualization](https://arung-northwestern.github.io/mofography/docs/framework_visualization_example.ipynb)
+
+- Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels](https://arung-northwestern.github.io/mofography/docs/irmof_example_23aug2020.ipynb)
+  
 ### Copyright
 
 Copyright (c) 2022, Arun Gopalan
