@@ -11,19 +11,19 @@
 """
 
 
-def quick_cluster(mat_atoms,
+def quick_cluster(ase_atoms,
 
                   spacing=0.5,
                   mask_thickness=1.5,
                   h=0.2,
-                  compactness=1E-4,
+                  compactness=0,
                   zoom_ratio=2,
                   wall_thickness=1.0,
                   isoval=1.75,
                   bins=None,
                   block_size=50000, a=1, b=1, c=1, 
                   density=True,
-                  distance_threshold=0.25, minimum_overlap_fraction=0.5, make_figures=True, renderer='browser', use_energy_for_clustering=True, sample_fraction=0.5, cscale=None,return_these_vars=[]):  # distance threshold for agglomerative clustering
+                  distance_threshold=0.4, minimum_overlap_fraction=0.5, make_figures=True, renderer='browser', use_energy_for_clustering=False, sample_fraction=0.5, cscale=None,return_these_vars=[]):  # distance threshold for agglomerative clustering
     # # # * Pick a random material from the database
     # if chosen is None:
     #     chosen = random.choice(np.arange(len(iza_atoms)))
@@ -37,7 +37,7 @@ def quick_cluster(mat_atoms,
     It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you
     can specify in the list_return_strings argument.
     
-    :param mat_atoms: ASE atoms object
+    :param ase_atoms: ASE atoms object
     :param spacing: the spacing of the distance grid
     :param mask_thickness: The thickness of the mask used to create the distance grid
     :param h: float, optional
@@ -99,14 +99,14 @@ def quick_cluster(mat_atoms,
     if bins is None:
         bins = np.linspace(0,30,50)
 
-    mat_updated =  update_with_covalent_bonds(mat_atoms)
+    mat_updated =  update_with_covalent_bonds(ase_atoms)
 
     # * compute the distance grid, locate the local maxima and make a list of their size (radii)
-    radii = covalent_radii[mat_atoms.get_atomic_numbers()]  # assign covalent radii
+    radii = covalent_radii[ase_atoms.get_atomic_numbers()]  # assign covalent radii
     # compute the distance grid (dask array) of given spacing and partition size
-    grid =  dgrid_from_atoms(mat_atoms, radii=radii, spacing=spacing, block_size=block_size)
+    grid =  dgrid_from_atoms(ase_atoms, radii=radii, spacing=spacing, block_size=block_size)
     # (optional) make a supercell of the material
-    mat_atoms = ase.build.make_supercell(mat_atoms, [[a, 0, 0], [0, b, 0], [0, 0, c]])
+    ase_atoms = ase.build.make_supercell(ase_atoms, [[a, 0, 0], [0, b, 0], [0, 0, c]])
     grid = da.from_array(np.tile(grid.compute(), [a, b, c]))
     # (optional) make the distance grid finer by zooming in, here we are aamking it twice as fine
     grid = da.from_array(zoom(grid.compute(), zoom_ratio, mode='grid-wrap',
@@ -118,20 +118,20 @@ def quick_cluster(mat_atoms,
 
     #* get the connectivity of the pockets, each pbc group is a list of regions that are split up by the PBC, that come together to form a complete cavity.
     # * return_conn = True returns the list of pbc groups, return_conn = False returns the a 3D array of regions where region index is replaced by the pbc group index
-    pbc_groups =  apply_pbc(regions, maxima, maxima_radii, mat_atoms, wall_thickness=wall_thickness,
+    pbc_groups =  apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=wall_thickness,
                                return_conn=True, minimum_overlap_fraction=minimum_overlap_fraction)  # this returns a list of pbc groups
-    regions_pbc =  apply_pbc(regions, maxima, maxima_radii, mat_atoms, wall_thickness=wall_thickness,
+    regions_pbc =  apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=wall_thickness,
                                 return_conn=False, minimum_overlap_fraction=minimum_overlap_fraction)  # this returns a 3D array
     # * construct the region adjacency graph, a.k.a the pore graph form the regions, grid, maxima indices and the ase atoms object
-    rag2 =  get_rag_from_regions_and_grid(regions, grid.compute(), mat_atoms, maxima)
+    rag2 =  get_rag_from_regions_and_grid(regions, grid.compute(), ase_atoms, maxima)
 
     # * in this part we will be adding properties to the region adjacency graph
     rag2 =  add_pbc_to_rag(rag2, pbc_groups)
     props = regionprops(regions)  # * get the region properties from skimage.measure.regionprops
-    rag2 =  add_psd_to_rag(rag2, region_props=props,  bins=bins, ase_atoms=mat_atoms,
+    rag2 =  add_psd_to_rag(rag2, region_props=props,  bins=bins, ase_atoms=ase_atoms,
                               shape=regions.shape)  # *  add the cavity histogram without pbc to the RAG
     rag2 =  add_psd_to_rag_with_pbc(rag=rag2, props=props, pbc_groups=pbc_groups, bins=bins,
-                                       ase_atoms=mat_atoms, shape=regions.shape)  # * add the cavity histogram with pbc to the RAG
+                                       ase_atoms=ase_atoms, shape=regions.shape)  # * add the cavity histogram with pbc to the RAG
     # rag2=  add_clustering_to_rag(rag2) # * add the clustering labels to the RAG without pbc
 
     # * add energy histogram to the RAG
@@ -140,11 +140,11 @@ def quick_cluster(mat_atoms,
     if use_energy_for_clustering:
         # * use the energy criterion for clustering
         props = regionprops(regions) # * get the  region properties from skimage.measure.regionprops
-        forcefield_mixed = mix_lorentz_berthelot(mat_atoms) # * mix the lorentz-berthelot forcefield using UFF and helium probe
+        forcefield_mixed = mix_lorentz_berthelot(ase_atoms) # * mix the lorentz-berthelot forcefield using UFF and helium probe
         # * do the clustering using the sampled point energies with pbc, 
         # * using the kolmogorov-smirnov two-sided test with 95% confidence interval to tell if the two distributions are same or not
-        rag2 = add_vdw_hist_to_rag(rag2, props, mat_atoms, forcefield_mixed, regions.shape, use_pbc=True, pbc_groups=pbc_groups, sample_fraction=sample_fraction, density=density)
-        rag2 = add_clustering_to_rag_energy(rag=rag2, props=props, pbc_groups=pbc_groups, ase_atoms=mat_atoms, forcefield_mixed =forcefield_mixed, shape=regions.shape, use_pbc=True, sample_fraction=sample_fraction)
+        rag2 = add_vdw_hist_to_rag(rag2, props, ase_atoms, forcefield_mixed, regions.shape, use_pbc=True, pbc_groups=pbc_groups, sample_fraction=sample_fraction, density=density)
+        rag2 = add_clustering_to_rag_energy(rag=rag2, props=props, pbc_groups=pbc_groups, ase_atoms=ase_atoms, forcefield_mixed =forcefield_mixed, shape=regions.shape, use_pbc=True, sample_fraction=sample_fraction)
         regions_cluster =  clustering_grid_from_regions(regions, rag2, cluster_key='cluster_energy_pbc')
         if make_figures:
             vdw_traces = plot_vdw_hists(rag2, pbc_groups, cscale=cscale, cluster_key='cluster_energy_pbc')
