@@ -33,7 +33,7 @@ def quick_cluster(ase_atoms,
     # mat_atoms = iza_atoms[chosen]
     # from ase.io import read
     # mat_atoms = read('../examples/TestCIFs/NU-1000_S1.cif')
-    """
+    """ 
     It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you
     can specify in the list_return_strings argument.
     
@@ -123,52 +123,52 @@ def quick_cluster(ase_atoms,
     regions_pbc =  apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=wall_thickness,
                                 return_conn=False, minimum_overlap_fraction=minimum_overlap_fraction)  # this returns a 3D array
     # * construct the region adjacency graph, a.k.a the pore graph form the regions, grid, maxima indices and the ase atoms object
-    rag2 =  get_rag_from_regions_and_grid(regions, grid.compute(), ase_atoms, maxima)
+    rag =  get_rag_from_regions_and_grid(regions, grid.compute(), ase_atoms, maxima)
 
     # * in this part we will be adding properties to the region adjacency graph
-    rag2 =  add_pbc_to_rag(rag2, pbc_groups)
+    rag =  add_pbc_to_rag(rag, pbc_groups)
     props = regionprops(regions)  # * get the region properties from skimage.measure.regionprops
-    rag2 =  add_psd_to_rag(rag2, region_props=props,  bins=bins, ase_atoms=ase_atoms,
+    rag =  add_psd_to_rag(rag, region_props=props,  bins=bins, ase_atoms=ase_atoms,
                               shape=regions.shape)  # *  add the cavity histogram without pbc to the RAG
-    rag2 =  add_psd_to_rag_with_pbc(rag=rag2, props=props, pbc_groups=pbc_groups, bins=bins,
+    rag =  add_psd_to_rag_with_pbc(rag=rag, props=props, pbc_groups=pbc_groups, bins=bins,
                                        ase_atoms=ase_atoms, shape=regions.shape)  # * add the cavity histogram with pbc to the RAG
-    # rag2=  add_clustering_to_rag(rag2) # * add the clustering labels to the RAG without pbc
+    # rag=  add_clustering_to_rag(rag) # * add the clustering labels to the RAG without pbc
 
     # * add energy histogram to the RAG
     # forcefield_mixed =  mix_lorentz_berthelot(mat_atoms)
-    # rag2 =  add_vdw_hist_to_rag_with_pbc(rag2, props, pbc_groups, mat_atoms, forcefield_mixed, regions.shape)
+    # rag =  add_vdw_hist_to_rag_with_pbc(rag, props, pbc_groups, mat_atoms, forcefield_mixed, regions.shape)
     if use_energy_for_clustering:
         # * use the energy criterion for clustering
         props = regionprops(regions) # * get the  region properties from skimage.measure.regionprops
         forcefield_mixed = mix_lorentz_berthelot(ase_atoms) # * mix the lorentz-berthelot forcefield using UFF and helium probe
         # * do the clustering using the sampled point energies with pbc, 
         # * using the kolmogorov-smirnov two-sided test with 95% confidence interval to tell if the two distributions are same or not
-        rag2 = add_vdw_hist_to_rag(rag2, props, ase_atoms, forcefield_mixed, regions.shape, use_pbc=True, pbc_groups=pbc_groups, sample_fraction=sample_fraction, density=density)
-        rag2 = add_clustering_to_rag_energy(rag=rag2, props=props, pbc_groups=pbc_groups, ase_atoms=ase_atoms, forcefield_mixed =forcefield_mixed, shape=regions.shape, use_pbc=True, sample_fraction=sample_fraction)
-        regions_cluster =  clustering_grid_from_regions(regions, rag2, cluster_key='cluster_energy_pbc')
+        rag = add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, regions.shape, use_pbc=True, pbc_groups=pbc_groups, sample_fraction=sample_fraction, density=density)
+        rag = add_clustering_to_rag_energy(rag=rag, props=props, pbc_groups=pbc_groups, ase_atoms=ase_atoms, forcefield_mixed =forcefield_mixed, shape=regions.shape, use_pbc=True, sample_fraction=sample_fraction)
+        regions_cluster =  clustering_grid_from_regions(regions, rag, cluster_key='cluster_energy_pbc')
         if make_figures:
-            vdw_traces = plot_vdw_hists(rag2, pbc_groups, cscale=cscale, cluster_key='cluster_energy_pbc')
+            vdw_traces = plot_vdw_hists(rag, pbc_groups, cscale=cscale, cluster_key='cluster_energy_pbc')
             fig_vdw = go.Figure(data=vdw_traces)
             fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
             # fig_vdw.show(renderer=renderer)
     else:
-        rag2, cluster_obj =  add_clustering_to_rag_pca(rag2, no_pbc=False, kwargs_cluster=dict(distance_threshold=distance_threshold, kernel='linear'), return_cluster_obj=True, kwargs_pca=dict(
+        rag, cluster_obj =  add_clustering_to_rag_pca(rag, no_pbc=False, kwargs_cluster=dict(distance_threshold=distance_threshold, kernel='linear'), return_cluster_obj=True, kwargs_pca=dict(
             kernel='cosine'))  # * do clustering of the regions with PCA and default settings (clustering kernel='linear', linkage='single', distance='euclidean', pca kernel ='cosine')
 
         #---------------------------------------------------#
         # #* add energy histogram to the RAG
         # props = regionprops(regions)
         # forcefield_mixed =  mix_lorentz_berthelot(mat_atoms)
-        # rag2 =  add_vdw_hist_to_rag(rag2, props, mat_atoms, forcefield_mixed, regions.shape, use_pbc=True,pbc_groups=pbc_groups,density=False)
+        # rag =  add_vdw_hist_to_rag(rag, props, mat_atoms, forcefield_mixed, regions.shape, use_pbc=True,pbc_groups=pbc_groups,density=False)
 
         # #* add clustering to rag using energy with pbc
-        # rag2, cluster_obj  = add_clustering_to_rag_pca2(rag2, no_pbc=False, kwargs_cluster=dict(distance_threshold=distance_threshold, kernel = 'linear'), return_cluster_obj=True, kwargs_pca=dict(kernel='cosine')) # * do clustering of the regions with PCA and default settings (clustering kernel='linear', linkage='single', distance='euclidean', pca kernel ='cosine')
+        # rag, cluster_obj  = add_clustering_to_rag_pca2(rag, no_pbc=False, kwargs_cluster=dict(distance_threshold=distance_threshold, kernel = 'linear'), return_cluster_obj=True, kwargs_pca=dict(kernel='cosine')) # * do clustering of the regions with PCA and default settings (clustering kernel='linear', linkage='single', distance='euclidean', pca kernel ='cosine')
         #-------------------------------------------------#
         # * get the 3D array of cluster labels
-        regions_cluster =  clustering_grid_from_regions(regions, rag2)
+        regions_cluster =  clustering_grid_from_regions(regions, rag)
         if make_figures:
             # * plot the cavity histogram for each pbc group
-            csd_traces =  plot_psds(rag2, pbc_groups, cscale=cscale)
+            csd_traces =  plot_psds(rag, pbc_groups, cscale=cscale)
             fig_vdw = go.Figure(data=csd_traces)
             fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
             # fig_vdw.show(renderer=renderer)
@@ -190,7 +190,7 @@ def quick_cluster(ase_atoms,
 
         # # * create a dictionary of colors for the cluster types
         # import networkx as nx
-        # unique_clusters = np.unique(list(nx.get_node_attributes(rag2, 'cluster').values())).astype(int)
+        # unique_clusters = np.unique(list(nx.get_node_attributes(rag, 'cluster').values())).astype(int)
         # cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
         # cmap[-1]=cscale[-1]
 
@@ -229,7 +229,7 @@ def quick_cluster(ase_atoms,
         maxima_trace =  plot_maxima(maxima=maxima, dgrid=grid.compute(), ase_atoms=mat_updated)
 
         #* plot the windows of the material
-        # connections =  get_connections_for_rag(rag2, region_labels=regions, ase_atoms = mat_atoms, maxima=maxima, dgrid=grid.compute())
+        # connections =  get_connections_for_rag(rag, region_labels=regions, ase_atoms = mat_atoms, maxima=maxima, dgrid=grid.compute())
         # windows_trace =  plot_windows(connections)
         # * collect the traces into a figure object
         fig_full_visual = go.Figure(data=[surface_trace, surface_trace_pbc,
@@ -241,8 +241,8 @@ def quick_cluster(ase_atoms,
 
         
     # # # * compute and plot the energy histograms for each pbc group
-    # rag2 =  add_vdw_hist_to_rag(rag2, props, mat_atoms, forcefield_mixed, regions.shape,use_pbc=True,  pbc_groups=pbc_groups, density=True)
-    # ehist_traces =  plot_vdw_hists(rag2, pbc_groups, cscale=cscale)
+    # rag =  add_vdw_hist_to_rag(rag, props, mat_atoms, forcefield_mixed, regions.shape,use_pbc=True,  pbc_groups=pbc_groups, density=True)
+    # ehist_traces =  plot_vdw_hists(rag, pbc_groups, cscale=cscale)
     # fig_ehist = go.Figure(data=ehist_traces)
     # fig_ehist.update_layout(xaxis_title='Energy (K)', yaxis_title='Normalized histogram')
     # fig_ehist.show(renderer=renderer)
