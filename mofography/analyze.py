@@ -14,7 +14,6 @@
 
 
 
-from enum import unique
 
 
 def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
