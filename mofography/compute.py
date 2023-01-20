@@ -618,7 +618,7 @@ def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None):
     
     return gr_mean
 
-def get_periodic_map(regions, maxima, maxima_radii, return_conn=False, **kwargs):
+def get_periodic_map(regions, maxima, maxima_radii, ase_atoms, return_conn=False, **kwargs):
     """
     It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary
     that maps each region to the nearest maximum.
@@ -638,9 +638,9 @@ def get_periodic_map(regions, maxima, maxima_radii, return_conn=False, **kwargs)
     
     # r1 = apply_pbc(regions, maxima, **kwargs)
     if return_conn:
-        return apply_pbc(regions, maxima, maxima_radii, return_conn=return_conn, **kwargs)
+        return apply_pbc(regions, maxima, maxima_radii, ase_atoms=ase_atoms, return_conn=return_conn, **kwargs)
     else:
-        return dict(zip(regions.flatten(), apply_pbc(regions, maxima, maxima_radii, **kwargs).flatten()))
+        return dict(zip(regions.flatten(), apply_pbc(regions, maxima, maxima_radii, ase_atoms=ase_atoms, **kwargs).flatten()))
 
 
 
