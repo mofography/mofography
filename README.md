@@ -25,8 +25,9 @@ conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-ima
 
 - Clone the repo 
 
+Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, you can clone the repo using git. If you are using git, you can clone the repo using the following command
 ```bash
-clone https://github.com/arung-northwestern/mofography.git .
+git clone https://github.com/arung-northwestern/mofography.git .
 ```
 
 - If you already have a cloned repo, pull the latest changes, since the package is being updated frequently
@@ -47,13 +48,13 @@ sys.path.append(os.path.abspath('path_to_mofography'))
 of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine.
 `
 
-- Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package.
+- Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package. Let's use an full-on clustering workflow with default parameters on the IRMOF-1 structure. The details of the workflow are explained in the [Quick cluster](docs/quick_cluster.ipynb) tutorial.
 
 ```python
 import mofography as mgr
 from ase.io import read
 mat_atoms = read('path_to_mofography/examples/TestCIFs/P1-IRMOF-1.cif')
-
+figures = mgr.quick_cluster(mat_atoms)
 ```
 
 ### Where to find some tutorials: 
