@@ -24,8 +24,8 @@ conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-ima
 ```
 
 - Clone the repo 
+  Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, you can clone the repo using git. If you are using git, you can clone the repo using the following command
 
-Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, you can clone the repo using git. If you are using git, you can clone the repo using the following command
 ```bash
 git clone https://github.com/arung-northwestern/mofography.git .
 ```
@@ -63,12 +63,13 @@ You can find some tutorials in [Docs](https://arung-northwestern.github.io/mofog
 
 Currently, there are only a few tutorials, here's a recommended order to go through them:
 
-- Get a feel for the whole thing [Quick cluster](docs/quick_cluster.ipynb) 
-- Basic structure analysis [Basic structure analysis](docs/basic_structure_io.ipynb)
-- Basic structure visualization [Basic structure visualization](docs/quick_structure_visualization.ipynb)
-- Finer control over structure visualization [Advanced structure visualization](docs/framework_visualization_example.ipynb)
+- Get a feel for the whole thing [Quick cluster notebook](docs/quick_cluster.ipynb) 
+- Basic structure analysis [Basic structure analysis notebook](docs/basic_structure_io.ipynb)
+- Basic structure visualization [Basic structure visualization notebook](docs/quick_structure_visualization.ipynb)
+- Distance grid calculation and visualization [Distance grid notebook](docs/distance_grid.ipynb)
+- Finer control over structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
 
-- Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels](docs/irmof_example_23aug2020.ipynb)
+- Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
   
 ### Copyright
 
