@@ -67,6 +67,7 @@ Currently, there are only a few tutorials, here's a recommended order to go thro
 - Basic structure analysis [Basic structure analysis notebook](docs/basic_structure_io.ipynb)
 - Basic structure visualization [Basic structure visualization notebook](docs/quick_structure_visualization.ipynb)
 - Distance grid calculation and visualization [Distance grid notebook](docs/distance_grid.ipynb)
+- Region Segmentation [Region segmentation notebook](docs/region_segmentation.ipynb)
 - Finer control over structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
 
 - Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
