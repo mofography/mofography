@@ -115,7 +115,6 @@ mofography/examples/test_beautiful_atoms.py
 mofography/examples/test_animation.py
 mofography/examples/irmof_garbage_animation.py
 mofography/examples/Tutorial_7_files/*
-mofography/examples/TestCIFs/*
 examples/background_image.avif
 examples/channels_example.py
 examples/cheminformatics_example.py
@@ -1939,3 +1938,10 @@ examples/test_quarto_files/libs/quarto-html/quarto-syntax-highlighting.css
 examples/test_quarto_files/libs/quarto-html/quarto.js
 examples/test_quarto_files/libs/quarto-html/tippy.css
 examples/test_quarto_files/libs/quarto-html/tippy.umd.min.js
+.vscode/settings.json
+examples/shift_mol_to_center_files/libs/quarto-html/anchor.min.js
+examples/shift_mol_to_center_files/libs/quarto-html/popper.min.js
+examples/shift_mol_to_center_files/libs/quarto-html/quarto-syntax-highlighting.css
+examples/shift_mol_to_center_files/libs/quarto-html/quarto.js
+examples/shift_mol_to_center_files/libs/quarto-html/tippy.css
+examples/shift_mol_to_center_files/libs/quarto-html/tippy.umd.min.js
