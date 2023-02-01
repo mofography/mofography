@@ -74,6 +74,7 @@ Currently, there are only a few tutorials, here's a recommended order to go thro
 - Detecting the types of pockets [Pocket type detection notebook](docs/pockets_detection.ipynb)
 - Finer control over structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
 - Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
+- Advanced: Grab a dataset from MOFDB and perform workflow on a random materials [MOFDB notebook](docs/mofdb_example.ipynb)
   
 ### Copyright
 
