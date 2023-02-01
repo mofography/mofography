@@ -5,13 +5,14 @@ mofography
 [![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/mofography/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/mofography/branch/master)
 
 
-A powerful python package for the analysis, visualization, featurization and machine learning on molecular pores in nanoporous materials.
+A powerful python package for the analysis, visualization, featurization, and machine learning on molecular pores in nanoporous materials.
 
 ### Trying out mofography
 
 *Note: In all the steps below, feel free to replace `conda` with `mamba`, as it is much faster at resolving dependencies and installing packages. To install mamba use `conda install -c conda-forge -n base mamba`*
 
-You can simply try out mofography without actually installing anything. In fact, I would recommend this approach, since mofography is still in active development
+You can simply try out mofography after installing just the dependencies. In fact, I would recommend this approach, since mofography is still in active development
+
 - Install the dependencies using conda or pip. You may create a new conda environment with python 3.9 for this, but it is not necessary. 
 
 ```bash
@@ -37,7 +38,7 @@ cd mofography
 git pull
 ```
 
-- Add the path to mofography the your python path in your scripts and notebooks before you import,
+- Add the path to mofography to your python path in your scripts and notebooks before you import,
   
 ```python
 import sys
