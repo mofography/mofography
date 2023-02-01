@@ -48,7 +48,7 @@ sys.path.append(os.path.abspath('path_to_mofography'))
 of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine.
 `
 
-- Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package. Let's use an full-on clustering workflow with default parameters on the IRMOF-1 structure. The details of the workflow are explained in the [Quick cluster](docs/quick_cluster.ipynb) tutorial.
+- Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package. Let's use a full-on clustering workflow with default parameters on the IRMOF-1 structure. The details of the workflow are explained in the [Quick cluster](docs/quick_cluster.ipynb) tutorial.
 
 ```python
 import mofography as mgr
@@ -70,6 +70,7 @@ Currently, there are only a few tutorials, here's a recommended order to go thro
 - Region Segmentation [Region segmentation notebook](docs/region_segmentation.ipynb)
 - Applying Periodic Boundary Conditions [PBC notebook](docs/applying_pbc.ipynb)
 - Region Adjacency Graph (Pore graph) [RAG notebook](docs/region_adjacency_graph.ipynb)
+- Detecting the windows in a material [Connections and windows notebook](docs/connections_and_windows.ipynb)
 - Detecting the types of pockets [Pocket type detection notebook](docs/pockets_detection.ipynb)
 - Finer control over structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
 - Advanced: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
