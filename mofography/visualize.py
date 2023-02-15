@@ -1625,6 +1625,6 @@ def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
     kwargs.pop('show_rings', None)
     kwargs.pop('trace_name', None)
 
-    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, trace_name=trace_name, **kwargs)    
+    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, **kwargs)    
 
     return atoms_trace
