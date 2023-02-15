@@ -19,3 +19,5 @@ plotly
 pandas
 furl
 freud
+python-kaleido
+jupyter #useful but not strictly essential
