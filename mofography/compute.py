@@ -286,7 +286,17 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     """    
     from scipy import ndimage as ndi
     import numpy as np
-    import sparse
+    try:
+        import sparse
+    except ImportError:
+        import collections.abc
+        #sparse needs the four following aliases to be done manually.
+        collections.Iterable = collections.abc.Iterable
+        collections.Mapping = collections.abc.Mapping
+        collections.MutableSet = collections.abc.MutableSet
+        collections.MutableMapping = collections.abc.MutableMapping
+        import sparse
+        
     # from .helper import interpolate_labels, find_coord_from_indices
     from skimage import segmentation
     from skimage.morphology import extrema
