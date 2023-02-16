@@ -1623,12 +1623,12 @@ def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
     # lets put some defualt values in for the kwargs
     stylize = kwargs.get('stylize', True)
     show_rings = kwargs.get('show_rings', True)
-    trace_name = kwargs.get('trace_name', 'subset')
+    # trace_name = kwargs.get('name', 'subset')
 
     kwargs.pop('stylize', None)
     kwargs.pop('show_rings', None)
-    kwargs.pop('trace_name', None)
+    # kwargs.pop('name', None)
 
-    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, trace_name=trace_name, **kwargs)    
+    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, **kwargs)    
 
     return atoms_trace
