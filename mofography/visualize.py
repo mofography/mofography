@@ -31,6 +31,10 @@ epic_layout = dict(template='plotly_dark',
                    legend=dict(x=-0.1, y=1.1, groupclick='toggleitem',font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
+global publication_layout
+publication_layout = dict(template='plotly_white',
+                    scene=dict(xaxis=dict(zeroline=True, visible=True), yaxis_visible=True,  aspectmode='data'),
+                    margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='togglegroup'))
 
 # def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
 #                        color='blue', stepsize=1, stylize=False, random_seed=0):
