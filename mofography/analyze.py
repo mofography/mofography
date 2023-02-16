@@ -513,3 +513,27 @@ def find_pattern_in_sgraph(sgraph, pattern):
     nm = isomo.categorical_node_match('element','None')
     iso_parts = isomo.GraphMatcher(sgraph, pattern, node_match = nm , edge_match= em)
     return list(iso_parts.subgraph_isomorphisms_iter())
+
+
+def get_subset_atoms(ase_atoms, subset):
+    """
+    It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing
+    only the atoms in the list
+    
+    :param ase_atoms: the atoms object of the material
+    :param subset: a list of atom ids
+    :return: The atoms object with the subset of atoms.
+    """
+    
+    # from .analyze import sgraph_from_atoms, update_with_covalent_bonds
+
+    import networkx as nx
+    mat_graph = sgraph_from_atoms(ase_atoms)
+    sg = mat_graph.subgraph(subset)
+    cell = ase_atoms.get_cell()
+    from ase import Atoms
+    #make atoms object from the subgraph
+    atoms = Atoms(symbols=list(nx.get_node_attributes(sg, 'element').values()), positions = list(nx.get_node_attributes(sg, 'position').values()), cell=cell)
+    atoms_ = update_with_covalent_bonds(atoms)
+    atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
+    return atoms_
