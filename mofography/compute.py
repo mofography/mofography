@@ -93,6 +93,7 @@ def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_ne
     """    
     import numpy as np
     import dask.array as da
+    from rich.progress import track
     gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
     dgrid = []
     import pandas as  pd 
@@ -100,7 +101,7 @@ def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_ne
         vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
         radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
     
-    for block in gpoints.blocks:
+    for block in track(gpoints.blocks, description='Computing distance grid', total=gpoints.npartitions):
         dgrid.append(gpd_aabb(block.compute(), ase_atoms, radii, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
     return da.hstack(dgrid).rechunk(chunks=block_size).reshape(shape) #return in correct shape
 
@@ -184,7 +185,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 
     distance_grid = []
     from rich.progress import track
-    for block in track(gpoints_da.blocks, total=gpoints_da.npartitions):
+    for block in track(gpoints_da.blocks, total=gpoints_da.npartitions, descriptions="Computing distance grid"):
         # print("Working on block {} \n".format(i))
         distance_grid.append(block.compute())
 
@@ -1128,7 +1129,7 @@ def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, 
     n_clusters = kwargs_cluster.get('n_clusters', None)
     connectivity = kwargs_cluster.get('connectivity', None)
     compute_full_tree = kwargs_cluster.get('compute_full_tree', True)
-    distance_threshold = kwargs_cluster.get('distance_threshold', 0.25)
+    distance_threshold = kwargs_cluster.get('distance_threshold', 0.4)
     compute_distances = kwargs_cluster.get('compute_distances', False)
 
     if len(X) > 1:
@@ -1415,7 +1416,6 @@ def find_paths(regions, rag2):
     return checks, check_these_paths_new
 
 def get_connections_for_rag(rag,region_labels, maxima,ase_atoms,dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2):
-
     
 
     def find_windows(regs):
@@ -1456,6 +1456,7 @@ def get_connections_for_rag(rag,region_labels, maxima,ase_atoms,dgrid, minimum_w
     from .helper import interpolate_labels, get_fractional_coordinates
     import ase
     import numpy as np
+    from rich.progress import track
     connected_regions = np.vstack(list(rag.edges()))
     list_of_region_indices = np.delete(np.unique(region_labels),0)
     outer = {reg:find_boundaries(region_labels== reg, mode='outer') for reg in list_of_region_indices}
@@ -1463,7 +1464,7 @@ def get_connections_for_rag(rag,region_labels, maxima,ase_atoms,dgrid, minimum_w
     minimum_window_separation = 1.0
     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T    
 
-    connections= [find_windows(regs) for regs in rag.edges]
+    connections= [find_windows(regs) for regs in track(rag.edges, description='Finding windows:')]
 
     #* Windows on the wall are to be calculated (periodic windows)
     if wall_windows:
