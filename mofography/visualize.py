@@ -1163,6 +1163,8 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
     """
 
     from .analyze import update_with_covalent_bonds
+    if 'covalent_bonds' not in ase_atoms.info.keys():
+        ase_atoms = update_with_covalent_bonds(ase_atoms)
     combined = mesh_for_atoms(ase_atoms, **kwargs_mesh_for_atoms)
     import plotly.graph_objects as go
     verts = combined.vertices
