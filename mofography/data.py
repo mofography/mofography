@@ -45,9 +45,10 @@ async def get_mofdb_data(session, url,params, headers, npages, limit=1000):
     from furl import furl
     import asyncio
     tasks = []
+    from rich.progress import track
     # create instance of Semaphore
     sem = asyncio.Semaphore(limit)
-    for i in range(1,npages+1):
+    for i in track(range(1,npages+1)):
 
         url_string = furl(url)
         params['page']=i
@@ -109,6 +110,9 @@ def get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', par
     nest_asyncio.apply()
     import pandas as pd 
 
+
+    # just put page:1 in the params it doesn't matter, only the npages parameter is used
+    params['page']=1
 
     if npages==None:
         npages=get_number_of_pages(url, headers, params)
