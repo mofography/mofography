@@ -194,11 +194,12 @@ def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=No
     from ase import Atoms
     import numpy as np
     from .data import read_raspa_pdb
+    from rich.progress import track
     config_data = read_raspa_pdb(pdb_file)
     atoms_list = []
     if index_list is None:
         index_list = np.arange(len(config_data['coords']))
-    for index in index_list:
+    for index in track(index_list, description='Reading Configs'):
         coords = config_data['coords'][index]
         sym = config_data['symbols'][index]
         sym = [str(c) for c in sym]
