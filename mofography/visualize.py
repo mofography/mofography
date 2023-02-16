@@ -19,16 +19,16 @@
 global white_layout
 white_layout = dict(template='plotly_white',
                     scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False, aspectmode='data'),
-                    margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='toggleitem'))
+                    margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='togglegroup'))
 global dark_layout
 dark_layout = dict(template='plotly_dark',
                    scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False, aspectmode='data'),
-                   margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1, groupclick='toggleitem'))
+                   margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=0.1, y=1.1, groupclick='togglegroup'))
 global epic_layout
 epic_layout = dict(template='plotly_dark',
                    scene=dict(xaxis=dict(zeroline=False, visible=False), yaxis_visible=False, zaxis_visible=False),
                    margin=dict(t=20, b=20, l=20, r=20), showlegend=True,
-                   legend=dict(x=-0.1, y=1.1, groupclick='toggleitem',font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
+                   legend=dict(x=-0.1, y=1.1, groupclick='togglegroup',font=dict(size=10), bgcolor='rgba(0,0,0,0)'),
                    plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
 global publication_layout
@@ -1093,8 +1093,8 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
         if 'covalent_bonds' in ase_atoms.info.keys():
             bonds = ase_atoms.info['covalent_bonds']
         else:
-            import mofography as mgr
-            ase_atoms_updated = mgr.update_with_covalent_bonds(ase_atoms)
+            from .analyze import update_with_covalent_bonds
+            ase_atoms_updated = update_with_covalent_bonds(ase_atoms)
             ase_atoms = ase_atoms_updated
             bonds = ase_atoms.info['covalent_bonds']
             # atoms_graph = mgr.sgraph_from_atoms(ase_atoms_updated)
