@@ -1,0 +1,23 @@
+pymatgen
+ase
+dask
+dask-jobqueue
+networkx
+scikit-image
+tqdm
+aiohttp
+icecream
+cupy
+sparse
+scikit-learn
+rich
+numpy
+scipy
+trimesh
+pyvista
+plotly
+pandas
+furl
+freud
+python-kaleido
+jupyter #useful but not strictly essential
