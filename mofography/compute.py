@@ -94,6 +94,7 @@ def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_ne
     import numpy as np
     import dask.array as da
     from rich.progress import track
+    from tqdm import tqdm
     gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
     dgrid = []
     import pandas as  pd 
@@ -101,7 +102,8 @@ def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_ne
         vdw_radii = pd.Series({'H': 110.00000000000001,'He': 140.0,'Li': 182.0,'Be': 153.0,'B': 192.0,'C': 170.0,'N': 155.0,'O': 152.0,'F': 147.0,'Ne': 154.0,'Na': 227.0,'Mg': 173.0,'Al': 184.0,'Si': 210.0,'P': 180.0,'S': 180.0,'Cl': 175.0,'Ar': 188.0,'K': 275.0,'Ca': 231.0,'Sc': 215.0,'Ti': 211.0,'V': 206.99999999999997,'Cr': 206.0,'Mn': 204.99999999999997,'Fe': 204.0,'Co': 200.0,'Ni': 197.0,'Cu': 196.0,'Zn': 200.99999999999997,'Ga': 187.0,'Ge': 211.0,'As': 185.0,'Se': 190.0,'Br': 185.0,'Kr': 202.0,'Rb': 303.0,'Sr': 249.00000000000003,'Y': 231.99999999999997,'Zr': 223.0,'Nb': 218.00000000000003,'Mo': 217.0,'Tc': 216.0,'Ru': 213.0,'Rh': 210.0,'Pd': 210.0,'Ag': 211.0,'Cd': 218.00000000000003,'In': 193.0,'Sn': 217.0,'Sb': 206.0,'Te': 206.0,'I': 198.0,'Xe': 216.0,'Cs': 343.0,'Ba': 268.0,'La': 243.00000000000003,'Ce': 242.0,'Pr': 240.0,'Nd': 239.0,'Pm': 238.0,'Sm': 236.0,'Eu': 235.0,'Gd': 234.0,'Tb': 233.0,'Dy': 231.0,'Ho': 229.99999999999997,'Er': 229.0,'Tm': 227.0,'Yb': 225.99999999999997,'Lu': 224.00000000000003,'Hf': 223.0,'Ta': 222.00000000000003,'W': 218.00000000000003,'Re': 216.0,'Os': 216.0,'Ir': 213.0,'Pt': 213.0,'Au': 214.0,'Hg': 223.0,'Tl': 196.0,'Pb': 202.0,'Bi': 206.99999999999997,'Po': 197.0,'At': 202.0,'Rn': 220.00000000000003,'Fr': 348.0,'Ra': 283.0,'Ac': 247.00000000000003,'Th': 245.00000000000003,'Pa': 243.00000000000003,'U': 241.0,'Np': 239.0,'Pu': 243.00000000000003,'Am': 244.0,'Cm': 245.00000000000003,'Bk': 244.0,'Cf': 245.00000000000003,'Es': 245.00000000000003,'Fm': 245.00000000000003,'Md': 246.0,'No': 246.0,'Lr': 246.0,'Rf': np.nan,'Db': np.nan,'Sg': np.nan,'Bh': np.nan,'Hs': np.nan,'Mt': np.nan,'Ds': np.nan,'Rg': np.nan,'Cn': np.nan,'Nh': np.nan,'Fl': np.nan,'Mc': np.nan,'Lv': np.nan,'Ts': np.nan,'Og': np.nan})
         radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
     
-    for block in track(gpoints.blocks, description='Computing distance grid', total=gpoints.npartitions):
+    # for block in track(gpoints.blocks, description='Computing distance grid', total=gpoints.npartitions):
+    for block in tqdm(gpoints.blocks, desc='Computing distance grid', total=gpoints.npartitions):
         dgrid.append(gpd_aabb(block.compute(), ase_atoms, radii, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
     return da.hstack(dgrid).rechunk(chunks=block_size).reshape(shape) #return in correct shape
 
@@ -185,7 +187,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 
     distance_grid = []
     from rich.progress import track
-    for block in track(gpoints_da.blocks, total=gpoints_da.npartitions, descriptions="Computing distance grid"):
+    for block in track(gpoints_da.blocks, total=gpoints_da.npartitions, description="Computing distance grid"):
         # print("Working on block {} \n".format(i))
         distance_grid.append(block.compute())
 
@@ -194,6 +196,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
     cp._default_memory_pool.free_all_blocks()
     cp._default_pinned_memory_pool.free_all_blocks()
     return np.hstack(distance_grid).reshape(nx, ny, nz)
+
 
 
 
@@ -516,6 +519,25 @@ def get_region_props_for_regions(regions):
     """
     from skimage.measure import regionprops
     return regionprops(regions)
+def add_window_info_to_rag(rag, connections):
+    """
+    It takes a RAG and a list of connections and adds the window information to the RAG as edge
+    attributes
+    
+    :param rag: the region adjacency graph
+    :param connections: list of tuples, each tuple is a connection between two nodes, and contains the
+    following information:
+    :return: The rag is being returned with the window information added to it.
+    """
+
+    import networkx as nx
+    window_attribute = {}
+    for c in connections:
+        if c[1]:
+            window_attribute[tuple(c[0])] = {'window_type':c[2],'window_position': c[3],'window_radii': c[4]}
+        # else:
+    nx.set_edge_attributes(rag, window_attribute, 'window_info')
+    return rag
 
 def add_maxima_to_rag(G, maxima,  maxima_radii, shape, ase_atoms):
     """
@@ -554,6 +576,26 @@ def add_maxima_to_rag(G, maxima,  maxima_radii, shape, ase_atoms):
             G.nodes[n]['maxima_radii'] =maxima_radii[G.nodes[n]['labels'][0]-1] #* add the indcies of the maxima 
     return G
 # def add_size_dist_to_graph(G, dgrid):
+
+# def zoom_dgrid(grid, zoom_ratio, order=1):
+
+#     """
+#     It takes a 2D array and a zoom ratio, and returns a zoomed
+#     version of the array
+    
+#     :param grid: the grid to be zoomed
+#     :param zoom_ratio: the ratio of the new grid to the old grid.
+#     For example, if the old grid is 100x100 and the new grid is
+#     200x200, then zoom_ratio = 2
+#     :param order: The order of the spline interpolation, default
+#     is 1. The order has to be in the range 0-5, defaults to 1
+#     (optional)
+#     :return: The grid_zoomed is being returned.
+#     """
+
+#     from scipy.ndimage import zoom
+#     grid_zoomed = zoom(grid, zoom_ratio, mode='grid-wrap', order=order, grid_mode=False)
+#     return grid_zoomed
 
 def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
     """
@@ -885,7 +927,32 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 #     else:
 #         return regions_pbc
 
-
+def add_props_to_rag(rag, props):
+    '''This function adds properties to nodes in a region adjacency graph (RAG) based on a list of
+    properties.
+    
+    Parameters
+    ----------
+    rag
+        The variable rag is likely a graph data structure called a Region Adjacency Graph (RAG). It is
+    being passed as an argument to the function add_props_to_rag().
+    props
+        The `props` parameter is a list of dictionaries containing properties for each node in the region
+    adjacency graph (RAG). Each dictionary corresponds to a node in the RAG and contains key-value pairs
+    representing the properties of that node. The `add_props_to_rag` function takes this list of
+    dictionaries. This may be a list of properties generated using the `regionprops` function from the
+    `skimage.measure` module.
+    
+    Returns
+    -------
+        the updated RAG (Region Adjacency Graph) with properties added to each node.
+    
+    '''
+    
+    for node in rag.nodes:
+        node_index = [p['label']==node for p in props].index(True)
+        rag.nodes[node]['props'] = props[node_index]
+    return rag
 def do_it_all(ase_atoms,spacing=0.25):
     """
     > It takes an ase atoms object of the mof, and returns a list of objects that are useful for analyzing the pore
@@ -1271,7 +1338,63 @@ def add_clustering_to_rag_energy(rag, props, ase_atoms, forcefield_mixed, shape,
     return rag        
         # energy_groups = [set(itertools.chain.from_iterable(np.array(pbc_groups)[list(c)])) for c in conn]
 #%%
+# def add_clustering_to_rag_energy_js(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=True, pbc_groups=None, cutoff=12.8,sample_fraction=1):
+    
 
+#     import networkx as nx 
+#     import itertools
+#     from scipy.stats import ks_2samp
+#     from scipy.spatial.distance import jensenshannon
+#     import numpy as np
+#     import dask.bag as db
+#     def get_js_dist(e1, e2):
+#         hist, bins = np.histogram(np.hstack((e1,e2)), bins=20)
+#         e1_hist, bins  = np.histogram(e1, bins=bins)
+#         e2_hist, bins  = np.histogram(e2, bins=bins)
+#         return jensenshannon(e1_hist, e2_hist)
+
+#     if use_pbc:
+#         if pbc_groups is None:
+#             raise ValueError('pbc_groups must be provided if use_pbc=True')
+#         # * we will classifying the pbc groups
+#         energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff,sample_fraction=sample_fraction) for g in pbc_groups]
+#         # * test the samples using ks2samp
+#         js_graph = nx.Graph()
+#         js_graph.add_nodes_from(range(len(pbc_groups)))
+#         pairwise_list = list(itertools.combinations(range(len(pbc_groups)), 2))
+#         # js_list = db.from_sequence(pairwise_list).map(lambda x: get_js_dist(energies_list[x[0]], energies_list[x[1]])).compute()
+#         # for i,j in pairwise_list:
+#         #     js = js_list[i]
+#         #     if js <  0.15:
+#         #         js_graph.add_edge(i,j)
+#         for i,j in itertools.combinations(range(len(pbc_groups)), 2):
+#             print(f'Jensen-Shannon distance for {pbc_groups[i]} and {pbc_groups[j]} is {get_js_dist(energies_list[i], energies_list[j])}')
+#             js = get_js_dist(energies_list[i], energies_list[j])
+#             if js <  0.15:
+#                 js_graph.add_edge(i,j)
+#         conn = list(nx.connected_components(js_graph))
+#         print('connected components are: ', conn)
+        
+#         energy_groups = [set(itertools.chain.from_iterable(np.array(pbc_groups)[list(c)])) for c in conn]
+    
+#         # * add the cluster info to the rag
+#         for i in rag.nodes():
+#             rag.nodes[i]['cluster_energy_pbc'] = str(np.where([i in g for g in energy_groups])[0][0])
+#     else:
+#         # * we will be working with the actual nodes (regions)
+#         energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff,sample_fraction=sample_fraction) for node in rag.nodes()]
+#         js_graph = nx.Graph()
+#         js_graph.add_nodes_from(range(len(rag.nodes())))
+#         for i,j in itertools.combinations(len(rag.nodes()), 2):
+#             js = get_js_dist(energies_list[i], energies_list[j])
+#             if  js < 0.15:
+#                 js_graph.add_edge(i,j)
+#         conn = list(nx.connected_components(js_graph))
+#         #* add the clustering info  to the rag
+#         for i in rag.nodes():
+#             rag.nodes[i]['cluster_energy_nopbc'] = str(np.where([i in g for g in conn])[0][0])
+#     return rag    
+#%%
 def compare_two_paths(p1, p2, rag):
     """
     It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
@@ -1632,7 +1755,7 @@ def get_psd_for_region(region_index, connections, dgrid, maxima, shape, ase_atom
         print('The region {} is not connected to any other region. Hence unable to detect cavity axis for sampling'.format(region_index))
         return 'NaN', 'NaN'
 
-def apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=1, return_conn =False, minimum_overlap_fraction=0.05):
+def apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=1, return_conn =False, minimum_overlap_fraction=0.5):
     """
     It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions
     applied
@@ -1821,6 +1944,7 @@ def add_pbc_to_rag(rag, pbc_groups):
         pbc_index = np.where([rag.nodes[node]['labels'][0] in list(g) for g in pbc_groups] )[0][0]
         rag.nodes[node]['pbc_group'] = pbc_index
     return rag
+    
 
 def clustering_grid_from_regions(regions, rag2, cluster_key='cluster'):
     import numpy as np
@@ -2210,46 +2334,46 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
 
 
 
-def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=False, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False, sample_fraction=1):
-    import numpy as np 
-    import networkx as nx
-    # if bins_energy is None:
-        # bins_energy = np.linspace(-3000, 100, 25)
-    if use_pbc:
-        if pbc_groups is None:
-            raise ValueError('pbc_groups must be provided if use_pbc=True')
+# def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=False, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False, sample_fraction=1):
+#     import numpy as np 
+#     import networkx as nx
+#     # if bins_energy is None:
+#         # bins_energy = np.linspace(-3000, 100, 25)
+#     if use_pbc:
+#         if pbc_groups is None:
+#             raise ValueError('pbc_groups must be provided if use_pbc=True')
         
-        else:
-            energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for g in pbc_groups]
-            if bins_energy is None:
-                hist, bins_energy = np.histogram(np.hstack(energies_list), bins=30, density=density)
-            histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
-            ehistograms = [hb[0] for hb in histograms_bins]
-            ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
-            for i, node in enumerate(rag.nodes()):
-                rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[rag.nodes[node]['pbc_group']]
-                rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[rag.nodes[node]['pbc_group']]
+#         else:
+#             energies_list = [get_energies_for_group(list(g), props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for g in pbc_groups]
+#             if bins_energy is None:
+#                 hist, bins_energy = np.histogram(np.hstack(energies_list), bins=30, density=density)
+#             histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+#             ehistograms = [hb[0] for hb in histograms_bins]
+#             ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+#             for i, node in enumerate(rag.nodes()):
+#                 rag.nodes[node]['vdw_hist_y_pbc']=ehistograms[rag.nodes[node]['pbc_group']]
+#                 rag.nodes[node]['vdw_hist_x_pbc']=ebincenters[rag.nodes[node]['pbc_group']]
 
-    else:
-        energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
-        histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
-        ehistograms = [hb[0] for hb in histograms_bins]
-        ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+#     else:
+#         energies_list = [get_energies_for_group([node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
+#         histograms_bins= [np.histogram(e, bins=bins_energy, density=density) for e in energies_list]
+#         ehistograms = [hb[0] for hb in histograms_bins]
+#         ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
 
 
-        for i, node in enumerate(rag.nodes()):
-            rag.nodes[node]['vdw_hist_y']=ehistograms[i]
-            rag.nodes[node]['vdw_hist_x']=ebincenters[i]
-    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
-    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
-    if add_energies:
-        for i,node in rag.nodes():
-            rag.nodes[node]['energies']=energies_list[i]
+#         for i, node in enumerate(rag.nodes()):
+#             rag.nodes[node]['vdw_hist_y']=ehistograms[i]
+#             rag.nodes[node]['vdw_hist_x']=ebincenters[i]
+#     # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+#     # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+#     if add_energies:
+#         for i,node in rag.nodes():
+#             rag.nodes[node]['energies']=energies_list[i]
             
-            # energies_nodes = [energies_list[c] for c in cindices]
-            # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+#             # energies_nodes = [energies_list[c] for c in cindices]
+#             # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
         
-    return rag
+#     return rag
 
 # def add_vdw_hist_to_rag2(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=False, pbc_groups=None, bins_energy=None , density=False, cutoff=12.5, add_energies=False):
 #     import numpy as np 
@@ -2289,3 +2413,358 @@ def add_vdw_hist_to_rag(rag, props, ase_atoms, forcefield_mixed, shape, use_pbc=
         
     return rag
 #endregion
+def get_energies_for_group2(group, regions, energy_interpolator=None, return_scaled_coords=False, **kwargs_egrid):#ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False, block_size=20000, sample_fraction=1):
+    """
+    This function calculates the energies for a group of regions using an energy interpolator and
+    returns the energies and scaled coordinates if specified.
+    
+    :param group: A list of labels for the regions in the group
+    :param regions: A 3D array representing a segmentation of a larger 3D volume into regions or
+    objects. Each region is assigned a unique integer label
+    :param energy_interpolator: A function that interpolates energies for a given set of coordinates. It
+    is used to calculate the energies for a group of points in a region
+    :param return_scaled_coords: A boolean parameter that determines whether the function should return
+    the energies and the scaled coordinates of the points in the group or just the energies. If set to
+    True, the function will return a tuple of two arrays: the energies and the scaled coordinates. If
+    set to False, the function will only return the, defaults to False (optional)
+    :return: either the energies for all the points in the specified group or the energies and scaled
+    coordinates for all the points in the specified group, depending on the value of the
+    `return_scaled_coords` parameter.
+    """
+
+    import numpy as np
+    import random
+
+    from skimage.measure import regionprops
+    props = regionprops(regions)
+    shape = regions.shape
+    
+    # * get region indices for the regions in the group
+    prop_labels = np.array([prop['label'] for prop in props])
+    prop_indices = [np.where(prop_labels == g)[0][0] for g in group]
+
+    #* create an energy interpolotor if not passed
+    if energy_interpolator is None:
+        egrid = egrid_from_atoms2(**kwargs_egrid )
+        from scipy.interpolate import RegularGridInterpolator as RGI
+        xx = np.linspace(0, 1, egrid.shape[0])
+        yy = np.linspace(0, 1, egrid.shape[1])
+        zz = np.linspace(0, 1, egrid.shape[2])
+        energy_interpolator = RGI((xx, yy, zz), egrid, method='slinear')
+
+
+    # * this group has more than one entry, assuming it is a pbc group
+    if len(group) > 1:
+
+        #* grid indices of all the points present in this group
+
+        all_group_indices = np.vstack([props[pi]['coords']
+                                   for pi in prop_indices])
+        if len(all_group_indices) > 10000:
+            all_group_indices = random.sample(list(all_group_indices), 10000)
+        #* normalize the indices to get the fractional coordinates
+        all_group_scaled = np.divide(all_group_indices, shape)
+
+        
+        # #* get the energy for all the points in the group
+        # energies = energy_interpolator(all_group_scaled.T)
+    else:
+        #* if it is only one entry in the pbc group
+
+        pi = np.where(prop_labels == list(group)[0])[0][0]
+        # print(pi)
+        #* get coordinates and centroids
+        coords_indices = props[pi]['coords']
+        all_group_scaled = np.divide(coords_indices, shape)
+    #* get the energy for all the points in the group
+    energies = energy_interpolator(all_group_scaled)
+    
+    if return_scaled_coords:
+        return energies, all_group_scaled
+    else:
+        return energies
+    
+def get_energy_interpolator(egrid):
+    """
+    This function creates a 3D regular grid interpolator for energy values given an input energy grid.
+    
+    :param egrid: a 3D numpy array representing a grid of energy values. The shape of the array should
+    be (n_x, n_y, n_z), where n_x, n_y, and n_z are the number of grid points in the x, y, and z
+    directions, respectively
+    :return: a RegularGridInterpolator object that can be used to interpolate values from a 3D energy
+    grid.
+    """
+
+    import numpy as np
+    from scipy.interpolate import RegularGridInterpolator as RGI
+    xx = np.linspace(0, 1, egrid.shape[0])
+    yy = np.linspace(0, 1, egrid.shape[1])
+    zz = np.linspace(0, 1, egrid.shape[2])
+    energy_interpolator = RGI((xx, yy, zz), egrid, method='slinear')
+    return energy_interpolator
+
+
+def add_clustering_to_rag_energy_js(rag, regions, energy_interpolator=None, use_pbc=True, pbc_groups=None, js_threshold = 0.05, **kwargs_egrid):
+
+                                    
+
+    import networkx as nx
+    import itertools
+    from scipy.stats import ks_2samp
+    from scipy.spatial.distance import jensenshannon
+    import numpy as np
+    import dask.bag as db
+    from tqdm import tqdm
+
+    #* get teh Jensen Shannon distance between the energy distributions of two regions
+    def get_js_dist(t):
+        i, j = t
+        # e1 = get_energies_for_group2(list(pbc_groups[i]), regions, energy_interpolator=energy_interpolator)
+        # e2 = get_energies_for_group2(list(pbc_groups[j]), regions, energy_interpolator=energy_interpolator)
+        # remove inf and nan values
+        e1 = energies_list[i]
+        e2 = energies_list[j]
+        e1 =  e1[np.isfinite(e1)]
+        e2 =  e2[np.isfinite(e2)]
+        hist, bins = np.histogram(np.hstack((e1, e2)), bins=20)
+        e1_hist, bins = np.histogram(e1, bins=bins)
+        e2_hist, bins = np.histogram(e2, bins=bins)
+        return jensenshannon(e1_hist, e2_hist)
+    
+    
+    # * make energy interpolator if not passed
+    if energy_interpolator is None:
+        egrid = egrid_from_atoms2(**kwargs_egrid )
+        energy_interpolator = get_energy_interpolator(egrid)
+    
+    # * if PBC is to be maintained
+    if use_pbc:
+        if pbc_groups is None:
+            raise ValueError('pbc_groups must be provided if use_pbc=True')
+        
+        # * we will be classifying the pbc groups
+        # energies_list = [get_energies_for_group2(list(
+        #     g), regions, energy_interpolator=energy_interpolator) for g in pbc_groups]
+        
+        #* define an empty graph
+        js_graph = nx.Graph()
+        js_graph.add_nodes_from(range(len(pbc_groups)))
+        
+        energies_list = [get_energies_for_group2(list(g), regions, energy_interpolator=energy_interpolator) for g in pbc_groups]
+        #* let's add edges between the pbc groups based on teh JS distance
+        iterlist = list(itertools.combinations(range(len(pbc_groups)), 2))
+        import dask.bag as db
+        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute(scheduler='threads')
+        # * print the the JS distances between regions
+        # print(js_dist)
+        #* check wher teh JS distance is less than the threshold and add edges from iterlist
+        add_these_edges  = [iterlist[k] for k in range(len(js_dist)) if js_dist[k] < js_threshold]
+        # print('adding these edges: ', add_these_edges)
+        js_graph.add_edges_from(add_these_edges)
+        # for k, (i, j) in enumerate(iterlist):
+        #     # js = get_js_dist(i, j)
+        #     js = js_dist[k]
+        #     print(
+        #         f'Jensen-Shannon distance for {i}:{pbc_groups[i]} and {j}:{pbc_groups[j]} is {js}')
+        #     if js < js_threshold:
+        #         js_graph.add_edge(i, j)
+        conn = list(nx.connected_components(js_graph))
+
+        # print('connected components are: ', conn)
+        energy_groups = [set(itertools.chain.from_iterable(
+            np.array(pbc_groups)[list(c)])) for c in conn]
+
+        # * add the cluster info to the rag
+        for i in rag.nodes():
+            rag.nodes[i]['cluster_energy_pbc'] = str(
+                np.where([i in g for g in energy_groups])[0][0])
+    else:
+        # * we will be working with the actual nodes (regions)
+        # energies_list = [get_energies_for_group2(
+        #     [node], regions, energy_interpolator=energy_interpolator) for node in rag.nodes()]
+        
+        
+        # energies_list = [get_energies_for_group(
+        #     [node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
+        #* define empty graph        
+        js_graph = nx.Graph()
+        js_graph.add_nodes_from(range(len(rag.nodes())))
+        
+        energies_list = [get_energies_for_group2(
+            [node], regions, energy_interpolator=energy_interpolator) for node in rag.nodes()]
+
+        #* let's add edges between the pbc groups based on teh JS distance
+        iterlist  = list(itertools.combinations(range(len(rag.nodes())), 2))
+        import dask.bag as db
+        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute(scheduler='threads')
+        #* check wher teh JS distance is less than the threshold and add edges from iterlist
+        add_these_edges = [iterlist[k] for k in range(len(iterlist)) if js_dist[k] < js_threshold]
+        # print('adding these edges: ', add_these_edges)
+        js_graph.add_edges_from(add_these_edges)
+
+        # for i, j in itertools.combinations(len(rag.nodes()), 2):
+        #     js = get_js_dist(i,j)
+        #     if js < js_threshold:
+        #         js_graph.add_edge(i, j)
+        conn = list(nx.connected_components(js_graph))
+        # print('connected components are: ', conn)
+        #* add the clustering info  to the rag
+        for i in rag.nodes():
+            rag.nodes[i]['cluster_energy_nopbc'] = str(
+                np.where([i in g for g in conn])[0][0])
+    return rag
+
+def add_vdw_hist_to_rag(rag, regions, energy_interpolator=None,upper_bound=1000, use_pbc=False, pbc_groups=None, bins_energy=None, density=False, **kwargs_egrid):
+    import numpy as np
+    import networkx as nx
+    # if bins_energy is None:
+    # bins_energy = np.linspace(-3000, 100, 25)
+    if energy_interpolator is None:
+        egrid =egrid_from_atoms2(**kwargs_egrid )
+        energy_interpolator = get_energy_interpolator(egrid)
+    if use_pbc:
+        if pbc_groups is None:
+            raise ValueError('pbc_groups must be provided if use_pbc=True')
+
+        else:
+            energies_list = [get_energies_for_group2(list(
+                g), regions, energy_interpolator=energy_interpolator) for g in pbc_groups]
+            if bins_energy is None:
+                bins_energy = np.linspace(
+                    np.min(np.hstack(energies_list)), upper_bound, 25)
+            hist, bins_energy = np.histogram(
+                    np.hstack(energies_list), bins=bins_energy, density=density)
+            
+            histograms_bins = [np.histogram(
+                e, bins=bins_energy, density=density) for e in energies_list]
+            ehistograms = [hb[0] for hb in histograms_bins]
+            ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+
+            for i, node in enumerate(rag.nodes()):
+                rag.nodes[node]['vdw_hist_y_pbc'] = ehistograms[rag.nodes[node]['pbc_group']]
+                rag.nodes[node]['vdw_hist_x_pbc'] = ebincenters[rag.nodes[node]['pbc_group']]
+
+    else:
+        energies_list = [get_energies_for_group2(
+            [node], regions, energy_interpolator=energy_interpolator) for node in rag.nodes()]
+
+        # energies_list = [get_energies_for_group(
+        #     [node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
+        if bins_energy is None:
+            bins_energy = np.linspace(
+                np.min(np.hstack(energies_list)), upper_bound, 25)
+        histograms_bins = [np.histogram(
+            e, bins=bins_energy, density=density) for e in energies_list]
+        ehistograms = [hb[0] for hb in histograms_bins]
+        ebincenters = [(hb[1][:-1]+hb[1][1:])/2 for hb in histograms_bins]
+
+        for i, node in enumerate(rag.nodes()):
+            rag.nodes[node]['vdw_hist_y'] = ehistograms[i]
+            rag.nodes[node]['vdw_hist_x'] = ebincenters[i]
+    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ehists_data)), 'vdw_hist_y_pbc')
+    # nx.set_node_attributes(rag, dict(zip(rag.nodes,ebins_data)), 'vdw_hist_x_pbc')
+    # if add_energies:
+    #     for i, node in rag.nodes():
+    #         rag.nodes[node]['energies'] = energies_list[i]
+
+            # energies_nodes = [energies_list[c] for c in cindices]
+            # nx.set_node_attributes(rag, dict(zip(rag.nodes, energies_nodes)), 'vdw_energies_pbc')
+
+    return rag
+
+def optimize_molecule_at_node( node, rag, ref_coords, energy_interpolator=None, n_trials=50, n_jobs=-1, **kwargs_egrid):
+    '''This function optimizes the energy of a molecule at a given node in a graph using Optuna
+    optimization.
+    
+    Parameters
+    ----------
+    node
+        The node in the RAG (Region Adjacency Graph) for which the molecule needs to be optimized.
+    rag
+        A networkx graph representing a Reconstructed Atomic Structure (RAS) of a Metal-Organic Framework
+    (MOF).
+    ref_coords
+        The reference coordinates of the molecule that needs to be optimized. These are the initial
+    coordinates of the molecule before optimization.
+    energy_interpolator
+        A function that takes in fractional coordinates and returns the energy of the molecule at those
+    coordinates.
+    n_trials, optional
+        The number of trials to be performed during the optimization process.
+    n_jobs
+        The number of parallel jobs to run during optimization. If set to -1, it will use all available
+    CPUs.
+    
+    Returns
+    -------
+        the best trial found by the Optuna optimizer after optimizing the molecule at a given node in a RAG
+    (Region Adjacency Graph) using energy minimization.
+    
+    '''
+
+    import optuna
+    import numpy as np
+    from .helper import get_fractional_coordinates
+    from scipy.spatial.transform import Rotation as R
+    if energy_interpolator is None:
+        egrid = egrid_from_atoms2(**kwargs_egrid)
+        energy_interpolator = get_energy_interpolator(egrid)
+
+    location_in_mof = rag.nodes[node]['maxima']
+    max_dist = rag.nodes[node]['maxima_radii']
+    mat_atoms = rag.graph['ase_atoms']
+    def get_energy(new_mol_coords):
+        new_frac_coords = get_fractional_coordinates(new_mol_coords, mat_atoms)
+        # * wrap the coordinates
+        new_frac_coords = new_frac_coords - np.floor(new_frac_coords)
+        # * get the energy
+        energy = energy_interpolator(new_frac_coords)
+        energy_mean = np.mean(energy)
+        return energy_mean
+    
+    def objective(trial):
+        dx = trial.suggest_uniform('dx', -1, 1)
+        dy = trial.suggest_uniform('dy', -1, 1)
+        dz = trial.suggest_uniform('dz', -1, 1)
+        alpha = trial.suggest_uniform('alpha', 0, 90)
+        beta = trial.suggest_uniform('beta', 0, 90)
+        gamma = trial.suggest_uniform('gamma', 0, 90)
+        r = R.from_euler('xyz', [alpha, beta, gamma], degrees=True)
+        new_cart_coords = r.apply(ref_coords) + location_in_mof - \
+            np.mean(ref_coords, axis=0) + np.array([dx, dy, dz])*max_dist
+        trial.set_user_attr('cart_coords', new_cart_coords)
+        return get_energy(new_cart_coords)
+    
+    study = optuna.create_study(study_name='energy_reduce_{}'.format(node), direction='minimize')#, pruner=optuna.pruners.MedianPruner(n_warmup_steps=10), sampler=optuna.samplers.TPESampler(seed=123))
+    study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs)
+    return study.best_trial
+
+
+def add_best_optuna_trial_to_rag(rag, ref_coords, energy_interpolator, molecule_name,  cluster_key=
+                                 'cluster_energy_pbc', one_per_cluster=True, n_trials=50, n_jobs=-1):
+
+
+    import dask.bag as db
+    import networkx as nx
+    import numpy as np
+    #* do optimization at only one node per node type
+    if one_per_cluster:
+        cluster_dict = nx.get_node_attributes(rag, cluster_key)
+        keys_list = np.array(list(cluster_dict.keys()))
+        _, unique_indices, reconstruct_indices = np.unique(list(cluster_dict.values()), return_index=True, return_inverse=True)
+        nodes_to_test_at = keys_list[unique_indices]
+        best_trials = db.from_sequence([node for node in nodes_to_test_at]).map(
+            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=n_trials, n_jobs=n_jobs).compute(scheduler='threads')
+        for i,node in enumerate(nodes_to_test_at):
+            rag.nodes[node]['best_trial_{}'.format(molecule_name)] = best_trials[i]
+    
+    # * do this for all the pockets regardless of teh clustering
+    else:
+        best_trials = db.from_sequence([node for node in rag.nodes if rag.nodes[node]['maxima_radii'] > 0.5]).map(
+            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=50, n_jobs=-1).compute(scheduler='threads')
+        #* add the best trial property to rag
+        for node, trial in zip(rag.nodes, best_trials):
+            rag.nodes[node]['best_trial_{}'.format(molecule_name)] = trial
+    return rag
+
+

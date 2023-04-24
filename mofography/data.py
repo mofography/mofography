@@ -128,6 +128,20 @@ def get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', par
 
     return data_df   
 
+def read_cif_string(cif):
+    """
+    It takes a string of CIF data and returns an ASE atoms object.
+    
+    :param cif: The CIF file as a string
+    :return: the ASE atoms object.
+    """
+    from ase.io import read 
+    import io
+    try:
+        output = read(io.BytesIO(bytes(cif, encoding='utf-8')), format='cif')
+    except: 
+        output = 'NaN'
+    return output
 def atoms_from_mofdb_df(mofdb_df):
 
     """
@@ -138,23 +152,13 @@ def atoms_from_mofdb_df(mofdb_df):
     :return: A list of atoms objects.
     """
     import numpy as np
-    def read_cif_string(cif):
-        """
-        It takes a string of CIF data and returns an ASE atoms object.
-        
-        :param cif: The CIF file as a string
-        :return: the ASE atoms object.
-        """
-        from ase.io import read 
-        import io
-        try:
-            output = read(io.BytesIO(bytes(cif, encoding='utf-8')), format='cif')
-        except: 
-            output = 'NaN'
-        return output
-
+    from tqdm import tqdm
+    # import dask.bag as db 
+    # from dask.diagnostics import ProgressBar
+    # with ProgressBar():
+    #     atoms_list = db.from_sequence(mofdb_df['cif'], npartitions=20).map(read_cif_string).compute()
     # from rich.progress import track
-    atoms_list = [read_cif_string(x) for x in mofdb_df['cif']]
+    atoms_list = [read_cif_string(x) for x in tqdm(mofdb_df['cif'])]
     for i,a in enumerate(atoms_list):
         if a!='NaN':
             a.info['name'] = mofdb_df['name'][i]
