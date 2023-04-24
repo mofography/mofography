@@ -2723,12 +2723,12 @@ def optimize_molecule_at_node( node, rag, ref_coords, energy_interpolator=None, 
         return energy_mean
     
     def objective(trial):
-        dx = trial.suggest_uniform('dx', -1, 1)
-        dy = trial.suggest_uniform('dy', -1, 1)
-        dz = trial.suggest_uniform('dz', -1, 1)
-        alpha = trial.suggest_uniform('alpha', 0, 90)
-        beta = trial.suggest_uniform('beta', 0, 90)
-        gamma = trial.suggest_uniform('gamma', 0, 90)
+        dx = trial.suggest_float('dx', -1, 1)
+        dy = trial.suggest_float('dy', -1, 1)
+        dz = trial.suggest_float('dz', -1, 1)
+        alpha = trial.suggest_float('alpha', 0, 90)
+        beta = trial.suggest_float('beta', 0, 90)
+        gamma = trial.suggest_float('gamma', 0, 90)
         r = R.from_euler('xyz', [alpha, beta, gamma], degrees=True)
         new_cart_coords = r.apply(ref_coords) + location_in_mof - \
             np.mean(ref_coords, axis=0) + np.array([dx, dy, dz])*max_dist
