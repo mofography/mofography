@@ -412,7 +412,7 @@ def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
     # struct = AseAtomsAdaptor.get_structure(ase_atoms)
     # temp = StructureGraph.with_empty_graph(struct)
     # sgraph.te
-    if not ('covalent_bonds' in ase_atoms.info.keys()):
+    if 'covalent_bonds' not in ase_atoms.info.keys():
         Exception("Bond list not in the ase_atoms.info dictionary.\n Please call 'update_atoms_with_covalent_bonds(ase_atoms)' first. \n Or provide your own bond info under keys 'covalent_bonds' under ase_atoms.info.")
     else:
         if node_props_dict is None:
@@ -537,3 +537,67 @@ def get_subset_atoms(ase_atoms, subset):
     atoms_ = update_with_covalent_bonds(atoms)
     atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
     return atoms_
+
+
+def get_atoms_from_smiles(smiles, cell=None):
+    """
+    This function takes a SMILES string as input and returns an ASE Atoms object with the atomic
+    positions and information about covalent bonds and bond orders.
+    
+    :param smiles: A string representing the SMILES notation of a molecule
+    :param cell: The cell parameter is an optional argument that specifies the size of the simulation
+    cell in Angstroms. If it is not provided, a default cell size of 10x10x10 Angstroms is used
+    :return: an ASE Atoms object that represents the molecule specified by the SMILES string input. The
+    Atoms object contains information about the atomic positions, atomic symbols, and covalent bonds in
+    the molecule. Additionally, the Atoms object contains information about the SMILES string used to
+    generate the molecule and the cell size used to embed the molecule.
+    """
+
+    from rdkit.Chem import AllChem
+    from rdkit import Chem
+    from ase import Atoms
+    import numpy as np
+    mol = Chem.MolFromSmiles(smiles)
+    mol = Chem.AddHs(mol)
+    AllChem.EmbedMolecule(mol)
+    out= Chem.MolToXYZBlock(mol).split('\n')
+    # print('\n'.join(out))
+    # edit = Chem.RWMol(mol)
+    conf = mol.GetConformer()
+    positions = conf.GetPositions()
+    atomic_numbers = [atom.GetAtomicNum() for atom in mol.GetAtoms()]
+    atomic_symbols = [Chem.GetPeriodicTable().GetElementSymbol(atomic_number) for atomic_number in atomic_numbers]
+    if cell is None:
+        cell = np.array([10, 10, 10])
+    atoms = Atoms(symbols=atomic_symbols, positions=np.vstack(positions)+cell/2)
+    atoms.info['smiles'] = smiles
+    atoms.info['name'] = smiles
+    # if there is at least one bond in the molecule, add the covalent bonds and bond orders to the atoms
+    if mol.GetNumBonds() > 0:
+        atoms.info['covalent_bonds'] = np.vstack([(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()) for bond in mol.GetBonds()])
+        atoms.info['covalent_bond_orders'] = [bond.GetBondTypeAsDouble() for bond in mol.GetBonds()]
+    else:
+        atoms.info['covalent_bonds'] = []
+        atoms.info['covalent_bond_orders'] = []
+    return atoms
+
+
+def find_unique_sgraphs(sgraphs):
+
+    import networkx as nx 
+    import networkx.algorithms.isomorphism as isomo
+    import numpy as np
+    import itertools
+    from icecream import ic 
+    ic.disable() 
+    # [(i.nodes(data='element'), j.nodes(data='element')) for (i,j) in list(itertools.combinations(sub_graphs, r=2))]
+    # from networkx.algorithms import isomorphism as isomo 
+    em = isomo.categorical_edge_match('bond_type', default='single')
+    nm = isomo.categorical_node_match('element',default='None')
+    iso_check = [isomo.GraphMatcher(*g,node_match=nm, edge_match=em).is_isomorphic() for g in itertools.combinations(sgraphs, r= 2)]
+    ic(iso_check)
+    if len(iso_check) >0:
+        to_delete = np.array(list(itertools.combinations(range(len(sgraphs)),2)))[iso_check][:,1]
+        return np.delete(list(range(len(sgraphs))), to_delete.astype(int))
+    else:
+        raise Exception(" No cycles of given lengths found!")
