@@ -1315,7 +1315,7 @@ def add_clustering_to_rag_energy(rag, props, ase_atoms, forcefield_mixed, shape,
             if ks[1] > 0.05:
                 ks_graph.add_edge(i,j)
         conn = list(nx.connected_components(ks_graph))
-        print('connected components are: ', conn)
+        # print('connected components are: ', conn)
         
         energy_groups = [set(itertools.chain.from_iterable(np.array(pbc_groups)[list(c)])) for c in conn]
     
@@ -2735,7 +2735,7 @@ def optimize_molecule_at_node( node, rag, ref_coords, energy_interpolator=None, 
         trial.set_user_attr('cart_coords', new_cart_coords)
         return get_energy(new_cart_coords)
     
-    study = optuna.create_study(study_name='energy_reduce_{}'.format(node), direction='minimize')#, pruner=optuna.pruners.MedianPruner(n_warmup_steps=10), sampler=optuna.samplers.TPESampler(seed=123))
+    study = optuna.create_study(study_name='energy_reduce_{}'.format(node), pruner=optuna.pruners.HyperbandPruner(), direction='minimize')#, pruner=optuna.pruners.MedianPruner(n_warmup_steps=10), sampler=optuna.samplers.TPESampler(seed=123))
     study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs)
     return study.best_trial
 
