@@ -2198,7 +2198,7 @@ def egrid_from_atoms2(ase_atoms, spacing=0.5, blocksize=20000, forcefield_mixed=
         # * map the grid point energy function that uses position and cell, on to the grid points
         grid2 = da.map_blocks(gpe_aabb, grid, ab_repeat, forcefield_mixed_repeat, cutoff=cutoff, dtype=np.float64,drop_axis=1)
         grid2 = grid2.reshape(shape)
-        grid2 = da.from_array(grid2.compute(scheduler='threads')).rechunk(chunks=(10,10,10)).reshape(shape)
+        grid2 = da.from_array(grid2.compute()).rechunk(chunks=(10,10,10)).reshape(shape)
     
     else:
         # * map the grid point energy function that uses position and cell, on to the grid points
@@ -2253,7 +2253,7 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
         coords = da.from_array(coords, chunks=(block_size,3))
 
         #* map the gpe_aabb function on the coords and compute the energies
-        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute(scheduler='threads')
+        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute()
 
         # * get the grid point energies for the points in the group
         # energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
@@ -2280,7 +2280,7 @@ def get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cut
             coords = coords[np.random.choice(ncoords, ncoords_sample, replace=False),:]
 
         # * compute the enrgies in parallel
-        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute(scheduler='threads') 
+        energies = coords.map_blocks(gpe_aabb, ab_repeat, forcefield_mixed_repeat, cutoff, dtype=np.float64, drop_axis=1).compute() 
         # energies = gpe_aabb(coords, ab_repeat, forcefield_mixed_repeat, cutoff)
 
     if return_coords:
@@ -2554,7 +2554,7 @@ def add_clustering_to_rag_energy_js(rag, regions, energy_interpolator=None, use_
         #* let's add edges between the pbc groups based on teh JS distance
         iterlist = list(itertools.combinations(range(len(pbc_groups)), 2))
         import dask.bag as db
-        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute(scheduler='threads')
+        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute()
         # * print the the JS distances between regions
         # print(js_dist)
         #* check wher teh JS distance is less than the threshold and add edges from iterlist
@@ -2596,7 +2596,7 @@ def add_clustering_to_rag_energy_js(rag, regions, energy_interpolator=None, use_
         #* let's add edges between the pbc groups based on teh JS distance
         iterlist  = list(itertools.combinations(range(len(rag.nodes())), 2))
         import dask.bag as db
-        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute(scheduler='threads')
+        js_dist = db.from_sequence(iterlist).map(get_js_dist).compute()
         #* check wher teh JS distance is less than the threshold and add edges from iterlist
         add_these_edges = [iterlist[k] for k in range(len(iterlist)) if js_dist[k] < js_threshold]
         # print('adding these edges: ', add_these_edges)
