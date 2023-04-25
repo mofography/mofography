@@ -2754,14 +2754,14 @@ def add_best_optuna_trial_to_rag(rag, ref_coords, energy_interpolator, molecule_
         _, unique_indices, reconstruct_indices = np.unique(list(cluster_dict.values()), return_index=True, return_inverse=True)
         nodes_to_test_at = keys_list[unique_indices]
         best_trials = db.from_sequence([node for node in nodes_to_test_at]).map(
-            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=n_trials, n_jobs=n_jobs).compute(scheduler='threads')
+            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=n_trials, n_jobs=n_jobs).compute()
         for i,node in enumerate(nodes_to_test_at):
             rag.nodes[node]['best_trial_{}'.format(molecule_name)] = best_trials[i]
     
     # * do this for all the pockets regardless of teh clustering
     else:
         best_trials = db.from_sequence([node for node in rag.nodes if rag.nodes[node]['maxima_radii'] > 0.5]).map(
-            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=50, n_jobs=-1).compute(scheduler='threads')
+            optimize_molecule_at_node, ref_coords=ref_coords, rag=rag, energy_interpolator=energy_interpolator, n_trials=50, n_jobs=-1).compute()
         #* add the best trial property to rag
         for node, trial in zip(rag.nodes, best_trials):
             rag.nodes[node]['best_trial_{}'.format(molecule_name)] = trial
