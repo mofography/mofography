@@ -1107,6 +1107,226 @@ def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
             G.nodes[props[pi]['label']]['psd_y_pbc'] = psd_y_pbc
     
     return G
+def add_clustering_to_rag_geometry_js(rag, props, pbc_groups,  ase_atoms, shape, use_pbc=True, js_threshold=0.15):
+
+
+    """
+    Adds cluster information to a region adjacency graph (RAG) by calculating the Jensen-Shannon distance between two histograms of distances.
+
+    Args:
+        rag (networkx.Graph): the RAG graph
+        props (list): list of properties of each region in the RAG
+        pbc_groups (list): list of groups of regions with periodic boundary conditions (PBC)
+        ase_atoms (ase.Atoms): ASE atoms object
+        shape (tuple): shape of the region
+        use_pbc (bool): whether to use PBC or not
+        js_threshold (float): the threshold for the Jensen-Shannon distance
+
+    Returns:
+        networkx.Graph: the RAG with cluster information added under keys 'cluster_geom_pbc' or 'cluster_geom_nopbc' depending on whether 'use_pbc' is True or False
+    """
+
+
+    def get_pbc_distances(coords, centroid_pbc, ase_atoms):
+        """
+        > The function takes the coordinates of the grid points in the region, the centroid of the region, and
+        the atoms object, and returns the distances of the grid points from the periodic region centroid
+        
+        :param coords: the coordinates of the atoms in the cluster
+        :param centroid_pbc: the centroid of the cluster in the PBC frame
+        :param ase_atoms: ASE atoms object
+        :return: The distances between the centroid and the atoms in the cluster.
+        """
+        
+        from ase.geometry import complete_cell 
+        cell = complete_cell(ase_atoms.get_cell()).T
+        # cell_inv = np.linalg.inv(cell) 
+        df = coords - centroid_pbc
+        df = (df - np.round(df))
+        distances = np.linalg.norm(np.dot(cell, df.T).T, axis=1)
+        return distances
+    def get_js_dist_geom(i, j):
+        """
+        Calculates the Jensen-Shannon distance between two histograms of distances
+        for a given time point t.
+
+        Args:
+            t (int): the index of the time point to calculate the distance for
+
+        Returns:
+            float: the Jensen-Shannon distance between the two histograms
+
+        Raises:
+            IndexError: if t is out of range for the distances_list array
+        """
+        d1 = distances_list[i]
+        d2 = distances_list[j]
+        d1 =  d1[np.isfinite(d1)]
+        d2 =  d2[np.isfinite(d2)]
+        _, bins = np.histogram(np.hstack((d1, d2)), bins=20)
+        d1_hist, bins = np.histogram(d1, bins=bins)
+        d2_hist, bins = np.histogram(d2, bins=bins)
+        return jensenshannon(d1_hist, d2_hist)
+
+
+    from scipy import stats 
+    import numpy as np 
+    import copy
+    from .helper import find_coord_from_indices
+    import itertools
+    import networkx as nx
+    from scipy.spatial.distance import jensenshannon 
+    import dask.bag as db
+    from dask import delayed
+    import dask
+    from tqdm import tqdm
+    # shape = regions.shape
+    G = copy.deepcopy(rag)
+    prop_labels = np.array([prop['label'] for prop in props])
+
+
+    # * get a list of distances
+    distances_list = []
+    if use_pbc:
+        for group in pbc_groups: 
+            prop_indices = [np.where(prop_labels==g)[0][0] for g in group]
+            # print(group, prop_indices)
+            if len(group)>1:
+                #* fractional coordinates of all the points present in this group
+                coords = np.vstack([props[pi]['coords'] for pi in prop_indices])/shape 
+                # print(coords.shape)
+                #* pbc centroid of the group in fractional coordinates
+                centroid = stats.circmean(coords, axis=0, low=0, high=1)
+                #* distances for the group in cartesian units
+                distances = get_pbc_distances(coords, centroid, ase_atoms)
+                # * histogram of the distances and bin centers
+
+                distances_list.append(distances)
+                # psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+                # psd_x_pbc = (bine[1:] + bine[:-1])/2
+                # # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+                # for i, g in enumerate(group):
+                #     G.nodes[props[prop_indices[i]]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+                #     # G.nodes[props[prop_indices[i]]['label']]['psd_x_pbc'] = psd_x_pbc
+                #     # G.nodes[props[prop_indices[i]]['label']]['psd_y_pbc'] = psd_y_pbc
+                #     G.nodes[props[prop_indices[i]]['label']]['circular_distances'] = distances
+
+            else:
+                pi = np.where(prop_labels==list( group )[0])[0][0]
+                # print(pi)
+                #* get coordinates and centroids
+                coords = props[pi]['coords']/shape
+                centroid = np.mean(coords, axis=0)
+                # * histogram of the distances and bin centers
+                distances = get_pbc_distances(coords, centroid, ase_atoms)
+                distances_list.append(distances)
+                # psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+                # psd_x_pbc = (bine[1:] + bine[:-1])/2
+
+                # # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+                # G.nodes[props[pi]['label']]['centroid_pbc'] = find_coord_from_indices(indices = centroid*shape, ase_atoms=ase_atoms, shape=shape)
+                # # # The code is assigning the value of `psd_y_pbc` to the `'psd_y_pbc'` attribute of a node
+                # # # in a graph `G`. The node is identified by the label stored in `props[pi]['label']`.
+                # # # The code is assigning the value of `psd_x_pbc` to the `'psd_x_pbc'` attribute of a node
+                # # # in a graph `G`. The node is identified by the label stored in `props[pi]['label']`.
+                # # G.nodes[props[pi]['label']]['psd_x_pbc'] = psd_x_pbc
+                # # G.nodes[props[pi]['label']]['psd_y_pbc'] = psd_y_pbc
+                # G.nodes[props[pi]['label']]['noncircular_distances'] = distances
+    else:
+        for node in rag.nodes:
+            pi = np.where(prop_labels==node)[0][0]
+            coords = props[pi]['coords']/shape
+            centroid = np.mean(coords, axis=0)
+            distances =get_pbc_distances(coords, centroid, ase_atoms)
+            distances_list.append(distances)
+
+
+    # * now copute the js graph
+    if use_pbc:
+        # if pbc_groups is None:
+        #     raise ValueError('pbc_groups must be provided if use_pbc=True')
+        
+        # * we will be classifying the pbc groups
+        # energies_list = [get_energies_for_group2(list(
+        #     g), regions, energy_interpolator=energy_interpolator) for g in pbc_groups]
+        
+        #* define an empty graph
+        js_graph = nx.Graph()
+        js_graph.add_nodes_from(range(len(pbc_groups)))
+
+
+        # distances_list  = 
+        # energies_list = [get_energies_for_group2(list(g), regions, energy_interpolator=energy_interpolator) for g in pbc_groups]
+        #* let's add edges between the pbc groups based on teh JS distance
+        iterlist = list(itertools.combinations(range(len(pbc_groups)), 2))
+
+
+        js_dist = [get_js_dist_geom(t[0], t[1]) for t in tqdm(iterlist, desc='comp. dist. for clustering')]
+        # for t in iterlist:
+        #     js_dist.append(delayed(get_js_dist_geom)(t[0], t[1]))
+        # js_dist = dask.compute(js_dist)
+        print(js_dist)
+        # js_dist = db.from_sequence(iterlist).map(get_js_dist_geom).compute()
+        # * print the the JS distances between regions
+        # print(js_dist)
+        #* check wher teh JS distance is less than the threshold and add edges from iterlist
+        add_these_edges  = [iterlist[k] for k in range(len(js_dist)) if js_dist[k] < js_threshold]
+        # print('adding these edges: ', add_these_edges)
+        js_graph.add_edges_from(add_these_edges)
+        # for k, (i, j) in enumerate(iterlist):
+        #     # js = get_js_dist(i, j)
+        #     js = js_dist[k]
+        #     print(
+        #         f'Jensen-Shannon distance for {i}:{pbc_groups[i]} and {j}:{pbc_groups[j]} is {js}')
+        #     if js < js_threshold:
+        #         js_graph.add_edge(i, j)
+        conn = list(nx.connected_components(js_graph))
+
+        # print('connected components are: ', conn)
+        energy_groups = [set(itertools.chain.from_iterable(
+            np.array(pbc_groups)[list(c)])) for c in conn]
+
+        # * add the cluster info to the rag
+        for i in G.nodes():
+            G.nodes[i]['cluster_geom_pbc'] = str(
+                np.where([i in g for g in energy_groups])[0][0])
+    elif use_pbc == False:
+            # * we will be working with the actual nodes (regions)
+            # energies_list = [get_energies_for_group2(
+            #     [node], regions, energy_interpolator=energy_interpolator) for node in rag.nodes()]
+            
+            
+            # energies_list = [get_energies_for_group(
+            #     [node], props, ase_atoms, forcefield_mixed, shape, cutoff=cutoff, sample_fraction=sample_fraction) for node in rag.nodes()]
+            #* define empty graph        
+            js_graph = nx.Graph()
+            js_graph.add_nodes_from(range(len(G.nodes())))
+            
+            # energies_list = [get_energies_for_group2(
+            #     [node], regions, energy_interpolator=energy_interpolator) for node in rag.nodes()]
+
+            #* let's add edges between the pbc groups based on teh JS distance
+            iterlist  = list(itertools.combinations(range(len(G.nodes())), 2))
+
+            js_dist = [get_js_dist_geom(t[0], t[1]) for t in tqdm(iterlist, desc='comp. dist. for clustering')]
+            add_these_edges = [iterlist[k] for k in range(len(iterlist)) if js_dist[k] < js_threshold]
+            # print('adding these edges: ', add_these_edges)
+
+            js_graph.add_edges_from(add_these_edges)
+
+            # for i, j in itertools.combinations(len(rag.nodes()), 2):
+            #     js = get_js_dist(i,j)
+            #     if js < js_threshold:
+            #         js_graph.add_edge(i, j)
+            conn = list(nx.connected_components(js_graph))
+            # print('connected components are: ', conn)
+            #* add the clustering info  to the rag
+            for i in G.nodes():
+                G.nodes[i]['cluster_geom_nopbc'] = str(
+                    np.where([i in g for g in conn])[0][0])
+
+
+    return G
 def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kwargs):
     """
     > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
