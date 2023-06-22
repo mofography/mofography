@@ -789,6 +789,7 @@ def AABB_on_atoms(ase_atoms, points=None):
     # Perform the nearest neighbor query with n-neighbors (10 by default)
         
     return ab
+
 def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 
     import numpy as np
@@ -804,28 +805,32 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
         rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
 
         map_list = np.unique(list(zip(llr.flatten(), rrr.flatten())), axis=0)
-        map_list = np.vstack([m for m in map_list if np.all(m!=0)])
-        flags = np.vstack([[maxima[k - 1][a]>wall_thickness, maxima[v-1][a]<(shape[a]-wall_thickness)] for k,v in map_list])    
-        flags = np.logical_and(flags[:,0],flags[:,1])
-        # window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1) for i,m in enumerate(map_list) if flags[i]]
-        wregs_l  = [(np.array([m[0], m[1]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
-        wregs_r  = [(np.array([m[1], m[0]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
-        window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1).T for i, m in enumerate(map_list) if flags[i]]
-        ic(window_indices)
-        if np.any(flags):
-            window_indices_l = np.insert(np.vstack(window_indices), [a], np.zeros((len(window_indices),1)), axis=1  )
-            window_indices_r = np.insert(np.vstack(window_indices), [a], (shape[a] -1)*np.ones((len(window_indices),1)), axis=1 )
-            window_radii_l = np.vstack(dinterp(window_indices_l/regions.shape))
-            window_radii_r = np.vstack(dinterp(window_indices_r/regions.shape))
-            window_coords_l = find_coord_from_indices(window_indices_l, shape=shape, ase_atoms=ase_atoms)
-            window_coords_r = find_coord_from_indices(window_indices_r, shape=shape, ase_atoms=ase_atoms)
-            ic(window_coords_l)
-            ic(window_coords_r)
-            window_rows_l = np.vstack([[*w, np.array([ window_coords_l[i] ]), window_radii_l[i]] for i,w in enumerate(wregs_l)])
-            window_rows_r = np.vstack([[*w, np.array([ window_coords_r[i] ]), window_radii_r[i]] for i,w in enumerate(wregs_r)])
-            wall_windows.append(window_rows_l) 
-            wall_windows.append(window_rows_r) 
-            
+        not_background = [m for m in map_list if np.all(m!=0)]
+        
+        # * there should be some non background mappings in the direction
+        if len(not_background) > 0:
+            map_list = np.vstack([m for m in map_list if np.all(m!=0)])
+            flags = np.vstack([[maxima[k - 1][a]>wall_thickness, maxima[v-1][a]<(shape[a]-wall_thickness)] for k,v in map_list])    
+            flags = np.logical_and(flags[:,0],flags[:,1])
+            # window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1) for i,m in enumerate(map_list) if flags[i]]
+            wregs_l  = [(np.array([m[0], m[1]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
+            wregs_r  = [(np.array([m[1], m[0]]), True,'periodic') for i, m in enumerate(map_list) if flags[i]]
+            window_indices = [np.vstack(np.where(llr==m[0])).mean(axis=1).T for i, m in enumerate(map_list) if flags[i]]
+            ic(window_indices)
+            if np.any(flags):
+                window_indices_l = np.insert(np.vstack(window_indices), [a], np.zeros((len(window_indices),1)), axis=1  )
+                window_indices_r = np.insert(np.vstack(window_indices), [a], (shape[a] -1)*np.ones((len(window_indices),1)), axis=1 )
+                window_radii_l = np.vstack(dinterp(window_indices_l/regions.shape))
+                window_radii_r = np.vstack(dinterp(window_indices_r/regions.shape))
+                window_coords_l = find_coord_from_indices(window_indices_l, shape=shape, ase_atoms=ase_atoms)
+                window_coords_r = find_coord_from_indices(window_indices_r, shape=shape, ase_atoms=ase_atoms)
+                ic(window_coords_l)
+                ic(window_coords_r)
+                window_rows_l = np.vstack([[*w, np.array([ window_coords_l[i] ]), window_radii_l[i]] for i,w in enumerate(wregs_l)])
+                window_rows_r = np.vstack([[*w, np.array([ window_coords_r[i] ]), window_radii_r[i]] for i,w in enumerate(wregs_r)])
+                wall_windows.append(window_rows_l) 
+                wall_windows.append(window_rows_r) 
+                
     if len(wall_windows)>0:
         wall_windows =  np.vstack(wall_windows)
     return wall_windows
