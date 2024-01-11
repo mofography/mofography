@@ -648,7 +648,7 @@ def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None):
     
     import numpy as np
     # * compute a region adjacency graph from skimage
-    from skimage.future import graph 
+    from skimage import graph 
     from .helper import find_coord_from_indices
     gr_mean = graph.rag_mean_color(dgrid, regions)
     
