@@ -21,11 +21,19 @@ conda activate mgr_env
 ```
 
 ```bash
-conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream cupy sparse scikit-learn rich numpy scipy copy trimesh pyvista plotly itertools pandas asyncio furl requests
+conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud cupy
 ```
 
+if you'd like to install these dependencies using pip, the name of the freud package is `freud-analysis` so use this command instead
+  
+  ```bash
+  pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
+  ```
+
+*Note*: If you don't have a GPU, then exclude cupy from the list of dependencies.
+
 - Clone the repo 
-  Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, you can clone the repo using git. If you are using git, you can clone the repo using the following command
+  Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, you can clone the repo using git. If you are using git, you may instead clone the repo using the following command from your terminal with git installed
 
 ```bash
 git clone https://github.com/arung-northwestern/mofography.git .
@@ -46,7 +54,7 @@ import os
 sys.path.append(os.path.abspath('path_to_mofography'))
 ```
 
-of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine.
+of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine. This way we are not installing anything yet, so if there are changes to the source code, you can simply pull the latest changes using 'git pull' and use them.
 `
 
 - Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package. Let's use a full-on clustering workflow with default parameters on the IRMOF-1 structure. The details of the workflow are explained in the [Quick cluster](docs/quick_cluster.ipynb) tutorial.
