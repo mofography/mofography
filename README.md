@@ -16,7 +16,7 @@ You can simply try out mofography after installing just the dependencies. In fac
 - Install the dependencies using conda or pip. You may create a new conda environment with python 3.9 for this, but it is not necessary. 
 
 ```bash
-conde create -n mgr_env python=3.9
+conda create -n mgr_env python=3.9
 conda activate mgr_env
 ```
 
@@ -25,7 +25,7 @@ conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-ima
 ```
 
 if you'd like to install these dependencies using pip, the name of the `freud` package is `freud-analysis` so use this command instead
-  
+ ed
   ```bash
   pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
   ```
