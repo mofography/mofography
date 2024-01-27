@@ -12,6 +12,63 @@
 
 
 
+def find_functional_groups(ase_atoms, functional_groups):
+
+    # Convert the supercell to an RDKit molecule
+    from io import StringIO
+    import networkx as nx
+    from rdkit import Chem
+    from ase import Atoms
+    from ase.io import write, read
+    from networkx.algorithms import isomorphism
+    pdb_str = StringIO()
+    write(pdb_str, ase_atoms, format='proteindatabank')
+    mol = Chem.MolFromPDBBlock(pdb_str.getvalue(), sanitize=False, removeHs=False)
+    
+    mol.UpdatePropertyCache(strict=False)
+    Chem.GetSymmSSSR(mol)
+
+    # Convert the RDKit molecule to a NetworkX graph
+    G = nx.Graph()
+    for atom in mol.GetAtoms():
+        G.add_node(atom.GetIdx(),
+                   atomic_num=atom.GetAtomicNum(),
+                   formal_charge=atom.GetFormalCharge(),
+                   chirality=atom.GetChiralTag())
+    for bond in mol.GetBonds():
+        G.add_edge(bond.GetBeginAtomIdx(),
+                   bond.GetEndAtomIdx(),
+                   bond_type=bond.GetBondType())
+
+    # Convert functional groups to NetworkX graphs
+    functional_group_graphs = {name: Chem.MolFromSmarts(smarts) for name, smarts in functional_groups.items()}
+
+    # Custom node match function
+    def node_match(node1, node2):
+        return node1['atomic_num'] == node2['atomic_num']
+
+    # Custom edge match function
+    def edge_match(edge1, edge2):
+        return edge1['bond_type'] == edge2['bond_type']
+
+    # Search for functional groups in the molecule graph
+    matches = {}
+    for name, fg_mol in functional_group_graphs.items():
+        fg_G = nx.Graph()
+        for atom in fg_mol.GetAtoms():
+            fg_G.add_node(atom.GetIdx(),
+                          atomic_num=atom.GetAtomicNum(),
+                          formal_charge=atom.GetFormalCharge(),
+                          chirality=atom.GetChiralTag())
+        for bond in fg_mol.GetBonds():
+            fg_G.add_edge(bond.GetBeginAtomIdx(),
+                          bond.GetEndAtomIdx(),
+                          bond_type=bond.GetBondType())
+        GM = isomorphism.GraphMatcher(G, fg_G, node_match=node_match, edge_match=edge_match)
+        if GM.subgraph_is_isomorphic():
+            matches[name] = list(GM.subgraph_isomorphisms_iter())
+
+    return matches
 
 
 
