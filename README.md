@@ -21,13 +21,13 @@ conda activate mgr_env
 ```
 
 ```bash
-conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud cupy
+conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy
 ```
 
 if you'd like to install these dependencies using pip, the name of the `freud` package is `freud-analysis` so use this command instead
  ed
   ```bash
-  pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
+  pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis nbformat cupy
   ```
 
 *Note*: If you don't have a GPU, then exclude `cupy` from the list of dependencies.
