@@ -1391,9 +1391,9 @@ def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kw
 
     # *  get the data array, while reordering to match the node order   
     if no_pbc:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values())
+        X = np.vstack(list(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values()))
     else:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
+        X = np.vstack(list(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values()))
 
     # * do the clustering using agglomerative clustering 
     from sklearn.cluster import AgglomerativeClustering 
@@ -1443,9 +1443,9 @@ def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, 
 
     # *  get the data array, while reordering to match the node order   
     if no_pbc:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values())
+        X = np.vstack(list(dict(sorted(nx.get_node_attributes(rag2, 'psd_y').items())).values()))
     else:
-        X = np.vstack(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values())
+        X = np.vstack(list(dict(sorted(nx.get_node_attributes(rag2, 'psd_y_pbc').items())).values()))
 
     if use_kpca:
         # get kwargs that are passed, if not set defaults
