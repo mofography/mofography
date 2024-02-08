@@ -421,85 +421,85 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
 
     return reg_labels, new_max_indices.T
 
-def connections_from_regions():
+# def connections_from_regions():
 
-    """
-    It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
-    threshold, and returns a list of connections between regions, and the centers of the windows between
-    them
+#     """
+#     It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
+#     threshold, and returns a list of connections between regions, and the centers of the windows between
+#     them
     
-    :param region_labels: The labels of the regions, as returned by the skimage.measure.label function
-    :param maxima: the maxima of the image
-    :param ase_atoms: ASE atoms object
-    :param wall_windows: If True, then the windows on the wall are also calculated, defaults to True
-    (optional)
-    :param distance_threshold: The distance threshold for the agglomerative clustering
-    :return: A list of connections between regions.
-    """
+#     :param region_labels: The labels of the regions, as returned by the skimage.measure.label function
+#     :param maxima: the maxima of the image
+#     :param ase_atoms: ASE atoms object
+#     :param wall_windows: If True, then the windows on the wall are also calculated, defaults to True
+#     (optional)
+#     :param distance_threshold: The distance threshold for the agglomerative clustering
+#     :return: A list of connections between regions.
+#     """
 
 
-    from skimage.segmentation import find_boundaries
-    import numpy as np
-    import itertools
-    import ase
-    # from sklearn.cluster import DBSCAN 
-    # from sklearn.preprocessing import StandardScaler
-    from icecream import ic
-    from sklearn.cluster import AgglomerativeClustering
-    from .helper import interpolate_labels, get_fractional_coordinates
-    A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
-    from icecream import ic
-    def check_connected(regs):
-        import numpy as np
-        from sklearn.cluster import AgglomerativeClustering
-        i = regs[0]
-        j = regs[1]
-        ic.disable()
-        ic(regs)
+#     from skimage.segmentation import find_boundaries
+#     import numpy as np
+#     import itertools
+#     import ase
+#     # from sklearn.cluster import DBSCAN 
+#     # from sklearn.preprocessing import StandardScaler
+#     from icecream import ic
+#     from sklearn.cluster import AgglomerativeClustering
+#     from .helper import interpolate_labels, get_fractional_coordinates
+#     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+#     from icecream import ic
+#     def check_connected(regs):
+#         import numpy as np
+#         from sklearn.cluster import AgglomerativeClustering
+#         i = regs[0]
+#         j = regs[1]
+#         ic.disable()
+#         ic(regs)
     
-        check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
-        if np.sum(check_flag) > 0:
-            # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
-            windices = np.vstack(np.where(check_flag)).T  # * (N,3)
-            window_points = np.dot(A_unit, (windices / region_labels.shape).T).T  # * (N,3)
-            # ic(window_points)
-            # * No clustering
-            # window_centers = np.mean(window_points, axis=0)
+#         check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
+#         if np.sum(check_flag) > 0:
+#             # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
+#             windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+#             window_points = np.dot(A_unit, (windices / region_labels.shape).T).T  # * (N,3)
+#             # ic(window_points)
+#             # * No clustering
+#             # window_centers = np.mean(window_points, axis=0)
             
-            # * DBScan
-            # X_scaled = StandardScaler().fit_transform(window_points)
-            # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
-            # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+#             # * DBScan
+#             # X_scaled = StandardScaler().fit_transform(window_points)
+#             # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
+#             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
             
-            # if len(window_points) >1:
-            # * Agglomerative
-            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
-            window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
-        # else:
-            # window_centers = window_points
-            window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
-            window_radii = np.array(dinterp(window_fractional))
-            return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
-        else:
-            return np.array([regs, False,'internal', None, None], dtype='object')
+#             # if len(window_points) >1:
+#             # * Agglomerative
+#             ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
+#             window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
+#         # else:
+#             # window_centers = window_points
+#             window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
+#             window_radii = np.array(dinterp(window_fractional))
+#             return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
+#         else:
+#             return np.array([regs, False,'internal', None, None], dtype='object')
     
-    dinterp = interpolate_labels(dgrid)
-    # * Find the outer boundary of each individual region
-    regions_to_check = np.delete(np.unique(region_labels),0)
-    ic(regions_to_check)
-    outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
-    ic(len(outer))
-    # * Check for connectedness between regions
-    check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
-    connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
-    # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
+#     dinterp = interpolate_labels(dgrid)
+#     # * Find the outer boundary of each individual region
+#     regions_to_check = np.delete(np.unique(region_labels),0)
+#     ic(regions_to_check)
+#     outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
+#     ic(len(outer))
+#     # * Check for connectedness between regions
+#     check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
+#     connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
+#     # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
     
-    #* Windows on the wall are to be calculated
-    if wall_windows:
-        wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
-        if len(wwl)>0:
-            connections_list.append(wwl)
-    return np.vstack(connections_list)
+#     #* Windows on the wall are to be calculated
+#     if wall_windows:
+#         wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
+#         if len(wwl)>0:
+#             connections_list.append(wwl)
+#     return np.vstack(connections_list)
     # return np.vstack([c for c in np.vstack(connections_list) if c[1]])# for only the true connections use connections_list[:,[0,2]][np.where(connections_list[:,1]==True)] #np.vstack(check_list[np.where(flag_list[:, 0])]), np.round(np.vstack(flag_list[:, 1][np.where(flag_list[:, 0])]), decimals=2))
 
 # def get_wall_windows(regions, maxima, ase_atoms):
