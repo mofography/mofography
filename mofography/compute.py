@@ -421,85 +421,85 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
 
     return reg_labels, new_max_indices.T
 
-def connections_from_regions():
+# def connections_from_regions():
 
-    """
-    It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
-    threshold, and returns a list of connections between regions, and the centers of the windows between
-    them
+#     """
+#     It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
+#     threshold, and returns a list of connections between regions, and the centers of the windows between
+#     them
     
-    :param region_labels: The labels of the regions, as returned by the skimage.measure.label function
-    :param maxima: the maxima of the image
-    :param ase_atoms: ASE atoms object
-    :param wall_windows: If True, then the windows on the wall are also calculated, defaults to True
-    (optional)
-    :param distance_threshold: The distance threshold for the agglomerative clustering
-    :return: A list of connections between regions.
-    """
+#     :param region_labels: The labels of the regions, as returned by the skimage.measure.label function
+#     :param maxima: the maxima of the image
+#     :param ase_atoms: ASE atoms object
+#     :param wall_windows: If True, then the windows on the wall are also calculated, defaults to True
+#     (optional)
+#     :param distance_threshold: The distance threshold for the agglomerative clustering
+#     :return: A list of connections between regions.
+#     """
 
 
-    from skimage.segmentation import find_boundaries
-    import numpy as np
-    import itertools
-    import ase
-    # from sklearn.cluster import DBSCAN 
-    # from sklearn.preprocessing import StandardScaler
-    from icecream import ic
-    from sklearn.cluster import AgglomerativeClustering
-    from .helper import interpolate_labels, get_fractional_coordinates
-    A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
-    from icecream import ic
-    def check_connected(regs):
-        import numpy as np
-        from sklearn.cluster import AgglomerativeClustering
-        i = regs[0]
-        j = regs[1]
-        ic.disable()
-        ic(regs)
+#     from skimage.segmentation import find_boundaries
+#     import numpy as np
+#     import itertools
+#     import ase
+#     # from sklearn.cluster import DBSCAN 
+#     # from sklearn.preprocessing import StandardScaler
+#     from icecream import ic
+#     from sklearn.cluster import AgglomerativeClustering
+#     from .helper import interpolate_labels, get_fractional_coordinates
+#     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+#     from icecream import ic
+#     def check_connected(regs):
+#         import numpy as np
+#         from sklearn.cluster import AgglomerativeClustering
+#         i = regs[0]
+#         j = regs[1]
+#         ic.disable()
+#         ic(regs)
     
-        check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
-        if np.sum(check_flag) > 0:
-            # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
-            windices = np.vstack(np.where(check_flag)).T  # * (N,3)
-            window_points = np.dot(A_unit, (windices / region_labels.shape).T).T  # * (N,3)
-            # ic(window_points)
-            # * No clustering
-            # window_centers = np.mean(window_points, axis=0)
+#         check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
+#         if np.sum(check_flag) > 0:
+#             # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
+#             windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+#             window_points = np.dot(A_unit, (windices / region_labels.shape).T).T  # * (N,3)
+#             # ic(window_points)
+#             # * No clustering
+#             # window_centers = np.mean(window_points, axis=0)
             
-            # * DBScan
-            # X_scaled = StandardScaler().fit_transform(window_points)
-            # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
-            # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+#             # * DBScan
+#             # X_scaled = StandardScaler().fit_transform(window_points)
+#             # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
+#             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
             
-            # if len(window_points) >1:
-            # * Agglomerative
-            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
-            window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
-        # else:
-            # window_centers = window_points
-            window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
-            window_radii = np.array(dinterp(window_fractional))
-            return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
-        else:
-            return np.array([regs, False,'internal', None, None], dtype='object')
+#             # if len(window_points) >1:
+#             # * Agglomerative
+#             ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
+#             window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
+#         # else:
+#             # window_centers = window_points
+#             window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
+#             window_radii = np.array(dinterp(window_fractional))
+#             return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
+#         else:
+#             return np.array([regs, False,'internal', None, None], dtype='object')
     
-    dinterp = interpolate_labels(dgrid)
-    # * Find the outer boundary of each individual region
-    regions_to_check = np.delete(np.unique(region_labels),0)
-    ic(regions_to_check)
-    outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
-    ic(len(outer))
-    # * Check for connectedness between regions
-    check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
-    connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
-    # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
+#     dinterp = interpolate_labels(dgrid)
+#     # * Find the outer boundary of each individual region
+#     regions_to_check = np.delete(np.unique(region_labels),0)
+#     ic(regions_to_check)
+#     outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
+#     ic(len(outer))
+#     # * Check for connectedness between regions
+#     check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
+#     connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
+#     # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
     
-    #* Windows on the wall are to be calculated
-    if wall_windows:
-        wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
-        if len(wwl)>0:
-            connections_list.append(wwl)
-    return np.vstack(connections_list)
+#     #* Windows on the wall are to be calculated
+#     if wall_windows:
+#         wwl = get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
+#         if len(wwl)>0:
+#             connections_list.append(wwl)
+#     return np.vstack(connections_list)
     # return np.vstack([c for c in np.vstack(connections_list) if c[1]])# for only the true connections use connections_list[:,[0,2]][np.where(connections_list[:,1]==True)] #np.vstack(check_list[np.where(flag_list[:, 0])]), np.round(np.vstack(flag_list[:, 1][np.where(flag_list[:, 0])]), decimals=2))
 
 # def get_wall_windows(regions, maxima, ase_atoms):
@@ -674,6 +674,36 @@ def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
         # bin_edges = np.histogram(region_prop['coords']-region_prop['centroid'], bins=bins, normed=True, density=1)[1]
         bin_centers = (bin_edges[1:]+bin_edges[:-1])/2
         G.nodes[region_prop['label']]['psd_x'] = bin_centers
+    return G
+
+
+
+
+def rag_from_connections(connections, maxima, only_use_internal=True):
+    
+    """ Create a basic networkx graph (with no properties annotated) from the array of connections
+    :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
+    three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
+    :param connections: numpy array
+
+    :raises:
+
+    :rtype: a graph object of the class networkx.Graph
+    """
+    import networkx as nx 
+    import numpy as np
+    G = nx.Graph()
+    # number_of_regions = np.max([c[0] for c  in connections])
+    number_of_nodes = len(maxima) #np.max([c[0] for c  in connections])
+    # print(number_of_nodes)
+    # nx.set_node_attributes(G, values={i+1:i+1 for i in range(number_of_nodes)}, name='labels')
+    G.add_nodes_from(range(1, number_of_nodes+1)) 
+    if only_use_internal:# range stops one short
+        G.add_edges_from([c[0] for c in connections if np.logical_and(c[1], c[2] =='internal')])
+    else:
+        G.add_edges_from([c[0] for c in connections if c[1]])
+    # add labels property to rag
+    nx.set_node_attributes(G, values={i+1:[i+1] for i in range(len(G.nodes))}, name='labels')
     return G
 
 def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None):
@@ -999,25 +1029,193 @@ def add_props_to_rag(rag, props):
         node_index = [p['label']==node for p in props].index(True)
         rag.nodes[node]['props'] = props[node_index]
     return rag
-def do_it_all(ase_atoms,spacing=0.25):
-    """
-    > It takes an ase atoms object of the mof, and returns a list of objects that are useful for analyzing the pore
-    network of the material
+# def do_it_all(ase_atoms,spacing=0.25):
+#     """
+#     > It takes an ase atoms object of the mof, and returns a list of objects that are useful for analyzing the pore
+#     network of the material
     
-    :param ase_atoms: the atoms object
-    :param spacing: the spacing of the grid
-    :return: updated_atoms, grid,regions, maxima, connections, pgraph
-    """
-    from .helper import find_coord_from_indices
-    from .analyze import update_with_covalent_bonds
-    updated_atoms =update_with_covalent_bonds(ase_atoms)
-    grid = dgrid_from_atoms(ase_atoms=ase_atoms, spacing=spacing)
-    regions, maxima =regions_from_dgrid(grid.compute(), mask_thickness=1.5, exclude_border=False, min_distance=int(2/spacing), threshold_abs=1)
-    connections = connections_from_regions(maxima=maxima, region_labels=regions,ase_atoms=ase_atoms,dgrid=grid.compute(),minimum_window_separation=1,wall_windows=True)
-    pgraph = graph_from_connections(connections, maxima, only_use_internal=True)
-    pgraph = add_props_to_graph(pgraph, node_props = [find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=updated_atoms)], node_prop_names=['node_coords'])
-    return [updated_atoms, grid,regions, maxima, connections, pgraph]
+#     :param ase_atoms: the atoms object
+#     :param spacing: the spacing of the grid
+#     :return: updated_atoms, grid,regions, maxima, connections, pgraph
+#     """
+#     from .helper import find_coord_from_indices
+#     from .analyze import update_with_covalent_bonds
+#     updated_atoms =update_with_covalent_bonds(ase_atoms)
+#     grid = dgrid_from_atoms(ase_atoms=ase_atoms, spacing=spacing)
+#     regions, maxima =regions_from_dgrid(grid.compute(), mask_thickness=1.5, exclude_border=False, min_distance=int(2/spacing), threshold_abs=1)
+#     connections = connections_from_regions(maxima=maxima, region_labels=regions,ase_atoms=ase_atoms,dgrid=grid.compute(),minimum_window_separation=1,wall_windows=True)
+#     pgraph = graph_from_connections(connections, maxima, only_use_internal=True)
+#     pgraph = add_props_to_graph(pgraph, node_props = [find_coord_from_indices(maxima, shape=grid.shape, ase_atoms=updated_atoms)], node_prop_names=['node_coords'])
+#     return [updated_atoms, grid,regions, maxima, connections, pgraph]
 
+def interpolate_dgrid(dgrid):
+    """Create a scipy.interpolator.RegularGridInterpolator, using 'nearest' method for the region labels (or any 3D numpy grid) 
+    over a unit box ([0,1]) in all axes.
+
+    :param regions: 3D numpy array of region labels
+    :type regions: numpy.array 
+    :return: a scipy RegularGridInterpolator object that works on the fractional coordinates of atoms
+    :rtype: scipy.interpolate.RegularGridInterpolator
+    """    
+    import numpy as np
+    from scipy.interpolate import RegularGridInterpolator as RGI
+    xx = np.linspace(0,  1,dgrid.shape[0])
+    yy = np.linspace(0,  1,dgrid.shape[1])
+    zz = np.linspace(0,  1,dgrid.shape[2])
+    dl = RGI((xx, yy, zz),dgrid, method='linear')
+
+    return dl
+
+def connections_from_regions_and_dgrid(region_labels, dgrid, maxima, ase_atoms, wall_windows=True, distance_threshold=1.0, wall_thickness=2):
+
+    """
+    It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
+    threshold, and returns a list of connections between regions, and the centers of the windows between
+    them
+    
+    :param region_labels: The labels of the regions, as returned by the skimage.measure.label function
+    :param maxima: the maxima of the image
+    :param ase_atoms: ASE atoms object
+    :param wall_windows: If True, then the windows on the wall are also calculated, defaults to True
+    (optional)
+    :param distance_threshold: The distance threshold for the agglomerative clustering
+    :return: A list of connections between regions.
+    """
+
+    def check_connected(regs):
+            
+        import numpy as np
+        from icecream import ic
+        ic.disable()
+        from sklearn.cluster import AgglomerativeClustering
+        i = regs[0]
+        j = regs[1]
+        ic.disable()
+        ic(regs)
+
+        check_flag = np.logical_or(np.logical_and(region_labels == i, outer.get(j)), np.logical_and(region_labels == j, outer.get(i)))
+        if np.sum(check_flag) > 0:
+            # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
+            windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+            window_points = np.dot(A_unit, (windices / region_labels.shape).T).T  # * (N,3)
+            # ic(window_points)
+            # * No clustering
+            # window_centers = np.mean(window_points, axis=0)
+            
+            # * DBScan
+            # X_scaled = StandardScaler().fit_transform(window_points)
+            # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
+            # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+            
+            # if len(window_points) >1:
+            # * Agglomerative
+            ag = AgglomerativeClustering(n_clusters=None, linkage='single',distance_threshold=minimum_window_separation, compute_full_tree=True).fit(window_points)
+            #* we are taking the centroid of the clusters here as the window location
+            # window_centers = np.vstack([window_points[ag.labels_==i].mean(axis=0) for i in np.unique(ag.labels_) if i != -1])
+            
+            # * what if we took the index of the point where the distance value is the largest in the window boundary region, that way we don't have to worry bout
+            #* regions at the wall
+            d_windices = dgrid[tuple(windices.T)] # distance values at the window indices
+            r_windices =region_labels[tuple(windices.T)] # region labels at the window indices
+            # window_centers = [(window_points[np.argmax(d_windices[np.logical_and(r_windices[ag.labels_ == uwi]==regs[0],ag.labels_==uwi)])] + window_points[np.argmax(d_windices[np.logical_and(r_windices[ag.labels_==uwi]==regs[1],ag.labels_==uwi)])])/2.0 for uwi in np.unique(ag.labels_) if uwi != -1]
+
+            # print('These are window centers', window_centers)
+            window_centers = []
+            for uwi in np.unique(ag.labels_):
+                # for each cluster that is nota noise, do this 
+                if uwi != -1:
+                    # np.argmax(d_windices[ag.labels_==uwi])
+
+
+
+                    uwi_dvals = d_windices[ag.labels_==uwi] # distance values in the cluster with label uwi
+                    uwi_points = window_points[ag.labels_==uwi] # points in the cluster with label uwi
+                    uwi_r = r_windices[ag.labels_==uwi]
+                    
+                    # for points in first region
+
+                    # uwi_r1_indices =np.transpose((uwi_r==regs[0])).nonzero()
+                    uwi_r1_indices =(np.where)(uwi_r==regs[0])[0]
+                    # print('uwi_r1_indices are ', uwi_r1_indices)
+                    # print(uwi_r1_indices.shape)
+                    uwi_r1_dvals = uwi_dvals[uwi_r1_indices]
+                    uwi_r1_points = uwi_points[uwi_r1_indices]
+                    uwi_r1_max_indices = np.argmax(uwi_r1_dvals) #np.where(uwi_r1_dvals == np.max(uwi_r1_dvals))[0] # indices of the maximum distance values in the cluster with label uwi
+                    # print(uwi_r1_max_indices)
+                    uwi_r1_max_points = uwi_r1_points[uwi_r1_max_indices]
+
+                    
+                    
+                    # for points in second region
+                    uwi_r2_indices =(np.where)(uwi_r==regs[1])[0]
+                    uwi_r2_dvals = uwi_dvals[uwi_r2_indices]
+                    uwi_r2_points = uwi_points[uwi_r2_indices]
+                    uwi_r2_max_indices = np.where(uwi_r2_dvals == np.max(uwi_r2_dvals))[0] # indices of the maximum distance values in the cluster with label uwi
+                    uwi_r2_max_points = uwi_r2_points[uwi_r2_max_indices]
+                    
+                    # take the centroid of the two maxima of each region close to the window
+                    uwi_center = (uwi_r1_max_points + uwi_r2_max_points)/2
+
+                    # uwi_center = np.mean(uwi_max_points, axis=0) # mean of the points where the distance is at maximum if ther are multiple a.k.a the window is symmetric on each side
+                    # add that to the list of windows
+                    window_centers.append(uwi_center) 
+
+            # window_centers = np.vstack(window_centers)
+        # else:
+            # window_centers = window_points
+            window_centers = np.vstack(window_centers)
+            window_fractional = get_fractional_coordinates(window_centers,ase_atoms)
+            window_fractional = np.round(window_fractional, decimals=4)
+            window_radii = np.array(dinterp(window_fractional))
+            return np.array([regs, True,'internal', window_centers, window_radii], dtype='object') # returns a list of [[r1,r2], connected or not, array of window_centers]
+        else:
+            return np.array([regs, False,'internal', None, None], dtype='object')
+
+    from skimage.segmentation import find_boundaries
+    import numpy as np
+    import itertools
+    import ase
+    # from sklearn.cluster import DBSCAN 
+    # from sklearn.preprocessing import StandardScaler
+    from icecream import ic
+    from sklearn.cluster import AgglomerativeClustering
+    from sklearn.decomposition import PCA
+    from mofography import interpolate_labels, get_fractional_coordinates
+    import dask.bag as db
+    A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+    from icecream import ic
+    minimum_window_separation = distance_threshold
+        
+    dinterp = interpolate_dgrid(dgrid)
+    # * Find the outer boundary of each individual region
+    regions_to_check = np.delete(np.unique(region_labels),0)
+    ic(regions_to_check)
+    # outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
+    outer = {reg:find_boundaries(region_labels == reg, mode='outer') for reg in regions_to_check}
+    ic(len(outer))
+    # * Check for connectedness between regions
+    check_list = np.vstack(list(itertools.combinations(regions_to_check, 2))) # list of pairs of region labels
+    connections_list = [check_connected(c) for c in check_list] # now this step could cause an overflow
+    # connections_list = db.from_sequence(check_list).map(check_connected).compute()
+    
+    # connected_regions = [[c[0], [c[2]] for c in connections_list if c[1] == True] # Make a new list with all the 
+    
+    #* Windows on the wall are to be calculated
+    if wall_windows:
+        wwl= get_wall_windows2(regions=region_labels, maxima=maxima, dgrid=dgrid, ase_atoms=ase_atoms, wall_thickness=wall_thickness)
+        if len(wwl)>0:
+            connections_list.append(wwl)
+
+
+    # #* we have one final thing to do 
+    # # * if both the regions forming an internal window are on the same wall, then we need to set the window center and the radius to 
+    # # * that on the wall, since centroid
+
+
+    # for c in connections_list:
+    #     if np.logical_and(c[1], c[2]=='internal'):
+
+    return np.vstack(connections_list)
 def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
     """
     > For each group of nodes that are connected by periodic boundary conditions, find the centroid of
