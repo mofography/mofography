@@ -73,7 +73,9 @@ figures = mgr.quick_cluster(mat_atoms)
 
 You can find some tutorials in [Docs](https://arung-northwestern.github.io/mofography/docs)
 
-Currently, there are only a few tutorials, here's a recommended order to go through them:
+Currently, there are only a few tutorials, here's a recommended order to go through the basic ones:
+
+#### Basic tutorials
 
 - Get a feel for the whole thing [Quick cluster notebook](docs/quick_cluster.ipynb) 
 - Basic structure analysis [Basic structure analysis notebook](docs/basic_structure_io.ipynb)
@@ -84,11 +86,17 @@ Currently, there are only a few tutorials, here's a recommended order to go thro
 - Region Adjacency Graph (Pore graph) [RAG notebook](docs/region_adjacency_graph.ipynb)
 - Detecting the windows in a material [Connections and windows notebook](docs/connections_and_windows.ipynb)
 - Detecting the types of pockets [Pocket type detection notebook](docs/pockets_detection.ipynb)
-- Finer control over structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
+
+
+#### Advanced tutorials
+
+The advanced tutorials should make sense in any order once the basic tutorials are completed.
+
+- Advanced structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
 - Advanced characterization: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
 - Advanced characterization: Grab a dataset from MOFDB and perform workflow on a random materials [MOFDB notebook](docs/mofdb_example.ipynb)
 - Advanced high-throughput characterization: Construct all pore graphs for IZA dataset in parallel using Mofography and Dask [HTS Dask notebook](docs/hts_using_mofography.ipynb)
-- Advanced cheminformatics: Detected whatever functional groups/moeities in a dataset like CoREMOF [Functional groups notebook](docs/detect_functional_groups_in_dataset.ipynb)
+- Advanced cheminformatics: Detected functional groups/moeities in a dataset like CoREMOF [Functional groups notebook](docs/detect_functional_groups_in_dataset.ipynb)
   
 ### Copyright
 
