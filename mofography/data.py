@@ -163,7 +163,7 @@ def atoms_from_mofdb_df(mofdb_df):
         if a!='NaN':
             a.info['name'] = mofdb_df['name'][i]
             
-    return np.array(atoms_list)
+    return np.array(atoms_list, dtype='object')
 
 def read_raspa_pdb(path_to_file):
         """
