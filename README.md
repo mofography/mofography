@@ -93,7 +93,7 @@ Currently, there are only a few tutorials, here's a recommended order to go thro
 The advanced tutorials should make sense in any order once the basic tutorials are completed.
 
 - Advanced structure visualization [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
-- Advanced structure visualization [Framework subset visualization notebook](docs/plot_subset_as_mesh.ipynb)
+- Advanced structure visualization [Framework subset visualization notebook](docs/plot_subset_as_mesh_tutorial.ipynb)
 - Advanced characterization: Detecting channels in IRMOF-1, Complete Workflow [IRMOF channels notebook](docs/irmof_example_23aug2020.ipynb)
 - Advanced characterization: Grab a dataset from MOFDB and perform workflow on a random materials [MOFDB notebook](docs/mofdb_example.ipynb)
 - Advanced high-throughput characterization: Construct all pore graphs for IZA dataset in parallel using Mofography and Dask [HTS Dask notebook](docs/hts_using_mofography.ipynb)
