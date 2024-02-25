@@ -98,7 +98,7 @@ The advanced tutorials should make sense in any order once the basic tutorials a
 - Advanced characterization: Grab a dataset from MOFDB and perform workflow on a random materials [MOFDB notebook](docs/mofdb_example.ipynb)
 - Advanced high-throughput characterization: Construct all pore graphs for IZA dataset in parallel using Mofography and Dask [HTS Dask notebook](docs/hts_using_mofography.ipynb)
 - Advanced cheminformatics: Detected functional groups/moeities in a dataset like CoREMOF [Functional groups notebook](docs/detect_functional_groups_in_dataset.ipynb)
-  
+- Advanced Machine Learning: Compile a dataset of RAGs from scratch and perfomr Graph Convoluatinal Neural Network (GCN)  on them to prediction hydrogen adsorption at different pressures. [GCN tutorial](docs/graph_convolution_on_rags_ccr.ipynb)
 ### Copyright
 
 Copyright (c) 2022, Arun Gopalan
