@@ -9,16 +9,20 @@
                                                          
  
 # """
-
 def find_functional_groups(ase_atoms, functional_groups):
     from rdkit import Chem
     from networkx.algorithms import isomorphism
     import networkx as nx
-    # import mofography as mgr 
+
+    # Get bonds and bond orders without replication
+    bonds, bond_orders = get_bonds_and_orders_without_replication(ase_atoms)
+
+    # Store bonds and bond orders in the atoms object's info dictionary
+    ase_atoms.info['covalent_bonds'] = bonds
+    ase_atoms.info['covalent_bond_orders'] = bond_orders
 
     # Convert the supercell to a NetworkX graph
-    ase_atoms_updated = update_with_covalent_bonds(ase_atoms)
-    G = sgraph_from_atoms(ase_atoms_updated)
+    G = sgraph_from_atoms(ase_atoms)
 
     # Convert functional groups to NetworkX graphs
     functional_group_graphs = {name: Chem.MolFromSmarts(smarts) for name, smarts in functional_groups.items()}
@@ -58,6 +62,54 @@ def find_functional_groups(ase_atoms, functional_groups):
             matches[name] = list(GM.subgraph_isomorphisms_iter())
 
     return matches
+# def find_functional_groups(ase_atoms, functional_groups):
+#     from rdkit import Chem
+#     from networkx.algorithms import isomorphism
+#     import networkx as nx
+#     # import mofography as mgr 
+
+#     # Convert the supercell to a NetworkX graph
+#     ase_atoms_updated = update_with_covalent_bonds(ase_atoms)
+#     G = sgraph_from_atoms(ase_atoms_updated)
+
+#     # Convert functional groups to NetworkX graphs
+#     functional_group_graphs = {name: Chem.MolFromSmarts(smarts) for name, smarts in functional_groups.items()}
+
+#     # Custom node match function
+#     def node_match(node1, node2):
+#         return node1['atomic_number'] == node2['atomic_number']
+
+#     # Custom edge match function
+#     def edge_match(edge1, edge2):
+#         bond_type1 = edge1['bond_type'].lower()
+#         bond_type2 = edge2['bond_type']
+#         if bond_type1 == 'aromatic':
+#             bond_type1 = 'double'
+#         return bond_type1 == bond_type2
+
+#     # Initialize matches with None for all functional groups
+#     matches = {name: None for name in functional_groups.keys()}
+
+#     # Search for functional groups in the molecule graph
+#     for name, fg_mol in functional_group_graphs.items():
+#         fg_G = nx.Graph()
+#         for atom in fg_mol.GetAtoms():
+#             fg_G.add_node(atom.GetIdx(),
+#                           atomic_number=atom.GetAtomicNum(),
+#                           formal_charge=atom.GetFormalCharge(),
+#                           chirality=atom.GetChiralTag())
+#         for bond in fg_mol.GetBonds():
+#             bond_type = bond.GetBondType().name.lower()
+#             if bond_type == 'aromatic':
+#                 bond_type = 'double'
+#             fg_G.add_edge(bond.GetBeginAtomIdx(),
+#                           bond.GetEndAtomIdx(),
+#                           bond_type=bond_type)
+#         GM = isomorphism.GraphMatcher(G, fg_G, node_match=node_match, edge_match=edge_match)
+#         if GM.subgraph_is_isomorphic():
+#             matches[name] = list(GM.subgraph_isomorphisms_iter())
+
+#     return matches
 
 
 # def find_functional_groups(ase_atoms, functional_groups):
@@ -357,7 +409,29 @@ def update_with_covalent_bonds(ase_atoms, nlist=None):
     ase_atoms_updated.info['covalent_bond_orders']=bond_order
             
     return ase_atoms_updated
+def get_bonds_and_orders_without_replication(ase_atoms, nlist=None):
+    from pymatgen.core.bonds import CovalentBond
+    from pymatgen.io.ase import AseAtomsAdaptor 
+    from ase.data import covalent_radii
+    import numpy as np
 
+    struct = AseAtomsAdaptor.get_structure(ase_atoms)
+    bonds = []
+    bond_order=[]
+    radii = covalent_radii[ase_atoms.get_atomic_numbers()]
+    frac = struct.frac_coords
+    if nlist is None:
+        voro = voronoi_on_atoms(ase_atoms)
+        nlist = voro.nlist
+    for (a, b) in nlist:
+        cov1 = radii[a]
+        cov2 = radii[b]
+        if CovalentBond.is_bonded(struct.sites[a], struct.sites[b], default_bl=cov1+cov2, tol=0.2):
+            bond_test = CovalentBond(struct.sites[a], struct.sites[b])
+            bonds.append([a, b])
+            bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.2))
+
+    return bonds, bond_order
 def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     """
     > The function takes a graph and returns a list of cycles in the graph. 
