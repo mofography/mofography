@@ -80,7 +80,121 @@ def get_number_of_pages(url, headers, params):
     resp = requests.get(url=url, headers=headers, params=params)
     resp = resp.json()
     return resp['pages']
+def create_db_from_pickled_graphs(db_path, pickle_path):
+    """
+    The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled
+    graphs in it from a given pickle file.
+    
+    :param db_path: The `db_path` parameter is the path to the SQLite database where you want to store
+    the graphs. This is the location where the graphs will be saved after being pickled, compressed, and
+    inserted into the database
+    :param pickle_path: The `pickle_path` parameter in the `create_db_from_pickled_graphs` function is
+    the file path to the pickled collection of graphs that you want to store in the SQLite database.
+    This file contains the serialized graphs that need to be unpickled, compressed, and stored in the
+    database
+    """
 
+    
+    import sqlite3
+    import pickle
+    import gzip
+
+    # Connect to the SQLite database and create a table to store graphs
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS graphs
+                 (id INTEGER PRIMARY KEY, data BLOB)''')
+
+    # Unpickle your collection of graphs
+    with open(pickle_path, 'rb') as f:
+        graphs = pickle.load(f)
+
+    # For each graph, pickle it, compress it, and store it in the SQLite database
+    for i, G in enumerate(graphs):
+        pickled_graph = pickle.dumps(G)
+        compressed_graph = gzip.compress(pickled_graph)
+        c.execute("INSERT INTO graphs (data) VALUES (?)", (compressed_graph,))
+    conn.commit()
+
+def get_graph(db_path, id):
+    """
+    The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
+    and returns the graph.
+    
+    :param db_path: The `db_path` parameter is the file path to the SQLite database where the graph data
+    is stored. This function connects to the SQLite database at the specified path to retrieve the graph
+    data
+    :param id: The `id` parameter in the `get_graph` function is used to specify which graph to retrieve
+    from the database. It is likely a unique identifier that helps identify a specific graph stored in
+    the database table. When calling the `get_graph` function, you would provide the `id` of the
+    :return: The function `get_graph` returns a graph object that is retrieved from a SQLite database.
+    The graph is decompressed using gzip, unpickled, and then returned as the final output.
+    """
+
+    import sqlite3
+    import pickle
+    import gzip
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    # Retrieve the graph from the database, decompress it, unpickle it, and return it
+    c.execute("SELECT data FROM graphs WHERE id=?", (id,))
+    compressed_graph = c.fetchone()[0]
+    pickled_graph = gzip.decompress(compressed_graph)
+    return pickle.loads(pickled_graph)
+
+def add_graph_to_db(db_path, graph):
+    """
+    The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled
+    graph in it.
+    
+    :param db_path: The `db_path` parameter is the file path to the SQLite database where you want to
+    store the graph data. This function connects to the SQLite database at the specified path and
+    inserts the compressed graph data into the database
+    :param graph: The `graph` parameter in the `add_graph_to_db` function is the graph data structure
+    that you want to store in the SQLite database. This graph can be represented as a Python object
+    (e.g., dictionary, list of edges, etc.) that you want to save for later retrieval or analysis
+    """
+
+    import sqlite3
+    import pickle
+    import gzip
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    # Pickle the graph, compress it, and store it in the SQLite database
+    pickled_graph = pickle.dumps(graph)
+    compressed_graph = gzip.compress(pickled_graph)
+    c.execute("INSERT INTO graphs (data) VALUES (?)", (compressed_graph,))
+    conn.commit()
+
+def get_num_graphs(db_path):
+    """
+    The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified
+    by the `db_path`.
+    
+    :param db_path: The `db_path` parameter in the `get_num_graphs` function is the path to the SQLite
+    database file that contains the table of graphs. This function connects to the SQLite database at
+    the specified path, executes a SQL query to count the number of rows in the `graphs` table, and
+    :return: The function `get_num_graphs` returns the number of rows in the "graphs" table from the
+    SQLite database specified by the `db_path`.
+    """
+
+    import sqlite3
+
+    # Connect to the SQLite database
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+
+    # Execute a SQL query that counts the number of rows in the table
+    c.execute("SELECT COUNT(*) FROM graphs")
+    num_graphs = c.fetchone()[0]
+
+    return num_graphs
 def get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', params={'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1} , headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'},npages=None, limit=1000):
     """
     This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api 
