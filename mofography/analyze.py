@@ -671,7 +671,49 @@ def find_chemically_unique_cycles(list_of_cycles, graph):
     else:
         raise Exception(" No cycles of given lengths found!")
             
-       
+def find_rings_in_ase_atoms(mat_atoms, cycle_lengths=[5, 6, 7, 8], make_unique=True):
+    """
+    The function `find_rings_in_ase_atoms` takes an ASE atoms object, identifies cycles in the
+    corresponding graph, filters cycles based on length, and optionally returns unique cycles.
+    
+    :param mat_atoms: The `mat_atoms` parameter is a representation of a material system in the form of
+    atoms. It likely contains information about the atomic positions, types of atoms, and possibly other
+    properties of the material. The function `find_rings_in_ase_atoms` takes this material system
+    represented by atoms and performs
+    :param cycle_lengths: The `cycle_lengths` parameter is a list of integers that specifies the lengths
+    of cycles to be considered when filtering the cycles found in the graph. In the provided function
+    `find_rings_in_ase_atoms`, the cycles found in the graph are filtered based on their length, and
+    only cycles with lengths
+    :param make_unique: The `make_unique` parameter in the `find_rings_in_ase_atoms` function determines
+    whether to return only unique cycles or all cycles that meet the specified criteria, defaults to
+    True (optional)
+    :return: The function `find_rings_in_ase_atoms` returns either unique cycles or all cycles based on
+    the input parameters. If `make_unique` is set to True, it returns chemically unique cycles of
+    specified lengths (5, 6, 7, 8). If `make_unique` is set to False, it returns all cycles of specified
+    lengths without filtering for uniqueness.
+    """
+    import networkx as nx
+
+
+    # Convert ase atoms to sgraph
+    bonds, bond_orders = get_bonds_and_orders_without_replication(mat_atoms)
+    mat_atoms.info['covalent_bonds'] = bonds
+    mat_atoms.info['covalent_bond_orders'] = bond_orders
+    mat_graph =sgraph_from_atoms(mat_atoms)
+
+    # Find all cycles in the graph
+    list_of_cycles = list(nx.cycle_basis(mat_graph))
+
+    # Filter cycles based on their length
+    small_cycles = [cycle for cycle in list_of_cycles if len(cycle) in cycle_lengths]
+
+    if make_unique:
+        # Find unique cycles
+        unique_cycle_indices =find_chemically_unique_cycles(small_cycles, mat_graph)
+        unique_cycles = [small_cycles[i] for i in unique_cycle_indices]
+        return unique_cycles
+    else:
+        return small_cycles      
 def find_pattern_in_sgraph(sgraph, pattern):
     """
     It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the
