@@ -116,6 +116,7 @@ def create_db_from_pickled_graphs(db_path, pickle_path):
         c.execute("INSERT INTO graphs (data) VALUES (?)", (compressed_graph,))
     conn.commit()
 
+
 def get_graph(db_path, id):
     """
     The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
@@ -341,3 +342,25 @@ def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields['uff'], probe_symbol
     lb_epsilon = np.sqrt(frame_ff[:,1] * probe_ff[1]) #mixed epsilon
     lb_ff = np.vstack((lb_sigma, lb_epsilon)).T # mixed sigma an d epsilon
     return lb_ff
+def show_percolated_paths_as_df(paths, path_windows, path_lengths):
+    """
+    The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path
+    lengths, sorts it by the number of elements in the paths list and then by path lengths, and returns
+    the sorted DataFrame.
+    
+    :param paths: A list of paths, where each entry represent teh index of a pocket/node on the pore graph
+    :param path_windows: Path windows are the sizes of the windows encountered along the path
+    :param path_lengths: The number of jumps or edges along the path
+    :return: The function `show_percolated_paths_as_df` is returning a pandas DataFrame sorted by the
+    path lengths, where the columns show the paths, path windows, and path lengths."""
+
+    import pandas as pd
+
+    # * make a dataframe with the paths and the window sizes and the path lengths
+    df = pd.DataFrame({'paths':paths, 'path_windows':path_windows, 'path_lengths':path_lengths})
+    # Sort the DataFrame by the number of elements in the list in column 0, and then by column 2
+    df_sorted = df.assign(col0_len=df['paths'].apply(len)).sort_values(['col0_len', 'path_lengths']).drop('col0_len', axis=1)
+
+    # Print the sorted DataFrame
+    # print(df_sorted)
+    return df_sorted
