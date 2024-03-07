@@ -131,8 +131,8 @@ def dgrid_from_atoms_cpu(ase_atoms, radii=None, spacing=0.25, block_size=50000, 
     import dask.array as da
     from rich.progress import track
     from tqdm import tqdm
-    import mofography as mgr
-    gpoints, shape = mgr.dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
+    # import mofography as mgr
+    gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size) #mesh grid
     dgrid = []
     import pandas as  pd 
     if radii is None:
@@ -140,7 +140,7 @@ def dgrid_from_atoms_cpu(ase_atoms, radii=None, spacing=0.25, block_size=50000, 
         radii = vdw_radii[ase_atoms.get_chemical_symbols()].values/100.0
     
     # for block in track(gpoints.blocks, description='Computing distance grid', total=gpoints.npartitions):
-    dgrid = gpoints.map_blocks(mgr.gpd_aabb, ase_atoms, radii, n_neighbors=n_neighbors, probe_radius=probe_radius, dtype=float, drop_axis=1).reshape(shape)
+    dgrid = gpoints.map_blocks(gpd_aabb, ase_atoms, radii, n_neighbors=n_neighbors, probe_radius=probe_radius, dtype=float, drop_axis=1).reshape(shape)
 #     for block in tqdm(gpoints.blocks, desc='Computing distance grid', total=gpoints.npartitions):
 #         dgrid.append(gpd_aabb(block, ase_atoms, radii, n_neighbors=n_neighbors,probe_radius=probe_radius )) #compute grid
 #     return da.hstack(dgrid).rechunk(chunks=block_size).reshape(shape) #return in correct shape
@@ -1065,7 +1065,981 @@ def interpolate_dgrid(dgrid):
     dl = RGI((xx, yy, zz),dgrid, method='linear')
 
     return dl
+def get_percolated_paths_on_rag(rag, minimum_overlap_fraction=0.5, wall_cells=6, path_jump_cutoff=None):
+    import networkx as nx
+    # import mofography as mgr
+    import numpy as np
+    from icecream import ic
+    import copy
+    import pandas as pd 
+    import more_itertools
+    from .helper import get_fractional_coordinates
+    # from time import time
+    from tqdm import tqdm
+    # time0 = time()
+    keys_to_check = ['regions', 'connections', 'ase_atoms']
 
+    for key in keys_to_check:
+        if key not in rag.graph.keys():
+            raise ValueError(f"'{key}' is not in rag.graph.keys(). Please compute and add it first to the rag under the graph dictionary like this: rag.graph['{key}'] = {key}.")
+    regions = rag.graph['regions']
+    mat_atoms = rag.graph['ase_atoms']
+    connections = rag.graph['connections']
+    shape = regions.shape
+    map_list = []
+    paths = []
+    path_windows= []
+    path_lengths = []
+    periodic_connections  = [c for c in connections if c[1] and c[2]=='periodic']
+    
+    if path_jump_cutoff is None:
+        # path_jump_cutoff = np.max([int(np.cbrt(np.max(regions))), 4])
+        ranges = [(0, 10), (10, 40), (40, float('inf'))]
+        outputs = [8, 4, 3]
+
+        # Create the dictionary
+        path_jump_cutoff = pd.cut([rag.number_of_nodes()], bins=[r[0] for r in ranges] + [float('inf')], labels=outputs)[0]
+
+
+    if len(periodic_connections) > 0:
+        periodic_windows_exist = True
+        periodic_connected_regions= np.array([pc[0] for pc in periodic_connections]) # * just the indices of the connected regions, just needed to make sure that we don't miss any periodic windows between the same regions
+        periodic_window_coords = np.vstack([c[3] for c in periodic_connections])
+        periodic_window_fractional_coords = get_fractional_coordinates(periodic_window_coords, mat_atoms)
+
+        # * we need to know which wall these windwos are on, round values close to 0 to 0 and values close to 1 to 1
+        #* we will use this as an additional check when getting the correct window diameters 
+        periodic_window_walls  = np.where(periodic_window_fractional_coords < 0.03, 0, np.where(periodic_window_fractional_coords > 0.97, 1, periodic_window_fractional_coords))
+    
+
+
+        # * this bit is for creating a master list of where the periodic windows exist
+        dist_thresh = 0.03
+
+        # * let's make an array to store the wall window location
+        regions_wall_windows = np.full((regions.max(), 7), np.NaN)
+        regions_wall_windows[:, 0] = np.arange(1, regions.max() + 1)
+
+
+
+        #* get the periodic window radii
+        pws_window_radii = [w for c in connections if c[1] and c[2]=='periodic' for w in c[4]]
+
+        # * periodic windows occur in pairs, so let's just take the first entry in the regions list
+        #* get region numbers and window coordinates
+        pws_regions_coords = ([[c[0][0], w] for c in connections if c[1] and c[2]=='periodic' for w in c[3]])
+
+
+
+        # wall_
+        pws_flags = [] # * array to store the wall locatoin of the periodic windows
+        # * now we have to find which wall the windwo belongs to 
+        frac_coords= get_fractional_coordinates(np.vstack([p[1] for p in pws_regions_coords]), mat_atoms)
+
+        for i in range(3):
+            wall_mask = np.logical_or(frac_coords[:, i] < dist_thresh, frac_coords[:, i] > 1 - dist_thresh)
+            wall_indices = np.where(wall_mask)[0]
+            wall_directions = np.where(frac_coords[wall_indices, i] < dist_thresh, 0, 1)
+            pws_flags.extend(zip(wall_indices, [i] * len(wall_indices), wall_directions)) # entries of type (R, a, w) where R is the region number, a is the wall direction 0, 1 or 2, and w is the wall index either 0 or 1
+        pws_temp_list = [] # * make a list so that we can eliminate some windows if need be 
+        
+        #* for example, if the rregional maxima is on the wall, then don't consider windows on that wall in that direction (only). 
+        #* if there are multiple windows for the same oregion on the same wall, take only the largest one
+
+        # * now make the master array of which region and wall the periodic window exists
+        for pwf in pws_flags:
+            region_number = pws_regions_coords[pwf[0]][0] # get the region number from the list
+            wall_index = 2*pwf[1] + pwf[2] + 1 # get the wall index , a=0:1, a=1:2, b=0:3, b=1:4, c=0:5, c=1:6 , 0 if for the region number
+            # * note that a periodic window can be on multiple walls
+            # regions_wall_windows[region_number][wall_index] = regions_pws[pwf[0]][1] # put the window coordinate in the right locatoin
+            wall_window_radius = pws_window_radii[pwf[0]]
+            # * the index will be the region_number - 1 
+            
+            pws_temp_list.append([region_number, wall_index, wall_window_radius])
+        
+        #* find rows with the same reigon_number and wall_index, keep the row with the largest window radius
+        pws_temp_list = np.array(pws_temp_list)
+        pws_temp_list = pws_temp_list[np.argsort(pws_temp_list[:,2])][::-1] # sort by window radius
+        pws_temp_, pws_unique_indices = np.unique(pws_temp_list[:,[0,1]], axis=0,return_index=True) # remove duplicates
+        pws_temp_list = pws_temp_list[pws_unique_indices] # * now we only keep the largest window radius for a given region number on the same wall
+        
+        for ptl in pws_temp_list:
+            # print('ptl is ', ptl)
+            regions_wall_windows[int(ptl[0]) -1 ][int(ptl[1])] = ptl[2] # regions_pws[pwf[0]][1] # put the window coordinate in the right locatoin
+
+        # for c in connections:
+    
+    else:
+        periodic_windows_exist = False
+        periodic_connected_regions = []
+        periodic_window_coords = []
+        periodic_window_fractional_coords = []
+        periodic_window_walls = []
+        regions_wall_windows = np.full((regions.max(),7), np.NaN)
+        regions_wall_windows[:,0] = np.arange(1, regions.max()+1)
+    # * handle the single extending regions
+    for a in [0,1,2]:
+        # print(a)
+        ic(a, 'Direction')
+        # [] # * empty array to store all the paths in direction a
+        # window_sizes[a] = [] # * empty array to store all the window sizes along all the paths in direction a
+        
+        llr = regions.take(indices=0 ,axis=a) #* left wall
+        rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
+        corresponding_regions = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
+        
+
+        # * remove rows that are all zero
+        corresponding_regions = corresponding_regions[np.all(corresponding_regions!=0, axis=1)]
+        ic(corresponding_regions, 'Map list for direction {}'.format(a))
+        # print("For direction {} the corresponding regions are {}".format(a, corresponding_regions))
+        map_list.append(corresponding_regions) # * add the corresponding regions to the map list for direction a
+        
+        # * find rows in which both the values are the same
+        # * these are the regions that extend across the unit cell
+        same_regions_indices = corresponding_regions[:,0]==corresponding_regions[:,1]
+        if len(same_regions_indices) > 0:
+            same_regions = corresponding_regions[same_regions_indices]
+
+            # * find the size of the periodic windows attached to such regions 
+            # * but these need to be the periodic window in the correct direction also, so we will use the periodic_window_walls array for additional check
+
+            paths_a = []
+            path_windows_a= []
+            path_lengths_a = []
+            for s in same_regions:
+                windows_same_region = [c[4] for i, c in enumerate(periodic_connections) if np.all(c[0]==s) and (periodic_window_walls[i][a]==0 or periodic_window_walls[i][a]==1)]
+                if len(windows_same_region) > 0:
+                    path_windows_a.append(np.hstack(windows_same_region))
+                    paths_a.append(s)
+                    path_lengths_a.append(0)
+        # print(paths_a, path_windows_a)
+        
+        
+        
+
+            #* for all the corresponding regions, if both of them are in the same periodic group, and connected in perpendicular direction, 
+            # * then add an edge between them as with path_weight 0 as long as both the regions are not he same
+            # for c in corresponding_regions:
+            #     if c[0] != c[1]:
+            #         if np.any([set(c).issubset(p) for p in pbc_groups]):
+            #             rag_temp.add_edge(c[0], c[1], path_weight=0)
+            paths.append(paths_a)
+            path_windows.append(path_windows_a)
+            path_lengths.append(path_lengths_a)
+    # * handle all the other end to end paths after adding pbc connections in perpendicular directions
+    for a in [0,1,2]:
+        print('For direction ', a)
+        # get teh mapping list for that direction
+        corresponding_regions = map_list[a]
+        # print('Looking for paths in direction:', a)
+        # print('corresponding regions are ', corresponding_regions)
+        rag_temp = copy.deepcopy(rag) #* make a copy of the rag
+            
+        #* add a property tot he edges called path_weight with value 1 for all internal edges
+        nx.set_edge_attributes(rag_temp, 1, 'path_weight')
+
+        ic(rag_temp.edges(data='window_info'), 'Edges in rag_temp initially')
+        # map_list = map_list[a]
+        
+        # * now we will add all the periodic edges in the other two directions
+        for j in [0,1,2]:
+            if j != a: # * choose the other two directions
+                left_wall = regions.take(indices=0 ,axis=j) #* left wall
+                right_wall = regions.take(indices=shape[j]-1 ,axis=j)  #* right wall
+                llf= left_wall.flatten()
+                rrf= right_wall.flatten()
+
+                #* now for teh regions mapped in j direction, we need to add periodic connections with path_weight 0
+                corresponding_regions_j = map_list[j]
+
+                #* we need the overlap fractions of regions in the correspondence list
+                #* we will use this check also before adding the periodic connection
+                if len(corresponding_regions_j) > 0:
+                    reg_numbers = np.vstack([(k, v) for k,v in corresponding_regions_j])
+
+
+                    #* let's compute and prnt percentage overlap between pairs of mapping regions
+                    #* let's filter those connections with less thant 10% overlap
+                    sumlist = [np.sum(llf==r[0]) for r in reg_numbers]
+                    matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+                    fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+
+                    #* flags where there should be a left to right connection 
+                    left_right = [f> minimum_overlap_fraction for f in fractional_overlap]
+
+                    ic(a, 'Direction')
+                    ic(j, 'Secondary direction')
+
+                    # reg_numbers = reg_numbers[np.where([f > minimum_overlap_fraction for f in fractional_overlap])]
+                    # print('left-right\n')
+                    # print(list(zip(reg_numbers, fractional_overlap)))
+
+                    # * backwards check
+
+                    # #* let's compute and prnt percentage overlap between pairs of mapping regions
+                    # #* let's filter those connections with less thant minimum overlap fraction
+                    sumlist = [np.sum(rrf==r[1]) for r in reg_numbers]
+                    matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+                    fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+                    
+                    #* flags where there should be a right to left connection
+                    right_left = [f> minimum_overlap_fraction for f in fractional_overlap]
+                    
+                    # print('right-left\n')
+                    # print(list(zip(reg_numbers, fractional_overlap)))
+                    # now let's combine the two flags
+                    pick_these = np.logical_or(left_right, right_left)
+
+                    reg_numbers = reg_numbers[pick_these]
+                    ic(reg_numbers, 'Regions to add periodic connections between for secondary direction {}'.format(j))
+                    # print('Secondary direction is ', j)
+                    # print('corresponding regions are ', corresponding_regions_j)
+                    # print('Overlap fractions are ', fractional_overlap)
+                    # print('Regions that meet overlap criteria are ', reg_numbers)
+                    # for c in corresponding_regions_j:
+                    #     if c[0]!=c[1]:
+                    #         print('c is ', c)
+                    #         if np.any(np.all(reg_numbers==c, axis=1)):
+                    #             print('This c:{} is in reg_numbers:{}'.format(c, reg_numbers))
+                    #             # if np.any([set(c).issubset(p) for p in pbc_groups]):
+                    #             # print('about to add periodic edge between ', c[0], c[1])
+                    #             rag_temp.add_edge(c[0], c[1], path_weight=0)
+                    for c in reg_numbers:
+                        if c[0]!=c[1]:
+                            # print('c is ', c)
+                            # if np.any(np.all(reg_numbers==c, axis=1)):
+                            # print('This c:{} is in reg_numbers:{}'.format(c, reg_numbers))
+                            # if np.any([set(c).issubset(p) for p in pbc_groups]):
+                            # print('about to add periodic edge between ', c[0], c[1])
+                            
+                            # if the periodic there is a window there, then path weight should be 1
+                            
+                            if np.any([np.all([c[0], c[1]]==p)  or np.all([c[1], c[0]]==p) for p in periodic_connected_regions]):
+                                rag_temp.add_edge(c[0], c[1], path_weight=1)
+                            
+                            # if there is a maxima at the wall, then the ppath weigth should be 0
+                            else:                        
+                                rag_temp.add_edge(c[0], c[1], path_weight=0)
+                ic(rag_temp.edges(data='path_weight'), 'Edges in rag_temp after direction {}'.format(j))
+        # print('a is ', a)
+        # print('edges are ', rag_temp.edges(data='path_weight'))
+        # these are all the paths
+        paths_a_ = list(nx.all_pairs_dijkstra_path(rag_temp, weight='path_weight'))
+        path_lengths_a_ = list(nx.all_pairs_dijkstra_path_length(rag_temp, weight='path_weight'))
+        print('Dijkstra paths are computed for direction {}'.format(a))
+        print('Computing simple paths for direction {}'.format(a))
+        # print(rag_temp.edges(data=True))
+        #* what are the paths connecting any region in column 0 in corresponding regions to 'any' region in column 1 in corresponding regions
+        paths_a = []
+        windows_a = []
+        path_lengths_a = []
+
+        # corresponding_non_matching = np.vstack([[s,t] for s,t in corresponding_regions if s!=t])
+        # sources = corresponding_non_matching[:,0]
+        # targets = corresponding_non_matching[:,1]
+
+        # import dask.bag as db 
+        # all_paths = db.from_product([sources, targets]).map(lambda x: list(nx.all_simple_paths(rag_temp, source=x[0], target=x[1], cutoff=path_jump_cutoff))).compute()
+        # Get the unique nodes from the second column of corresponding_regions
+        targets = np.unique(corresponding_regions[:,1])
+
+        for llr in tqdm(corresponding_regions[:,0]):
+            if llr not in targets:
+                all_possible_paths = nx.all_simple_paths(rag_temp, source=llr, target=targets, cutoff=path_jump_cutoff)
+                # print('All possible paths from {} to targets are {}'.format(llr, all_possible_paths))
+
+                for path in all_possible_paths:
+                    rrr = path[-1]  # Get the target node from the path
+                    # print(rrr, 'is the target node')
+                    if llr != rrr:
+                        # Rest of the code remains the same
+        # for llr in corresponding_regions[:,0]:
+        #     for rrr in corresponding_regions[:,1]:
+
+        #         # * what if we looked for allthe simple paths between the two regions and then looked for the PLDs
+        #         if llr != rrr:
+
+        #             # all_possible_paths = list(nx.all_simple_paths(rag_temp, source =llr, target = rrr, cutoff=path_jump_cutoff))
+        #             all_possible_paths = nx.all_simple_paths(rag_temp, source =llr, target = rrr, cutoff=path_jump_cutoff)
+        #             print('All possible paths between {} and {} are {}'.format(llr, rrr, all_possible_paths))
+        #             #* append the path windows and path length
+        #             for path in all_possible_paths:
+                        paths_a.append(path)
+                        # subgraph   = rag_temp.subgraph(path)
+
+                        edges_to_select = list(more_itertools.pairwise(path))
+                        subgraph = rag_temp.edge_subgraph(edges_to_select)
+                        window_radii = [np.array([np.max(c[4])])  for e in subgraph.edges() for c in connections if c[1] and (np.all(c[0]==[e[0],e[1]]) or np.all(c[0]==[e[1],e[0]])) ]
+
+                        #* append the path lengths
+                        column_index = a*2+1 # column 1-6 are the windwo radii columns 
+                        if not np.isnan(regions_wall_windows[llr-1][column_index]) and (rag.nodes[llr]['maxima_indices'][a]>wall_cells):
+                            ic(llr, regions_wall_windows[llr-1][column_index])
+                            window_radii.append(regions_wall_windows[llr-1][column_index])
+
+                        if not np.isnan(regions_wall_windows[rrr-1][column_index+1]) and (rag.nodes[rrr]['maxima_indices'][a] < regions.shape[a] - wall_cells):
+                            ic(rrr, regions_wall_windows[rrr-1][column_index+1])
+                            window_radii.append(regions_wall_windows[rrr-1][column_index+1])
+
+                        windows_a.append(window_radii)
+                        edge_attrs = nx.get_edge_attributes(subgraph, 'path_weight')
+                        path_weight_sum = sum(edge_attrs.values())
+                        path_lengths_a.append(path_weight_sum)
+
+
+
+                    if llr != rrr and rrr in paths_a_[llr-1][1].keys():
+                        path_of_interest = paths_a_[llr-1][1][rrr]
+                        paths_a.append(path_of_interest)
+                        edges_to_select = list(more_itertools.pairwise(path_of_interest))
+
+                        subgraph = rag_temp.edge_subgraph(edges_to_select)
+                        
+                        
+                        #* look throug the connectins an find all the windows along hte way, internal, and periodic in the other two directions
+                        window_radii = [np.array([np.max(c[4])])  for e in subgraph.edges() for c in connections if c[1] and (np.all(c[0]==[e[0],e[1]]) or np.all(c[0]==[e[1],e[0]])) ]
+                        # window_radii = [np.max(subgraph.edges[e]['window_info']['window_radii']) for e in subgraph.edges() if subgraph.edges[e]['path_weight']==1]
+                        ic(subgraph.edges(data='window_info'), 'Edges in subgraph')
+                        ic([llr, rrr], 'Start and end regions')
+                        ic(window_radii, 'Window radii')
+                        
+                        # * also if both regions are exact mapping on the walls, then check for a periodic window also between and add that to the path
+                        # if [llr, rrr] in corresponding_regions:
+                        
+
+                        # * there also might be left window at llr and a right window at rrr in that
+                        # * given direction. We need to pick that correctly using the master window location array
+                        # * pick the window only if the region maxima is not on the wall
+
+                        column_index = a*2+1 # column 1-6 are the windwo radii columns 
+                        if not np.isnan(regions_wall_windows[llr-1][column_index]) and (rag.nodes[llr]['maxima_indices'][a]>wall_cells):
+                            ic(llr, regions_wall_windows[llr-1][column_index])
+                            window_radii.append(regions_wall_windows[llr-1][column_index])
+
+                        if not np.isnan(regions_wall_windows[rrr-1][column_index+1]) and (rag.nodes[rrr]['maxima_indices'][a] < regions.shape[a] - wall_cells):
+                            ic(rrr, regions_wall_windows[rrr-1][column_index+1])
+                            window_radii.append(regions_wall_windows[rrr-1][column_index+1])
+                        
+                        
+                        windows_a.append(window_radii) # once you have all the window diameters, append it to the paths along a list.
+                        path_lengths_a.append(path_lengths_a_[llr-1][1][rrr]) # append the path length also
+
+        
+        # print('Paths along direction {} after adding pbc are\n {}'.format(a, paths_a))
+        # print('Path lengths along direction {} after adding pbc are\n {}'.format(a, path_lengths_a))
+        # print('Window sizes along direction {} after adding pbc are\n {}'.format(a, windows_a))
+        ic(paths_a, 'Paths along direction {} after adding pbc'.format(a))
+        ic(path_lengths_a, 'Path lengths along direction {} after adding pbc'.format(a))
+        paths.append(paths_a)
+        path_windows.append(windows_a)
+        path_lengths.append(path_lengths_a)
+    #     #* now we need to find the windows along these paths, just get the window sizes when the path_weight of that edge is 1 else it is a periodic window between same regions
+
+    #* let's do some reshaping
+    path_windows_list = [np.hstack(pws).tolist() if len(pws)>0 else [] for pws_ in path_windows for pws in pws_]
+    paths_list = [pws for pws_ in paths for pws in pws_]
+    path_lengths_list = [pws for pws_ in path_lengths for pws in pws_]
+
+
+    # paths_ = [p for pw_a in paths for p in pw_a ]
+    # path_windows_ = [pw for pw_a in path_windows for pw in pw_a]
+    # path_lengths_= [pw for pw_a in  path_lengths for pw in pw_a]
+
+    # # print('Paths before clean up' )
+    # # print(show_percolated_paths_as_df(paths_, path_windows_, path_lengths_))
+
+    # # * remove paths with path weight 0 and the nodes are not the same
+    paths_final = []
+    path_windows_final = []
+    path_lengths_final = []
+
+    # for p, pw, pl in zip(paths_, path_windows_, path_lengths_):
+    for p, pw, pl in zip(paths_list, path_windows_list, path_lengths_list):
+        if pl > 0 :
+            paths_final.append(p)
+            path_windows_final.append(pw)
+            path_lengths_final.append(pl)
+        else:
+            # path should only have 2 nodes and both should be the same
+            if (len(p)==2 and p[0]==p[1]) or len(pw) > 0:
+                paths_final.append(p)
+                path_windows_final.append(pw)
+                path_lengths_final.append(pl)
+
+    return paths_final, path_windows_final, path_lengths_final
+# def get_percolated_paths_on_rag(rag, minimum_overlap_fraction=0.5, wall_cells=6, path_jump_cutoff=None):
+    
+#     import networkx as nx
+#     from .helper import get_fractional_coordinates
+#     import numpy as np
+#     from icecream import ic
+#     import copy
+#     import pandas as pd 
+#     import more_itertools
+#     keys_to_check = ['regions', 'connections', 'ase_atoms']
+
+#     for key in keys_to_check:
+#         if key not in rag.graph.keys():
+#             raise ValueError(f"'{key}' is not in rag.graph.keys(). Please compute and add it first to the rag under the graph dictionary like this: rag.graph['{key}'] = {key}.")
+#     regions = rag.graph['regions']
+#     mat_atoms = rag.graph['ase_atoms']
+#     connections = rag.graph['connections']
+#     shape = regions.shape
+#     map_list = []
+#     paths = []
+#     path_windows= []
+#     path_lengths = []
+#     periodic_connections  = [c for c in connections if c[1] and c[2]=='periodic']
+    
+#     if path_jump_cutoff is None:
+#         # path_jump_cutoff = np.max([int(np.cbrt(np.max(regions))), 4])
+#         ranges = [(0, 20), (20, 60), (60, float('inf'))]
+#         outputs = [4, 8, 10]
+
+#         # Create the dictionary
+#         path_jump_cutoff = pd.cut([10], bins=[r[0] for r in ranges] + [float('inf')], labels=outputs)[0]
+
+
+#     if len(periodic_connections) > 0:
+#         periodic_windows_exist = True
+#         periodic_connected_regions= np.array([pc[0] for pc in periodic_connections]) # * just the indices of the connected regions, just needed to make sure that we don't miss any periodic windows between the same regions
+#         periodic_window_coords = np.vstack([c[3] for c in periodic_connections])
+#         periodic_window_fractional_coords = get_fractional_coordinates(periodic_window_coords, mat_atoms)
+
+#         # * we need to know which wall these windwos are on, round values close to 0 to 0 and values close to 1 to 1
+#         #* we will use this as an additional check when getting the correct window diameters 
+#         periodic_window_walls  = np.where(periodic_window_fractional_coords < 0.03, 0, np.where(periodic_window_fractional_coords > 0.97, 1, periodic_window_fractional_coords))
+    
+
+
+#         # * this bit is for creating a master list of where the periodic windows exist
+#         dist_thresh = 0.03
+
+#         # * let's make an array to store the wall window location
+#         regions_wall_windows = np.full((regions.max(), 7), np.NaN)
+#         regions_wall_windows[:, 0] = np.arange(1, regions.max() + 1)
+
+
+
+#         #* get the periodic window radii
+#         pws_window_radii = [w for c in connections if c[1] and c[2]=='periodic' for w in c[4]]
+
+#         # * periodic windows occur in pairs, so let's just take the first entry in the regions list
+#         #* get region numbers and window coordinates
+#         pws_regions_coords = ([[c[0][0], w] for c in connections if c[1] and c[2]=='periodic' for w in c[3]])
+
+
+
+#         # wall_
+#         pws_flags = [] # * array to store the wall locatoin of the periodic windows
+#         # * now we have to find which wall the windwo belongs to 
+#         frac_coords= get_fractional_coordinates(np.vstack([p[1] for p in pws_regions_coords]), mat_atoms)
+
+#         for i in range(3):
+#             wall_mask = np.logical_or(frac_coords[:, i] < dist_thresh, frac_coords[:, i] > 1 - dist_thresh)
+#             wall_indices = np.where(wall_mask)[0]
+#             wall_directions = np.where(frac_coords[wall_indices, i] < dist_thresh, 0, 1)
+#             pws_flags.extend(zip(wall_indices, [i] * len(wall_indices), wall_directions)) # entries of type (R, a, w) where R is the region number, a is the wall direction 0, 1 or 2, and w is the wall index either 0 or 1
+#         pws_temp_list = [] # * make a list so that we can eliminate some windows if need be 
+        
+#         #* for example, if the rregional maxima is on the wall, then don't consider windows on that wall in that direction (only). 
+#         #* if there are multiple windows for the same oregion on the same wall, take only the largest one
+
+#         # * now make the master array of which region and wall the periodic window exists
+#         for pwf in pws_flags:
+#             region_number = pws_regions_coords[pwf[0]][0] # get the region number from the list
+#             wall_index = 2*pwf[1] + pwf[2] + 1 # get the wall index , a=0:1, a=1:2, b=0:3, b=1:4, c=0:5, c=1:6 , 0 if for the region number
+#             # * note that a periodic window can be on multiple walls
+#             # regions_wall_windows[region_number][wall_index] = regions_pws[pwf[0]][1] # put the window coordinate in the right locatoin
+#             wall_window_radius = pws_window_radii[pwf[0]]
+#             # * the index will be the region_number - 1 
+            
+#             pws_temp_list.append([region_number, wall_index, wall_window_radius])
+        
+#         #* find rows with the same reigon_number and wall_index, keep the row with the largest window radius
+#         pws_temp_list = np.array(pws_temp_list)
+#         pws_temp_list = pws_temp_list[np.argsort(pws_temp_list[:,2])][::-1] # sort by window radius
+#         pws_temp_, pws_unique_indices = np.unique(pws_temp_list[:,[0,1]], axis=0,return_index=True) # remove duplicates
+#         pws_temp_list = pws_temp_list[pws_unique_indices] # * now we only keep the largest window radius for a given region number on the same wall
+        
+#         for ptl in pws_temp_list:
+#             # print('ptl is ', ptl)
+#             regions_wall_windows[int(ptl[0]) -1 ][int(ptl[1])] = ptl[2] # regions_pws[pwf[0]][1] # put the window coordinate in the right locatoin
+
+#         # for c in connections:
+    
+#     else:
+#         periodic_windows_exist = False
+#         periodic_connected_regions = []
+#         periodic_window_coords = []
+#         periodic_window_fractional_coords = []
+#         periodic_window_walls = []
+#         regions_wall_windows = np.full((regions.max(),7), np.NaN)
+#         regions_wall_windows[:,0] = np.arange(1, regions.max()+1)
+#     # * handle the single extending regions
+#     for a in [0,1,2]:
+#         # print(a)
+#         ic(a, 'Direction')
+#         # [] # * empty array to store all the paths in direction a
+#         # window_sizes[a] = [] # * empty array to store all the window sizes along all the paths in direction a
+        
+#         llr = regions.take(indices=0 ,axis=a) #* left wall
+#         rrr = regions.take(indices=shape[a]-1 ,axis=a)  #* right wall
+#         corresponding_regions = np.unique(list(zip(llr.flatten(), rrr.flatten())),axis=0)
+        
+
+#         # * remove rows that are all zero
+#         corresponding_regions = corresponding_regions[np.all(corresponding_regions!=0, axis=1)]
+#         ic(corresponding_regions, 'Map list for direction {}'.format(a))
+#         # print("For direction {} the corresponding regions are {}".format(a, corresponding_regions))
+#         map_list.append(corresponding_regions) # * add the corresponding regions to the map list for direction a
+        
+#         # * find rows in which both the values are the same
+#         # * these are the regions that extend across the unit cell
+#         same_regions_indices = corresponding_regions[:,0]==corresponding_regions[:,1]
+#         if len(same_regions_indices) > 0:
+#             same_regions = corresponding_regions[same_regions_indices]
+
+#             # * find the size of the periodic windows attached to such regions 
+#             # * but these need to be the periodic window in the correct direction also, so we will use the periodic_window_walls array for additional check
+
+#             paths_a = []
+#             path_windows_a= []
+#             path_lengths_a = []
+#             for s in same_regions:
+#                 windows_same_region = [c[4] for i, c in enumerate(periodic_connections) if np.all(c[0]==s) and (periodic_window_walls[i][a]==0 or periodic_window_walls[i][a]==1)]
+#                 if len(windows_same_region) > 0:
+#                     path_windows_a.append(np.hstack(windows_same_region))
+#                     paths_a.append(s)
+#                     path_lengths_a.append(0)
+#         # print(paths_a, path_windows_a)
+        
+        
+        
+
+#             #* for all the corresponding regions, if both of them are in the same periodic group, and connected in perpendicular direction, 
+#             # * then add an edge between them as with path_weight 0 as long as both the regions are not he same
+#             # for c in corresponding_regions:
+#             #     if c[0] != c[1]:
+#             #         if np.any([set(c).issubset(p) for p in pbc_groups]):
+#             #             rag_temp.add_edge(c[0], c[1], path_weight=0)
+#             paths.append(paths_a)
+#             path_windows.append(path_windows_a)
+#             path_lengths.append(path_lengths_a)
+#     # * handle all the other end to end paths after adding pbc connections in perpendicular directions
+#     for a in [0,1,2]:
+#         # get teh mapping list for that direction
+#         corresponding_regions = map_list[a]
+#         # print('Looking for paths in direction:', a)
+#         # print('corresponding regions are ', corresponding_regions)
+#         rag_temp = copy.deepcopy(rag) #* make a copy of the rag
+            
+#         #* add a property tot he edges called path_weight with value 1 for all internal edges
+#         nx.set_edge_attributes(rag_temp, 1, 'path_weight')
+
+#         ic(rag_temp.edges(data='window_info'), 'Edges in rag_temp initially')
+#         # map_list = map_list[a]
+        
+#         # * now we will add all the periodic edges in the other two directions
+#         for j in [0,1,2]:
+#             if j != a: # * choose the other two directions
+#                 left_wall = regions.take(indices=0 ,axis=j) #* left wall
+#                 right_wall = regions.take(indices=shape[j]-1 ,axis=j)  #* right wall
+#                 llf= left_wall.flatten()
+#                 rrf= right_wall.flatten()
+
+#                 #* now for teh regions mapped in j direction, we need to add periodic connections with path_weight 0
+#                 corresponding_regions_j = map_list[j]
+
+#                 #* we need the overlap fractions of regions in the correspondence list
+#                 #* we will use this check also before adding the periodic connection
+#                 if len(corresponding_regions_j) > 0:
+#                     reg_numbers = np.vstack([(k, v) for k,v in corresponding_regions_j])
+
+
+#                     #* let's compute and prnt percentage overlap between pairs of mapping regions
+#                     #* let's filter those connections with less thant 10% overlap
+#                     sumlist = [np.sum(llf==r[0]) for r in reg_numbers]
+#                     matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+#                     fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+
+#                     #* flags where there should be a left to right connection 
+#                     left_right = [f> minimum_overlap_fraction for f in fractional_overlap]
+
+#                     ic(a, 'Direction')
+#                     ic(j, 'Secondary direction')
+
+#                     # reg_numbers = reg_numbers[np.where([f > minimum_overlap_fraction for f in fractional_overlap])]
+#                     # print('left-right\n')
+#                     # print(list(zip(reg_numbers, fractional_overlap)))
+
+#                     # * backwards check
+
+#                     # #* let's compute and prnt percentage overlap between pairs of mapping regions
+#                     # #* let's filter those connections with less thant minimum overlap fraction
+#                     sumlist = [np.sum(rrf==r[1]) for r in reg_numbers]
+#                     matching = [np.sum(np.logical_and(llf==r[0], rrf==r[1])) for r in reg_numbers] 
+#                     fractional_overlap = [m/s for m,s in zip(matching, sumlist)]
+                    
+#                     #* flags where there should be a right to left connection
+#                     right_left = [f> minimum_overlap_fraction for f in fractional_overlap]
+                    
+#                     # print('right-left\n')
+#                     # print(list(zip(reg_numbers, fractional_overlap)))
+#                     # now let's combine the two flags
+#                     pick_these = np.logical_or(left_right, right_left)
+
+#                     reg_numbers = reg_numbers[pick_these]
+#                     ic(reg_numbers, 'Regions to add periodic connections between for secondary direction {}'.format(j))
+#                     # print('Secondary direction is ', j)
+#                     # print('corresponding regions are ', corresponding_regions_j)
+#                     # print('Overlap fractions are ', fractional_overlap)
+#                     # print('Regions that meet overlap criteria are ', reg_numbers)
+#                     # for c in corresponding_regions_j:
+#                     #     if c[0]!=c[1]:
+#                     #         print('c is ', c)
+#                     #         if np.any(np.all(reg_numbers==c, axis=1)):
+#                     #             print('This c:{} is in reg_numbers:{}'.format(c, reg_numbers))
+#                     #             # if np.any([set(c).issubset(p) for p in pbc_groups]):
+#                     #             # print('about to add periodic edge between ', c[0], c[1])
+#                     #             rag_temp.add_edge(c[0], c[1], path_weight=0)
+#                     for c in reg_numbers:
+#                         if c[0]!=c[1]:
+#                             # print('c is ', c)
+#                             # if np.any(np.all(reg_numbers==c, axis=1)):
+#                             # print('This c:{} is in reg_numbers:{}'.format(c, reg_numbers))
+#                             # if np.any([set(c).issubset(p) for p in pbc_groups]):
+#                             # print('about to add periodic edge between ', c[0], c[1])
+                            
+#                             # if the periodic there is a window there, then path weight should be 1
+                            
+#                             if np.any([np.all([c[0], c[1]]==p)  or np.all([c[1], c[0]]==p) for p in periodic_connected_regions]):
+#                                 rag_temp.add_edge(c[0], c[1], path_weight=1)
+                            
+#                             # if there is a maxima at the wall, then the ppath weigth should be 0
+#                             else:                        
+#                                 rag_temp.add_edge(c[0], c[1], path_weight=0)
+#                 ic(rag_temp.edges(data='path_weight'), 'Edges in rag_temp after direction {}'.format(j))
+#         # print('a is ', a)
+#         # print('edges are ', rag_temp.edges(data='path_weight'))
+#         # these are all the paths
+#         paths_a_ = list(nx.all_pairs_dijkstra_path(rag_temp, weight='path_weight'))
+#         path_lengths_a_ = list(nx.all_pairs_dijkstra_path_length(rag_temp, weight='path_weight'))
+#         # print(rag_temp.edges(data=True))
+#         #* what are the paths connecting any region in column 0 in corresponding regions to 'any' region in column 1 in corresponding regions
+#         paths_a = []
+#         windows_a = []
+#         path_lengths_a = []
+
+#         # corresponding_non_matching = np.vstack([[s,t] for s,t in corresponding_regions if s!=t])
+#         # sources = corresponding_non_matching[:,0]
+#         # targets = corresponding_non_matching[:,1]
+
+#         # import dask.bag as db 
+#         # all_paths = db.from_product([sources, targets]).map(lambda x: list(nx.all_simple_paths(rag_temp, source=x[0], target=x[1], cutoff=path_jump_cutoff))).compute()
+        
+#         for llr in corresponding_regions[:,0]:
+#             for rrr in corresponding_regions[:,1]:
+
+#                 # * what if we looked for allthe simple paths between the two regions and then looked for the PLDs
+#                 if llr != rrr:
+#                     all_possible_paths = list(nx.all_simple_paths(rag_temp, source =llr, target = rrr, cutoff=path_jump_cutoff))
+
+#                     #* append the path windows and path length
+#                     for path in all_possible_paths:
+#                         paths_a.append(path)
+#                         # subgraph   = rag_temp.subgraph(path)
+
+#                         edges_to_select = list(more_itertools.pairwise(path))
+#                         subgraph = rag_temp.edge_subgraph(edges_to_select)
+#                         window_radii = [np.array([np.max(c[4])])  for e in subgraph.edges() for c in connections if c[1] and (np.all(c[0]==[e[0],e[1]]) or np.all(c[0]==[e[1],e[0]])) ]
+
+#                         #* append the path lengths
+#                         column_index = a*2+1 # column 1-6 are the windwo radii columns 
+#                         if not np.isnan(regions_wall_windows[llr-1][column_index]) and (rag.nodes[llr]['maxima_indices'][a]>wall_cells):
+#                             ic(llr, regions_wall_windows[llr-1][column_index])
+#                             window_radii.append(regions_wall_windows[llr-1][column_index])
+
+#                         if not np.isnan(regions_wall_windows[rrr-1][column_index+1]) and (rag.nodes[rrr]['maxima_indices'][a] < regions.shape[a] - wall_cells):
+#                             ic(rrr, regions_wall_windows[rrr-1][column_index+1])
+#                             window_radii.append(regions_wall_windows[rrr-1][column_index+1])
+
+#                         windows_a.append(window_radii)
+#                         edge_attrs = nx.get_edge_attributes(subgraph, 'path_weight')
+#                         path_weight_sum = sum(edge_attrs.values())
+#                         path_lengths_a.append(path_weight_sum)
+
+
+
+#                 if llr != rrr and rrr in paths_a_[llr-1][1].keys():
+#                     path_of_interest = paths_a_[llr-1][1][rrr]
+#                     paths_a.append(path_of_interest)
+#                     edges_to_select = list(more_itertools.pairwise(path_of_interest))
+
+#                     subgraph = rag_temp.edge_subgraph(edges_to_select)
+                    
+                    
+#                     #* look throug the connectins an find all the windows along hte way, internal, and periodic in the other two directions
+#                     window_radii = [np.array([np.max(c[4])])  for e in subgraph.edges() for c in connections if c[1] and (np.all(c[0]==[e[0],e[1]]) or np.all(c[0]==[e[1],e[0]])) ]
+#                     # window_radii = [np.max(subgraph.edges[e]['window_info']['window_radii']) for e in subgraph.edges() if subgraph.edges[e]['path_weight']==1]
+#                     ic(subgraph.edges(data='window_info'), 'Edges in subgraph')
+#                     ic([llr, rrr], 'Start and end regions')
+#                     ic(window_radii, 'Window radii')
+                    
+#                     # * also if both regions are exact mapping on the walls, then check for a periodic window also between and add that to the path
+#                     # if [llr, rrr] in corresponding_regions:
+                    
+
+#                     # * there also might be left window at llr and a right window at rrr in that
+#                     # * given direction. We need to pick that correctly using the master window location array
+#                     # * pick the window only if the region maxima is not on the wall
+
+#                     column_index = a*2+1 # column 1-6 are the windwo radii columns 
+#                     if not np.isnan(regions_wall_windows[llr-1][column_index]) and (rag.nodes[llr]['maxima_indices'][a]>wall_cells):
+#                         ic(llr, regions_wall_windows[llr-1][column_index])
+#                         window_radii.append(regions_wall_windows[llr-1][column_index])
+
+#                     if not np.isnan(regions_wall_windows[rrr-1][column_index+1]) and (rag.nodes[rrr]['maxima_indices'][a] < regions.shape[a] - wall_cells):
+#                         ic(rrr, regions_wall_windows[rrr-1][column_index+1])
+#                         window_radii.append(regions_wall_windows[rrr-1][column_index+1])
+                    
+                    
+#                     windows_a.append(window_radii) # once you have all the window diameters, append it to the paths along a list.
+#                     path_lengths_a.append(path_lengths_a_[llr-1][1][rrr]) # append the path length also
+
+        
+#         # print('Paths along direction {} after adding pbc are\n {}'.format(a, paths_a))
+#         # print('Path lengths along direction {} after adding pbc are\n {}'.format(a, path_lengths_a))
+#         # print('Window sizes along direction {} after adding pbc are\n {}'.format(a, windows_a))
+#         ic(paths_a, 'Paths along direction {} after adding pbc'.format(a))
+#         ic(path_lengths_a, 'Path lengths along direction {} after adding pbc'.format(a))
+#         paths.append(paths_a)
+#         path_windows.append(windows_a)
+#         path_lengths.append(path_lengths_a)
+#     #     #* now we need to find the windows along these paths, just get the window sizes when the path_weight of that edge is 1 else it is a periodic window between same regions
+
+#     #* let's do some reshaping
+#     path_windows_list = [np.hstack(pws).tolist() if len(pws)>0 else [] for pws_ in path_windows for pws in pws_]
+#     paths_list = [pws for pws_ in paths for pws in pws_]
+#     path_lengths_list = [pws for pws_ in path_lengths for pws in pws_]
+
+
+#     # paths_ = [p for pw_a in paths for p in pw_a ]
+#     # path_windows_ = [pw for pw_a in path_windows for pw in pw_a]
+#     # path_lengths_= [pw for pw_a in  path_lengths for pw in pw_a]
+
+#     # # print('Paths before clean up' )
+#     # # print(show_percolated_paths_as_df(paths_, path_windows_, path_lengths_))
+
+#     # # * remove paths with path weight 0 and the nodes are not the same
+#     paths_final = []
+#     path_windows_final = []
+#     path_lengths_final = []
+
+#     # for p, pw, pl in zip(paths_, path_windows_, path_lengths_):
+#     for p, pw, pl in zip(paths_list, path_windows_list, path_lengths_list):
+#         if pl > 0 :
+#             paths_final.append(p)
+#             path_windows_final.append(pw)
+#             path_lengths_final.append(pl)
+#         else:
+#             # path should only have 2 nodes and both should be the same
+#             if (len(p)==2 and p[0]==p[1]) or len(pw) > 0:
+#                 paths_final.append(p)
+#                 path_windows_final.append(pw)
+#                 path_lengths_final.append(pl)
+
+#     return paths_final, path_windows_final, path_lengths_final
+
+def filter_percolated_paths(paths, path_windows, path_lengths, probe_size):
+    """
+    The function filters paths based on whether their corresponding path windows meet a certain size
+    threshold.
+    
+    :param paths: The `paths` parameter in the `filter_percolated_paths` function is typically a list of
+    lists, where each inner list represents a path. Each path consists of a series of points or
+    pocket indices through which the path traverses
+    :param path_windows: The `path_windows` parameter seems to be a list of lists, where each inner list
+    contains arrays representing windows of a path. Each array contains the radii of the windows along the path.
+    :param path_lengths: The `path_lengths` parameter in the `filter_percolated_paths` function likely
+    represents the lengths of the paths, basically the number of edges or jumps in the path.
+    :param probe_size: Probe size is a parameter that represents the minimum size required for a path to
+    be considered "open". Paths with all windows greater than this probe size are considered open paths
+    :return: The function `filter_percolated_paths` returns three lists: `open_paths`,
+    `open_path_windows`, and `open_path_lengths`. These lists contain the paths, path windows, and path
+    lengths respectively, that meet the condition of having all windows in the path windows greater than
+    the `probe_size`.
+    """
+
+    import numpy as np
+    # open_paths = len([[np.all(np.hstack(pw) > probe_size) if len(pw) > 0 else False for pw in pw_a] for pw_a in path_windows ])
+    # open_paths_flags = [np.all(np.hstack(pw) > probe_size) if len(pw) > 0 else False  for pw_a in path_windows for pw in pw_a]
+    open_paths_flags = [np.all(np.hstack(pw) > probe_size) if len(pw) > 0 else False  for pw in path_windows]
+    # all_paths = [p for pw_a in paths for p in pw_a]
+    # all_paths = [p for  in paths]
+    open_paths = [p for i,p in enumerate(paths) if open_paths_flags[i]]
+    open_path_windows = [pw for i,pw in enumerate(path_windows) if open_paths_flags[i]]
+    open_path_lengths = [pl for i,pl in enumerate(path_lengths) if open_paths_flags[i]]
+    return open_paths, open_path_windows, open_path_lengths
+
+def get_pld_from_percolated_paths_path_windows(paths, path_windows):
+    
+    import numpy as np
+    key_window_size_list = [np.min(pw) if len(pw) > 0 else 1E-4 for pw in path_windows]
+    plr= np.max(key_window_size_list)
+    # if return_pld_path_info:
+    #     pld_path_info = ()
+    #     return plr**2, paths[np.argmax(key_window_size_list)], path_windows[np.argmax(key_window_size_list)]
+    # else:
+    return plr*2
+
+
+def  get_pld_for_rag(rag, return_pld_path_info=False, **kwargs):
+
+    import numpy as np
+    from ase.build import make_supercell
+    for key in ['dgrid', 'regions', 'connections', 'ase_atoms', 'maxima']:
+        if key not in rag.graph.keys():
+            raise ValueError(f"'{key}' is not in rag.graph.keys(). Please (compute and) add it first to the rag under the graph dictionary like this: rag.graph['{key}'] = {key}. If you're unsure how to calculate these, please refer to the basic tutorials linked on the GitHub README.")
+
+    spacing = kwargs.get('spacing', 0.5)
+    h = kwargs.get('h', 0.5)
+    compactness = kwargs.get('compactness', 0)
+    mask_thickness = kwargs.get('mask_thickness', 1.0)
+    block_size = kwargs.get('block_size', 50000)
+    n_neighbors = kwargs.get('n_neighbors', 4)
+    precompute = kwargs.get('precompute', True)
+    path_jump_cutoff = kwargs.get('path_jump_cutoff',)
+    # import mofography as mgr
+    from skimage.feature import peak_local_max
+    mat_atoms = rag.graph['ase_atoms']
+    nx_cells, ny_cells, nz_cells = get_repetitions_to_meet_cutoff(mat_atoms, cutoff=6)
+    mat_atoms= make_supercell(mat_atoms, [[nx_cells, 0, 0], [0, ny_cells, 0], [0, 0, nz_cells]])
+    # mat_updated = mgr.update_with_covalent_bonds(mat_atoms)
+    # ca =mat_updated
+    ca = mat_atoms
+    print('Number of atoms in the supercell:', len(ca))
+    # spacing = 0.5
+    # h = 0.5
+    # compactness =  0
+    # # mask_thickness = rag.graph['mask_thickness']
+    # mask_thickness =  1.0
+    # h = 0.25
+    # spacing =1.0 
+
+
+    # # * make supercell just in case
+    # na, nb, nc = mgr.get_repetitions_to_meet_cutoff(ca)
+    # print('repetitions: ', na, nb, nc)
+    # ca = make_supercell(ca, [[na, 0, 0], [0, nb, 0], [0, 0, nc]])
+
+    # dgrid =dgrid_from_atoms(ca, spacing=spacing, block_size=block_size, n_neighbors=n_neighbors, precompute=precompute)
+    # dgrid1 = zoom(dgrid, 2, mode = 'grid-wrap', order=1)
+    dgrid1 = rag.graph['dgrid']
+    dgrid1 = np.tile(dgrid1, (nx_cells, ny_cells, nz_cells))
+    max_indices = peak_local_max(dgrid1, min_distance=5, threshold_abs=2, exclude_border=False)
+    if nx_cells==1 and ny_cells==1 and nz_cells==1: 
+        print('No need to make supercell')
+        regions = rag.graph['regions']
+        maxima = rag.graph['maxima']
+        maxima_radii = dgrid1[tuple(maxima.T)]
+        connections = rag.graph['connections']
+    else:
+
+        rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=compactness, max_indices=max_indices.T)
+        # rm= regions_from_dgrid(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=compactness)
+        if len(max_indices)==0:
+            max_indices = None
+            rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=None)
+
+        regions = rm[0]
+        maxima = rm[1]
+        maxima_radii = rm[2]
+
+        # maxima_radii = get_maxima_radii_from_grid(dgrid, maxima)
+        # rag_new =(mgr.get_rag_from_regions_and_grid)(
+        # regions=regions, dgrid=dgrid1, maxima=maxima, ase_atoms=ca)
+        print('-Computing connnections for mask_thickness:{}'.format(mask_thickness))
+        # * compute the connections using custom function instead of skimage
+        # connections =connections_from_dgrid(dgrid1, ca, mask_thickness=mask_thickness, h=h, compactness=compactness, distance_threshold=1.0)
+        connections =connections_from_regions_and_dgrid(regions,dgrid1, maxima, ase_atoms=ca, wall_windows=True, distance_threshold=1.0, wall_thickness=3/spacing)
+        
+    # * construct new rag from connections 
+    print('- Constructing pore graph')
+    rag_new = rag_from_connections(connections, maxima)
+    rag_new = add_window_info_to_rag(rag_new, connections)
+    print('pore graph constructed')
+    #* add maxima to rag
+    rag_new = add_maxima_to_rag(rag_new, maxima, maxima_radii, regions.shape, ca)
+    # * compute pbc groups and add it to rag
+    pbc_groups =(apply_pbc)(regions=regions, maxima=maxima, maxima_radii=maxima_radii, ase_atoms=ca, return_conn=True)
+    print('pB applied')
+    # # * add the pbc info to the rag
+    rag_new =(add_pbc_to_rag)(rag=rag_new, pbc_groups = pbc_groups) 
+    rag_new.graph['mask_thickness'] = mask_thickness
+    rag_new.graph['h'] = h
+    rag_new.graph['compactness'] = compactness
+    rag_new.graph['spacing'] = spacing
+    rag_new.graph['n_neighbors'] = 4
+    rag_new.graph['distance_threshold'] = 1.0
+    rag_new.graph['block_size'] = 50000
+    rag_new.graph['pbc_groups'] = pbc_groups
+    # * compute percolated paths and path windows
+    print('- Computing percolated paths')
+    print('path jump cutoff is ', path_jump_cutoff)
+    paths, path_windows, path_lengths =get_percolated_paths_on_rag(rag, path_jump_cutoff=path_jump_cutoff)
+    iteration =1 
+    while len(paths) == 0:
+        print("Couldn't find paths the {} time around".format(iteration))
+        print('Reducing mask thickness and trying again')
+        mask_thickness = mask_thickness - 0.1
+        rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=maxima.T)
+        regions = rm[0]
+        maxima = rm[1]
+        maxima_radii = rm[2]
+
+        # maxima_radii = get_maxima_radii_from_grid(dgrid, maxima)
+        # rag_new =(mgr.get_rag_from_regions_and_grid)(
+        # regions=regions, dgrid=dgrid1, maxima=maxima, ase_atoms=ca)
+        print('-Computing connnections for mask_thickness:{}'.format(mask_thickness))
+        # * compute the connections using custom function instead of skimage
+        # connections =connections_from_dgrid(dgrid1, ca, mask_thickness=mask_thickness, h=h, compactness=compactness, distance_threshold=1.0)
+        paths, path_windows, path_lengths =get_percolated_paths_on_rag(rag, wall_windows=True, distance_threshold=1.0, wall_thickness=3/spacing, path_jump_cutoff=path_jump_cutoff)
+        #  =mgr.get_percolated_paths_on_rag(rag, wall_windows=True, distance_threshold=1.0, wall_thickness=3/spacing)
+
+        print('- Constructing pore graph')    
+        # * construct new rag from connections 
+        rag_new = rag_from_connections(connections, maxima)
+        rag_new = add_window_info_to_rag(rag_new, connections)
+        print('pore graph constructed')
+        #* add maxima to rag
+        rag_new = add_maxima_to_rag(rag_new, maxima, maxima_radii, regions.shape, ca)
+        print('- Computing PBC')
+        # * compute pbc groups and add it to rag
+        pbc_groups =(apply_pbc)(regions=regions, maxima=maxima, maxima_radii=maxima_radii, ase_atoms=ca, return_conn=True)
+
+        # # * add the pbc info to the rag
+        rag_new =(add_pbc_to_rag)(rag=rag_new, pbc_groups = pbc_groups) 
+        rag_new.graph['mask_thickness'] = mask_thickness
+        rag_new.graph['h'] = h
+        rag_new.graph['compactness'] = compactness
+        rag_new.graph['spacing'] = spacing
+        rag_new.graph['n_neighbors'] = 4
+        rag_new.graph['distance_threshold'] = 1.0
+        rag_new.graph['block_size'] = 50000
+        rag_new.graph['pbc_groups'] = pbc_groups
+        # * compute percolated paths and path windows
+        ic.disable()
+        print('- Computing percolated paths')
+        # paths, path_windows, path_lengths = percolated_paths_from_regions_and_connections(regions=regions, connections=connections, pbc_groups =pbc_groups, rag_new =rag_new, mat_atoms=ca, path_jump_cutoff=None)
+        paths, path_windows, path_lengths =get_percolated_paths_on_rag(rag)
+        iteration = iteration+1
+    pld = get_pld_from_percolated_paths_path_windows(paths, path_windows)
+    if return_pld_path_info:
+        return pld, paths, path_windows, path_lengths
+    else:
+        return pld
 def connections_from_regions_and_dgrid(region_labels, dgrid, maxima, ase_atoms, wall_windows=True, distance_threshold=1.0, wall_thickness=2):
 
     """
