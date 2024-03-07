@@ -1883,20 +1883,21 @@ def filter_percolated_paths(paths, path_windows, path_lengths, probe_size):
     open_path_lengths = [pl for i,pl in enumerate(path_lengths) if open_paths_flags[i]]
     return open_paths, open_path_windows, open_path_lengths
 
-def get_pld_from_percolated_paths_path_windows(paths, path_windows, return_pld_path_info=False):
+def get_pld_from_percolated_paths_path_windows(paths, path_windows):
     
     import numpy as np
     key_window_size_list = [np.min(pw) if len(pw) > 0 else 1E-4 for pw in path_windows]
-    pld = np.max(key_window_size_list)
-    if return_pld_path_info:
-        pld_path_info = (paths[np.argmax(key_window_size_list)], path_windows[np.argmax(key_window_size_list)])
-        return pld, pld_path_info
-    else:
-        return pld
+    plr= np.max(key_window_size_list)
+    # if return_pld_path_info:
+    #     pld_path_info = ()
+    #     return plr**2, paths[np.argmax(key_window_size_list)], path_windows[np.argmax(key_window_size_list)]
+    # else:
+    return plr*2
 
 
-def  get_pld_for_rag(rag, **kwargs):
+def  get_pld_for_rag(rag, return_pld_path_info=False, **kwargs):
 
+    import numpy as np
     from ase.build import make_supercell
     for key in ['dgrid', 'regions', 'connections', 'ase_atoms', 'maxima']:
         if key not in rag.graph.keys():
@@ -2035,7 +2036,10 @@ def  get_pld_for_rag(rag, **kwargs):
         paths, path_windows, path_lengths =get_percolated_paths_on_rag(rag)
         iteration = iteration+1
     pld = get_pld_from_percolated_paths_path_windows(paths, path_windows)
-    return pld
+    if return_pld_path_info:
+        return pld, paths, path_windows, path_lengths
+    else:
+        return pld
 def connections_from_regions_and_dgrid(region_labels, dgrid, maxima, ase_atoms, wall_windows=True, distance_threshold=1.0, wall_thickness=2):
 
     """
