@@ -139,6 +139,52 @@ publication_layout = dict(template='plotly_white',
 #                                             ), showscale=False
 #                          )
 
+def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
+    """
+    The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by
+    lines in different colorscales.
+    
+    :param rag: The `rag` parameter in the `plot_paths` function seems to represent a networkx graph
+    object. It is used to extract node attributes from the graph for plotting paths
+    :param paths: The `paths` parameter in the `plot_paths` function is a list of lists. Each inner list
+    represents a path in a graph. The function iterates over these paths and creates a 3D scatter plot
+    with markers and lines to visualize the paths. Each path is represented by markers connected by
+    :type paths: list
+    :param colorscale: The parameter `colorscale` in the `plot_paths` function is used to specify the
+    color palette that will be used to color the paths in the plot. The default value is set to
+    'Pastel', but you can provide any other valid color scale from the `px.colors.qualitative` module,
+    defaults to Pastel
+    :type colorscale: str (optional)
+    :return: The function `plot_paths` returns a list of plotly `Scatter3d` traces representing the
+    paths provided in the input list.
+    """
+
+    import plotly.graph_objects as go 
+    import networkx as nx 
+    import random
+    import plotly.express as px 
+    import numpy as np
+    # coordinates = []
+    # hovertext=[]
+    # marker_color = []
+    path_traces =[]
+    colorscale = getattr(px.colors.qualitative, colorscale)
+    for i,path in enumerate(paths):
+        # coordinates = coordinates+list(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+        maxima_dict= nx.get_node_attributes(rag, 'maxima')
+        coordinates= np.vstack(map(maxima_dict.get, path))
+        # coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+        # coordinates.append([None, None, None])
+        # hovertext = hovertext + ['Path: '+str(i)]*len(path)
+        hovertext ='P'+str(i)+': '+'->'.join([str(p) for p in path])        # hovertext.append(None)
+        # marker_color= marker_color+ [random.choice(colorscale)]*len(path)
+        marker_color= random.choice(colorscale)
+        line_color = 'yellow'
+        # marker_color.append('rgb(0,0,0)')
+        path_trace = go.Scatter3d(x=coordinates[:,0], y=coordinates[:,1], z=coordinates[:,2], mode='markers+lines', marker=dict(size=25, color=marker_color),line=dict(width=10,color=line_color), hovertext=hovertext, name=hovertext ,**kwargs)
+        path_traces.append(path_trace)
+    
+    return path_traces
 #     return data_plot
 def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
                        color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :', **kwargs_mesh):
@@ -1397,50 +1443,50 @@ def make_bg_image( type='radial', cmap='plasma_r'):
                     sizing="stretch",
                     layer="below")
     return image
-def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
-    """
-    Plot the paths in a RAG.
+# def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
+#     """
+#     Plot the paths in a RAG.
 
-    Parameters
-    ----------
-    rag : nx.Graph
-        The region adjacency graph.
-    paths : list
-        A list of paths in the RAG.
-    colorscale : str, optional
-        The colorscale to use for the paths, by default 'Pastel'
+#     Parameters
+#     ----------
+#     rag : nx.Graph
+#         The region adjacency graph.
+#     paths : list
+#         A list of paths in the RAG.
+#     colorscale : str, optional
+#         The colorscale to use for the paths, by default 'Pastel'
 
-    Returns
-    -------
-    list
-        A list of Plotly traces.
-    """
-    import plotly.graph_objects as go 
-    import networkx as nx 
-    import random
-    import plotly.express as px 
-    import numpy as np
-    # coordinates = []
-    # hovertext=[]
-    # marker_color = []
-    path_traces =[]
-    colorscale = getattr(px.colors.qualitative, colorscale)
-    for i,path in enumerate(paths):
-        # coordinates = coordinates+list(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
-        maxima_dict= nx.get_node_attributes(rag, 'maxima')
-        coordinates= np.vstack(map(maxima_dict.get, path))
-        # coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
-        # coordinates.append([None, None, None])
-        # hovertext = hovertext + ['Path: '+str(i)]*len(path)
-        hovertext ='Path: '+str(i)        # hovertext.append(None)
-        # marker_color= marker_color+ [random.choice(colorscale)]*len(path)
-        marker_color= random.choice(colorscale)
-        line_color = 'yellow'
-        # marker_color.append('rgb(0,0,0)')
-        path_trace = go.Scatter3d(x=coordinates[:,0], y=coordinates[:,1], z=coordinates[:,2], mode='markers+lines', marker=dict(size=25, color=marker_color),line=dict(width=10,color=line_color), hovertext=hovertext, name='Path:'+str(i) ,**kwargs)
-        path_traces.append(path_trace)
+#     Returns
+#     -------
+#     list
+#         A list of Plotly traces.
+#     """
+#     import plotly.graph_objects as go 
+#     import networkx as nx 
+#     import random
+#     import plotly.express as px 
+#     import numpy as np
+#     # coordinates = []
+#     # hovertext=[]
+#     # marker_color = []
+#     path_traces =[]
+#     colorscale = getattr(px.colors.qualitative, colorscale)
+#     for i,path in enumerate(paths):
+#         # coordinates = coordinates+list(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+#         maxima_dict= nx.get_node_attributes(rag, 'maxima')
+#         coordinates= np.vstack(map(maxima_dict.get, path))
+#         # coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
+#         # coordinates.append([None, None, None])
+#         # hovertext = hovertext + ['Path: '+str(i)]*len(path)
+#         hovertext ='Path: '+str(i)        # hovertext.append(None)
+#         # marker_color= marker_color+ [random.choice(colorscale)]*len(path)
+#         marker_color= random.choice(colorscale)
+#         line_color = 'yellow'
+#         # marker_color.append('rgb(0,0,0)')
+#         path_trace = go.Scatter3d(x=coordinates[:,0], y=coordinates[:,1], z=coordinates[:,2], mode='markers+lines', marker=dict(size=25, color=marker_color),line=dict(width=10,color=line_color), hovertext=hovertext, name='Path:'+str(i) ,**kwargs)
+#         path_traces.append(path_trace)
     
-    return path_traces
+#     return path_traces
 
 
 def plot_windows(connections, **kwargs):
