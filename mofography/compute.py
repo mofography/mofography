@@ -217,14 +217,15 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 
     def gpd(points, fpoints=fpoints, cell=cell, radii=radii):
         points = cp.asarray(points)
-
+        fpoints = cp.asarray(fpoints)
+        radii = cp.asarray(radii)
         diff = cp.expand_dims(points, axis=1) - cp.expand_dims(fpoints, axis=0)
         diff = (diff - cp.around(diff)).reshape(-1, 3)
         diff = cp.dot(cell, diff.T).T
         diff = cp.linalg.norm(diff, axis=1).reshape(-1, fpoints.shape[0]) - radii.T
         return cp.min(diff, axis=1)
 
-    gpoints_da = gpoints.map_blocks(gpd, chunks=(block_size, 1))
+    gpoints_da = gpoints.map_blocks(gpd, chunks=(block_size, 1), dtype='float32')
 
     distance_grid = []
     from rich.progress import track
@@ -1947,15 +1948,15 @@ def  get_pld_for_rag(rag, return_pld_path_info=False, **kwargs):
         connections = rag.graph['connections']
     else:
 
-        rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=compactness, max_indices=max_indices.T)
+        regions, maxima= regions_from_dgrid(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=compactness, max_indices=max_indices.T)
         # rm= regions_from_dgrid(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=compactness)
         if len(max_indices)==0:
             max_indices = None
-            rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=None)
+            regions, maxima= regions_from_dgrid(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=None)
 
-        regions = rm[0]
-        maxima = rm[1]
-        maxima_radii = rm[2]
+        # regions = rm[0]
+        # maxima = rm[1]
+        maxima_radii = dgrid1[tuple(maxima.T)]
 
         # maxima_radii = get_maxima_radii_from_grid(dgrid, maxima)
         # rag_new =(mgr.get_rag_from_regions_and_grid)(
@@ -3046,7 +3047,40 @@ def get_connections_for_rag(rag,region_labels, maxima,ase_atoms,dgrid, minimum_w
     return connections
 
 
-def get_sampling_paths_for_region(region_index, connections, dgrid, maxima,  shape, ase_atoms):
+def get_diametrically_opposite_points(region_indices, ase_atoms, shape, num_points=8):
+    from scipy.spatial import ConvexHull
+    import numpy as np
+    # get the cell matrix
+    cell = ase_atoms.get_cell()
+
+    # convert the region indices to fractional coordinates
+    region_frac_coords = region_indices / shape
+
+    # convert the fractional coordinates to actual coordinates
+    region_coords = np.dot(region_frac_coords, cell)
+
+    # compute the convex hull of the region
+    hull = ConvexHull(region_coords)
+
+    # get the vertices of the convex hull
+    vertices = region_coords[hull.vertices]
+
+    # compute the centroid of the vertices
+    centroid = np.mean(vertices, axis=0)
+
+    # compute the angles of the vertices with respect to the centroid
+    angles = np.arctan2(vertices[:,1] - centroid[1], vertices[:,0] - centroid[0])
+
+    # sort the vertices by angle and keep track of the original indices
+    sorted_indices = np.argsort(angles)
+    sorted_vertices = vertices[sorted_indices]
+
+    # select num_points points that are evenly spaced around the circumference
+    selected_indices = sorted_indices[np.linspace(0, len(sorted_vertices), num_points, endpoint=False).astype(int)]
+
+    return region_indices[selected_indices]
+
+def get_sampling_paths_for_region(region_index, connections, dgrid, regions, maxima,  shape, ase_atoms):
     """
     > It finds the paths from the maxima of a region to the windows of that region
     
@@ -3061,28 +3095,145 @@ def get_sampling_paths_for_region(region_index, connections, dgrid, maxima,  sha
     """
 
     import numpy as np
+    import dijkstra3d 
     from .helper import get_fractional_coordinates
     #* maxima of the regiuon 
     region_maxima_index = maxima[region_index-1]
-
-    #* let's find the indices ofthe windows of that region
-    connected_regions = np.vstack([c[0] for c in connections])
-    region_window_coords = np.vstack(np.array(connections)[np.any(connected_regions==region_index, axis=1)][:,-2])
-    region_window_frac_coords = get_fractional_coordinates(region_window_coords, ase_atoms)
-    region_window_indices = (region_window_frac_coords*shape).astype(int)
-
-    #* dijkstra path finding
-    import dijkstra3d 
 
     # * use exp field this works fine.
     field = np.exp(-(dgrid - dgrid.min()))
 
     # * find the paths
     paths = []
-    for wc in region_window_indices:
-        paths.append(dijkstra3d.dijkstra(field, region_maxima_index, wc, connectivity=26))
+    #* let's find the indices ofthe windows of that region
+    connected_regions = np.vstack([c[0] for c in connections if c[1]])
+    # print(np.sum([(region_index in c) for c in connected_regions]) > 0)
+    if np.sum([(region_index in c) for c in connected_regions]) > 0:
+        # print('Going here')
+        region_window_coords = np.vstack([c[3] for c in connections if (region_index in c[0]) and c[1]])
+        # region_window_coords = np.vstack(connections[np.any(connected_regions==region_index, axis=1)][:,-2])
+        region_window_frac_coords = get_fractional_coordinates(region_window_coords, ase_atoms)
+        region_window_indices = (region_window_frac_coords*shape).astype(int)
 
+
+        #* dijkstra path finding
+        for wc in region_window_indices:
+            paths.append(dijkstra3d.dijkstra(field, region_maxima_index, wc, connectivity=26))
+    else:
+        # print('Region index {} has no windows'.format(region_index))
+        shape = dgrid.shape
+        region_maxima_index = maxima[region_index-1]
+        region_indices = np.vstack(np.where(regions==region_index)).T
+        # print('Number of points in the region: ', region_indices.shape[0])
+        hull_points = get_diametrically_opposite_points(region_indices, ase_atoms, shape, num_points=8)
+        # farthest_points = get_farthest_points_on_random_lines(region_maxima_index, np.where(regions==region_index), shape, ase_atoms, num_points=8, num_directions=100)
+        #* dijkstra path finding
+        for wc in hull_points:
+            paths.append(dijkstra3d.dijkstra(field, region_maxima_index, wc, connectivity=26))
     return paths
+def mark_points_with_largest_including_dia(region_index, regions, connections, dgrid, maxima, ase_atoms, maxima_radii):
+    import ase
+    import numpy as np
+    shape = regions.shape
+    paths =get_sampling_paths_for_region(region_index, connections, dgrid, regions,maxima, shape, ase_atoms)
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+
+    # find the points in the region
+    region_points = np.where(regions == region_index)
+    # initialize the list of radii with zeros
+    radii = np.zeros(len(region_points[0]))
+
+    for path in paths:
+        path = path[::-1]  # reverse the path
+        for i in range(len(path)):
+            center = path[i]
+            radius = dgrid[path[i][0], path[i][1], path[i][2]]  # size of the sphere is dgrid[path_index]
+            # radius = min(radius, maxima_radii[center[0], center[1], center[2]])  # limit the radius to the maxima radius
+            # print(region_points, shape, center)
+            # calculate their distance to the center in fractional coordinates
+            dr_scaled = np.vstack(region_points).T/shape - center/shape
+            # convert it back to actual distances
+            dist = np.linalg.norm(np.dot(cell, dr_scaled.T).T, axis=1)
+            
+            # find the points within the sphere
+            possible_neighbors = dist < radius
+            # assign the radius to the points within the sphere
+            radii[possible_neighbors] = radius
+
+    return radii
+def get_psd_on_rag(rag, bins=None):
+    for key in ['regions', 'connections', 'dgrid', 'maxima', 'ase_atoms']:
+        if key not in rag.graph:
+            raise ValueError(f'{key} not in rag.graph. Please compute and add {key} to rag.graph first before computing the PSD ')
+    import dask
+    from dask.diagnostics import ProgressBar
+    import numpy as np
+
+    # create a delayed version of the mark_points_in_spheres function
+    mark_points_with_largest_including_dia_delayed= dask.delayed(mark_points_with_largest_including_dia)
+    regions = rag.graph['regions']
+    # get the list of region indices
+    region_indices = np.arange(1, regions.max()+1)
+
+    # create a list of delayed tasks
+    tasks = [mark_points_with_largest_including_dia_delayed(region_index, rag.graph['regions'], rag.graph['connections'], rag.graph['dgrid'], rag.graph['maxima'],  rag.graph['ase_atoms'], rag.graph['dgrid'][tuple(rag.graph['maxima'].T)]) for region_index in region_indices]
+    with ProgressBar():
+        # compute the results in parallel
+        results = dask.compute(*tasks)
+
+    # combine all the non-zero radii
+    non_zero_radii = np.concatenate([radii[radii > 0] for radii in results])
+    if bins is None:
+        # define the bins
+        bins = np.linspace(0, 100, 100)
+
+    # compute the histogram
+    hist, bin_edges = np.histogram(non_zero_radii*2, bins=bins, density=True)
+
+    # compute the PDF and CDF
+    pdf = hist
+    cdf = np.cumsum(hist)
+    rag.graph['pore_size_dist'] = pdf
+    rag.graph['pore_size_cdf'] = cdf
+    rag.graph['pore_size_bins'] = bin_edges
+    return rag
+# def get_sampling_paths_for_region(region_index, connections, dgrid, maxima,  shape, ase_atoms):
+#     """
+#     > It finds the paths from the maxima of a region to the windows of that region
+    
+#     :param region_index: the index of the region you want to find the paths for
+#     :param connections: a list of tuples, each tuple contains the indices of the connected regions and
+#     the window coordinates
+#     :param dgrid: the distance grid
+#     :param maxima: the indices of the maxima of the region
+#     :param shape: shape of the grid
+#     :param ase_atoms: ASE atoms object
+#     :return: The paths are being returned.
+#     """
+
+#     import numpy as np
+#     from .helper import get_fractional_coordinates
+#     #* maxima of the regiuon 
+#     region_maxima_index = maxima[region_index-1]
+
+#     #* let's find the indices ofthe windows of that region
+#     connected_regions = np.vstack([c[0] for c in connections])
+#     region_window_coords = np.vstack(np.array(connections)[np.any(connected_regions==region_index, axis=1)][:,-2])
+#     region_window_frac_coords = get_fractional_coordinates(region_window_coords, ase_atoms)
+#     region_window_indices = (region_window_frac_coords*shape).astype(int)
+
+#     #* dijkstra path finding
+#     import dijkstra3d 
+
+#     # * use exp field this works fine.
+#     field = np.exp(-(dgrid - dgrid.min()))
+
+#     # * find the paths
+#     paths = []
+#     for wc in region_window_indices:
+#         paths.append(dijkstra3d.dijkstra(field, region_maxima_index, wc, connectivity=26))
+
+#     return paths
 
 
 def sample_path(path_indices, points_per_path=100):
@@ -3136,62 +3287,62 @@ def get_distances_for_path(path_indices, shape, ase_atoms, n_neighbors=10, radii
 
 
 
-def get_psd_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms, n_neighbors=10, radii=None, points_per_path=1000, set_bins=50, return_bins=False):
-    """
-    This function takes in a region index, the connections between regions, the distance grid, the
-    maxima, the shape of the distance grid, the ase atoms object, the number of neighbors to consider,
-    the radii of the atoms, the number of points to sample along the path, the number of bins to use for
-    the histogram, and a boolean to return the bins or not. 
+# def get_psd_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms, n_neighbors=10, radii=None, points_per_path=1000, set_bins=50, return_bins=False):
+#     """
+#     This function takes in a region index, the connections between regions, the distance grid, the
+#     maxima, the shape of the distance grid, the ase atoms object, the number of neighbors to consider,
+#     the radii of the atoms, the number of points to sample along the path, the number of bins to use for
+#     the histogram, and a boolean to return the bins or not. 
     
-    It returns the histogram values and the bins if return_bins is True, otherwise it returns just the
-    histogram values.
+#     It returns the histogram values and the bins if return_bins is True, otherwise it returns just the
+#     histogram values.
     
-    :param region_index: The index of the region for which you want to get the psd
-    :param connections: list of tuples of the form (region_index, region_index)
-    :param dgrid: distance grid
-    :param maxima: the maxima of the distance map
-    :param shape: shape of the grid
-    :param ase_atoms: ASE atoms object
-    :param n_neighbors: number of neighbors to consider for each point in the path, defaults to 10
-    (optional)
-    :param radii: list of radii for which you want to calculate the psd. If you want to calculate the
-    psd for a single radius, then you can pass a single value
-    :param points_per_path: number of points to sample along the path, defaults to 1000 (optional)
-    :param set_bins: The number of bins to use for the histogram, defaults to 50 (optional)
-    :param return_bins: If True, returns the bin centers as well as the histogram values, defaults to
-    False (optional)
-    :return: the psd for a given region.
-    """
+#     :param region_index: The index of the region for which you want to get the psd
+#     :param connections: list of tuples of the form (region_index, region_index)
+#     :param dgrid: distance grid
+#     :param maxima: the maxima of the distance map
+#     :param shape: shape of the grid
+#     :param ase_atoms: ASE atoms object
+#     :param n_neighbors: number of neighbors to consider for each point in the path, defaults to 10
+#     (optional)
+#     :param radii: list of radii for which you want to calculate the psd. If you want to calculate the
+#     psd for a single radius, then you can pass a single value
+#     :param points_per_path: number of points to sample along the path, defaults to 1000 (optional)
+#     :param set_bins: The number of bins to use for the histogram, defaults to 50 (optional)
+#     :param return_bins: If True, returns the bin centers as well as the histogram values, defaults to
+#     False (optional)
+#     :return: the psd for a given region.
+#     """
 
-    import numpy as np
-    #* get the paths 
-    connected_regions = np.vstack([c[0] for c in connections])
-    if np.any(connected_regions == region_index):
-
-
-        #* get the paths 
-        paths = get_sampling_paths_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms)
+#     import numpy as np
+#     #* get the paths 
+#     connected_regions = np.vstack([c[0] for c in connections])
+#     if np.any(connected_regions == region_index):
 
 
-        #* resample the paths to make them finer
-        paths = [sample_path(path, points_per_path=points_per_path) for path in paths]
+#         #* get the paths 
+#         paths = get_sampling_paths_for_region(region_index, connections, dgrid, maxima, shape, ase_atoms)
 
-        #* get the distances for each path
-        distances = []
-        for path in paths:
-            distances.append(get_distances_for_path(path, dgrid.shape, ase_atoms, n_neighbors=n_neighbors,radii=radii))
 
-        #* get the psd for all the paths
-        vals, bins = np.histogram(np.concatenate(distances), density=True, bins=set_bins)
-        # binc = (bins[1:]+bins[:-1])/2
-        if return_bins:
-            binc = (bins[1:]+bins[:-1])/2
-            return vals, binc
-        else:
-            return vals
-    else:
-        print('The region {} is not connected to any other region. Hence unable to detect cavity axis for sampling'.format(region_index))
-        return 'NaN', 'NaN'
+#         #* resample the paths to make them finer
+#         paths = [sample_path(path, points_per_path=points_per_path) for path in paths]
+
+#         #* get the distances for each path
+#         distances = []
+#         for path in paths:
+#             distances.append(get_distances_for_path(path, dgrid.shape, ase_atoms, n_neighbors=n_neighbors,radii=radii))
+
+#         #* get the psd for all the paths
+#         vals, bins = np.histogram(np.concatenate(distances), density=True, bins=set_bins)
+#         # binc = (bins[1:]+bins[:-1])/2
+#         if return_bins:
+#             binc = (bins[1:]+bins[:-1])/2
+#             return vals, binc
+#         else:
+#             return vals
+#     else:
+#         print('The region {} is not connected to any other region. Hence unable to detect cavity axis for sampling'.format(region_index))
+#         return 'NaN', 'NaN'
 
 def apply_pbc(regions, maxima, maxima_radii, ase_atoms, wall_thickness=1, return_conn =False, minimum_overlap_fraction=0.5):
     """
