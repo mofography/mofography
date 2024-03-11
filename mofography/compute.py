@@ -1995,10 +1995,10 @@ def  get_pld_for_rag(rag, return_pld_path_info=False, **kwargs):
         print("Couldn't find paths the {} time around".format(iteration))
         print('Reducing mask thickness and trying again')
         mask_thickness = mask_thickness - 0.1
-        rm= regions_from_dgrid2(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=maxima.T)
+        rm= regions_from_dgrid(dgrid=dgrid1, mask_thickness=mask_thickness, h=h, compactness=0, max_indices=maxima.T)
         regions = rm[0]
         maxima = rm[1]
-        maxima_radii = rm[2]
+        maxima_radii = dgrid1[tuple(maxima.T)]
 
         # maxima_radii = get_maxima_radii_from_grid(dgrid, maxima)
         # rag_new =(mgr.get_rag_from_regions_and_grid)(
