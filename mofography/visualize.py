@@ -1879,3 +1879,68 @@ def plot_molecule_at_best_optuna_trials(rag, molecule_atoms, molecule_name, **kw
     traces = [plot_molecule(rag.nodes[i]['best_trial_{}'.format(molecule_name)].user_attrs['cart_coords'],
                             **kwargs_plot_mesh) for i in rag.nodes if 'best_trial_{}'.format(molecule_name) in rag.nodes[i].keys()  ]
     return traces
+
+def make_pore_size_distribution_fig_from_rag(rag):
+    """
+    The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore
+    size distribution and cumulative distribution from a given RAG.
+    
+    :param rag: The function `make_pore_size_distribution_fig_from_rag` takes a RAG (Region Adjacency
+    Graph) object as input and creates a plotly figure showing the Pore Size Distribution (PDF) and
+    Cumulative Distribution Function (CDF) based on the data stored in the RAG object
+    :return: The function `make_pore_size_distribution_fig_from_rag` returns a Plotly figure object that
+    contains a plot of the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based
+    on the input Reservoir Analog Graph (RAG) data.
+    """
+
+    for key in ['pore_size_dist', 'pore_size_cdf', 'pore_size_bins']:
+        if key not in rag.graph:
+            raise ValueError('The pore size distribution has not been computed for this RAG. Please run the get_psd_on_rag function first.')
+    import plotly.graph_objects as go
+    # extract the PDF, CDF, and bin edges from the rag
+    pdf = rag.graph['pore_size_dist']
+    cdf = rag.graph['pore_size_cdf']
+    bin_edges = rag.graph['pore_size_bins']
+
+    # create a figure
+    fig = go.Figure()
+
+    # add a trace for the PDF
+    fig.add_trace(go.Scatter(
+        x=bin_edges[:-1],  # use the left edge of each bin as the x-coordinate
+        y=pdf,
+        mode='lines',
+        name='Pore Size Distribution',
+        line=dict(color='blue')
+    ))
+
+    # add a trace for the CDF
+    fig.add_trace(go.Scatter(
+        x=bin_edges[:-1],
+        y=cdf,
+        mode='lines',
+        name='Cumulative Distribution',
+        line=dict(dash='dot', color='red'),
+        yaxis='y2'
+    ))
+
+    # set the x-axis title
+    fig.update_xaxes(title_text='Pore Dia. (Å)')
+
+    # set the y-axis title
+    fig.update_layout(
+        yaxis=dict(
+            title='Pore Size Distribution',
+            titlefont=dict(color='blue'),
+            tickfont=dict(color='blue')
+        ),
+        yaxis2=dict(
+            title='Cumulative Distribution',
+            titlefont=dict(color='red'),
+            tickfont=dict(color='red'),
+            overlaying='y',
+            side='right'
+        )
+    )
+
+    return fig
