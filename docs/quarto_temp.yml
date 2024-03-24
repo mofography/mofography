@@ -1,0 +1,174 @@
+project:
+  type: website
+  output-dir: _site
+website:
+  page-navigation: true
+  navbar:
+    background: dark
+    search: true
+    logo: logo.png
+    left:
+    - text: Install
+      file: install.qmd
+    - text: Learn
+      file: learn.qmd
+    - text: Reference
+      file: reference/index.qmd
+    - text: Publications
+      file: publications.qmd
+    right:
+    - icon: github
+      href: github.com/arung-northwestern/mofography
+metadata-files:
+- _sidebar.yml
+quartodoc:
+  package: mofography
+  sidebar: _sidebar.yml
+  sections:
+  - title: Compute pore properties
+    package: mofography.compute
+    desc: Functions to compute the properties of nanopores.
+    contents:
+    - dgrid_from_atoms
+    - dgrid_from_atoms_cpu
+  - title: Compute
+    package: mofography.compute
+    desc: Description of this module.
+    contents:
+    - AABB_on_atoms
+    - add_best_optuna_trial_to_rag
+    - add_centroids_to_rag_with_pbc
+    - add_clustering_to_rag
+    - add_clustering_to_rag_energy
+    - add_clustering_to_rag_energy_js
+    - add_clustering_to_rag_geometry_js
+    - add_clustering_to_rag_pca
+    - add_maxima_to_rag
+    - add_pbc_to_rag
+    - add_props_to_graph
+    - add_props_to_rag
+    - add_psd_to_rag
+    - add_psd_to_rag_with_pbc
+    - add_vdw_hist_to_rag
+    - add_window_info_to_rag
+    - apply_pbc
+    - apply_periodic_map
+    - calc_path_components
+    - clustering_grid_from_regions
+    - compare_two_paths
+    - connections_from_regions_and_dgrid
+    - dask_grid_over_atoms
+    - dgrid_from_atoms
+    - dgrid_from_atoms_cpu
+    - dgrid_from_atoms_gpu
+    - egrid_from_atoms2
+    - filter_percolated_paths
+    - find_isomorphic_path_groups
+    - find_paths
+    - get_connections_for_rag
+    - get_diametrically_opposite_points
+    - get_distances_for_path
+    - get_energies_for_group
+    - get_energies_for_group2
+    - get_energy_interpolator
+    - get_percolated_paths_on_rag
+    - get_periodic_map
+    - get_pld_for_rag
+    - get_pld_from_percolated_paths_path_windows
+    - get_psd_on_rag
+    - get_rag_from_regions_and_grid
+    - get_region_props_for_regions
+    - get_repetitions_to_meet_cutoff
+    - get_sampling_paths_for_region
+    - get_wall_windows2
+    - gpd_aabb
+    - gpe_aabb
+    - gpe_aabb2
+    - interpolate_dgrid
+    - mark_points_with_largest_including_dia
+    - optimize_molecule_at_node
+    - rag_from_connections
+    - regions_from_dgrid
+    - repeat_to_meet_cutoff
+    - sample_path
+  - title: Visualize
+    package: mofography.visualize
+    desc: Description of this module.
+    contents:
+    - add_hoverdata_to_atoms_traces
+    - cylinders_for_bonds
+    - draw_framework
+    - get_default_colors
+    - get_isosurface_mesh
+    - make_bg_image
+    - make_pore_size_distribution_fig_from_rag
+    - mesh_for_atoms
+    - plot_aromatic_rings
+    - plot_cell
+    - plot_cycle_highlights
+    - plot_everything
+    - plot_framework_as_mesh
+    - plot_maxima
+    - plot_mesh
+    - plot_molecule_at_best_optuna_trials
+    - plot_paths
+    - plot_pore_graph
+    - plot_psds
+    - plot_rag
+    - plot_snapshot_raspa_pdb
+    - plot_subset_of_atoms
+    - plot_surface_dgrid
+    - plot_vdw_hists
+    - plot_windows
+    - scatter3d
+    - spheres_for_atoms
+    - spheres_for_positions
+    - trimesh_from_pyvista
+  - title: Analyze
+    package: mofography.analyze
+    desc: Description of this module.
+    contents:
+    - detect_smiles_in_mol
+    - find_aromatic_cycles_in_sgraph
+    - find_chemically_unique_cycles
+    - find_cycles_in_sgraph
+    - find_functional_groups
+    - find_pattern_in_sgraph
+    - find_rings_in_ase_atoms
+    - find_smiles_in_mofid
+    - find_unique_sgraphs
+    - get_atoms_from_smiles
+    - get_bond_types
+    - get_bonds_and_orders_without_replication
+    - get_subset_atoms
+    - sgraph_from_atoms
+    - update_with_covalent_bonds
+    - voronoi_on_atoms
+  - title: Data
+    package: mofography.data
+    desc: Description of this module.
+    contents:
+    - add_graph_to_db
+    - atoms_from_mofdb_df
+    - bound_fetch
+    - create_db_from_pickled_graphs
+    - fetch
+    - get_data_from_mofdb
+    - get_graph
+    - get_mofdb_data
+    - get_num_graphs
+    - get_number_of_pages
+    - mix_lorentz_berthelot
+    - read_cif_string
+    - read_raspa_pdb
+    - show_percolated_paths_as_df
+  - title: Helper
+    package: mofography.helper
+    desc: Description of this module.
+    contents:
+    - compare_psd_peaks
+    - find_coord_from_indices
+    - find_psd_peaks
+    - get_fractional_coordinates
+    - interpolate_labels
+    - zoom_grid

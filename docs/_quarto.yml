@@ -20,7 +20,7 @@ website:
       file: publications.qmd
     right:
     - icon: github
-      href: github.com/arung-northwestern/mofography
+      href: https://github.com/arung-northwestern/mofography
 format:
   html:  
     theme: cosmo
