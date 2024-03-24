@@ -220,7 +220,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read </span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> read(<span class="st">'../examples/TestCIFs/LTA.cif'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>c:\Users\Public\anaconda3\envs\jl_env\lib\site-packages\ase\io\cif.py:401: UserWarning: crystal system 'cubic' is not interpreted for space group Spacegroup(221, setting=1). This may result in wrong setting!
+<pre><code>c:\Users\Public\anaconda3\envs\test\lib\site-packages\ase\io\cif.py:401: UserWarning: crystal system 'cubic' is not interpreted for space group Spacegroup(221, setting=1). This may result in wrong setting!
   warnings.warn(</code></pre>
 </div>
 </div>
@@ -230,19 +230,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pymatgen.io.ase <span class="im">import</span> AseAtomsAdaptor</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> AseAtomsAdaptor.get_atoms(Structure.from_file(<span class="st">'../examples/TestCIFs/P1-IRMOF-1.cif'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>C:\Users\Arun Gopalan\AppData\Roaming\Python\Python39\site-packages\pymatgen\io\cif.py:1186: UserWarning: The default value of primitive was changed from True to False in https://github.com/materialsproject/pymatgen/pull/3419. CifParser now returns the cell in the CIF file as is. If you want the primitive cell, please set primitive=True explicitly.
+  warnings.warn(</code></pre>
+</div>
 </div>
 </section>
 <section id="covalent-bonds" class="level2">
 <h2 class="anchored" data-anchor-id="covalent-bonds">Covalent Bonds</h2>
 <p>mofography provdes a shorthand subroutine for detecing the covalent bonds in the structure, which quite useful for analysis and visualization. By default, it looks for atomic distances that are lesser than the sum of the covalent radii of the two atoms and considers that a bond. The following example shows how to detect the bonds in a structure using mofography</p>
 <div id="cell-9" class="cell" data-execution_count="4">
-<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(mat_atoms)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(mat_atoms)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>the detected bonds and bond orders, will stored under the ’covalent_bonds/_bond_orders’ keys of the mat_updated.info dictionary. The following example shows how to access them, just showing the first 10 entries here</p>
 <div id="cell-11" class="cell" data-execution_count="5">
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>mat_updated.info[<span class="st">'covalent_bonds'</span>][:<span class="dv">10</span>], mat_updated.info[<span class="st">'covalent_bond_orders'</span>][:<span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>mat_updated.info[<span class="st">'covalent_bonds'</span>][:<span class="dv">10</span>], mat_updated.info[<span class="st">'covalent_bond_orders'</span>][:<span class="dv">10</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre><code>([[0, 320],
   [0, 328],
@@ -271,7 +275,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="anchored" data-anchor-id="structure-graph">Structure graph</h2>
 <p>Structure graph is networkx graph object, formed using atoms as nodes and bonds as edges. Mofography offers a simple routine to generate a strcture graph from an ASE atoms object. - Having a structure graph is quite useful for analysing the structure at hand, such as detecting chemical moeties such functional groups, rings (aromatic and otherwise). - Annotating the atoms and bonds with relevant information, to be used in conjuction with other routines or tools. Sgraph is a simpler version of the pymatgen structure graph, put in place to perform complex structure manipulations in the future.</p>
 <div id="cell-13" class="cell" data-execution_count="6">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph <span class="op">=</span> mgr.sgraph_from_atoms(mat_updated)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph <span class="op">=</span> mgr.sgraph_from_atoms(mat_updated)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
 No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
@@ -279,7 +283,7 @@ No edge properties provided. Use the default set: [bond_order, bond_type]</code>
 </div>
 <p>by default it makes a graph with just the positions, element and atomic numbers of the atoms as node attributes, and the bond orders as edge attributes.</p>
 <div id="cell-15" class="cell" data-execution_count="7">
-<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph.nodes[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph.nodes[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'position': array([7.5791088, 5.3368912, 5.3368912]),
  'element': 'Zn',
@@ -288,7 +292,7 @@ No edge properties provided. Use the default set: [bond_order, bond_type]</code>
 </div>
 </div>
 <div id="cell-16" class="cell" data-execution_count="8">
-<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph.edges([<span class="dv">0</span>,<span class="dv">192</span>],data<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>mat_sgraph.edges([<span class="dv">0</span>,<span class="dv">192</span>],data<span class="op">=</span><span class="va">True</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="8">
 <pre><code>EdgeDataView([(0, 320, {'bond_order': 0.8355920148601726, 'bond_type': 'single'}), (0, 328, {'bond_order': 0.8886078731209055, 'bond_type': 'single'}), (0, 345, {'bond_order': 0.888607873120906, 'bond_type': 'single'}), (0, 352, {'bond_order': 0.8886078731209055, 'bond_type': 'single'}), (192, 96, {'bond_order': 1, 'bond_type': 'single'}), (192, 456, {'bond_order': 1.7511920000000007, 'bond_type': 'double'}), (192, 285, {'bond_order': 1.7584099829932225, 'bond_type': 'double'})])</code></pre>
 </div>
@@ -298,12 +302,12 @@ No edge properties provided. Use the default set: [bond_order, bond_type]</code>
 <h2 class="anchored" data-anchor-id="finding-rings-in-a-structure">Finding rings in a structure</h2>
 <p>Further, we can use a networkx backend to find cycles (rings) in a structure. These include aromatic and non-aromatic rings. Finding rings can be very useful in systems such as zeolites, where such rings represent the cage windows are often the preferred sites for cations. The following example shows how to find the 6 membered rings in a structure using networkx</p>
 <div id="cell-18" class="cell" data-execution_count="9">
-<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>default_ring_sizes <span class="op">=</span> [<span class="dv">6</span>]</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>small_cycles <span class="op">=</span> [cycle <span class="cf">for</span> cycle <span class="kw">in</span> nx.cycles.cycle_basis(mat_sgraph, <span class="dv">0</span>) <span class="cf">if</span> <span class="bu">len</span>(cycle) <span class="kw">in</span> default_ring_sizes]</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>small_cycles</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>default_ring_sizes <span class="op">=</span> [<span class="dv">6</span>]</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>small_cycles <span class="op">=</span> [cycle <span class="cf">for</span> cycle <span class="kw">in</span> nx.cycles.cycle_basis(mat_sgraph, <span class="dv">0</span>) <span class="cf">if</span> <span class="bu">len</span>(cycle) <span class="kw">in</span> default_ring_sizes]</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>small_cycles</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <pre><code>[[320, 7, 348, 256, 352, 0],
  [320, 4, 338, 240, 341, 7],
@@ -340,7 +344,7 @@ No edge properties provided. Use the default set: [bond_order, bond_type]</code>
 </div>
 </div>
 <div id="cell-19" class="cell" data-execution_count="10">
-<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>nx.subgraph(mat_sgraph, small_cycles[<span class="dv">0</span>]).nodes(<span class="st">'element'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>nx.subgraph(mat_sgraph, small_cycles[<span class="dv">0</span>]).nodes(<span class="st">'element'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <pre><code>NodeDataView({320: 'O', 256: 'C', 352: 'O', 0: 'Zn', 7: 'Zn', 348: 'O'}, data='element')</code></pre>
 </div>
@@ -350,17 +354,14 @@ No edge properties provided. Use the default set: [bond_order, bond_type]</code>
 <h2 class="anchored" data-anchor-id="find-matching-patterns-in-the-structure">Find matching patterns in the structure</h2>
 <p>mofography uses subgraph isomorphism as implemented in networkx to match parts of a structure to a given pattern. For example if we want to find all the occurences of the first cycle from the previous step to everywhere else in the framework, we can use the following code,</p>
 <div id="cell-22" class="cell" data-execution_count="11">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>matching <span class="op">=</span> mgr.find_pattern_in_sgraph(mat_sgraph, nx.subgraph(mat_sgraph,small_cycles[<span class="dv">0</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="11">
-<pre><code>NodeDataView({320: 'O', 0: 'Zn', 352: 'O', 256: 'C', 7: 'Zn', 348: 'O'}, data='element')</code></pre>
-</div>
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>matching <span class="op">=</span> mgr.find_pattern_in_sgraph(mat_sgraph, nx.subgraph(mat_sgraph,small_cycles[<span class="dv">0</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Now if we check the atom and bond types of the first subgraph where the match is found,</p>
-<div id="cell-24" class="cell" data-execution_count="13">
+<div id="cell-24" class="cell" data-execution_count="12">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>first_match_graph <span class="op">=</span> nx.subgraph(mat_sgraph, matching[<span class="dv">0</span>])</span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>first_match_graph.nodes(data<span class="op">=</span><span class="st">'element'</span>), first_match_graph.edges(data<span class="op">=</span><span class="st">'bond_type'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-display" data-execution_count="13">
+<div class="cell-output cell-output-display" data-execution_count="12">
 <pre><code>(NodeDataView({320: 'O', 0: 'Zn', 352: 'O', 256: 'C', 7: 'Zn', 348: 'O'}, data='element'),
  EdgeDataView([(320, 0, 'single'), (320, 7, 'single'), (0, 352, 'single'), (352, 256, 'double'), (256, 348, 'double'), (7, 348, 'single')]))</code></pre>
 </div>
