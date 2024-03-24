@@ -1,0 +1,14 @@
+# plot_cell { #mofography.visualize.plot_cell }
+
+`visualize.plot_cell(ase_atoms, color='purple', name='cell')`
+
+It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit
+cell of the atoms object
+
+Args:
+  ase_atoms: the atoms object from ASE
+  color: the color of the cell lines. Defaults to purple
+  name: the name of the cell. Defaults to cell
+
+Returns:
+  A plotly graph object

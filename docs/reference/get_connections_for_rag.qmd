@@ -1,0 +1,4 @@
+# get_connections_for_rag { #mofography.compute.get_connections_for_rag }
+
+`compute.get_connections_for_rag(rag, region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2)`
+

@@ -1,0 +1,4 @@
+# compare_psd_peaks { #mofography.helper.compare_psd_peaks }
+
+`helper.compare_psd_peaks(peak_values1, peak_values2)`
+

@@ -1,0 +1,21 @@
+# show_percolated_paths_as_df { #mofography.data.show_percolated_paths_as_df }
+
+`data.show_percolated_paths_as_df(paths, path_windows, path_lengths)`
+
+The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path
+lengths, sorts it by the number of elements in the paths list and then by path lengths, and returns
+the sorted DataFrame.
+
+## Parameters
+
+| Name           | Type   | Description                                                                              | Default    |
+|----------------|--------|------------------------------------------------------------------------------------------|------------|
+| `paths`        |        | A list of paths, where each entry represent teh index of a pocket/node on the pore graph | _required_ |
+| `path_windows` |        | Path windows are the sizes of the windows encountered along the path                     | _required_ |
+| `path_lengths` |        | The number of jumps or edges along the path                                              | _required_ |
+
+## Returns
+
+| Type   | Description                                                                                                                                                              |
+|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | The function `show_percolated_paths_as_df` is returning a pandas DataFrame sorted by the path lengths, where the columns show the paths, path windows, and path lengths. |

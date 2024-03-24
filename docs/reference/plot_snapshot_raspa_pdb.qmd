@@ -1,0 +1,4 @@
+# plot_snapshot_raspa_pdb { #mofography.visualize.plot_snapshot_raspa_pdb }
+
+`visualize.plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name='adsorbates', pbc=[1, 1, 1])`
+

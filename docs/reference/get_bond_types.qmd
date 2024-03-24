@@ -1,0 +1,17 @@
+# get_bond_types { #mofography.analyze.get_bond_types }
+
+`analyze.get_bond_types(bond_orders)`
+
+It takes a list of bond orders and returns a list of bond types
+
+## Parameters
+
+| Name          | Type   | Description                                      | Default    |
+|---------------|--------|--------------------------------------------------|------------|
+| `bond_orders` |        | a list of bond orders, e.g. [1.0, 2.0, 1.0, 3.0] | _required_ |
+
+## Returns
+
+| Type   | Description                         |
+|--------|-------------------------------------|
+|        | A pandas series with the bond types |

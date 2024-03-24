@@ -74,23 +74,40 @@ def dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000):
     return da.dot(cell, gpoints.T).T, (nx,ny,nz) #return the actual coordinates
 
 def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0):
-    """Compute distance grid from ase atoms objects
+    """
+    The function `dgrid_from_atoms` generates a distance grid over atoms using Dask arrays and computes
+    the grid based on atomic radii and specified parameters.
+    
+    :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms` function is expected to be an
+    ASE Atoms object, which represents a collection of atoms and their properties. This object typically
+    contains information about the atomic positions, chemical symbols, and unit cell of a molecular
+    system. You can create an
+    :param radii: The `radii` parameter in the `dgrid_from_atoms` function is used to specify the atomic
+    radii for the atoms in the input `ase_atoms`. If the `radii` parameter is not provided by the user,
+    a default set of van der Waals radii for different elements
+    :param spacing: The `spacing` parameter in the `dgrid_from_atoms` function represents the distance
+    between grid points in the mesh grid that is created over the atoms. It determines how finely the
+    space is divided for computing the distance grid. A smaller spacing value will result in a denser
+    grid with more grid points
+    :param block_size: The `block_size` parameter in the `dgrid_from_atoms` function is used to specify
+    the size of each block when processing the grid points. This parameter determines how many grid
+    points are processed at a time, which can impact memory usage and computational efficiency.
+    Adjusting the `block_size` can, defaults to 50000 (optional)
+    :param n_neighbors: The `n_neighbors` parameter in the `dgrid_from_atoms` function represents the
+    number of nearest neighbors to consider when computing the distance grid for each point in the grid.
+    This parameter determines how many neighboring atoms will influence the calculation of distances in
+    the grid. Increasing the `n_neighbors` value will, defaults to 10 (optional)
+    :param probe_radius: The `probe_radius` parameter in the `dgrid_from_atoms` function represents the
+    radius of the probe used in the calculation. This parameter is used in the computation of the
+    distance grid over atoms. The probe radius is typically used in molecular modeling and simulations
+    to mimic the size of a solvent molecule or, defaults to 0 (optional)
+    :return: The function `dgrid_from_atoms` returns a Dask array representing the distance grid
+    computed over the input ASE atoms. The distance grid is computed based on the provided parameters
+    such as radii, spacing, block size, number of neighbors, and probe radius. The function utilizes
+    Dask for parallel computation and returns the distance grid reshaped to the correct shape specified
+    by the input ASE atoms.
+    """
 
-    :param ase_atoms: ASE atoms object
-    :type ase_atoms: ase.atoms
-    :param spacing: fineness of the grid in angstrom, defaults to 0.25
-    :type spacing: float, optional
-    :param chunksize: number of grid points per block of the dask grid. Usually a tradeoff between fewer blocks 
-    and data transfer limitation from large blocksizes, defaults to 50000
-    :type chunksize: int, optional
-    :param n_neighbors: number of neighbors to check for distance, fewer the faster, but risk getting wrong distance 
-    since the neighbor sorting by default uses the center to center distance and does not account for the atomic radii, defaults to 10
-    :type n_neighbors: int, optional
-    :param probe_radius: size of the probe for computing distace to framework surface, defaults to 0.0 corresponding to a point probe
-    :type probe_radius: float, optional
-    :return: Grid of shape (nx, ny, nz), wher nx, ny, nz are the number of grid points corresponding to the spacing specified earlier
-    :rtype: 3D numpy array
-    """    
     import numpy as np
     import dask.array as da
     from rich.progress import track
@@ -110,23 +127,43 @@ def dgrid_from_atoms(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_ne
 
 
 def dgrid_from_atoms_cpu(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0, precompute=True):
-    """Compute distance grid from ase atoms objects
-
-    :param ase_atoms: ASE atoms object
-    :type ase_atoms: ase.atoms
-    :param spacing: fineness of the grid in angstrom, defaults to 0.25
-    :type spacing: float, optional
-    :param chunksize: number of grid points per block of the dask grid. Usually a tradeoff between fewer blocks 
-    and data transfer limitation from large blocksizes, defaults to 50000
-    :type chunksize: int, optional
-    :param n_neighbors: number of neighbors to check for distance, fewer the faster, but risk getting wrong distance 
-    since the neighbor sorting by default uses the center to center distance and does not account for the atomic radii, defaults to 10
-    :type n_neighbors: int, optional
-    :param probe_radius: size of the probe for computing distace to framework surface, defaults to 0.0 corresponding to a point probe
-    :type probe_radius: float, optional
-    :return: Grid of shape (nx, ny, nz), wher nx, ny, nz are the number of grid points corresponding to the spacing specified earlier
-    :rtype: 3D numpy array
-    """    
+    """
+    This function generates a distance grid over atoms using Dask arrays and pandas, with an option to
+    precompute the grid.
+    
+    :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms_cpu` function is expected to be
+    an ASE Atoms object, which represents a collection of atoms and their positions in space. This
+    object typically contains information about the atomic species, positions, and unit cell of a
+    molecular system
+    :param radii: The `radii` parameter in the `dgrid_from_atoms_cpu` function is used to specify the
+    atomic radii for the atoms in the input `ase_atoms` object. If the `radii` parameter is not provided
+    by the user, a default set of van der Waals radii
+    :param spacing: The `spacing` parameter in the `dgrid_from_atoms_cpu` function represents the
+    distance between grid points in the mesh grid that is created over the atoms. It determines how
+    finely the grid is sampled in space. A smaller spacing value will result in a denser grid with more
+    grid points, while
+    :param block_size: The `block_size` parameter in the `dgrid_from_atoms_cpu` function is used to
+    specify the size of each block when processing the grid points. It determines how the grid points
+    are divided into smaller blocks for computation. A larger block size can lead to better performance
+    in terms of memory usage and, defaults to 50000 (optional)
+    :param n_neighbors: The `n_neighbors` parameter in the `dgrid_from_atoms_cpu` function represents
+    the number of nearest neighbors to consider when computing the distance grid. It is used in the
+    calculation of the distance grid based on the provided atoms and radii. Increasing the `n_neighbors`
+    value will result in a, defaults to 10 (optional)
+    :param probe_radius: The `probe_radius` parameter in the `dgrid_from_atoms_cpu` function represents
+    the radius of the probe used for computing the distance grid. It is used in conjunction with the
+    atomic radii to determine the distance between atoms and the grid points. The probe radius helps in
+    defining the spatial constraints for, defaults to 0 (optional)
+    :param precompute: The `precompute` parameter in the `dgrid_from_atoms_cpu` function determines
+    whether the computation of the distance grid should be immediately executed and the final result
+    returned (`precompute=True`), or if a lazy Dask array representing the computation should be
+    returned without executing it (`precompute=False`), defaults to True (optional)
+    :return: The function `dgrid_from_atoms_cpu` returns the computed distance grid. If `precompute` is
+    set to True, it returns the computed distance grid as a Dask array. If `precompute` is set to False,
+    it returns the Dask array without computing it, allowing for further computations to be performed
+    later.
+    """
+  
     import numpy as np
     import dask.array as da
     from rich.progress import track
@@ -149,19 +186,34 @@ def dgrid_from_atoms_cpu(ase_atoms, radii=None, spacing=0.25, block_size=50000, 
     else:
         return dgrid
 #
-
 def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
-    """Code to compute the distance grid using the GPU
 
-    :param data: ASE style atoms object
-    :type data: ase.atoms
-    :param spacing: grid spacing in A, defaults to 0.2
-    :type spacing: float, optional
-    :param block_size: block size of the grid points array, number of grid points to be prcessed by each core of the CPU while talking to the GPU, defaults to 5000
-    :type block_size: int, optional
-    :return: cupy 3D array with the distance values
-    :rtype: cupy.array
     """
+    The function `dgrid_from_atoms_gpu` calculates a distance grid based on atomic positions using GPU
+    acceleration.
+    
+    :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms_gpu` function is expected to be
+    an ASE Atoms object, which represents a collection of atoms and their properties. This object
+    typically contains information such as atomic positions, unit cell parameters, atomic symbols, and
+    other properties of the atoms in
+    :param radii: The `radii` parameter in the `dgrid_from_atoms_gpu` function represents the van der
+    Waals radii of the atoms in the atomic structure provided as input. These radii are used in the
+    calculation of the distance grid. If the `radii` parameter is not provided by the
+    :param spacing: The `spacing` parameter in the `dgrid_from_atoms_gpu` function represents the
+    distance between grid points in the generated grid. It determines the resolution of the grid where
+    the distances from atoms to grid points are calculated. A smaller spacing value will result in a
+    higher resolution grid with more grid points,
+    :param block_size: The `block_size` parameter in the `dgrid_from_atoms_gpu` function determines the
+    size of each block used for processing the data. In this function, it is used for chunking the data
+    and processing it in parallel on the GPU. A larger `block_size` can lead to more efficient, defaults
+    to 10000 (optional)
+    :return: The function `dgrid_from_atoms_gpu` returns a 3D numpy array representing a distance grid
+    computed based on the input atomic structure provided in the form of ASE atoms. The distance grid is
+    calculated by computing the minimum distance between each point on the grid and the atoms in the
+    structure, taking into account the atomic radii. The grid is computed using GPU-accelerated
+    calculations for efficiency.
+    """
+
     from ase.io import read
     import numpy as np
     import dask.array as da
@@ -316,19 +368,30 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 #     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
 #     return reg_labels, new_max_indices.T
 def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactness=0):
-    """Computes the region segmentaion from the distance grid
-
-    :param dgrid: 3D distance grid
-    :type dgrid: numpy.array
-    # :param peak_min:minimum height of the peak in angstrom, defaults to 2.0
-    # :type peak_min: float, optional, defaults to 2.0 angstroms
-    :param relative_threshold: Minimum intensity of peaks, calculated as max(image) * relative_threshold, defaults to 0.1
-    :type relative_threshold: float, 
-    :param mask_thickness:thickness of the framework cover. Points within this distance from the framework surface are not segmented, defaults to 1
-    :type mask_thickness: float, optional
-    :return:region labels, same shape as input grid. 0 refers to the back ground
-    :rtype: 3D numpy.array same shape and input grid
-    """    
+    """
+    The function `regions_from_dgrid` takes a density grid as input and identifies regions based on
+    local maxima, with options for adjusting parameters like mask thickness and compactness.
+    
+    :param dgrid: The `dgrid` parameter is a 2D array representing the input data grid. It is used in
+    the function to perform calculations and identify regions based on the data values in the grid
+    :param mask_thickness: The `mask_thickness` parameter in the `regions_from_dgrid` function
+    determines the thickness of the mask used in the watershed segmentation algorithm. It is used to
+    create a mask where regions with values greater than the `mask_thickness` are considered as markers
+    for segmentation. Increasing the `mask_thickness` value, defaults to 1 (optional)
+    :param h: The `h` parameter in the `regions_from_dgrid` function is used to specify the height
+    threshold for detecting local maxima in the input `dgrid` array. It is used in the
+    `extrema.h_maxima` function to find the local maxima points based on the specified height
+    :param min_distance: The `min_distance` parameter in the `regions_from_dgrid` function specifies the
+    minimum distance between peaks in the peak_local_max function. It is used to find peaks in the input
+    data that are separated by at least this distance. Peaks that are closer than `min_distance` to each
+    other are, defaults to 2 (optional)
+    :param compactness: The `compactness` parameter in the `regions_from_dgrid` function controls how
+    uniform the region sizes are in the output. A higher value for `compactness` will result in more
+    equally sized regions, while a lower value will allow for more size variation among the regions.
+    Adjusting the `, defaults to 0 (optional)
+    :return: The function `regions_from_dgrid` returns two values: `reg_labels` and `new_max_indices.T`.
+    """
+  
     from scipy import ndimage as ndi
     import numpy as np
     try:
@@ -681,16 +744,26 @@ def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
 
 
 def rag_from_connections(connections, maxima, only_use_internal=True):
-    
-    """ Create a basic networkx graph (with no properties annotated) from the array of connections
-    :type connections: np.array of shape (Nregions-Choose-2 ,1) where Nregions is the number of unique regions. Each row has 
-    three elements, the region indices [r1, r2], a boolean flag showing whether they are connected, and window coordinate(s) if the regions are connected, and None is they are not.
-    :param connections: numpy array
-
-    :raises:
-
-    :rtype: a graph object of the class networkx.Graph
     """
+    This Python function creates a graph representation of regions of interest based on connections and
+    maximum values, with an option to include only internal connections.
+    
+    :param connections: Connections is a list of tuples where each tuple contains information about a
+    connection. Each tuple has the following format: (node_id, is_connected, connection_type)
+    :param maxima: The `maxima` parameter in the `rag_from_connections` function seems to represent a
+    list of nodes or regions in a graph. It is used to determine the number of nodes in the graph
+    created by the function. Each element in `maxima` likely corresponds to a node in the graph
+    :param only_use_internal: The `only_use_internal` parameter in the `rag_from_connections` function
+    is a boolean parameter that determines whether only internal connections should be used when
+    creating the graph. If `only_use_internal` is set to `True`, only connections with the type
+    'internal' will be added to the graph, defaults to True (optional)
+    :return: The function `rag_from_connections` is returning a NetworkX graph `G` that is constructed
+    based on the input connections, maxima, and the optional parameter only_use_internal. The graph `G`
+    is built by adding nodes and edges from the input connections based on certain conditions. The nodes
+    of the graph have a 'labels' attribute assigned to them.
+    """
+    
+
     import networkx as nx 
     import numpy as np
     G = nx.Graph()
@@ -1005,27 +1078,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 #         return regions_pbc
 
 def add_props_to_rag(rag, props):
-    '''This function adds properties to nodes in a region adjacency graph (RAG) based on a list of
-    properties.
-    
-    Parameters
-    ----------
-    rag
-        The variable rag is likely a graph data structure called a Region Adjacency Graph (RAG). It is
-    being passed as an argument to the function add_props_to_rag().
-    props
-        The `props` parameter is a list of dictionaries containing properties for each node in the region
-    adjacency graph (RAG). Each dictionary corresponds to a node in the RAG and contains key-value pairs
-    representing the properties of that node. The `add_props_to_rag` function takes this list of
-    dictionaries. This may be a list of properties generated using the `regionprops` function from the
-    `skimage.measure` module.
-    
-    Returns
-    -------
-        the updated RAG (Region Adjacency Graph) with properties added to each node.
-    
-    '''
-    
+
     for node in rag.nodes:
         node_index = [p['label']==node for p in props].index(True)
         rag.nodes[node]['props'] = props[node_index]
@@ -1050,14 +1103,16 @@ def add_props_to_rag(rag, props):
 #     return [updated_atoms, grid,regions, maxima, connections, pgraph]
 
 def interpolate_dgrid(dgrid):
-    """Create a scipy.interpolator.RegularGridInterpolator, using 'nearest' method for the region labels (or any 3D numpy grid) 
-    over a unit box ([0,1]) in all axes.
-
-    :param regions: 3D numpy array of region labels
-    :type regions: numpy.array 
-    :return: a scipy RegularGridInterpolator object that works on the fractional coordinates of atoms
-    :rtype: scipy.interpolate.RegularGridInterpolator
-    """    
+    """
+    The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation.
+    
+    :param dgrid: The `interpolate_dgrid` function you provided seems to be interpolating a 3D grid
+    using linear interpolation. To use this function, you need to pass a 3D grid (`dgrid`) as a
+    parameter. The grid should be a numpy array representing the values at different points in
+    :return: The function `interpolate_dgrid` returns a RegularGridInterpolator object `dl` that is
+    created using the input `dgrid` and linear interpolation method.
+    """
+    
     import numpy as np
     from scipy.interpolate import RegularGridInterpolator as RGI
     xx = np.linspace(0,  1,dgrid.shape[0])
@@ -2548,16 +2603,23 @@ def add_clustering_to_rag_geometry_js(rag, props, pbc_groups,  ase_atoms, shape,
     return G
 def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kwargs):
     """
-    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
-    the nodes.
+    The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph
+    and adds clustering information to the graph nodes.
     
-    :param rag2: the RAG object
-    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
-    clusters
-    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
-    False (optional)
-    :return: The rag2 object with the cluster labels added to the nodes.
+    :param rag2: The `rag2` parameter in the `add_clustering_to_rag` function is expected to be a
+    NetworkX graph object representing a region adjacency graph (RAG) with nodes and attributes. This
+    graph is used to perform clustering on the data associated with the nodes in the graph
+    :param return_cluster_obj: The `return_cluster_obj` parameter in the `add_clustering_to_rag`
+    function determines whether the function should return the clustering object along with the modified
+    graph (`rag2`) or just the modified graph itself, defaults to False (optional)
+    :param no_pbc: The `no_pbc` parameter in the `add_clustering_to_rag` function is a boolean flag that
+    specifies whether to use data without periodic boundary conditions (PBC). If `no_pbc` is set to
+    `True`, the function will use data without PBC, while if it, defaults to False (optional)
+    :return: If `return_cluster_obj` is set to `True`, the function will return a tuple containing the
+    updated RAG (`rag2`) and the clustering object (`clustering`). If `return_cluster_obj` is set to
+    `False`, the function will return just the updated RAG (`rag2`).
     """
+
     
     import numpy as np 
     import networkx as nx 
@@ -2600,17 +2662,32 @@ def add_clustering_to_rag(rag2,  return_cluster_obj = False, no_pbc =False, **kw
 
 def add_clustering_to_rag_pca(rag2,  return_cluster_obj = False, no_pbc =False, use_kpca=True, kwargs_cluster={}, kwargs_pca={}):
     """
-    > We take the RAG, get the PSD data for each node, and then use agglomerative clustering to cluster
-    the nodes.
+    The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the
+    clustering information to the graph nodes.
     
-    :param rag2: the RAG object
-    :param distance_threshold: The linkage distance at which to cut the dendrogram to determine the
-    clusters
-    :param return_cluster_obj: if True, returns the clustering object as well as the rag, defaults to
-    False (optional)
-    :return: The rag2 object with the cluster labels added to the nodes.
+    :param rag2: The function `add_clustering_to_rag_pca` takes several parameters to add clustering
+    information to a graph object. Here is a brief explanation of each parameter:
+    :param return_cluster_obj: The `return_cluster_obj` parameter in the `add_clustering_to_rag_pca`
+    function is a boolean flag that determines whether the function should return the clustering object
+    along with the modified RAG (Region Adjacency Graph) or just the modified RAG itself. If
+    `return_cluster_obj`, defaults to False (optional)
+    :param no_pbc: The `no_pbc` parameter in the `add_clustering_to_rag_pca` function is a boolean flag
+    that indicates whether to use data without periodic boundary conditions (PBC). If `no_pbc` is set to
+    `True`, the function will use data without PBC; otherwise, defaults to False (optional)
+    :param use_kpca: The `use_kpca` parameter in the `add_clustering_to_rag_pca` function is a boolean
+    flag that determines whether Kernel PCA (Principal Component Analysis) should be used on the data
+    before clustering. If set to `True`, Kernel PCA will be applied to the data array `, defaults to
+    True (optional)
+    :param kwargs_cluster: The `kwargs_cluster` parameter in the `add_clustering_to_rag_pca` function is
+    a dictionary that allows you to pass additional keyword arguments to configure the
+    AgglomerativeClustering algorithm used for clustering. These keyword arguments include:
+    :param kwargs_pca: The `kwargs_pca` parameter in the `add_clustering_to_rag_pca` function is a
+    dictionary that can contain the following optional parameters for KernelPCA:
+    :return: The function `add_clustering_to_rag_pca` returns either the updated RAG object with
+    clustering information added (`rag2`), or a tuple containing the updated RAG object and the
+    clustering object if `return_cluster_obj` is set to True.
     """
-    
+
     import numpy as np 
     import networkx as nx 
 
@@ -4262,34 +4339,7 @@ def add_vdw_hist_to_rag(rag, regions, energy_interpolator=None,upper_bound=1000,
     return rag
 
 def optimize_molecule_at_node( node, rag, ref_coords, energy_interpolator=None, n_trials=50, n_jobs=-1, **kwargs_egrid):
-    '''This function optimizes the energy of a molecule at a given node in a graph using Optuna
-    optimization.
-    
-    Parameters
-    ----------
-    node
-        The node in the RAG (Region Adjacency Graph) for which the molecule needs to be optimized.
-    rag
-        A networkx graph representing a Reconstructed Atomic Structure (RAS) of a Metal-Organic Framework
-    (MOF).
-    ref_coords
-        The reference coordinates of the molecule that needs to be optimized. These are the initial
-    coordinates of the molecule before optimization.
-    energy_interpolator
-        A function that takes in fractional coordinates and returns the energy of the molecule at those
-    coordinates.
-    n_trials, optional
-        The number of trials to be performed during the optimization process.
-    n_jobs
-        The number of parallel jobs to run during optimization. If set to -1, it will use all available
-    CPUs.
-    
-    Returns
-    -------
-        the best trial found by the Optuna optimizer after optimizing the molecule at a given node in a RAG
-    (Region Adjacency Graph) using energy minimization.
-    
-    '''
+
 
     import optuna
     import numpy as np

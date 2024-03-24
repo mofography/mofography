@@ -1176,15 +1176,29 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
 
 def get_isosurface_mesh(data, isoval,ase_atoms, spacing=(1,1,1), stepsize=1 ):
     """
-    > It takes a 3D array of data, an isovalue, and a cell matrix, and returns a mesh object
+    The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input
+    data using the marching cubes algorithm.
     
-    :param data: the 3D array of data
-    :param isoval: the value of the isosurface
-    :param cell: the cell vectors of the unit cell
-    :param spacing: the spacing between the points in the grid
-    :param stepsize: The step size of the marching cubes algorithm. Smaller values give more accurate
-    results, but take longer to compute, defaults to 1 (optional)
+    :param data: The `data` parameter in the `get_isosurface_mesh` function is likely a 3D array
+    representing the volumetric data from which the isosurface mesh will be generated. This data could
+    be obtained from various sources such as medical imaging, scientific simulations, or any other 3D
+    :param isoval: The `isoval` parameter in the `get_isosurface_mesh` function represents the isovalue
+    at which the isosurface is extracted from the input data. It is a scalar value that determines the
+    surface geometry based on the data values
+    :param ase_atoms: The `ase_atoms` parameter in the `get_isosurface_mesh` function is expected to be
+    an ASE Atoms object, which represents a collection of atoms and their properties. It typically
+    includes information such as atomic positions, unit cell dimensions, and atomic species. This object
+    is used to define the
+    :param spacing: The `spacing` parameter in the `get_isosurface_mesh` function represents the voxel
+    spacing in each dimension for the input `data`. It is a tuple of three values representing the
+    spacing along the x, y, and z axes respectively. This parameter determines the resolution of the
+    isosurface mesh
+    :param stepsize: The `stepsize` parameter in the `get_isosurface_mesh` function you provided
+    controls the step size used during the marching cubes algorithm, defaults to 1 (optional)
+    :return: The function `get_isosurface_mesh` returns a trimesh object representing the isosurface
+    mesh generated from the input data at the specified isovalue.
     """
+
     import numpy as np
     from skimage.measure import marching_cubes
     from ase.geometry import complete_cell 

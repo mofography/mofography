@@ -1,0 +1,4 @@
+# get_psd_on_rag { #mofography.compute.get_psd_on_rag }
+
+`compute.get_psd_on_rag(rag, bins=None)`
+

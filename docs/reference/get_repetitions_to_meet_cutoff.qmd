@@ -1,0 +1,19 @@
+# get_repetitions_to_meet_cutoff { #mofography.compute.get_repetitions_to_meet_cutoff }
+
+`compute.get_repetitions_to_meet_cutoff(ase_atoms, cutoff=12.5)`
+
+It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each
+direction that are needed to ensure that the cutoff distance is satisfied
+
+## Parameters
+
+| Name        | Type   | Description                                       | Default    |
+|-------------|--------|---------------------------------------------------|------------|
+| `ase_atoms` |        | ASE atoms object                                  | _required_ |
+| `cutoff`    |        | the cutoff distance for the pairwise interactions | `12.5`     |
+
+## Returns
+
+| Type   | Description                                                     |
+|--------|-----------------------------------------------------------------|
+|        | The number of repetitions in each direction to meet the cutoff. |

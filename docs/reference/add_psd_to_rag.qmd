@@ -1,0 +1,35 @@
+# add_psd_to_rag { #mofography.compute.add_psd_to_rag }
+
+`compute.add_psd_to_rag(G, region_props, bins, ase_atoms, shape)`
+
+> This function takes a graph, a list of region properties, a list of bins, an ase atoms object, and
+a shape, and adds the psd to the graph. 
+
+For each region, we calculate the distances between the centroid and the coordinates. 
+
+Then we calculate the histogram of the distances. 
+
+Then we calculate the bin centers. 
+
+Then we add the bin centers and the histogram to the graph. 
+
+Then we return the graph. 
+
+Note that these distance histograms or centroids do not account for periodic boundary conditions.
+To include periodic boundary conditions, use the add_psd_to_rag_with_pbc function.
+
+## Parameters
+
+| Name           | Type   | Description                                                                 | Default    |
+|----------------|--------|-----------------------------------------------------------------------------|------------|
+| `G`            |        | the graph                                                                   | _required_ |
+| `region_props` |        | a list of dictionaries, each dictionary contains the properties of a region | _required_ |
+| `bins`         |        | The number of bins to use for the histogram                                 | _required_ |
+| `ase_atoms`    |        | The atoms object from ASE                                                   | _required_ |
+| `shape`        |        | shape of the image                                                          | _required_ |
+
+## Returns
+
+| Type   | Description                                                       |
+|--------|-------------------------------------------------------------------|
+|        | The graph with the psd_x and psd_y attributes added to the nodes. |

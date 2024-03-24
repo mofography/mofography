@@ -1,0 +1,19 @@
+# detect_smiles_in_mol { #mofography.analyze.detect_smiles_in_mol }
+
+`analyze.detect_smiles_in_mol(smiles_molecule, smiles_pattern)`
+
+It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of
+dictionaries that map the nodes of the pattern to the nodes of the molecule
+
+## Parameters
+
+| Name              | Type   | Description                                             | Default    |
+|-------------------|--------|---------------------------------------------------------|------------|
+| `smiles_molecule` |        | The SMILES string of the molecule you want to search in | _required_ |
+| `smiles_pattern`  |        | The SMILES pattern you want to search for               | _required_ |
+
+## Returns
+
+| Type   | Description                                                                                                            |
+|--------|------------------------------------------------------------------------------------------------------------------------|
+|        | A list of dictionaries. Each dictionary contains the mapping of the nodes in the pattern to the nodes in the molecule. |

@@ -1,0 +1,24 @@
+# mesh_for_atoms { #mofography.visualize.mesh_for_atoms }
+
+`visualize.mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 128, 129, 255], kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False)`
+
+> It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
+notebook
+
+## Parameters
+
+| Name               | Type   | Description                                                                                                                       | Default                       |
+|--------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------|-------------------------------|
+| `ase_atoms`        |        | an ASE atoms object                                                                                                               | _required_                    |
+| `bonds`            |        | a list of bonds, where each bond is a list of two atom indices                                                                    | `None`                        |
+| `colormap`         |        | a dictionary of colors for each atomic number                                                                                     | `None`                        |
+| `bond_rgba_array`  |        | The color of the bonds                                                                                                            | `[127, 128, 129, 255]`        |
+| `kwargs_spheres`   |        | dict of arguments for the spheres, see the spheres_for_atom function                                                              | `dict(scale=0.8, radii=None)` |
+| `kwargs_cylinders` |        | radius of the cylinder, see the cylinders_for_bonds function                                                                      | `dict(radius=0.25)`           |
+| `return_scene`     |        | if True, returns a trimesh.Scene object, which can be rendered with the trimesh.Scene.show() method, defaults to False (optional) | `False`                       |
+
+## Returns
+
+| Type   | Description             |
+|--------|-------------------------|
+|        | A trimesh.Scene object. |
