@@ -1,0 +1,24 @@
+# plot_molecule_at_best_optuna_trials { #mofography.visualize.plot_molecule_at_best_optuna_trials }
+
+`visualize.plot_molecule_at_best_optuna_trials(rag, molecule_atoms, molecule_name, **kwargs_plot_mesh)`
+
+This function plots a molecule using the best Optuna trials.
+
+
+
+## Parameters
+
+rag
+    a RAG (Region Adjacency Graph) object
+molecule_atoms
+    an ASE Atoms object representing the molecule to be plotted
+molecule_name
+    The name of the molecule being plotted.
+
+
+
+## Returns
+
+    a list of traces, where each trace is a plot of a molecule at its best Optuna trial. The plot is
+generated using the provided molecule's atomic positions and the van der Waals radii of its atoms.
+The function uses the `spheres_for_positions` and `plot_mesh` functions from the `visualize` module.

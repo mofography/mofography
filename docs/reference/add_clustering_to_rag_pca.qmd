@@ -1,0 +1,23 @@
+# add_clustering_to_rag_pca { #mofography.compute.add_clustering_to_rag_pca }
+
+`compute.add_clustering_to_rag_pca(rag2, return_cluster_obj=False, no_pbc=False, use_kpca=True, kwargs_cluster={}, kwargs_pca={})`
+
+The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the
+clustering information to the graph nodes.
+
+## Parameters
+
+| Name                 | Type   | Description                                                                                                                                                                                                                                                                                                           | Default    |
+|----------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `rag2`               |        | The function `add_clustering_to_rag_pca` takes several parameters to add clustering information to a graph object. Here is a brief explanation of each parameter:                                                                                                                                                     | _required_ |
+| `return_cluster_obj` |        | The `return_cluster_obj` parameter in the `add_clustering_to_rag_pca` function is a boolean flag that determines whether the function should return the clustering object along with the modified RAG (Region Adjacency Graph) or just the modified RAG itself. If `return_cluster_obj`, defaults to False (optional) | `False`    |
+| `no_pbc`             |        | The `no_pbc` parameter in the `add_clustering_to_rag_pca` function is a boolean flag that indicates whether to use data without periodic boundary conditions (PBC). If `no_pbc` is set to `True`, the function will use data without PBC; otherwise, defaults to False (optional)                                     | `False`    |
+| `use_kpca`           |        | The `use_kpca` parameter in the `add_clustering_to_rag_pca` function is a boolean flag that determines whether Kernel PCA (Principal Component Analysis) should be used on the data before clustering. If set to `True`, Kernel PCA will be applied to the data array `, defaults to True (optional)                  | `True`     |
+| `kwargs_cluster`     |        | The `kwargs_cluster` parameter in the `add_clustering_to_rag_pca` function is a dictionary that allows you to pass additional keyword arguments to configure the AgglomerativeClustering algorithm used for clustering. These keyword arguments include:                                                              | `{}`       |
+| `kwargs_pca`         |        | The `kwargs_pca` parameter in the `add_clustering_to_rag_pca` function is a dictionary that can contain the following optional parameters for KernelPCA:                                                                                                                                                              | `{}`       |
+
+## Returns
+
+| Type   | Description                                                                                                                                                                                                                               |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | The function `add_clustering_to_rag_pca` returns either the updated RAG object with clustering information added (`rag2`), or a tuple containing the updated RAG object and the clustering object if `return_cluster_obj` is set to True. |

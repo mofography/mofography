@@ -1,0 +1,20 @@
+# cylinders_for_bonds { #mofography.visualize.cylinders_for_bonds }
+
+`visualize.cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[127, 128, 129, 255], cylinder_resolution=15)`
+
+It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
+list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
+height equal to half the bond length
+
+## Parameters
+
+| Name        | Type   | Description                     | Default    |
+|-------------|--------|---------------------------------|------------|
+| `bonds`     |        | a list of pairs of atom indices | _required_ |
+| `ase_atoms` |        | an ASE atoms object             | _required_ |
+
+## Returns
+
+| Type   | Description                |
+|--------|----------------------------|
+|        | A list of trimesh objects. |

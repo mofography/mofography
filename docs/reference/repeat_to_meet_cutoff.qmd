@@ -1,0 +1,20 @@
+# repeat_to_meet_cutoff { #mofography.compute.repeat_to_meet_cutoff }
+
+`compute.repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5)`
+
+It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new
+forcefield that are repeated in such a way that the vdw cutoff is met
+
+## Parameters
+
+| Name               | Type   | Description                                    | Default    |
+|--------------------|--------|------------------------------------------------|------------|
+| `ase_atoms`        |        | the atoms object from ASE                      | _required_ |
+| `forcefield_mixed` |        | the forcefield parameters for the mixed system | _required_ |
+| `cutoff`           |        | the cutoff distance for the forcefield         | `12.5`     |
+
+## Returns
+
+| Type   | Description                                                                                                |
+|--------|------------------------------------------------------------------------------------------------------------|
+|        | ase_atoms_repeat is a supercell of ase_atoms, forcefield_mixed_repeat is a tiled array of forcefield_mixed |

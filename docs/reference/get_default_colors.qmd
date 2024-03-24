@@ -1,0 +1,12 @@
+# get_default_colors { #mofography.visualize.get_default_colors }
+
+`visualize.get_default_colors()`
+
+[summary]
+Uses the ASE's jmol colorscheme as the default for plotting the atoms.
+
+## Returns
+
+| Type                                               | Description                                                                            |
+|----------------------------------------------------|----------------------------------------------------------------------------------------|
+| \[(N,3) numpy array of floats all within \[0,1\]\] | [Normalized rgb values of the jmol colorscheme as included within ASE python module. ] |

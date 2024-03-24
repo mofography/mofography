@@ -1,0 +1,18 @@
+# get_fractional_coordinates { #mofography.helper.get_fractional_coordinates }
+
+`helper.get_fractional_coordinates(points, ase_atoms)`
+
+Find the fractional coordinates for a bunch of cartesian corrdinates in a box corresponding to an ase.atoms object
+
+## Parameters
+
+| Name        | Type        | Description                       | Default    |
+|-------------|-------------|-----------------------------------|------------|
+| `points`    | numpy.array | numpy array of shape (Npoints, 3) | _required_ |
+| `ase_atoms` | ase.atoms   | ASE atoms object for the box      | _required_ |
+
+## Returns
+
+| Type        | Description                                                |
+|-------------|------------------------------------------------------------|
+| numpy.array | numpy array of fractional coordinates of shape (Npoints,3) |

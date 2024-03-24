@@ -1,0 +1,14 @@
+# compare_two_paths { #mofography.compute.compare_two_paths }
+
+`compute.compare_two_paths(p1, p2, rag)`
+
+It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
+contains a node in the first path and a node in the second path
+
+## Parameters
+
+| Name   | Type   | Description                                              | Default    |
+|--------|--------|----------------------------------------------------------|------------|
+| `p1`   |        | a list of tuples, each tuple is a coordinate in the path | _required_ |
+| `p2`   |        | the path to be compared to p1                            | _required_ |
+| `rag`  |        | the region adjacency graph                               | _required_ |

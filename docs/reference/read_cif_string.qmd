@@ -1,0 +1,17 @@
+# read_cif_string { #mofography.data.read_cif_string }
+
+`data.read_cif_string(cif)`
+
+It takes a string of CIF data and returns an ASE atoms object.
+
+## Parameters
+
+| Name   | Type   | Description              | Default    |
+|--------|--------|--------------------------|------------|
+| `cif`  |        | The CIF file as a string | _required_ |
+
+## Returns
+
+| Type   | Description           |
+|--------|-----------------------|
+|        | the ASE atoms object. |

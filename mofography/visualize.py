@@ -1176,15 +1176,29 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
 
 def get_isosurface_mesh(data, isoval,ase_atoms, spacing=(1,1,1), stepsize=1 ):
     """
-    > It takes a 3D array of data, an isovalue, and a cell matrix, and returns a mesh object
+    The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input
+    data using the marching cubes algorithm.
     
-    :param data: the 3D array of data
-    :param isoval: the value of the isosurface
-    :param cell: the cell vectors of the unit cell
-    :param spacing: the spacing between the points in the grid
-    :param stepsize: The step size of the marching cubes algorithm. Smaller values give more accurate
-    results, but take longer to compute, defaults to 1 (optional)
+    :param data: The `data` parameter in the `get_isosurface_mesh` function is likely a 3D array
+    representing the volumetric data from which the isosurface mesh will be generated. This data could
+    be obtained from various sources such as medical imaging, scientific simulations, or any other 3D
+    :param isoval: The `isoval` parameter in the `get_isosurface_mesh` function represents the isovalue
+    at which the isosurface is extracted from the input data. It is a scalar value that determines the
+    surface geometry based on the data values
+    :param ase_atoms: The `ase_atoms` parameter in the `get_isosurface_mesh` function is expected to be
+    an ASE Atoms object, which represents a collection of atoms and their properties. It typically
+    includes information such as atomic positions, unit cell dimensions, and atomic species. This object
+    is used to define the
+    :param spacing: The `spacing` parameter in the `get_isosurface_mesh` function represents the voxel
+    spacing in each dimension for the input `data`. It is a tuple of three values representing the
+    spacing along the x, y, and z axes respectively. This parameter determines the resolution of the
+    isosurface mesh
+    :param stepsize: The `stepsize` parameter in the `get_isosurface_mesh` function you provided
+    controls the step size used during the marching cubes algorithm, defaults to 1 (optional)
+    :return: The function `get_isosurface_mesh` returns a trimesh object representing the isosurface
+    mesh generated from the input data at the specified isovalue.
     """
+
     import numpy as np
     from skimage.measure import marching_cubes
     from ase.geometry import complete_cell 
@@ -1879,3 +1893,68 @@ def plot_molecule_at_best_optuna_trials(rag, molecule_atoms, molecule_name, **kw
     traces = [plot_molecule(rag.nodes[i]['best_trial_{}'.format(molecule_name)].user_attrs['cart_coords'],
                             **kwargs_plot_mesh) for i in rag.nodes if 'best_trial_{}'.format(molecule_name) in rag.nodes[i].keys()  ]
     return traces
+
+def make_pore_size_distribution_fig_from_rag(rag):
+    """
+    The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore
+    size distribution and cumulative distribution from a given RAG.
+    
+    :param rag: The function `make_pore_size_distribution_fig_from_rag` takes a RAG (Region Adjacency
+    Graph) object as input and creates a plotly figure showing the Pore Size Distribution (PDF) and
+    Cumulative Distribution Function (CDF) based on the data stored in the RAG object
+    :return: The function `make_pore_size_distribution_fig_from_rag` returns a Plotly figure object that
+    contains a plot of the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based
+    on the input Reservoir Analog Graph (RAG) data.
+    """
+
+    for key in ['pore_size_dist', 'pore_size_cdf', 'pore_size_bins']:
+        if key not in rag.graph:
+            raise ValueError('The pore size distribution has not been computed for this RAG. Please run the get_psd_on_rag function first.')
+    import plotly.graph_objects as go
+    # extract the PDF, CDF, and bin edges from the rag
+    pdf = rag.graph['pore_size_dist']
+    cdf = rag.graph['pore_size_cdf']
+    bin_edges = rag.graph['pore_size_bins']
+
+    # create a figure
+    fig = go.Figure()
+
+    # add a trace for the PDF
+    fig.add_trace(go.Scatter(
+        x=bin_edges[:-1],  # use the left edge of each bin as the x-coordinate
+        y=pdf,
+        mode='lines',
+        name='Pore Size Distribution',
+        line=dict(color='blue')
+    ))
+
+    # add a trace for the CDF
+    fig.add_trace(go.Scatter(
+        x=bin_edges[:-1],
+        y=cdf,
+        mode='lines',
+        name='Cumulative Distribution',
+        line=dict(dash='dot', color='red'),
+        yaxis='y2'
+    ))
+
+    # set the x-axis title
+    fig.update_xaxes(title_text='Pore Dia. (Å)')
+
+    # set the y-axis title
+    fig.update_layout(
+        yaxis=dict(
+            title='Pore Size Distribution',
+            titlefont=dict(color='blue'),
+            tickfont=dict(color='blue')
+        ),
+        yaxis2=dict(
+            title='Cumulative Distribution',
+            titlefont=dict(color='red'),
+            tickfont=dict(color='red'),
+            overlaying='y',
+            side='right'
+        )
+    )
+
+    return fig

@@ -1,0 +1,16 @@
+# read_raspa_pdb { #mofography.data.read_raspa_pdb }
+
+`data.read_raspa_pdb(path_to_file)`
+
+created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
+_ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __            | '__/ _ \/ _` |/ _` | | '__/ _` / __| '_ \ / _` |  / /_)/ /\ /__\//
+| | |  __/ (_| | (_| | | | | (_| \__ \ |_) | (_| | / ___/ /_// \/              |_|  \___|\__,_|\__,_| |_|  \__,_|___/ .__/ \__,_| \/  /___,'\_____/
+                                    |_|                            
+Reads the output PDB movie file from RASPA into separate configurations, including the chemical symbols and
+cell dimensions. 
+
+## Parameters
+
+| Name           | Type   | Description                | Default    |
+|----------------|--------|----------------------------|------------|
+| `path_to_file` | str    | path to the RASPA PDB file | _required_ |

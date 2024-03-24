@@ -1,0 +1,17 @@
+# add_clustering_to_rag_geometry_js { #mofography.compute.add_clustering_to_rag_geometry_js }
+
+`compute.add_clustering_to_rag_geometry_js(rag, props, pbc_groups, ase_atoms, shape, use_pbc=True, js_threshold=0.15)`
+
+Adds cluster information to a region adjacency graph (RAG) by calculating the Jensen-Shannon distance between two histograms of distances.
+
+Args:
+    rag (networkx.Graph): the RAG graph
+    props (list): list of properties of each region in the RAG
+    pbc_groups (list): list of groups of regions with periodic boundary conditions (PBC)
+    ase_atoms (ase.Atoms): ASE atoms object
+    shape (tuple): shape of the region
+    use_pbc (bool): whether to use PBC or not
+    js_threshold (float): the threshold for the Jensen-Shannon distance
+
+Returns:
+    networkx.Graph: the RAG with cluster information added under keys 'cluster_geom_pbc' or 'cluster_geom_nopbc' depending on whether 'use_pbc' is True or False

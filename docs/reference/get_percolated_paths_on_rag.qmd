@@ -1,0 +1,4 @@
+# get_percolated_paths_on_rag { #mofography.compute.get_percolated_paths_on_rag }
+
+`compute.get_percolated_paths_on_rag(rag, minimum_overlap_fraction=0.5, wall_cells=6, path_jump_cutoff=None)`
+

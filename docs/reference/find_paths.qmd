@@ -1,0 +1,4 @@
+# find_paths { #mofography.compute.find_paths }
+
+`compute.find_paths(regions, rag2)`
+

@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.551">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Subset visualization</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./logo.png" alt="" class="navbar-logo">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/arung-northwestern/mofography"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#import-a-dataset" id="toc-import-a-dataset" class="nav-link active" data-scroll-target="#import-a-dataset">Import a dataset</a></li>
+  <li><a href="#find-benzene-rings" id="toc-find-benzene-rings" class="nav-link" data-scroll-target="#find-benzene-rings">Find benzene rings</a></li>
+  <li><a href="#make-traces-for-different-atoms-subsets" id="toc-make-traces-for-different-atoms-subsets" class="nav-link" data-scroll-target="#make-traces-for-different-atoms-subsets">Make traces for different atoms subsets</a></li>
+  <li><a href="#visualize" id="toc-visualize" class="nav-link" data-scroll-target="#visualize">Visualize</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Subset visualization</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This is a short tutorial on advanced visualization using mofography, where we apply a different opacity to different parts of a metal-organic framework. Essentially, we select all the aromatic rings of the framework and plot a trace for them in normal opacity, and then show the rest ofhte framework in reduced opacity, using the plot_mesh function inside mofography. The plot_mesh function if you look inside visualize.py, gives you access through all the arguments to the plotly mesh3d API as **kwargs. Please refer to the docstring and plotly docs for more information</p>
+<div id="cell-2" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">## Make imports</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-3" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span>  pd</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co"># path_to_mgr = Path('/projects/academic/kaihangs/arungopa/my_cloned_repos/mofography/')</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="co"># * Put your path here</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>path_to_mgr <span class="op">=</span> os.path.abspath(</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">'c:/Users/Arun Gopalan/OneDrive - The University of Manchester/my_cloned_repos/mofography_general/mofography'</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>sys.path.append(path_to_mgr)</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># sys.path.append(str(path_to_mgr.resolve())  )</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objs <span class="im">as</span> go </span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="import-a-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="import-a-dataset">Import a dataset</h2>
+<p>Let’s import the 2019 COREMOF dataset and we’ll plot one material from it.(put your path here)</p>
+<div id="cell-5" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>path_to_df <span class="op">=</span> Path(<span class="st">'../../../mofography/examples/core_df_gt_05.feather'</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>core_df <span class="op">=</span> pd.read_feather(path_to_df)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>core_df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="11">
+<div>
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">id</th>
+<th data-quarto-table-cell-role="th">mofid</th>
+<th data-quarto-table-cell-role="th">mofkey</th>
+<th data-quarto-table-cell-role="th">hashkey</th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">void_fraction</th>
+<th data-quarto-table-cell-role="th">surface_area_m2g</th>
+<th data-quarto-table-cell-role="th">surface_area_m2cm3</th>
+<th data-quarto-table-cell-role="th">pld</th>
+<th data-quarto-table-cell-role="th">lcd</th>
+<th data-quarto-table-cell-role="th">...</th>
+<th data-quarto-table-cell-role="th">pore_size_distribution</th>
+<th data-quarto-table-cell-role="th">database</th>
+<th data-quarto-table-cell-role="th">batch_number</th>
+<th data-quarto-table-cell-role="th">elements</th>
+<th data-quarto-table-cell-role="th">cif</th>
+<th data-quarto-table-cell-role="th">url</th>
+<th data-quarto-table-cell-role="th">adsorbates</th>
+<th data-quarto-table-cell-role="th">heats</th>
+<th data-quarto-table-cell-role="th">isotherms</th>
+<th data-quarto-table-cell-role="th">mofdb_version</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>173867</td>
+<td>None</td>
+<td>None</td>
+<td>9fb126ebee087f37a01307ef416072bca0d84f3bcb1a41...</td>
+<td>ABAYIO_clean</td>
+<td>0.6636</td>
+<td>1936.750</td>
+<td>1838.22</td>
+<td>4.32260</td>
+<td>11.39490</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.771\n_cel...</td>
+<td>/mofs/173867.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>173868</td>
+<td>None</td>
+<td>None</td>
+<td>c85c642b30aa4293e6d054f9fd904aa6c9559a0ea130d1...</td>
+<td>ABAYOU_clean</td>
+<td>0.6638</td>
+<td>1922.330</td>
+<td>1882.48</td>
+<td>4.51080</td>
+<td>11.27340</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.647\n_cel...</td>
+<td>/mofs/173868.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>173870</td>
+<td>None</td>
+<td>None</td>
+<td>86a93edc3ddc6c674e3c584097cc12915863f28e12c7ae...</td>
+<td>ABESUX_clean</td>
+<td>0.5646</td>
+<td>466.934</td>
+<td>1747.69</td>
+<td>4.42492</td>
+<td>5.87931</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 15.512\n_cel...</td>
+<td>/mofs/173870.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>173871</td>
+<td>None</td>
+<td>None</td>
+<td>2f6f65d5cda404093e20258bdcebad95ef9ab0c84d2472...</td>
+<td>ABETAE_clean</td>
+<td>0.5720</td>
+<td>492.461</td>
+<td>1821.75</td>
+<td>4.42033</td>
+<td>5.88295</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 15.52\n_cell...</td>
+<td>/mofs/173871.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>173872</td>
+<td>None</td>
+<td>None</td>
+<td>73d7bc006d91f2adbea02677d7685de0db8b092109f433...</td>
+<td>ABETIN_clean</td>
+<td>0.7302</td>
+<td>3810.890</td>
+<td>2275.99</td>
+<td>7.83744</td>
+<td>9.47418</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.9629\n_ce...</td>
+<td>/mofs/173872.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+</tbody>
+</table>
+
+<p>5 rows × 21 columns</p>
+</div>
+</div>
+</div>
+</div>
+<p>Pick first material</p>
+<div id="cell-7" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> mgr.read_cif_string(core_df.iloc[<span class="dv">0</span>][<span class="st">'cif'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-8" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>mat_atoms</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="13">
+<pre><code>Atoms(symbols='C288H96Cl48Mn48O192', pbc=True, cell=[26.771, 26.771, 26.771], spacegroup_kinds=...)</code></pre>
+</div>
+</div>
+</section>
+<section id="find-benzene-rings" class="level2">
+<h2 class="anchored" data-anchor-id="find-benzene-rings">Find benzene rings</h2>
+<p>Use mofography to find all the benzene rings. Refer to find functional groups tutorial for more information</p>
+<div id="cell-10" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>functional_groups<span class="op">=</span><span class="bu">dict</span>(benzene<span class="op">=</span><span class="st">'c1ccccc1'</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> mgr.find_functional_groups(mat_atoms, functional_groups<span class="op">=</span>functional_groups)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(matches)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+{'benzene': [{288: 0, 480: 1, 460: 2, 572: 3, 478: 4, 526: 5}, {288: 0, 526: 1, 478: 2, 572: 3, 460: 4, 480: 5}, {290: 0, 482: 1, 346: 2, 574: 3, 316: 4, 524: 5}, {290: 0, 524: 1, 316: 2, 574: 3, 346: 4, 482: 5}, {292: 0, 488: 1, 464: 2, 548: 3, 470: 4, 542: 5}, {292: 0, 542: 1, 470: 2, 548: 3, 464: 4, 488: 5}, {294: 0, 490: 1, 466: 2, 550: 3, 326: 4, 540: 5}, {294: 0, 540: 1, 326: 2, 550: 3, 466: 4, 490: 5}, {296: 0, 536: 1, 324: 2, 546: 3, 330: 4, 494: 5}, {296: 0, 494: 1, 330: 2, 546: 3, 324: 4, 536: 5}, {298: 0, 496: 1, 456: 2, 564: 3, 322: 4, 534: 5}, {298: 0, 534: 1, 322: 2, 564: 3, 456: 4, 496: 5}, {300: 0, 498: 1, 458: 2, 566: 3, 320: 4, 532: 5}, {300: 0, 532: 1, 320: 2, 566: 3, 458: 4, 498: 5}, {302: 0, 530: 1, 472: 2, 560: 3, 338: 4, 500: 5}, {302: 0, 500: 1, 338: 2, 560: 3, 472: 4, 530: 5}, {304: 0, 504: 1, 336: 2, 556: 3, 476: 4, 518: 5}, {304: 0, 518: 1, 476: 2, 556: 3, 336: 4, 504: 5}, {306: 0, 506: 1, 462: 2, 558: 3, 310: 4, 516: 5}, {306: 0, 516: 1, 310: 2, 558: 3, 462: 4, 506: 5}, {308: 0, 512: 1, 450: 2, 510: 3, 334: 4, 554: 5}, {308: 0, 554: 1, 334: 2, 510: 3, 450: 4, 512: 5}, {310: 0, 516: 1, 306: 2, 506: 3, 462: 4, 558: 5}, {310: 0, 558: 1, 462: 2, 506: 3, 306: 4, 516: 5}, {312: 0, 520: 1, 444: 2, 486: 3, 344: 4, 570: 5}, {312: 0, 570: 1, 344: 2, 486: 3, 444: 4, 520: 5}, {314: 0, 568: 1, 342: 2, 484: 3, 446: 4, 522: 5}, {314: 0, 522: 1, 446: 2, 484: 3, 342: 4, 568: 5}, {316: 0, 524: 1, 290: 2, 482: 3, 346: 4, 574: 5}, {316: 0, 574: 1, 346: 2, 482: 3, 290: 4, 524: 5}, {318: 0, 528: 1, 454: 2, 502: 3, 340: 4, 562: 5}, {318: 0, 562: 1, 340: 2, 502: 3, 454: 4, 528: 5}, {320: 0, 532: 1, 300: 2, 498: 3, 458: 4, 566: 5}, {320: 0, 566: 1, 458: 2, 498: 3, 300: 4, 532: 5}, {322: 0, 564: 1, 456: 2, 496: 3, 298: 4, 534: 5}, {322: 0, 534: 1, 298: 2, 496: 3, 456: 4, 564: 5}, {324: 0, 536: 1, 296: 2, 494: 3, 330: 4, 546: 5}, {324: 0, 546: 1, 330: 2, 494: 3, 296: 4, 536: 5}, {326: 0, 540: 1, 294: 2, 490: 3, 466: 4, 550: 5}, {326: 0, 550: 1, 466: 2, 490: 3, 294: 4, 540: 5}, {328: 0, 544: 1, 468: 2, 538: 3, 448: 4, 492: 5}, {328: 0, 492: 1, 448: 2, 538: 3, 468: 4, 544: 5}, {330: 0, 546: 1, 324: 2, 536: 3, 296: 4, 494: 5}, {330: 0, 494: 1, 296: 2, 536: 3, 324: 4, 546: 5}, {332: 0, 552: 1, 474: 2, 514: 3, 452: 4, 508: 5}, {332: 0, 508: 1, 452: 2, 514: 3, 474: 4, 552: 5}, {334: 0, 554: 1, 308: 2, 512: 3, 450: 4, 510: 5}, {334: 0, 510: 1, 450: 2, 512: 3, 308: 4, 554: 5}, {336: 0, 504: 1, 304: 2, 518: 3, 476: 4, 556: 5}, {336: 0, 556: 1, 476: 2, 518: 3, 304: 4, 504: 5}, {338: 0, 560: 1, 472: 2, 530: 3, 302: 4, 500: 5}, {338: 0, 500: 1, 302: 2, 530: 3, 472: 4, 560: 5}, {340: 0, 562: 1, 318: 2, 528: 3, 454: 4, 502: 5}, {340: 0, 502: 1, 454: 2, 528: 3, 318: 4, 562: 5}, {342: 0, 568: 1, 314: 2, 522: 3, 446: 4, 484: 5}, {342: 0, 484: 1, 446: 2, 522: 3, 314: 4, 568: 5}, {344: 0, 570: 1, 312: 2, 520: 3, 444: 4, 486: 5}, {344: 0, 486: 1, 444: 2, 520: 3, 312: 4, 570: 5}, {346: 0, 482: 1, 290: 2, 524: 3, 316: 4, 574: 5}, {346: 0, 574: 1, 316: 2, 524: 3, 290: 4, 482: 5}, {348: 0, 576: 1, 404: 2, 666: 3, 376: 4, 622: 5}, {348: 0, 622: 1, 376: 2, 666: 3, 404: 4, 576: 5}, {350: 0, 578: 1, 402: 2, 664: 3, 442: 4, 620: 5}, {350: 0, 620: 1, 442: 2, 664: 3, 402: 4, 578: 5}, {352: 0, 584: 1, 428: 2, 642: 3, 434: 4, 638: 5}, {352: 0, 638: 1, 434: 2, 642: 3, 428: 4, 584: 5}, {354: 0, 586: 1, 388: 2, 640: 3, 432: 4, 636: 5}, {354: 0, 636: 1, 432: 2, 640: 3, 388: 4, 586: 5}, {356: 0, 632: 1, 384: 2, 644: 3, 390: 4, 590: 5}, {356: 0, 590: 1, 390: 2, 644: 3, 384: 4, 632: 5}, {358: 0, 592: 1, 420: 2, 658: 3, 436: 4, 630: 5}, {358: 0, 630: 1, 436: 2, 658: 3, 420: 4, 592: 5}, {360: 0, 594: 1, 398: 2, 656: 3, 382: 4, 628: 5}, {360: 0, 628: 1, 382: 2, 656: 3, 398: 4, 594: 5}, {362: 0, 600: 1, 426: 2, 650: 3, 440: 4, 614: 5}, {362: 0, 614: 1, 440: 2, 650: 3, 426: 4, 600: 5}, {364: 0, 602: 1, 392: 2, 648: 3, 438: 4, 612: 5}, {364: 0, 612: 1, 438: 2, 648: 3, 392: 4, 602: 5}, {366: 0, 610: 1, 370: 2, 654: 3, 396: 4, 604: 5}, {366: 0, 604: 1, 396: 2, 654: 3, 370: 4, 610: 5}, {368: 0, 608: 1, 414: 2, 606: 3, 394: 4, 652: 5}, {368: 0, 652: 1, 394: 2, 606: 3, 414: 4, 608: 5}, {370: 0, 610: 1, 366: 2, 604: 3, 396: 4, 654: 5}, {370: 0, 654: 1, 396: 2, 604: 3, 366: 4, 610: 5}, {372: 0, 616: 1, 408: 2, 582: 3, 406: 4, 668: 5}, {372: 0, 668: 1, 406: 2, 582: 3, 408: 4, 616: 5}, {374: 0, 618: 1, 410: 2, 580: 3, 424: 4, 670: 5}, {374: 0, 670: 1, 424: 2, 580: 3, 410: 4, 618: 5}, {376: 0, 666: 1, 404: 2, 576: 3, 348: 4, 622: 5}, {376: 0, 622: 1, 348: 2, 576: 3, 404: 4, 666: 5}, {378: 0, 624: 1, 416: 2, 598: 3, 400: 4, 660: 5}, {378: 0, 660: 1, 400: 2, 598: 3, 416: 4, 624: 5}, {380: 0, 626: 1, 418: 2, 596: 3, 422: 4, 662: 5}, {380: 0, 662: 1, 422: 2, 596: 3, 418: 4, 626: 5}, {382: 0, 656: 1, 398: 2, 594: 3, 360: 4, 628: 5}, {382: 0, 628: 1, 360: 2, 594: 3, 398: 4, 656: 5}, {384: 0, 632: 1, 356: 2, 590: 3, 390: 4, 644: 5}, {384: 0, 644: 1, 390: 2, 590: 3, 356: 4, 632: 5}, {386: 0, 634: 1, 412: 2, 588: 3, 430: 4, 646: 5}, {386: 0, 646: 1, 430: 2, 588: 3, 412: 4, 634: 5}, {388: 0, 640: 1, 432: 2, 636: 3, 354: 4, 586: 5}, {388: 0, 586: 1, 354: 2, 636: 3, 432: 4, 640: 5}, {390: 0, 644: 1, 384: 2, 632: 3, 356: 4, 590: 5}, {390: 0, 590: 1, 356: 2, 632: 3, 384: 4, 644: 5}, {392: 0, 648: 1, 438: 2, 612: 3, 364: 4, 602: 5}, {392: 0, 602: 1, 364: 2, 612: 3, 438: 4, 648: 5}, {394: 0, 652: 1, 368: 2, 608: 3, 414: 4, 606: 5}, {394: 0, 606: 1, 414: 2, 608: 3, 368: 4, 652: 5}, {396: 0, 604: 1, 366: 2, 610: 3, 370: 4, 654: 5}, {396: 0, 654: 1, 370: 2, 610: 3, 366: 4, 604: 5}, {398: 0, 656: 1, 382: 2, 628: 3, 360: 4, 594: 5}, {398: 0, 594: 1, 360: 2, 628: 3, 382: 4, 656: 5}, {400: 0, 660: 1, 378: 2, 624: 3, 416: 4, 598: 5}, {400: 0, 598: 1, 416: 2, 624: 3, 378: 4, 660: 5}, {402: 0, 664: 1, 442: 2, 620: 3, 350: 4, 578: 5}, {402: 0, 578: 1, 350: 2, 620: 3, 442: 4, 664: 5}, {404: 0, 576: 1, 348: 2, 622: 3, 376: 4, 666: 5}, {404: 0, 666: 1, 376: 2, 622: 3, 348: 4, 576: 5}, {406: 0, 668: 1, 372: 2, 616: 3, 408: 4, 582: 5}, {406: 0, 582: 1, 408: 2, 616: 3, 372: 4, 668: 5}, {408: 0, 616: 1, 372: 2, 668: 3, 406: 4, 582: 5}, {408: 0, 582: 1, 406: 2, 668: 3, 372: 4, 616: 5}, {410: 0, 618: 1, 374: 2, 670: 3, 424: 4, 580: 5}, {410: 0, 580: 1, 424: 2, 670: 3, 374: 4, 618: 5}, {412: 0, 634: 1, 386: 2, 646: 3, 430: 4, 588: 5}, {412: 0, 588: 1, 430: 2, 646: 3, 386: 4, 634: 5}, {414: 0, 608: 1, 368: 2, 652: 3, 394: 4, 606: 5}, {414: 0, 606: 1, 394: 2, 652: 3, 368: 4, 608: 5}, {416: 0, 624: 1, 378: 2, 660: 3, 400: 4, 598: 5}, {416: 0, 598: 1, 400: 2, 660: 3, 378: 4, 624: 5}, {418: 0, 626: 1, 380: 2, 662: 3, 422: 4, 596: 5}, {418: 0, 596: 1, 422: 2, 662: 3, 380: 4, 626: 5}, {420: 0, 592: 1, 358: 2, 630: 3, 436: 4, 658: 5}, {420: 0, 658: 1, 436: 2, 630: 3, 358: 4, 592: 5}, {422: 0, 596: 1, 418: 2, 626: 3, 380: 4, 662: 5}, {422: 0, 662: 1, 380: 2, 626: 3, 418: 4, 596: 5}, {424: 0, 580: 1, 410: 2, 618: 3, 374: 4, 670: 5}, {424: 0, 670: 1, 374: 2, 618: 3, 410: 4, 580: 5}, {426: 0, 600: 1, 362: 2, 614: 3, 440: 4, 650: 5}, {426: 0, 650: 1, 440: 2, 614: 3, 362: 4, 600: 5}, {428: 0, 584: 1, 352: 2, 638: 3, 434: 4, 642: 5}, {428: 0, 642: 1, 434: 2, 638: 3, 352: 4, 584: 5}, {430: 0, 588: 1, 412: 2, 634: 3, 386: 4, 646: 5}, {430: 0, 646: 1, 386: 2, 634: 3, 412: 4, 588: 5}, {432: 0, 640: 1, 388: 2, 586: 3, 354: 4, 636: 5}, {432: 0, 636: 1, 354: 2, 586: 3, 388: 4, 640: 5}, {434: 0, 642: 1, 428: 2, 584: 3, 352: 4, 638: 5}, {434: 0, 638: 1, 352: 2, 584: 3, 428: 4, 642: 5}, {436: 0, 658: 1, 420: 2, 592: 3, 358: 4, 630: 5}, {436: 0, 630: 1, 358: 2, 592: 3, 420: 4, 658: 5}, {438: 0, 648: 1, 392: 2, 602: 3, 364: 4, 612: 5}, {438: 0, 612: 1, 364: 2, 602: 3, 392: 4, 648: 5}, {440: 0, 650: 1, 426: 2, 600: 3, 362: 4, 614: 5}, {440: 0, 614: 1, 362: 2, 600: 3, 426: 4, 650: 5}, {442: 0, 664: 1, 402: 2, 578: 3, 350: 4, 620: 5}, {442: 0, 620: 1, 350: 2, 578: 3, 402: 4, 664: 5}, {444: 0, 520: 1, 312: 2, 570: 3, 344: 4, 486: 5}, {444: 0, 486: 1, 344: 2, 570: 3, 312: 4, 520: 5}, {446: 0, 522: 1, 314: 2, 568: 3, 342: 4, 484: 5}, {446: 0, 484: 1, 342: 2, 568: 3, 314: 4, 522: 5}, {448: 0, 538: 1, 468: 2, 544: 3, 328: 4, 492: 5}, {448: 0, 492: 1, 328: 2, 544: 3, 468: 4, 538: 5}, {450: 0, 512: 1, 308: 2, 554: 3, 334: 4, 510: 5}, {450: 0, 510: 1, 334: 2, 554: 3, 308: 4, 512: 5}, {452: 0, 514: 1, 474: 2, 552: 3, 332: 4, 508: 5}, {452: 0, 508: 1, 332: 2, 552: 3, 474: 4, 514: 5}, {454: 0, 528: 1, 318: 2, 562: 3, 340: 4, 502: 5}, {454: 0, 502: 1, 340: 2, 562: 3, 318: 4, 528: 5}, {456: 0, 496: 1, 298: 2, 534: 3, 322: 4, 564: 5}, {456: 0, 564: 1, 322: 2, 534: 3, 298: 4, 496: 5}, {458: 0, 498: 1, 300: 2, 532: 3, 320: 4, 566: 5}, {458: 0, 566: 1, 320: 2, 532: 3, 300: 4, 498: 5}, {460: 0, 480: 1, 288: 2, 526: 3, 478: 4, 572: 5}, {460: 0, 572: 1, 478: 2, 526: 3, 288: 4, 480: 5}, {462: 0, 506: 1, 306: 2, 516: 3, 310: 4, 558: 5}, {462: 0, 558: 1, 310: 2, 516: 3, 306: 4, 506: 5}, {464: 0, 488: 1, 292: 2, 542: 3, 470: 4, 548: 5}, {464: 0, 548: 1, 470: 2, 542: 3, 292: 4, 488: 5}, {466: 0, 490: 1, 294: 2, 540: 3, 326: 4, 550: 5}, {466: 0, 550: 1, 326: 2, 540: 3, 294: 4, 490: 5}, {468: 0, 544: 1, 328: 2, 492: 3, 448: 4, 538: 5}, {468: 0, 538: 1, 448: 2, 492: 3, 328: 4, 544: 5}, {470: 0, 548: 1, 464: 2, 488: 3, 292: 4, 542: 5}, {470: 0, 542: 1, 292: 2, 488: 3, 464: 4, 548: 5}, {472: 0, 560: 1, 338: 2, 500: 3, 302: 4, 530: 5}, {472: 0, 530: 1, 302: 2, 500: 3, 338: 4, 560: 5}, {474: 0, 552: 1, 332: 2, 508: 3, 452: 4, 514: 5}, {474: 0, 514: 1, 452: 2, 508: 3, 332: 4, 552: 5}, {476: 0, 556: 1, 336: 2, 504: 3, 304: 4, 518: 5}, {476: 0, 518: 1, 304: 2, 504: 3, 336: 4, 556: 5}, {478: 0, 572: 1, 460: 2, 480: 3, 288: 4, 526: 5}, {478: 0, 526: 1, 288: 2, 480: 3, 460: 4, 572: 5}, {480: 0, 288: 1, 526: 2, 478: 3, 572: 4, 460: 5}, {480: 0, 460: 1, 572: 2, 478: 3, 526: 4, 288: 5}, {482: 0, 290: 1, 524: 2, 316: 3, 574: 4, 346: 5}, {482: 0, 346: 1, 574: 2, 316: 3, 524: 4, 290: 5}, {484: 0, 446: 1, 522: 2, 314: 3, 568: 4, 342: 5}, {484: 0, 342: 1, 568: 2, 314: 3, 522: 4, 446: 5}, {486: 0, 344: 1, 570: 2, 312: 3, 520: 4, 444: 5}, {486: 0, 444: 1, 520: 2, 312: 3, 570: 4, 344: 5}, {488: 0, 464: 1, 548: 2, 470: 3, 542: 4, 292: 5}, {488: 0, 292: 1, 542: 2, 470: 3, 548: 4, 464: 5}, {490: 0, 466: 1, 550: 2, 326: 3, 540: 4, 294: 5}, {490: 0, 294: 1, 540: 2, 326: 3, 550: 4, 466: 5}, {492: 0, 328: 1, 544: 2, 468: 3, 538: 4, 448: 5}, {492: 0, 448: 1, 538: 2, 468: 3, 544: 4, 328: 5}, {494: 0, 296: 1, 536: 2, 324: 3, 546: 4, 330: 5}, {494: 0, 330: 1, 546: 2, 324: 3, 536: 4, 296: 5}, {496: 0, 456: 1, 564: 2, 322: 3, 534: 4, 298: 5}, {496: 0, 298: 1, 534: 2, 322: 3, 564: 4, 456: 5}, {498: 0, 458: 1, 566: 2, 320: 3, 532: 4, 300: 5}, {498: 0, 300: 1, 532: 2, 320: 3, 566: 4, 458: 5}, {500: 0, 338: 1, 560: 2, 472: 3, 530: 4, 302: 5}, {500: 0, 302: 1, 530: 2, 472: 3, 560: 4, 338: 5}, {502: 0, 340: 1, 562: 2, 318: 3, 528: 4, 454: 5}, {502: 0, 454: 1, 528: 2, 318: 3, 562: 4, 340: 5}, {504: 0, 304: 1, 518: 2, 476: 3, 556: 4, 336: 5}, {504: 0, 336: 1, 556: 2, 476: 3, 518: 4, 304: 5}, {506: 0, 306: 1, 516: 2, 310: 3, 558: 4, 462: 5}, {506: 0, 462: 1, 558: 2, 310: 3, 516: 4, 306: 5}, {508: 0, 452: 1, 514: 2, 474: 3, 552: 4, 332: 5}, {508: 0, 332: 1, 552: 2, 474: 3, 514: 4, 452: 5}, {510: 0, 450: 1, 512: 2, 308: 3, 554: 4, 334: 5}, {510: 0, 334: 1, 554: 2, 308: 3, 512: 4, 450: 5}, {512: 0, 450: 1, 510: 2, 334: 3, 554: 4, 308: 5}, {512: 0, 308: 1, 554: 2, 334: 3, 510: 4, 450: 5}, {514: 0, 474: 1, 552: 2, 332: 3, 508: 4, 452: 5}, {514: 0, 452: 1, 508: 2, 332: 3, 552: 4, 474: 5}, {516: 0, 306: 1, 506: 2, 462: 3, 558: 4, 310: 5}, {516: 0, 310: 1, 558: 2, 462: 3, 506: 4, 306: 5}, {518: 0, 304: 1, 504: 2, 336: 3, 556: 4, 476: 5}, {518: 0, 476: 1, 556: 2, 336: 3, 504: 4, 304: 5}, {520: 0, 312: 1, 570: 2, 344: 3, 486: 4, 444: 5}, {520: 0, 444: 1, 486: 2, 344: 3, 570: 4, 312: 5}, {522: 0, 314: 1, 568: 2, 342: 3, 484: 4, 446: 5}, {522: 0, 446: 1, 484: 2, 342: 3, 568: 4, 314: 5}, {524: 0, 290: 1, 482: 2, 346: 3, 574: 4, 316: 5}, {524: 0, 316: 1, 574: 2, 346: 3, 482: 4, 290: 5}, {526: 0, 288: 1, 480: 2, 460: 3, 572: 4, 478: 5}, {526: 0, 478: 1, 572: 2, 460: 3, 480: 4, 288: 5}, {528: 0, 454: 1, 502: 2, 340: 3, 562: 4, 318: 5}, {528: 0, 318: 1, 562: 2, 340: 3, 502: 4, 454: 5}, {530: 0, 472: 1, 560: 2, 338: 3, 500: 4, 302: 5}, {530: 0, 302: 1, 500: 2, 338: 3, 560: 4, 472: 5}, {532: 0, 320: 1, 566: 2, 458: 3, 498: 4, 300: 5}, {532: 0, 300: 1, 498: 2, 458: 3, 566: 4, 320: 5}, {534: 0, 298: 1, 496: 2, 456: 3, 564: 4, 322: 5}, {534: 0, 322: 1, 564: 2, 456: 3, 496: 4, 298: 5}, {536: 0, 296: 1, 494: 2, 330: 3, 546: 4, 324: 5}, {536: 0, 324: 1, 546: 2, 330: 3, 494: 4, 296: 5}, {538: 0, 448: 1, 492: 2, 328: 3, 544: 4, 468: 5}, {538: 0, 468: 1, 544: 2, 328: 3, 492: 4, 448: 5}, {540: 0, 326: 1, 550: 2, 466: 3, 490: 4, 294: 5}, {540: 0, 294: 1, 490: 2, 466: 3, 550: 4, 326: 5}, {542: 0, 292: 1, 488: 2, 464: 3, 548: 4, 470: 5}, {542: 0, 470: 1, 548: 2, 464: 3, 488: 4, 292: 5}, {544: 0, 328: 1, 492: 2, 448: 3, 538: 4, 468: 5}, {544: 0, 468: 1, 538: 2, 448: 3, 492: 4, 328: 5}, {546: 0, 330: 1, 494: 2, 296: 3, 536: 4, 324: 5}, {546: 0, 324: 1, 536: 2, 296: 3, 494: 4, 330: 5}, {548: 0, 464: 1, 488: 2, 292: 3, 542: 4, 470: 5}, {548: 0, 470: 1, 542: 2, 292: 3, 488: 4, 464: 5}, {550: 0, 466: 1, 490: 2, 294: 3, 540: 4, 326: 5}, {550: 0, 326: 1, 540: 2, 294: 3, 490: 4, 466: 5}, {552: 0, 474: 1, 514: 2, 452: 3, 508: 4, 332: 5}, {552: 0, 332: 1, 508: 2, 452: 3, 514: 4, 474: 5}, {554: 0, 308: 1, 512: 2, 450: 3, 510: 4, 334: 5}, {554: 0, 334: 1, 510: 2, 450: 3, 512: 4, 308: 5}, {556: 0, 336: 1, 504: 2, 304: 3, 518: 4, 476: 5}, {556: 0, 476: 1, 518: 2, 304: 3, 504: 4, 336: 5}, {558: 0, 462: 1, 506: 2, 306: 3, 516: 4, 310: 5}, {558: 0, 310: 1, 516: 2, 306: 3, 506: 4, 462: 5}, {560: 0, 472: 1, 530: 2, 302: 3, 500: 4, 338: 5}, {560: 0, 338: 1, 500: 2, 302: 3, 530: 4, 472: 5}, {562: 0, 340: 1, 502: 2, 454: 3, 528: 4, 318: 5}, {562: 0, 318: 1, 528: 2, 454: 3, 502: 4, 340: 5}, {564: 0, 456: 1, 496: 2, 298: 3, 534: 4, 322: 5}, {564: 0, 322: 1, 534: 2, 298: 3, 496: 4, 456: 5}, {566: 0, 320: 1, 532: 2, 300: 3, 498: 4, 458: 5}, {566: 0, 458: 1, 498: 2, 300: 3, 532: 4, 320: 5}, {568: 0, 314: 1, 522: 2, 446: 3, 484: 4, 342: 5}, {568: 0, 342: 1, 484: 2, 446: 3, 522: 4, 314: 5}, {570: 0, 312: 1, 520: 2, 444: 3, 486: 4, 344: 5}, {570: 0, 344: 1, 486: 2, 444: 3, 520: 4, 312: 5}, {572: 0, 460: 1, 480: 2, 288: 3, 526: 4, 478: 5}, {572: 0, 478: 1, 526: 2, 288: 3, 480: 4, 460: 5}, {574: 0, 346: 1, 482: 2, 290: 3, 524: 4, 316: 5}, {574: 0, 316: 1, 524: 2, 290: 3, 482: 4, 346: 5}, {576: 0, 404: 1, 666: 2, 376: 3, 622: 4, 348: 5}, {576: 0, 348: 1, 622: 2, 376: 3, 666: 4, 404: 5}, {578: 0, 402: 1, 664: 2, 442: 3, 620: 4, 350: 5}, {578: 0, 350: 1, 620: 2, 442: 3, 664: 4, 402: 5}, {580: 0, 424: 1, 670: 2, 374: 3, 618: 4, 410: 5}, {580: 0, 410: 1, 618: 2, 374: 3, 670: 4, 424: 5}, {582: 0, 408: 1, 616: 2, 372: 3, 668: 4, 406: 5}, {582: 0, 406: 1, 668: 2, 372: 3, 616: 4, 408: 5}, {584: 0, 352: 1, 638: 2, 434: 3, 642: 4, 428: 5}, {584: 0, 428: 1, 642: 2, 434: 3, 638: 4, 352: 5}, {586: 0, 354: 1, 636: 2, 432: 3, 640: 4, 388: 5}, {586: 0, 388: 1, 640: 2, 432: 3, 636: 4, 354: 5}, {588: 0, 412: 1, 634: 2, 386: 3, 646: 4, 430: 5}, {588: 0, 430: 1, 646: 2, 386: 3, 634: 4, 412: 5}, {590: 0, 356: 1, 632: 2, 384: 3, 644: 4, 390: 5}, {590: 0, 390: 1, 644: 2, 384: 3, 632: 4, 356: 5}, {592: 0, 420: 1, 658: 2, 436: 3, 630: 4, 358: 5}, {592: 0, 358: 1, 630: 2, 436: 3, 658: 4, 420: 5}, {594: 0, 360: 1, 628: 2, 382: 3, 656: 4, 398: 5}, {594: 0, 398: 1, 656: 2, 382: 3, 628: 4, 360: 5}, {596: 0, 418: 1, 626: 2, 380: 3, 662: 4, 422: 5}, {596: 0, 422: 1, 662: 2, 380: 3, 626: 4, 418: 5}, {598: 0, 400: 1, 660: 2, 378: 3, 624: 4, 416: 5}, {598: 0, 416: 1, 624: 2, 378: 3, 660: 4, 400: 5}, {600: 0, 426: 1, 650: 2, 440: 3, 614: 4, 362: 5}, {600: 0, 362: 1, 614: 2, 440: 3, 650: 4, 426: 5}, {602: 0, 392: 1, 648: 2, 438: 3, 612: 4, 364: 5}, {602: 0, 364: 1, 612: 2, 438: 3, 648: 4, 392: 5}, {604: 0, 396: 1, 654: 2, 370: 3, 610: 4, 366: 5}, {604: 0, 366: 1, 610: 2, 370: 3, 654: 4, 396: 5}, {606: 0, 394: 1, 652: 2, 368: 3, 608: 4, 414: 5}, {606: 0, 414: 1, 608: 2, 368: 3, 652: 4, 394: 5}, {608: 0, 368: 1, 652: 2, 394: 3, 606: 4, 414: 5}, {608: 0, 414: 1, 606: 2, 394: 3, 652: 4, 368: 5}, {610: 0, 370: 1, 654: 2, 396: 3, 604: 4, 366: 5}, {610: 0, 366: 1, 604: 2, 396: 3, 654: 4, 370: 5}, {612: 0, 364: 1, 602: 2, 392: 3, 648: 4, 438: 5}, {612: 0, 438: 1, 648: 2, 392: 3, 602: 4, 364: 5}, {614: 0, 440: 1, 650: 2, 426: 3, 600: 4, 362: 5}, {614: 0, 362: 1, 600: 2, 426: 3, 650: 4, 440: 5}, {616: 0, 408: 1, 582: 2, 406: 3, 668: 4, 372: 5}, {616: 0, 372: 1, 668: 2, 406: 3, 582: 4, 408: 5}, {618: 0, 410: 1, 580: 2, 424: 3, 670: 4, 374: 5}, {618: 0, 374: 1, 670: 2, 424: 3, 580: 4, 410: 5}, {620: 0, 442: 1, 664: 2, 402: 3, 578: 4, 350: 5}, {620: 0, 350: 1, 578: 2, 402: 3, 664: 4, 442: 5}, {622: 0, 376: 1, 666: 2, 404: 3, 576: 4, 348: 5}, {622: 0, 348: 1, 576: 2, 404: 3, 666: 4, 376: 5}, {624: 0, 416: 1, 598: 2, 400: 3, 660: 4, 378: 5}, {624: 0, 378: 1, 660: 2, 400: 3, 598: 4, 416: 5}, {626: 0, 418: 1, 596: 2, 422: 3, 662: 4, 380: 5}, {626: 0, 380: 1, 662: 2, 422: 3, 596: 4, 418: 5}, {628: 0, 360: 1, 594: 2, 398: 3, 656: 4, 382: 5}, {628: 0, 382: 1, 656: 2, 398: 3, 594: 4, 360: 5}, {630: 0, 436: 1, 658: 2, 420: 3, 592: 4, 358: 5}, {630: 0, 358: 1, 592: 2, 420: 3, 658: 4, 436: 5}, {632: 0, 384: 1, 644: 2, 390: 3, 590: 4, 356: 5}, {632: 0, 356: 1, 590: 2, 390: 3, 644: 4, 384: 5}, {634: 0, 386: 1, 646: 2, 430: 3, 588: 4, 412: 5}, {634: 0, 412: 1, 588: 2, 430: 3, 646: 4, 386: 5}, {636: 0, 432: 1, 640: 2, 388: 3, 586: 4, 354: 5}, {636: 0, 354: 1, 586: 2, 388: 3, 640: 4, 432: 5}, {638: 0, 352: 1, 584: 2, 428: 3, 642: 4, 434: 5}, {638: 0, 434: 1, 642: 2, 428: 3, 584: 4, 352: 5}, {640: 0, 432: 1, 636: 2, 354: 3, 586: 4, 388: 5}, {640: 0, 388: 1, 586: 2, 354: 3, 636: 4, 432: 5}, {642: 0, 434: 1, 638: 2, 352: 3, 584: 4, 428: 5}, {642: 0, 428: 1, 584: 2, 352: 3, 638: 4, 434: 5}, {644: 0, 384: 1, 632: 2, 356: 3, 590: 4, 390: 5}, {644: 0, 390: 1, 590: 2, 356: 3, 632: 4, 384: 5}, {646: 0, 386: 1, 634: 2, 412: 3, 588: 4, 430: 5}, {646: 0, 430: 1, 588: 2, 412: 3, 634: 4, 386: 5}, {648: 0, 392: 1, 602: 2, 364: 3, 612: 4, 438: 5}, {648: 0, 438: 1, 612: 2, 364: 3, 602: 4, 392: 5}, {650: 0, 440: 1, 614: 2, 362: 3, 600: 4, 426: 5}, {650: 0, 426: 1, 600: 2, 362: 3, 614: 4, 440: 5}, {652: 0, 368: 1, 608: 2, 414: 3, 606: 4, 394: 5}, {652: 0, 394: 1, 606: 2, 414: 3, 608: 4, 368: 5}, {654: 0, 370: 1, 610: 2, 366: 3, 604: 4, 396: 5}, {654: 0, 396: 1, 604: 2, 366: 3, 610: 4, 370: 5}, {656: 0, 398: 1, 594: 2, 360: 3, 628: 4, 382: 5}, {656: 0, 382: 1, 628: 2, 360: 3, 594: 4, 398: 5}, {658: 0, 436: 1, 630: 2, 358: 3, 592: 4, 420: 5}, {658: 0, 420: 1, 592: 2, 358: 3, 630: 4, 436: 5}, {660: 0, 400: 1, 598: 2, 416: 3, 624: 4, 378: 5}, {660: 0, 378: 1, 624: 2, 416: 3, 598: 4, 400: 5}, {662: 0, 380: 1, 626: 2, 418: 3, 596: 4, 422: 5}, {662: 0, 422: 1, 596: 2, 418: 3, 626: 4, 380: 5}, {664: 0, 442: 1, 620: 2, 350: 3, 578: 4, 402: 5}, {664: 0, 402: 1, 578: 2, 350: 3, 620: 4, 442: 5}, {666: 0, 376: 1, 622: 2, 348: 3, 576: 4, 404: 5}, {666: 0, 404: 1, 576: 2, 348: 3, 622: 4, 376: 5}, {668: 0, 372: 1, 616: 2, 408: 3, 582: 4, 406: 5}, {668: 0, 406: 1, 582: 2, 408: 3, 616: 4, 372: 5}, {670: 0, 424: 1, 580: 2, 410: 3, 618: 4, 374: 5}, {670: 0, 374: 1, 618: 2, 410: 3, 580: 4, 424: 5}]}</code></pre>
+</div>
+</div>
+</section>
+<section id="make-traces-for-different-atoms-subsets" class="level2">
+<h2 class="anchored" data-anchor-id="make-traces-for-different-atoms-subsets">Make traces for different atoms subsets</h2>
+<p>mesh - for the whole framework in low opacity (you can also just plot everything other than benzene rings by excluding the matched atom indices)</p>
+<p>mesh2 - mesh of atoms forming the benzene rings</p>
+<div id="cell-12" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(mat_atoms)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>matching_indices <span class="op">=</span> np.concatenate([<span class="bu">list</span>(m.keys()) <span class="cf">for</span> m <span class="kw">in</span> matches[<span class="st">'benzene'</span>]])</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>subset_atoms <span class="op">=</span> mgr.get_subset_atoms(mat_updated, subset<span class="op">=</span>matching_indices)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>mesh <span class="op">=</span> mgr.mesh_for_atoms(mat_updated, kwargs_spheres<span class="op">=</span><span class="bu">dict</span>(theta_resolution<span class="op">=</span><span class="dv">20</span>, phi_resolution<span class="op">=</span><span class="dv">20</span>), kwargs_cylinders <span class="op">=</span> <span class="bu">dict</span>(cylinder_resolution<span class="op">=</span><span class="dv">20</span>))</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>mesh2 <span class="op">=</span> mgr.mesh_for_atoms(subset_atoms)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+</section>
+<section id="visualize" class="level2">
+<h2 class="anchored" data-anchor-id="visualize">Visualize</h2>
+<div id="cell-14" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>go.Figure([mgr.plot_mesh([mesh],stylize<span class="op">=</span><span class="va">True</span>, opacity<span class="op">=</span><span class="fl">0.3</span>, name<span class="op">=</span><span class="st">'Full'</span>), mgr.plot_mesh([mesh2], stylize<span class="op">=</span><span class="va">True</span>, name<span class="op">=</span><span class="st">'Subset'</span>)], layout<span class="op">=</span>mgr.dark_layout).show(renderer<span class="op">=</span><span class="st">'png'</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="plot_subset_as_mesh_tutorial_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

@@ -1,0 +1,17 @@
+# get_energy_interpolator { #mofography.compute.get_energy_interpolator }
+
+`compute.get_energy_interpolator(egrid)`
+
+This function creates a 3D regular grid interpolator for energy values given an input energy grid.
+
+## Parameters
+
+| Name    | Type   | Description                                                                                                                                                                                                | Default    |
+|---------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `egrid` |        | a 3D numpy array representing a grid of energy values. The shape of the array should be (n_x, n_y, n_z), where n_x, n_y, and n_z are the number of grid points in the x, y, and z directions, respectively | _required_ |
+
+## Returns
+
+| Type   | Description                                                                                    |
+|--------|------------------------------------------------------------------------------------------------|
+|        | a RegularGridInterpolator object that can be used to interpolate values from a 3D energy grid. |

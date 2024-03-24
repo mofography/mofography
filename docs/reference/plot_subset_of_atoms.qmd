@@ -1,0 +1,19 @@
+# plot_subset_of_atoms { #mofography.visualize.plot_subset_of_atoms }
+
+`visualize.plot_subset_of_atoms(ase_atoms, subset, **kwargs)`
+
+> This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of
+the atoms in the list
+
+## Parameters
+
+| Name        | Type   | Description                              | Default    |
+|-------------|--------|------------------------------------------|------------|
+| `ase_atoms` |        | an ase atoms object                      | _required_ |
+| `subset`    |        | a list of atom ids that you want to plot | _required_ |
+
+## Returns
+
+| Type   | Description                                                |
+|--------|------------------------------------------------------------|
+|        | A plotly mesh3D trace that can be added to a plotly figure |

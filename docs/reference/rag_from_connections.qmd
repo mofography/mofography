@@ -1,0 +1,20 @@
+# rag_from_connections { #mofography.compute.rag_from_connections }
+
+`compute.rag_from_connections(connections, maxima, only_use_internal=True)`
+
+This Python function creates a graph representation of regions of interest based on connections and
+maximum values, with an option to include only internal connections.
+
+## Parameters
+
+| Name                | Type   | Description                                                                                                                                                                                                                                                                                                                          | Default    |
+|---------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `connections`       |        | Connections is a list of tuples where each tuple contains information about a connection. Each tuple has the following format: (node_id, is_connected, connection_type)                                                                                                                                                              | _required_ |
+| `maxima`            |        | The `maxima` parameter in the `rag_from_connections` function seems to represent a list of nodes or regions in a graph. It is used to determine the number of nodes in the graph created by the function. Each element in `maxima` likely corresponds to a node in the graph                                                         | _required_ |
+| `only_use_internal` |        | The `only_use_internal` parameter in the `rag_from_connections` function is a boolean parameter that determines whether only internal connections should be used when creating the graph. If `only_use_internal` is set to `True`, only connections with the type 'internal' will be added to the graph, defaults to True (optional) | `True`     |
+
+## Returns
+
+| Type   | Description                                                                                                                                                                                                                                                                                                                                                 |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | The function `rag_from_connections` is returning a NetworkX graph `G` that is constructed based on the input connections, maxima, and the optional parameter only_use_internal. The graph `G` is built by adding nodes and edges from the input connections based on certain conditions. The nodes of the graph have a 'labels' attribute assigned to them. |

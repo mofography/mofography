@@ -1,0 +1,2758 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.551">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Detect functional groups in MOFs</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./logo.png" alt="" class="navbar-logo">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Reference</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/arung-northwestern/mofography"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#steps" id="toc-steps" class="nav-link active" data-scroll-target="#steps">Steps</a></li>
+  <li><a href="#functional-groups" id="toc-functional-groups" class="nav-link" data-scroll-target="#functional-groups">Functional groups</a></li>
+  <li><a href="#imports" id="toc-imports" class="nav-link" data-scroll-target="#imports">Imports</a></li>
+  <li><a href="#grab-a-dataset" id="toc-grab-a-dataset" class="nav-link" data-scroll-target="#grab-a-dataset">Grab a dataset</a></li>
+  <li><a href="#how-to-specify-functional-moeties" id="toc-how-to-specify-functional-moeties" class="nav-link" data-scroll-target="#how-to-specify-functional-moeties">How to specify functional moeties?</a></li>
+  <li><a href="#visualize" id="toc-visualize" class="nav-link" data-scroll-target="#visualize">Visualize</a></li>
+  <li><a href="#bonus-visualize-the-whole-material-if-youre-curious" id="toc-bonus-visualize-the-whole-material-if-youre-curious" class="nav-link" data-scroll-target="#bonus-visualize-the-whole-material-if-youre-curious">Bonus: Visualize the whole material if you’re curious</a></li>
+  <li><a href="#apply-to-core-mofs-in-high-throughput" id="toc-apply-to-core-mofs-in-high-throughput" class="nav-link" data-scroll-target="#apply-to-core-mofs-in-high-throughput">Apply to CoRE MOFs in High Throughput</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Detect functional groups in MOFs</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>In this notebook, we will use mofography to detect sepecifc functional groups in MOFs. We will then extend this to look for functional groups in a database of MOFs such as the CoRE MOF database. ### Algorithm</p>
+<p>Under the hood, mofography uses a graph-based approach to detect functional groups. The algorithm is called subgraph isomorphism and is a well-known problem in computer science. The algorithm is implemented in the <a href="https://networkx.github.io/">networkx</a> package. Detection occurs based on element and bond types. The source code is in <code>analyze.py</code> in the mofography package.</p>
+<section id="steps" class="level3">
+<h3 class="anchored" data-anchor-id="steps">Steps</h3>
+<ul>
+<li>Load the MOF into ASE</li>
+<li>Load the function group as SMARTS</li>
+<li>Convert both to networkx graphs, via. RDKit</li>
+<li>Detect the functional group in the MOF using subgraph isomorphism</li>
+<li>Make separate atoms object for just selected atoms and bonds in the MOF</li>
+<li>Visualize just hat to confirm</li>
+</ul>
+</section>
+<section id="functional-groups" class="level3">
+<h3 class="anchored" data-anchor-id="functional-groups">Functional groups</h3>
+<p>In this example we are just looking for COO groups, which are extremely common in MOFs. If you want to look for other functional groups, please use SMARTS notation to define the functional group. And some explanation of SMARTS is provided later.</p>
+</section>
+<section id="imports" class="level2">
+<h2 class="anchored" data-anchor-id="imports">Imports</h2>
+<p>Import the necessary packages.</p>
+<div id="cell-3" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>path_to_mgr<span class="op">=</span> Path(<span class="st">'c:/Users/Arun Gopalan/OneDrive - The University of Manchester/my_cloned_repos/mofography_general/mofography'</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>sys.path.append(<span class="bu">str</span>(path_to_mgr))</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pickle</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx </span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> tqdm <span class="im">import</span> tqdm</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="grab-a-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="grab-a-dataset">Grab a dataset</h2>
+<p>Either grab it from MOFDB or if you have pre saved file read it in to a pandas dataframe.</p>
+<p>To grab from MOFDB use this one as a mofography example for setting ranges. This takes a long time, so it’s better if you do in once and save the dataframe for future use as a feather or pickle file. In this notebook we’ll just use a narrow range of void fraction and largest cavity diameter to select a materials, just so that the dataset remains small for now.</p>
+<div id="cell-5" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># df = mgr.get_data_from_mofdb(params={'vf_min': 0.7, 'vf_max': 0.75,'lcd_min':12,'lcd_max':14, 'database':'CoREMOF 2019'})</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>TO read from saved file, for e.g.&nbsp;<code>.feather</code> file, use this example:</p>
+<div id="cell-7" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>path_to_dataset <span class="op">=</span> Path(<span class="st">'../../../../my_projects/shape_matching/core_df_gt_05.feather'</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>df  <span class="op">=</span> pd.read_feather(path_to_dataset) <span class="co"># put your path here</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s look at the first 10 MOFs in the dataset.</p>
+<div id="cell-9" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df.head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">id</th>
+<th data-quarto-table-cell-role="th">mofid</th>
+<th data-quarto-table-cell-role="th">mofkey</th>
+<th data-quarto-table-cell-role="th">hashkey</th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">void_fraction</th>
+<th data-quarto-table-cell-role="th">surface_area_m2g</th>
+<th data-quarto-table-cell-role="th">surface_area_m2cm3</th>
+<th data-quarto-table-cell-role="th">pld</th>
+<th data-quarto-table-cell-role="th">lcd</th>
+<th data-quarto-table-cell-role="th">...</th>
+<th data-quarto-table-cell-role="th">pore_size_distribution</th>
+<th data-quarto-table-cell-role="th">database</th>
+<th data-quarto-table-cell-role="th">batch_number</th>
+<th data-quarto-table-cell-role="th">elements</th>
+<th data-quarto-table-cell-role="th">cif</th>
+<th data-quarto-table-cell-role="th">url</th>
+<th data-quarto-table-cell-role="th">adsorbates</th>
+<th data-quarto-table-cell-role="th">heats</th>
+<th data-quarto-table-cell-role="th">isotherms</th>
+<th data-quarto-table-cell-role="th">mofdb_version</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>173867</td>
+<td>None</td>
+<td>None</td>
+<td>9fb126ebee087f37a01307ef416072bca0d84f3bcb1a41...</td>
+<td>ABAYIO_clean</td>
+<td>0.6636</td>
+<td>1936.750</td>
+<td>1838.220</td>
+<td>4.32260</td>
+<td>11.39490</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.771\n_cel...</td>
+<td>/mofs/173867.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>173868</td>
+<td>None</td>
+<td>None</td>
+<td>c85c642b30aa4293e6d054f9fd904aa6c9559a0ea130d1...</td>
+<td>ABAYOU_clean</td>
+<td>0.6638</td>
+<td>1922.330</td>
+<td>1882.480</td>
+<td>4.51080</td>
+<td>11.27340</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.647\n_cel...</td>
+<td>/mofs/173868.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>173870</td>
+<td>None</td>
+<td>None</td>
+<td>86a93edc3ddc6c674e3c584097cc12915863f28e12c7ae...</td>
+<td>ABESUX_clean</td>
+<td>0.5646</td>
+<td>466.934</td>
+<td>1747.690</td>
+<td>4.42492</td>
+<td>5.87931</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 15.512\n_cel...</td>
+<td>/mofs/173870.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>173871</td>
+<td>None</td>
+<td>None</td>
+<td>2f6f65d5cda404093e20258bdcebad95ef9ab0c84d2472...</td>
+<td>ABETAE_clean</td>
+<td>0.5720</td>
+<td>492.461</td>
+<td>1821.750</td>
+<td>4.42033</td>
+<td>5.88295</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 15.52\n_cell...</td>
+<td>/mofs/173871.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>173872</td>
+<td>None</td>
+<td>None</td>
+<td>73d7bc006d91f2adbea02677d7685de0db8b092109f433...</td>
+<td>ABETIN_clean</td>
+<td>0.7302</td>
+<td>3810.890</td>
+<td>2275.990</td>
+<td>7.83744</td>
+<td>9.47418</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 26.9629\n_ce...</td>
+<td>/mofs/173872.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">5</td>
+<td>173874</td>
+<td>None</td>
+<td>None</td>
+<td>a5d9dc769e7a7595faef887876e9706ef31ca32da6c7de...</td>
+<td>ABEXEN_clean</td>
+<td>0.7530</td>
+<td>2463.350</td>
+<td>1661.210</td>
+<td>13.71870</td>
+<td>18.80790</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 25.098\n_cel...</td>
+<td>/mofs/173874.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">6</td>
+<td>173876</td>
+<td>None</td>
+<td>None</td>
+<td>a9e5e0adbd548f1764baf8ee4810343840bf9731dd1379...</td>
+<td>ABEXOW_clean</td>
+<td>0.5026</td>
+<td>528.037</td>
+<td>957.031</td>
+<td>4.04921</td>
+<td>4.77270</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_ABEXOW_clean\n_audit_creation_date ...</td>
+<td>/mofs/173876.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">7</td>
+<td>173882</td>
+<td>None</td>
+<td>None</td>
+<td>4a17bfe0474941b2b69f89c8d2195a8497cbe5feaadb8d...</td>
+<td>ABULOB_clean</td>
+<td>0.5364</td>
+<td>898.121</td>
+<td>1184.810</td>
+<td>4.16445</td>
+<td>4.86958</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 8.5009\n_cel...</td>
+<td>/mofs/173882.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">8</td>
+<td>173883</td>
+<td>None</td>
+<td>None</td>
+<td>df5970ecce6e1d11b0a165480f017a7b9b6228e13bb9a7...</td>
+<td>ABUWOJ_clean</td>
+<td>0.6210</td>
+<td>1506.680</td>
+<td>1745.230</td>
+<td>4.03039</td>
+<td>5.07969</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_ABUWOJ_clean\n_audit_creation_date ...</td>
+<td>/mofs/173883.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">9</td>
+<td>173884</td>
+<td>None</td>
+<td>None</td>
+<td>0bacd0b5a2a81d06c2208c0aecd069beea712a24253d1b...</td>
+<td>ac403674p_si_001_clean</td>
+<td>0.5906</td>
+<td>1089.260</td>
+<td>1220.760</td>
+<td>8.27985</td>
+<td>8.50423</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_ac403674p_si_001_clean\n_audit_creation_d...</td>
+<td>/mofs/173884.json</td>
+<td>[{'InChICode': 'InChI=1S/N2/c1-2', 'InChIKey':...</td>
+<td>[]</td>
+<td>[{'DOI': '10.1021/acs.jced.9b00835', 'adsorbat...</td>
+<td>dc8a0295db</td>
+</tr>
+</tbody>
+</table>
+
+<p>10 rows × 21 columns</p>
+</div>
+</div>
+</div>
+</div>
+<p>Convert them to ASE atoms objects. DO it once and save it as a pickle file for future use.</p>
+<div id="cell-11" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># core_atoms = mgr.atoms_from_mofdb_df(df)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co">#uncomment this line to save the the list of ASE atoms objects</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># pickle.dump(core_atoms, open('core_atoms.pkl','wb'))</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Or if you have it already, load it up here:</p>
+<div id="cell-13" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># core_atoms = pickle.load(open('./core_atoms_list.pkl','rb'))</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>core_atoms <span class="op">=</span> pickle.load(<span class="bu">open</span>(<span class="st">'../../../../my_projects/shape_matching/core_atoms_list.pkl'</span>,<span class="st">'rb'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s pick one material and test our methodology</p>
+<div id="cell-15" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> core_atoms[<span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="how-to-specify-functional-moeties" class="level2">
+<h2 class="anchored" data-anchor-id="how-to-specify-functional-moeties">How to specify functional moeties?</h2>
+<p>Functional moieties, also known as functional groups, can be specified using SMARTS (SMiles ARbitrary Target Specification) notation. SMARTS is a language that allows you to describe molecular patterns. It is used extensively in cheminformatics to search for structural patterns within datasets of molecules.</p>
+<p>The SMILES pattern for a carboxylate group is C(=O)[O-].But, since we are looking for part of a MOF structure, where there isn’t explicit charge on the oxygen, the SMILES pattern we should look for looks just like a carbon dioxide molecule. <code>C(=O)=O</code> represents a carbon dioxide molecule. Here’s what each part of the pattern means in SMILES.</p>
+<ul>
+<li><code>C</code>: This represents a carbon atom.</li>
+<li><code>(</code> and <code>)</code>: Parentheses are used to show branching from a chain. In this case, they indicate that the things inside them are attached to the preceding carbon atom.</li>
+<li><code>=</code>: This represents a double bond.</li>
+<li><code>O</code>: This represents an oxygen atom.</li>
+</ul>
+<p>Let’s look for this functional group in the MOF.</p>
+<div id="cell-17" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># mat_atoms = core_atoms[10]</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>functional_groups <span class="op">=</span> {</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">'carboxylate'</span>: <span class="st">'C(=O)=O'</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span> mgr.find_functional_groups(mat_atoms, functional_groups)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+<p>Let’s look at the detected atoms for carboxylate group in the material, if any.</p>
+<div id="cell-19" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>matches</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="9">
+<pre><code>{'carboxylate': [{288: 0, 0: 1, 147: 2},
+  {288: 0, 147: 1, 0: 2},
+  {290: 0, 1: 1, 146: 2},
+  {290: 0, 146: 1, 1: 2},
+  {292: 0, 4: 1, 151: 2},
+  {292: 0, 151: 1, 4: 2},
+  {294: 0, 5: 1, 150: 2},
+  {294: 0, 150: 1, 5: 2},
+  {296: 0, 148: 1, 7: 2},
+  {296: 0, 7: 1, 148: 2},
+  {298: 0, 8: 1, 159: 2},
+  {298: 0, 159: 1, 8: 2},
+  {300: 0, 9: 1, 158: 2},
+  {300: 0, 158: 1, 9: 2},
+  {302: 0, 10: 1, 157: 2},
+  {302: 0, 157: 1, 10: 2},
+  {304: 0, 155: 1, 12: 2},
+  {304: 0, 12: 1, 155: 2},
+  {306: 0, 154: 1, 13: 2},
+  {306: 0, 13: 1, 154: 2},
+  {308: 0, 16: 1, 185: 2},
+  {308: 0, 185: 1, 16: 2},
+  {310: 0, 18: 1, 187: 2},
+  {310: 0, 187: 1, 18: 2},
+  {312: 0, 20: 1, 189: 2},
+  {312: 0, 189: 1, 20: 2},
+  {314: 0, 188: 1, 21: 2},
+  {314: 0, 21: 1, 188: 2},
+  {316: 0, 22: 1, 191: 2},
+  {316: 0, 191: 1, 22: 2},
+  {318: 0, 24: 1, 181: 2},
+  {318: 0, 181: 1, 24: 2},
+  {320: 0, 26: 1, 183: 2},
+  {320: 0, 183: 1, 26: 2},
+  {322: 0, 27: 1, 182: 2},
+  {322: 0, 182: 1, 27: 2},
+  {324: 0, 177: 1, 28: 2},
+  {324: 0, 28: 1, 177: 2},
+  {326: 0, 179: 1, 30: 2},
+  {326: 0, 30: 1, 179: 2},
+  {328: 0, 32: 1, 174: 2},
+  {328: 0, 174: 1, 32: 2},
+  {330: 0, 33: 1, 175: 2},
+  {330: 0, 175: 1, 33: 2},
+  {332: 0, 170: 1, 36: 2},
+  {332: 0, 36: 1, 170: 2},
+  {334: 0, 171: 1, 37: 2},
+  {334: 0, 37: 1, 171: 2},
+  {336: 0, 168: 1, 38: 2},
+  {336: 0, 38: 1, 168: 2},
+  {338: 0, 40: 1, 162: 2},
+  {338: 0, 162: 1, 40: 2},
+  {340: 0, 41: 1, 163: 2},
+  {340: 0, 163: 1, 41: 2},
+  {342: 0, 44: 1, 166: 2},
+  {342: 0, 166: 1, 44: 2},
+  {344: 0, 45: 1, 167: 2},
+  {344: 0, 167: 1, 45: 2},
+  {346: 0, 165: 1, 47: 2},
+  {346: 0, 47: 1, 165: 2},
+  {348: 0, 48: 1, 99: 2},
+  {348: 0, 99: 1, 48: 2},
+  {350: 0, 49: 1, 98: 2},
+  {350: 0, 98: 1, 49: 2},
+  {352: 0, 52: 1, 103: 2},
+  {352: 0, 103: 1, 52: 2},
+  {354: 0, 53: 1, 102: 2},
+  {354: 0, 102: 1, 53: 2},
+  {356: 0, 100: 1, 55: 2},
+  {356: 0, 55: 1, 100: 2},
+  {358: 0, 56: 1, 111: 2},
+  {358: 0, 111: 1, 56: 2},
+  {360: 0, 57: 1, 110: 2},
+  {360: 0, 110: 1, 57: 2},
+  {362: 0, 107: 1, 60: 2},
+  {362: 0, 60: 1, 107: 2},
+  {364: 0, 106: 1, 61: 2},
+  {364: 0, 61: 1, 106: 2},
+  {366: 0, 105: 1, 62: 2},
+  {366: 0, 62: 1, 105: 2},
+  {368: 0, 64: 1, 138: 2},
+  {368: 0, 138: 1, 64: 2},
+  {370: 0, 65: 1, 139: 2},
+  {370: 0, 139: 1, 65: 2},
+  {372: 0, 68: 1, 142: 2},
+  {372: 0, 142: 1, 68: 2},
+  {374: 0, 69: 1, 143: 2},
+  {374: 0, 143: 1, 69: 2},
+  {376: 0, 141: 1, 71: 2},
+  {376: 0, 71: 1, 141: 2},
+  {378: 0, 72: 1, 134: 2},
+  {378: 0, 134: 1, 72: 2},
+  {380: 0, 73: 1, 135: 2},
+  {380: 0, 135: 1, 73: 2},
+  {382: 0, 74: 1, 132: 2},
+  {382: 0, 132: 1, 74: 2},
+  {384: 0, 130: 1, 76: 2},
+  {384: 0, 76: 1, 130: 2},
+  {386: 0, 131: 1, 77: 2},
+  {386: 0, 77: 1, 131: 2},
+  {388: 0, 80: 1, 125: 2},
+  {388: 0, 125: 1, 80: 2},
+  {390: 0, 82: 1, 127: 2},
+  {390: 0, 127: 1, 82: 2},
+  {392: 0, 121: 1, 84: 2},
+  {392: 0, 84: 1, 121: 2},
+  {394: 0, 123: 1, 86: 2},
+  {394: 0, 86: 1, 123: 2},
+  {396: 0, 122: 1, 87: 2},
+  {396: 0, 87: 1, 122: 2},
+  {398: 0, 88: 1, 113: 2},
+  {398: 0, 113: 1, 88: 2},
+  {400: 0, 90: 1, 115: 2},
+  {400: 0, 115: 1, 90: 2},
+  {402: 0, 92: 1, 117: 2},
+  {402: 0, 117: 1, 92: 2},
+  {404: 0, 116: 1, 93: 2},
+  {404: 0, 93: 1, 116: 2},
+  {406: 0, 94: 1, 119: 2},
+  {406: 0, 119: 1, 94: 2},
+  {408: 0, 96: 1, 51: 2},
+  {408: 0, 51: 1, 96: 2},
+  {410: 0, 97: 1, 50: 2},
+  {410: 0, 50: 1, 97: 2},
+  {412: 0, 101: 1, 54: 2},
+  {412: 0, 54: 1, 101: 2},
+  {414: 0, 104: 1, 63: 2},
+  {414: 0, 63: 1, 104: 2},
+  {416: 0, 59: 1, 108: 2},
+  {416: 0, 108: 1, 59: 2},
+  {418: 0, 58: 1, 109: 2},
+  {418: 0, 109: 1, 58: 2},
+  {420: 0, 112: 1, 89: 2},
+  {420: 0, 89: 1, 112: 2},
+  {422: 0, 114: 1, 91: 2},
+  {422: 0, 91: 1, 114: 2},
+  {424: 0, 118: 1, 95: 2},
+  {424: 0, 95: 1, 118: 2},
+  {426: 0, 120: 1, 85: 2},
+  {426: 0, 85: 1, 120: 2},
+  {428: 0, 81: 1, 124: 2},
+  {428: 0, 124: 1, 81: 2},
+  {430: 0, 83: 1, 126: 2},
+  {430: 0, 126: 1, 83: 2},
+  {432: 0, 128: 1, 78: 2},
+  {432: 0, 78: 1, 128: 2},
+  {434: 0, 129: 1, 79: 2},
+  {434: 0, 79: 1, 129: 2},
+  {436: 0, 75: 1, 133: 2},
+  {436: 0, 133: 1, 75: 2},
+  {438: 0, 136: 1, 66: 2},
+  {438: 0, 66: 1, 136: 2},
+  {440: 0, 137: 1, 67: 2},
+  {440: 0, 67: 1, 137: 2},
+  {442: 0, 140: 1, 70: 2},
+  {442: 0, 70: 1, 140: 2},
+  {444: 0, 144: 1, 3: 2},
+  {444: 0, 3: 1, 144: 2},
+  {446: 0, 145: 1, 2: 2},
+  {446: 0, 2: 1, 145: 2},
+  {448: 0, 149: 1, 6: 2},
+  {448: 0, 6: 1, 149: 2},
+  {450: 0, 152: 1, 15: 2},
+  {450: 0, 15: 1, 152: 2},
+  {452: 0, 153: 1, 14: 2},
+  {452: 0, 14: 1, 153: 2},
+  {454: 0, 11: 1, 156: 2},
+  {454: 0, 156: 1, 11: 2},
+  {456: 0, 160: 1, 42: 2},
+  {456: 0, 42: 1, 160: 2},
+  {458: 0, 161: 1, 43: 2},
+  {458: 0, 43: 1, 161: 2},
+  {460: 0, 164: 1, 46: 2},
+  {460: 0, 46: 1, 164: 2},
+  {462: 0, 169: 1, 39: 2},
+  {462: 0, 39: 1, 169: 2},
+  {464: 0, 34: 1, 172: 2},
+  {464: 0, 172: 1, 34: 2},
+  {466: 0, 35: 1, 173: 2},
+  {466: 0, 173: 1, 35: 2},
+  {468: 0, 176: 1, 29: 2},
+  {468: 0, 29: 1, 176: 2},
+  {470: 0, 178: 1, 31: 2},
+  {470: 0, 31: 1, 178: 2},
+  {472: 0, 25: 1, 180: 2},
+  {472: 0, 180: 1, 25: 2},
+  {474: 0, 184: 1, 17: 2},
+  {474: 0, 17: 1, 184: 2},
+  {476: 0, 186: 1, 19: 2},
+  {476: 0, 19: 1, 186: 2},
+  {478: 0, 190: 1, 23: 2},
+  {478: 0, 23: 1, 190: 2}]}</code></pre>
+</div>
+</div>
+<p>Great. It looks there are some of these grtoups in the material, which is not surfprising since, COO groups are extremely common in MOF linkers. The output is a dictionary, where each key (functional group name) carries a list of dictionaries give the atoms in the material that pattern matched to the atoms in the input functional group.</p>
+</section>
+<section id="visualize" class="level2">
+<h2 class="anchored" data-anchor-id="visualize">Visualize</h2>
+<p>Now, let’s use mofography to visualize and confirm that the correct atoms are detected. Notice that the COO atoms are represented in a more SMILES-like notation, with strict double bonds and no hydrogens, and it still should work.</p>
+<div id="cell-22" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># mat_atoms = read(path_to_cif)</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> core_atoms[<span class="dv">1</span>]</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="co"># mat_updated =mgr.update_with_covalent_bonds(mat_atoms)</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Use thse if you need </span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># aromatic_molecules = {</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Benzene": "c1ccccc1",</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Pyridine": "n1ccccc1",</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Pyrrole": "c1cc[nH]c1",</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Furane": "c1ccoc1",</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Thiophene": "c1ccsc1",</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Imidazole": "c1nccn1",</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Pyrazole": "c1nncn1",</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Oxazole": "c1nco1",</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Thiazole": "c1ncs1",</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Isoxazole": "c1noc1",</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="co">#     "Isothiazole": "c1nsc1"</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="co"># }</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>functional_groups <span class="op">=</span> {</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="st">'carboxylate'</span>: <span class="st">'C(=O)=O'</span>,</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>matches <span class="op">=</span>mgr.find_functional_groups(mat_atoms,functional_groups)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>matching_indices <span class="op">=</span> np.concatenate([<span class="bu">list</span>(m.keys()) <span class="cf">for</span> m <span class="kw">in</span> matches[<span class="st">'carboxylate'</span>]])</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a list of atoms that match the indices</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a><span class="co"># matching_atoms = []</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="co"># for group, indices_list in matches.items():</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="co">#     for indices in indices_list:</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a><span class="co">#         matching_atoms.extend([mat_updated[i] for i in indices.keys()])</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>frame_subset_trace <span class="op">=</span> mgr.plot_subset_of_atoms(mat_atoms, subset<span class="op">=</span>matching_indices)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+isomorphic aromatic cycles is None, trying to calculate</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>c:\Users\Public\anaconda3\envs\test\lib\site-packages\ase\atoms.py:967: VisibleDeprecationWarning: Use get_global_number_of_atoms() instead
+  warnings.warn('Use get_global_number_of_atoms() instead',</code></pre>
+</div>
+</div>
+<p>(if you want to, switch out the renderer for interactive visualization)</p>
+<p>Please note that if the functional group is spread across periodic boundaries, you might see some weird bonds in the visualization, since the atoms in the unit cell are plotted as they are without shifting to avoid confusion.</p>
+<div id="cell-24" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>go.Figure(data<span class="op">=</span>[<span class="op">*</span>frame_subset_trace], layout<span class="op">=</span>mgr.epic_layout).show(renderer<span class="op">=</span><span class="st">'png'</span>, width<span class="op">=</span><span class="dv">800</span>, height<span class="op">=</span><span class="dv">800</span>, scale<span class="op">=</span><span class="dv">2</span>)    </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="detect_functional_groups_in_dataset_files/figure-html/cell-12-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="bonus-visualize-the-whole-material-if-youre-curious" class="level2">
+<h2 class="anchored" data-anchor-id="bonus-visualize-the-whole-material-if-youre-curious">Bonus: Visualize the whole material if you’re curious</h2>
+<p>If you switch the renderer to ‘notebook_connected’ you can interact with the 3D visualization. Please note that the code below also shows the periodic images of atoms that are necessary to visualize the bonds across periodic boundaries. This is purely for clarity. Basically, the number of atoms in the mat_updated will be greater than that in the original mat_atoms, because of these extra atoms.</p>
+<div id="cell-26" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(mat_atoms) </span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>frame_trace <span class="op">=</span> mgr.plot_framework_as_mesh(mat_updated,stylize<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>fig  <span class="op">=</span> go.Figure(data<span class="op">=</span>frame_trace)</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>fig.update(layout<span class="op">=</span>mgr.epic_layout)</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>fig.show(renderer<span class="op">=</span><span class="st">'png'</span>, width<span class="op">=</span><span class="dv">800</span>, height<span class="op">=</span><span class="dv">800</span>, scale<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="co"># fig.show()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>c:\Users\Public\anaconda3\envs\test\lib\site-packages\ase\atoms.py:967: VisibleDeprecationWarning:
+
+Use get_global_number_of_atoms() instead
+
+c:\Users\Arun Gopalan\OneDrive - The University of Manchester\my_cloned_repos\mofography_general\mofography\mofography\analyze.py:524: VisibleDeprecationWarning:
+
+Creating an ndarray from ragged nested sequences (which is a list-or-tuple of lists-or-tuples-or ndarrays with different lengths or shapes) is deprecated. If you meant to do this, you must specify 'dtype=object' when creating the ndarray.
+
+c:\Users\Arun Gopalan\OneDrive - The University of Manchester\my_cloned_repos\mofography_general\mofography\mofography\visualize.py:768: UserWarning:
+
+Optimal rotation is not uniquely or poorly defined for the given sets of vectors.
+</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+isomorphic aromatic cycles is None, trying to calculate</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="detect_functional_groups_in_dataset_files/figure-html/cell-13-output-3.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="cell-27" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># def find_functional_groups(ase_atoms, functional_groups):</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co">#     from rdkit import Chem</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     from networkx.algorithms import isomorphism</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co">#     import mofography as mgr </span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Convert the supercell to a NetworkX graph</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">#     ase_atoms_updated = mgr.update_with_covalent_bonds(ase_atoms)</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co">#     G = mgr.sgraph_from_atoms(ase_atoms_updated)</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Convert functional groups to NetworkX graphs</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co">#     functional_group_graphs = {name: Chem.MolFromSmarts(smarts) for name, smarts in functional_groups.items()}</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Custom node match function</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co">#     def node_match(node1, node2):</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a><span class="co">#         return node1['atomic_number'] == node2['atomic_number']</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Custom edge match function</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co">#     def edge_match(edge1, edge2):</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a><span class="co">#         bond_type1 = edge1['bond_type'].lower()</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="co">#         bond_type2 = edge2['bond_type']</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a><span class="co">#         if bond_type1 == 'aromatic':</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="co">#             bond_type1 = 'double'</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a><span class="co">#         return bond_type1 == bond_type2</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Initialize matches with None for all functional groups</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a><span class="co">#     matches = {name: None for name in functional_groups.keys()}</span></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Search for functional groups in the molecule graph</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a><span class="co">#     for name, fg_mol in functional_group_graphs.items():</span></span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a><span class="co">#         fg_G = nx.Graph()</span></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a><span class="co">#         for atom in fg_mol.GetAtoms():</span></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a><span class="co">#             fg_G.add_node(atom.GetIdx(),</span></span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a><span class="co">#                           atomic_number=atom.GetAtomicNum(),</span></span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a><span class="co">#                           formal_charge=atom.GetFormalCharge(),</span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a><span class="co">#                           chirality=atom.GetChiralTag())</span></span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a><span class="co">#         for bond in fg_mol.GetBonds():</span></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a><span class="co">#             bond_type = bond.GetBondType().name.lower()</span></span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a><span class="co">#             if bond_type == 'aromatic':</span></span>
+<span id="cb19-39"><a href="#cb19-39" aria-hidden="true" tabindex="-1"></a><span class="co">#                 bond_type = 'double'</span></span>
+<span id="cb19-40"><a href="#cb19-40" aria-hidden="true" tabindex="-1"></a><span class="co">#             fg_G.add_edge(bond.GetBeginAtomIdx(),</span></span>
+<span id="cb19-41"><a href="#cb19-41" aria-hidden="true" tabindex="-1"></a><span class="co">#                           bond.GetEndAtomIdx(),</span></span>
+<span id="cb19-42"><a href="#cb19-42" aria-hidden="true" tabindex="-1"></a><span class="co">#                           bond_type=bond_type)</span></span>
+<span id="cb19-43"><a href="#cb19-43" aria-hidden="true" tabindex="-1"></a><span class="co">#         GM = isomorphism.GraphMatcher(G, fg_G, node_match=node_match, edge_match=edge_match)</span></span>
+<span id="cb19-44"><a href="#cb19-44" aria-hidden="true" tabindex="-1"></a><span class="co">#         if GM.subgraph_is_isomorphic():</span></span>
+<span id="cb19-45"><a href="#cb19-45" aria-hidden="true" tabindex="-1"></a><span class="co">#             matches[name] = list(GM.subgraph_isomorphisms_iter())</span></span>
+<span id="cb19-46"><a href="#cb19-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-47"><a href="#cb19-47" aria-hidden="true" tabindex="-1"></a><span class="co">#     return matches</span></span>
+<span id="cb19-48"><a href="#cb19-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-49"><a href="#cb19-49" aria-hidden="true" tabindex="-1"></a><span class="co"># def find_functional_groups2(ase_atoms, functional_groups):</span></span>
+<span id="cb19-50"><a href="#cb19-50" aria-hidden="true" tabindex="-1"></a><span class="co">#     from ase.io import write</span></span>
+<span id="cb19-51"><a href="#cb19-51" aria-hidden="true" tabindex="-1"></a><span class="co">#     from rdkit import Chem</span></span>
+<span id="cb19-52"><a href="#cb19-52" aria-hidden="true" tabindex="-1"></a><span class="co">#     from rdkit.Chem import AllChem</span></span>
+<span id="cb19-53"><a href="#cb19-53" aria-hidden="true" tabindex="-1"></a><span class="co">#     import networkx as nx</span></span>
+<span id="cb19-54"><a href="#cb19-54" aria-hidden="true" tabindex="-1"></a><span class="co">#     from networkx.algorithms import isomorphism</span></span>
+<span id="cb19-55"><a href="#cb19-55" aria-hidden="true" tabindex="-1"></a><span class="co">#     from io import StringIO</span></span>
+<span id="cb19-56"><a href="#cb19-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-57"><a href="#cb19-57" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Convert the supercell to an RDKit molecule</span></span>
+<span id="cb19-58"><a href="#cb19-58" aria-hidden="true" tabindex="-1"></a><span class="co">#     mol_str = StringIO()</span></span>
+<span id="cb19-59"><a href="#cb19-59" aria-hidden="true" tabindex="-1"></a><span class="co">#     write(mol_str, ase_atoms, format='mol')</span></span>
+<span id="cb19-60"><a href="#cb19-60" aria-hidden="true" tabindex="-1"></a><span class="co">#     mol = AllChem.MolFromMolBlock(mol_str.getvalue(), removeHs=False)</span></span>
+<span id="cb19-61"><a href="#cb19-61" aria-hidden="true" tabindex="-1"></a><span class="co">#     mol.UpdatePropertyCache(strict=False)</span></span>
+<span id="cb19-62"><a href="#cb19-62" aria-hidden="true" tabindex="-1"></a><span class="co">#     Chem.GetSymmSSSR(mol)</span></span>
+<span id="cb19-63"><a href="#cb19-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-64"><a href="#cb19-64" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Convert the RDKit molecule to a NetworkX graph</span></span>
+<span id="cb19-65"><a href="#cb19-65" aria-hidden="true" tabindex="-1"></a><span class="co">#     G = nx.Graph()</span></span>
+<span id="cb19-66"><a href="#cb19-66" aria-hidden="true" tabindex="-1"></a><span class="co">#     for atom in mol.GetAtoms():</span></span>
+<span id="cb19-67"><a href="#cb19-67" aria-hidden="true" tabindex="-1"></a><span class="co">#         G.add_node(atom.GetIdx(),</span></span>
+<span id="cb19-68"><a href="#cb19-68" aria-hidden="true" tabindex="-1"></a><span class="co">#                    atomic_num=atom.GetAtomicNum(),</span></span>
+<span id="cb19-69"><a href="#cb19-69" aria-hidden="true" tabindex="-1"></a><span class="co">#                    formal_charge=atom.GetFormalCharge(),</span></span>
+<span id="cb19-70"><a href="#cb19-70" aria-hidden="true" tabindex="-1"></a><span class="co">#                    chirality=atom.GetChiralTag())</span></span>
+<span id="cb19-71"><a href="#cb19-71" aria-hidden="true" tabindex="-1"></a><span class="co">#     for bond in mol.GetBonds():</span></span>
+<span id="cb19-72"><a href="#cb19-72" aria-hidden="true" tabindex="-1"></a><span class="co">#         G.add_edge(bond.GetBeginAtomIdx(),</span></span>
+<span id="cb19-73"><a href="#cb19-73" aria-hidden="true" tabindex="-1"></a><span class="co">#                    bond.GetEndAtomIdx(),</span></span>
+<span id="cb19-74"><a href="#cb19-74" aria-hidden="true" tabindex="-1"></a><span class="co">#                    bond_type=bond.GetBondType())</span></span>
+<span id="cb19-75"><a href="#cb19-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-76"><a href="#cb19-76" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Convert functional groups to NetworkX graphs</span></span>
+<span id="cb19-77"><a href="#cb19-77" aria-hidden="true" tabindex="-1"></a><span class="co">#     functional_group_graphs = {name: Chem.MolFromSmarts(smarts) for name, smarts in functional_groups.items()}</span></span>
+<span id="cb19-78"><a href="#cb19-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-79"><a href="#cb19-79" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Custom node match function</span></span>
+<span id="cb19-80"><a href="#cb19-80" aria-hidden="true" tabindex="-1"></a><span class="co">#     def node_match(node1, node2):</span></span>
+<span id="cb19-81"><a href="#cb19-81" aria-hidden="true" tabindex="-1"></a><span class="co">#         return node1['atomic_num'] == node2['atomic_num']</span></span>
+<span id="cb19-82"><a href="#cb19-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-83"><a href="#cb19-83" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Custom edge match function</span></span>
+<span id="cb19-84"><a href="#cb19-84" aria-hidden="true" tabindex="-1"></a><span class="co">#     def edge_match(edge1, edge2):</span></span>
+<span id="cb19-85"><a href="#cb19-85" aria-hidden="true" tabindex="-1"></a><span class="co">#         return edge1['bond_type'] == edge2['bond_type']</span></span>
+<span id="cb19-86"><a href="#cb19-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-87"><a href="#cb19-87" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Search for functional groups in the molecule graph</span></span>
+<span id="cb19-88"><a href="#cb19-88" aria-hidden="true" tabindex="-1"></a><span class="co">#     matches = {}</span></span>
+<span id="cb19-89"><a href="#cb19-89" aria-hidden="true" tabindex="-1"></a><span class="co">#     for name, fg_mol in functional_group_graphs.items():</span></span>
+<span id="cb19-90"><a href="#cb19-90" aria-hidden="true" tabindex="-1"></a><span class="co">#         fg_G = nx.Graph()</span></span>
+<span id="cb19-91"><a href="#cb19-91" aria-hidden="true" tabindex="-1"></a><span class="co">#         for atom in fg_mol.GetAtoms():</span></span>
+<span id="cb19-92"><a href="#cb19-92" aria-hidden="true" tabindex="-1"></a><span class="co">#             fg_G.add_node(atom.GetIdx(),</span></span>
+<span id="cb19-93"><a href="#cb19-93" aria-hidden="true" tabindex="-1"></a><span class="co">#                           atomic_num=atom.GetAtomicNum(),</span></span>
+<span id="cb19-94"><a href="#cb19-94" aria-hidden="true" tabindex="-1"></a><span class="co">#                           formal_charge=atom.GetFormalCharge(),</span></span>
+<span id="cb19-95"><a href="#cb19-95" aria-hidden="true" tabindex="-1"></a><span class="co">#                           chirality=atom.GetChiralTag())</span></span>
+<span id="cb19-96"><a href="#cb19-96" aria-hidden="true" tabindex="-1"></a><span class="co">#         for bond in fg_mol.GetBonds():</span></span>
+<span id="cb19-97"><a href="#cb19-97" aria-hidden="true" tabindex="-1"></a><span class="co">#             fg_G.add_edge(bond.GetBeginAtomIdx(),</span></span>
+<span id="cb19-98"><a href="#cb19-98" aria-hidden="true" tabindex="-1"></a><span class="co">#                           bond.GetEndAtomIdx(),</span></span>
+<span id="cb19-99"><a href="#cb19-99" aria-hidden="true" tabindex="-1"></a><span class="co">#                           bond_type=bond.GetBondType())</span></span>
+<span id="cb19-100"><a href="#cb19-100" aria-hidden="true" tabindex="-1"></a><span class="co">#         GM = isomorphism.GraphMatcher(G, fg_G, node_match=node_match, edge_match=edge_match)</span></span>
+<span id="cb19-101"><a href="#cb19-101" aria-hidden="true" tabindex="-1"></a><span class="co">#         if GM.subgraph_is_isomorphic():</span></span>
+<span id="cb19-102"><a href="#cb19-102" aria-hidden="true" tabindex="-1"></a><span class="co">#             matches[name] = list(GM.subgraph_isomorphisms_iter())</span></span>
+<span id="cb19-103"><a href="#cb19-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-104"><a href="#cb19-104" aria-hidden="true" tabindex="-1"></a><span class="co">#     return matches</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="apply-to-core-mofs-in-high-throughput" class="level2">
+<h2 class="anchored" data-anchor-id="apply-to-core-mofs-in-high-throughput">Apply to CoRE MOFs in High Throughput</h2>
+<p>Now let’s try to apply the functional group detection to the whole list of coremof atoms objects we compiled in the beginning of the notebook. We will look for a few common single-ring aromatic groups in the materials in the list. And to speed things up, and to make sure that our workflow won’t fail even if one or more of the calculations fail, we’ll use the ‘futures’ API from Dask. You can expect another detailed tutorial on using Dask for high throughput materials workflows coming soon.</p>
+<p>For me, It took about 30 minutes for about 7500 coremof materials on a core i7 laptop. Your mileage will vary depending on your hardware and the number of materials you’re screening.</p>
+<p>(PS: Notice that, if you have multiple functional groups, you can screen for them all at the same time, not one by one.😂)</p>
+<div id="cell-29" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># functional_groups = {</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="co">#     'carboxylate': '[C;X3](-[O;X1])-[O;X1]',</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co">#     # Add more functional groups here</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="co"># }</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>aromatic_molecules <span class="op">=</span> {</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Benzene"</span>: <span class="st">"c1ccccc1"</span>,</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Pyridine"</span>: <span class="st">"n1ccccc1"</span>,</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Pyrrole"</span>: <span class="st">"c1cc[nH]c1"</span>,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Furane"</span>: <span class="st">"c1ccoc1"</span>,</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Thiophene"</span>: <span class="st">"c1ccsc1"</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Imidazole"</span>: <span class="st">"c1nccn1"</span>,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Pyrazole"</span>: <span class="st">"c1nncn1"</span>,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Oxazole"</span>: <span class="st">"c1nco1"</span>,</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Thiazole"</span>: <span class="st">"c1ncs1"</span>,</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Isoxazole"</span>: <span class="st">"c1noc1"</span>,</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">"Isothiazole"</span>: <span class="st">"c1nsc1"</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dask <span class="im">import</span> delayed</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dask.distributed <span class="im">import</span> Client</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>matches_list <span class="op">=</span> []</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> atoms <span class="kw">in</span> tqdm(core_atoms):</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>        matches_list.append(delayed(mgr.find_functional_groups)(atoms,aromatic_molecules))</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>100%|██████████| 7509/7509 [00:01&lt;00:00, 4564.61it/s]</code></pre>
+</div>
+</div>
+<p>Start a local dask cluster with 10 processes. If you do this on your laptop, the memory available to each worker will be your laptop’s total memory divided by the number of workers. So, you might want to reduce the number of workers.</p>
+<div id="cell-31" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dask </span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dask.distributed <span class="im">import</span> Client, progress</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> Client(n_workers<span class="op">=</span><span class="dv">4</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>let’s take a look at the client object, it should contain a cluster with 10 workers. You can also go the dashboard link to see the status of the calculation.</p>
+<div id="cell-33" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>client</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="16">
+<div>
+<div>
+    <div style="width: 24px; height: 24px; background-color: #e1e1e1; border: 3px solid #9D9D9D; border-radius: 5px; position: absolute;"> </div>
+    <div style="margin-left: 48px;">
+        <h3 style="margin-bottom: 0px;" class="anchored">Client</h3>
+        <p style="color: #9D9D9D; margin-bottom: 0px;">Client-9f1b0f74-d4e2-11ee-9a94-70cd0ddaa038</p>
+        
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Connection method:</strong> Cluster object</td>
+<td style="text-align: left;"><strong>Cluster type:</strong> distributed.LocalCluster</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:8787/status" target="_blank">http://127.0.0.1:8787/status</a></td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary style="margin-bottom: 20px;">
+<section id="cluster-info" class="level3" style="display: inline;">
+<h3 style="display: inline;" class="anchored" data-anchor-id="cluster-info">Cluster Info</h3>
+</section></summary>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-mod-trusted jp-OutputArea-output">
+<div style="width: 24px; height: 24px; background-color: #e1e1e1; border: 3px solid #9D9D9D; border-radius: 5px; position: absolute;">
+
+</div>
+<div style="margin-left: 48px;">
+<section id="localcluster" class="level3" style="margin-bottom: 0px; margin-top: 0px;">
+<h3 style="margin-bottom: 0px; margin-top: 0px;" class="anchored" data-anchor-id="localcluster">LocalCluster</h3>
+<p>9d0d76b8</p>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:8787/status" target="_blank">http://127.0.0.1:8787/status</a></td>
+<td style="text-align: left;"><strong>Workers:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Total threads:</strong> 16</td>
+<td style="text-align: left;"><strong>Total memory:</strong> 15.73 GiB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Status:</strong> running</td>
+<td style="text-align: left;"><strong>Using processes:</strong> True</td>
+</tr>
+</tbody>
+</table>
+<details>
+<summary style="margin-bottom: 20px;">
+</summary></details></section>
+<section id="scheduler-info" class="level3" style="display: inline;">
+<h3 style="display: inline;" class="anchored" data-anchor-id="scheduler-info">Scheduler Info</h3>
+
+<div style="">
+<div>
+<div style="width: 24px; height: 24px; background-color: #FFF7E5; border: 3px solid #FF6132; border-radius: 5px; position: absolute;">
+
+</div>
+<section id="scheduler" class="level3" style="margin-bottom: 0px;">
+<h3 style="margin-bottom: 0px;" class="anchored" data-anchor-id="scheduler">Scheduler</h3>
+<p>Scheduler-ebcca767-affb-4014-9631-1ed0f062b7d1</p>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Comm:</strong> tcp://127.0.0.1:65400</td>
+<td style="text-align: left;"><strong>Workers:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:8787/status" target="_blank">http://127.0.0.1:8787/status</a></td>
+<td style="text-align: left;"><strong>Total threads:</strong> 16</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Started:</strong> Just now</td>
+<td style="text-align: left;"><strong>Total memory:</strong> 15.73 GiB</td>
+</tr>
+</tbody>
+</table>
+</section>
+</div>
+<details style="margin-left: 48px;">
+<summary style="margin-bottom: 20px;">
+<section id="workers" class="level3" style="display: inline;">
+<h3 style="display: inline;" class="anchored" data-anchor-id="workers">Workers</h3>
+</section></summary>
+<div style="margin-bottom: 20px;">
+<div style="width: 24px; height: 24px; background-color: #DBF5FF; border: 3px solid #4CC9FF; border-radius: 5px; position: absolute;">
+
+</div>
+<div style="margin-left: 48px;">
+<details>
+<summary>
+<section id="worker-0" class="level4" style="margin-bottom: 0px; display: inline;">
+<h4 style="margin-bottom: 0px; display: inline;" class="anchored" data-anchor-id="worker-0">Worker: 0</h4>
+</section></summary>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Comm:</strong> tcp://127.0.0.1:65429</td>
+<td style="text-align: left;"><strong>Total threads:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:65430/status" target="_blank">http://127.0.0.1:65430/status</a></td>
+<td style="text-align: left;"><strong>Memory:</strong> 3.93 GiB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Nanny:</strong> tcp://127.0.0.1:65403</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td colspan="2" style="text-align: left;"><strong>Local directory:</strong> C:\Users\ARUNGO~1\AppData\Local\Temp\dask-scratch-space\worker-o8b_bmiw</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div></div></details></div></section>
+</div>
+</div>
+<div style="margin-bottom: 20px;">
+<div style="width: 24px; height: 24px; background-color: #DBF5FF; border: 3px solid #4CC9FF; border-radius: 5px; position: absolute;">
+
+</div>
+<div style="margin-left: 48px;">
+<details>
+<summary>
+<section id="worker-1" class="level4" style="margin-bottom: 0px; display: inline;">
+<h4 style="margin-bottom: 0px; display: inline;" class="anchored" data-anchor-id="worker-1">Worker: 1</h4>
+</section></summary>
+<table data-quarto-postprocess="true" class="table table-sm table-striped small">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Comm:</strong> tcp://127.0.0.1:65420</td>
+<td style="text-align: left;"><strong>Total threads:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:65421/status" target="_blank">http://127.0.0.1:65421/status</a></td>
+<td style="text-align: left;"><strong>Memory:</strong> 3.93 GiB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Nanny:</strong> tcp://127.0.0.1:65404</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td colspan="2" style="text-align: left;"><strong>Local directory:</strong> C:\Users\ARUNGO~1\AppData\Local\Temp\dask-scratch-space\worker-wu8md5tk</td>
+</tr>
+</tbody>
+</table>
+</details>
+</div></div></details></div></div></div></div></div></section>
+</main></div>
+
+<div style="margin-bottom: 20px;">
+<div style="width: 24px; height: 24px; background-color: #DBF5FF; border: 3px solid #4CC9FF; border-radius: 5px; position: absolute;">
+
+</div>
+<div style="margin-left: 48px;">
+<details>
+<summary>
+<section id="worker-2" class="level4" style="margin-bottom: 0px; display: inline;">
+<h4 style="margin-bottom: 0px; display: inline;" data-anchor-id="worker-2">Worker: 2</h4>
+</section></summary>
+<table data-quarto-postprocess="true" class="table">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Comm:</strong> tcp://127.0.0.1:65423</td>
+<td style="text-align: left;"><strong>Total threads:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:65425/status" target="_blank">http://127.0.0.1:65425/status</a></td>
+<td style="text-align: left;"><strong>Memory:</strong> 3.93 GiB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Nanny:</strong> tcp://127.0.0.1:65405</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td colspan="2" style="text-align: left;"><strong>Local directory:</strong> C:\Users\ARUNGO~1\AppData\Local\Temp\dask-scratch-space\worker-0s5ucckx</td>
+</tr>
+</tbody>
+</table>
+</details>
+
+</div>
+</div>
+<div style="margin-bottom: 20px;">
+<div style="width: 24px; height: 24px; background-color: #DBF5FF; border: 3px solid #4CC9FF; border-radius: 5px; position: absolute;">
+
+</div>
+<div style="margin-left: 48px;">
+<details>
+<summary>
+<section id="worker-3" class="level4" style="margin-bottom: 0px; display: inline;">
+<h4 style="margin-bottom: 0px; display: inline;" data-anchor-id="worker-3">Worker: 3</h4>
+</section></summary>
+<table data-quarto-postprocess="true" class="table">
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Comm:</strong> tcp://127.0.0.1:65424</td>
+<td style="text-align: left;"><strong>Total threads:</strong> 4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>Dashboard:</strong> <a href="http://127.0.0.1:65426/status" target="_blank">http://127.0.0.1:65426/status</a></td>
+<td style="text-align: left;"><strong>Memory:</strong> 3.93 GiB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>Nanny:</strong> tcp://127.0.0.1:65406</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td colspan="2" style="text-align: left;"><strong>Local directory:</strong> C:\Users\ARUNGO~1\AppData\Local\Temp\dask-scratch-space\worker-c5yq3vqk</td>
+</tr>
+</tbody>
+</table>
+
+</details></div>
+</div>
+
+
+
+
+
+
+            
+            
+        
+        
+
+    
+
+
+        
+    
+
+            
+        
+
+    
+
+
+
+
+
+<p>start running the jobs in the background.</p>
+<div id="cell-35" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>futures <span class="op">=</span> dask.persist(<span class="op">*</span>matches_list)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>c:\Users\Public\anaconda3\envs\test\lib\site-packages\distributed\client.py:3163: UserWarning:
+
+Sending large graph of size 177.85 MiB.
+This may cause some slowdown.
+Consider scattering data ahead of time and using futures.
+</code></pre>
+</div>
+</div>
+<p>If you are getting impatient, you can call compute in the foreground to collect whatever results are ready. Dask has many options for handling stuff like this, please refer the Dask documentation for such details. Ideally, I would look at the dashboard and wait for a little while before calling compute.</p>
+<div id="cell-37" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> client.compute(futures)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Grab all the finished calculations and set the errored ones to None. Each entry in this list is a dictionary of dictionaries. The first dictionary contains all the functional group keys that we are looking for and the cooresponding entry is a nested dictionary that tells the atoms (groups of atom indices) that were flagged for that functional group. Just run it and look at one of the entries to understand better</p>
+<div id="cell-39" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>outputs <span class="op">=</span> [f.result() <span class="cf">if</span> f.status<span class="op">==</span><span class="st">'finished'</span> <span class="cf">else</span> <span class="va">None</span> <span class="cf">for</span> f <span class="kw">in</span> tqdm(results)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  2%|▏         | 175/7509 [00:18&lt;11:30, 10.62it/s]  2%|▏         | 175/7509 [00:29&lt;11:30, 10.62it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-error">
+<pre><code>KeyboardInterrupt: </code></pre>
+</div>
+</div>
+<div id="cell-40" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>results</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<pre><code>[&lt;Future: pending, key: find_functional_groups-9fd10f69-6d4d-4381-af5f-275cb4aa9e6b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3e68af8d-bb8e-47c2-8aac-2b768b8b4f7d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-62f9ad26-edee-4511-ab2d-cee55e22528c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6617cc58-546c-4375-8658-9985d9cbb141&gt;,
+ &lt;Future: pending, key: find_functional_groups-cff85e7a-12e3-4e0d-8439-6aea05e094a1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-11b003f9-a80b-4c54-88a4-f6c0e4d6f685&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-15ef6b69-527e-4b1d-804d-59e7756ee316&gt;,
+ &lt;Future: pending, key: find_functional_groups-83f892d9-d675-4fb6-98d9-95505c6f9fbd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6ac0e3cb-d77e-4dd5-8196-722bad8f2d27&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03930210-deb6-4d13-b6a0-2372d4368e28&gt;,
+ &lt;Future: pending, key: find_functional_groups-ca04582c-b2b1-4db2-8dae-c4d89c6c2ab5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-288cc20e-6caf-45ef-96fa-d4a0f6b0ff69&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1699bd87-9127-44e5-a2e5-de87c9ceced0&gt;,
+ &lt;Future: pending, key: find_functional_groups-8c0c7299-0a33-47c0-adae-97d0a2921b9c&gt;,
+ &lt;Future: pending, key: find_functional_groups-d9238b65-45e7-4c11-9496-2eceaf94e80e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-215f5596-81a8-4a07-afa3-bc90d3b99536&gt;,
+ &lt;Future: pending, key: find_functional_groups-83171a31-c983-4c99-a7f0-c0f88487581f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0093cf5f-ce5f-4024-841b-74db8558d726&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-612c2621-b84a-41b5-8482-f43e7796da01&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-28fe89d8-c0c1-4349-9eb2-f1a092f93439&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-06ba0a87-2202-4679-adb8-7e8a0ced699d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0700d08c-d122-41cc-9c06-3f976bd0aa43&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5c1c87c0-f209-4644-89b8-2636225cc242&gt;,
+ &lt;Future: pending, key: find_functional_groups-f09e37fd-e7a3-48d2-b155-95d2a303b5ba&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1f59f16-4721-4f61-b49c-d75313e3fbad&gt;,
+ &lt;Future: pending, key: find_functional_groups-84e41ae0-2777-407e-a8bc-8efdffe811f1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-474e3a7f-bd3a-4c0f-aee3-d9f3554a3988&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6830bf04-586f-49dc-8adc-bb7270570821&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3bdaca30-a03e-4be6-88b2-ceedc0fda6a4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5f44eacc-76c4-4c5b-aa27-da8fd470af3f&gt;,
+ &lt;Future: pending, key: find_functional_groups-92a65b27-14a4-4319-b19d-58535e67000e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6bc26dc6-b13a-4f60-803c-ec4afbd7c7e1&gt;,
+ &lt;Future: pending, key: find_functional_groups-f54f8cd6-cb1a-43e6-bd95-875e3528c307&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3e40433a-23a7-4483-9e0f-cbd010aecb91&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-45ee8445-71ff-4cc6-a24d-669059c17a59&gt;,
+ &lt;Future: pending, key: find_functional_groups-edfe7402-89cd-49e9-a3b8-2160fcd6f4c3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2dc9f854-4866-46e6-be68-d8b4606a6692&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-26ef6256-73a5-48b8-8d25-e80cb093377c&gt;,
+ &lt;Future: pending, key: find_functional_groups-7c66d8c0-1927-4020-9e48-9b4ab49d1711&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-53e3c2ef-259e-4d15-8fdb-6cdbb496bbef&gt;,
+ &lt;Future: pending, key: find_functional_groups-aafa2074-645c-4c41-9142-f75951f4e309&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3d825040-2592-4687-83b2-86b613533caa&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0f4749bc-814c-4240-8f4b-7706663bd2ee&gt;,
+ &lt;Future: pending, key: find_functional_groups-f20c6910-8a60-45b4-83ef-e0c7817b5a61&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-04789026-50dc-4f1e-8768-ba43f4721a34&gt;,
+ &lt;Future: pending, key: find_functional_groups-c8c6c7fc-56d5-4186-9a4d-2b0fe0729be7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-41512e87-7218-4237-b770-ce4f67853401&gt;,
+ &lt;Future: pending, key: find_functional_groups-b1136419-5198-4823-8e14-4266f5254d0f&gt;,
+ &lt;Future: pending, key: find_functional_groups-771739a5-2ebc-418e-98fe-35a94ae2c0e0&gt;,
+ &lt;Future: pending, key: find_functional_groups-baaa6430-394b-4be1-856e-02b1aa41302a&gt;,
+ &lt;Future: pending, key: find_functional_groups-bb156f8a-48f3-4b49-a381-5990cf352355&gt;,
+ &lt;Future: pending, key: find_functional_groups-ea7cf11c-f573-4e34-9007-619767f5b820&gt;,
+ &lt;Future: pending, key: find_functional_groups-ae815e30-d2b7-4ace-b3d6-2d485b859d67&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-04f74dd2-1335-4ab2-bd84-d6f63a6431d0&gt;,
+ &lt;Future: pending, key: find_functional_groups-b1b47d77-20fb-4d8b-ab81-858c5b981c92&gt;,
+ &lt;Future: pending, key: find_functional_groups-ef0116d0-2a5c-4616-b750-63caff62828b&gt;,
+ &lt;Future: pending, key: find_functional_groups-f9dc24d9-f5e7-487b-82f2-4fb06e45cd05&gt;,
+ &lt;Future: pending, key: find_functional_groups-ed983542-aa97-458a-8cc7-763c43bdc0c9&gt;,
+ &lt;Future: pending, key: find_functional_groups-e9d579c8-bc4d-4c33-a0ac-d34565b695b9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00eb4656-55eb-4d85-81a8-9fdf666cf13c&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee2868f1-24ee-4b85-a05a-1a6f8198fe48&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-34c587a6-e166-4c4b-9910-e96a99ed273a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-20427255-5016-4527-8714-dbe67ecd79e3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-32b80ace-4e54-40eb-a115-12211b72edbb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-28169bc7-6a9b-431a-8cac-37fae3e658ce&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3da35a8d-d61f-42f3-b4ea-c9d66fc597d8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-319177f8-fda2-4bea-8f11-652c28e8cc9b&gt;,
+ &lt;Future: pending, key: find_functional_groups-e4746bac-13a9-4d88-adf3-488c455c07a0&gt;,
+ &lt;Future: pending, key: find_functional_groups-dea69929-a726-47b6-b6d3-b798e0942531&gt;,
+ &lt;Future: pending, key: find_functional_groups-9acd7d19-42a9-4737-aeb6-a1be45b35a78&gt;,
+ &lt;Future: pending, key: find_functional_groups-f4bc1f99-7838-46b3-864e-4980496e7104&gt;,
+ &lt;Future: pending, key: find_functional_groups-82d7d08d-9c83-48fa-bf11-cb1ec95ba023&gt;,
+ &lt;Future: pending, key: find_functional_groups-831da837-9e50-432f-8cb0-be20597446e3&gt;,
+ &lt;Future: pending, key: find_functional_groups-9e6b0217-80ca-44dc-9736-711159381703&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-29d2cfc2-240d-40e4-8219-7794f84eb9c8&gt;,
+ &lt;Future: pending, key: find_functional_groups-d0109602-66a0-45be-afd0-90c9aec589c8&gt;,
+ &lt;Future: pending, key: find_functional_groups-ef12de2f-4bbc-4370-b7ad-843fa47e7161&gt;,
+ &lt;Future: pending, key: find_functional_groups-b207b441-f95f-49ef-a6de-5df6f5acc2dd&gt;,
+ &lt;Future: pending, key: find_functional_groups-8a62f7a0-3e9e-435c-8667-a6c136d2f8e4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-7377ec49-14f1-4f40-9caa-26e86a1acad8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4061a43d-3eb4-4908-b312-40f10acfc592&gt;,
+ &lt;Future: pending, key: find_functional_groups-8e5add85-6867-4753-bf2f-c136fe2d17e8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-43d9a0a8-a2b6-42ed-b501-9d7deb38fe8b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-060985fb-640c-40bf-9bd2-a20f5b0d1226&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-70efa021-d8df-4f4f-8f9b-ce57ea94eec6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5e88f4e3-7dad-4871-8636-0ea0462128f5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-39b72130-8ea2-44ca-8310-4e94a76bac97&gt;,
+ &lt;Future: pending, key: find_functional_groups-e2c5b6d0-49cd-49cb-8fad-8660f153b718&gt;,
+ &lt;Future: pending, key: find_functional_groups-c72c8796-b986-4617-9224-00d90f8c655f&gt;,
+ &lt;Future: pending, key: find_functional_groups-848f29b1-b970-478f-87b7-4ee2982388a4&gt;,
+ &lt;Future: pending, key: find_functional_groups-bbbd05ae-3e21-4919-bd35-f6797b6cb348&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-73505803-b286-48ba-a7ba-f761674227a8&gt;,
+ &lt;Future: pending, key: find_functional_groups-b5329e4b-846c-4c88-a90a-9ab131b6391e&gt;,
+ &lt;Future: pending, key: find_functional_groups-fee2e327-ef3f-4bde-b268-6e9b930904cc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4d0bd826-e179-4ec3-8664-c5601f1cbf19&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4ed70711-a7cd-4d52-ab48-f75f33afa984&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-17d87ab3-2d65-4c75-b344-903af281d9a8&gt;,
+ &lt;Future: pending, key: find_functional_groups-d32e447c-2da8-4705-8869-baec7bb96d3e&gt;,
+ &lt;Future: pending, key: find_functional_groups-f0336560-867d-46dc-b512-666c5b5a9701&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-35883b0d-c462-45f6-a7f6-203e134ce1b6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4e836fa6-1ca5-4f8e-a2d7-7bd4e772a70d&gt;,
+ &lt;Future: pending, key: find_functional_groups-9668ab58-a472-4bfa-bc20-0a5d63c6e766&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-11854757-de47-46ec-abb4-eeb9c797307b&gt;,
+ &lt;Future: pending, key: find_functional_groups-c7dc527c-0063-4391-a0f0-c46afe9f5001&gt;,
+ &lt;Future: pending, key: find_functional_groups-7602997e-14c2-4367-a697-98b967244b4a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-49d0eb54-67af-4dfa-97d0-3ea8e040dd9a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-69c258ca-65bd-42ea-b72f-06e5bd593787&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a02c97a-aeba-4361-8e4e-9818b9237748&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1b5fa22d-e65f-4e45-b797-1e5f1e8ca558&gt;,
+ &lt;Future: pending, key: find_functional_groups-b5afe264-7eaa-4d62-8fbe-11ce272473de&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5ade28ac-0092-41e6-a017-a2e4feffc091&gt;,
+ &lt;Future: pending, key: find_functional_groups-b4e9b717-66f1-42ac-b1c7-03a20f83481c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-09838836-c3c3-4f5a-a653-4003a3b15233&gt;,
+ &lt;Future: pending, key: find_functional_groups-bba9e1f5-b45f-4644-b9f9-cde59d0e40cc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-33c7e9b4-861e-4226-a61b-2f5b3a0d2037&gt;,
+ &lt;Future: pending, key: find_functional_groups-c333e189-0e94-483b-9976-a70663464866&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-64f8c998-d57e-49e9-bb0a-7c3f0901c1d4&gt;,
+ &lt;Future: pending, key: find_functional_groups-f309c3b9-880e-44fc-bde9-bb65d75438c9&gt;,
+ &lt;Future: pending, key: find_functional_groups-f53411d0-36d6-4de7-86d5-20c357fed09d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4d99e5ba-4576-4b61-aaff-1a2b38cc09a2&gt;,
+ &lt;Future: pending, key: find_functional_groups-794163bf-b86e-4d94-9eca-0bf8fc06b1b0&gt;,
+ &lt;Future: pending, key: find_functional_groups-ed6dc87b-199e-465c-9d2d-62273c487392&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-009e3916-6507-4ee0-802c-dda3653601a2&gt;,
+ &lt;Future: pending, key: find_functional_groups-b65f1506-bb31-4c40-b40c-7b7eb5c4828e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1b7814e2-ee4e-438e-aad6-04dfab859dd5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-49e861d4-008b-4e78-bc7a-bb566657d7da&gt;,
+ &lt;Future: pending, key: find_functional_groups-c995506e-ca74-4849-b969-cf7dbbfcecaf&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ec806c0-b83e-4507-a8a2-40ccb21b867a&gt;,
+ &lt;Future: pending, key: find_functional_groups-ae3bfe42-6d88-4180-87e5-4429ba1d5e80&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-69c59d52-3fa7-4009-b225-bbfc14327655&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2a6b6761-7ecb-4f24-9057-9a774356ae3f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2ca2399c-f39c-412c-a3b6-fa75d0fb78cf&gt;,
+ &lt;Future: pending, key: find_functional_groups-9aeea553-9746-4aaf-b221-0d390f218508&gt;,
+ &lt;Future: pending, key: find_functional_groups-ce08d2af-2681-40a2-a994-b16ab673766f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0e834e8e-d9d8-407a-a867-e4ede2cbeabd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-692b887a-d111-4161-9be9-c82f2536ead5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-158e0bf9-4d04-4c47-9e9d-d0b87e85f224&gt;,
+ &lt;Future: pending, key: find_functional_groups-95bc3da0-bdb6-41f4-8c11-7661e47af86d&gt;,
+ &lt;Future: pending, key: find_functional_groups-84c41abb-069a-4da7-a3f6-bfb1de3e2b39&gt;,
+ &lt;Future: pending, key: find_functional_groups-e251c03c-66aa-44a3-9c5e-f9a8bc54bb96&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2437ddd2-de57-459c-909c-8aeb3efc491e&gt;,
+ &lt;Future: pending, key: find_functional_groups-8dca4d1c-502f-4d83-8c7b-402833454e2c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6b1e2f49-2f6b-4dae-953f-fbd7879984e1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2bb53fc6-2010-419f-ab49-d5d934566c87&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5f8518d3-7457-4163-b6c6-6f92baf6b26c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2eb561bf-35ee-48e4-a128-e97ade7481c3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-39105b83-0a2d-4b26-97ad-d4478e09e0dd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0506b4f8-17a8-44aa-a20e-dd4ff19248d5&gt;,
+ &lt;Future: pending, key: find_functional_groups-ba2db0b9-f657-4868-bdcc-09e1cba2963c&gt;,
+ &lt;Future: pending, key: find_functional_groups-9f21dc70-a918-42cb-b93e-695e2ab3c19a&gt;,
+ &lt;Future: pending, key: find_functional_groups-c2837c32-ac19-4bd9-8ce1-e423980583e0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1a9b25f6-c3d5-4843-860d-503ec0880924&gt;,
+ &lt;Future: pending, key: find_functional_groups-efcbb1db-7216-453b-afaf-3cbfcc2c422f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-519baad2-d2ae-404c-9894-8b595b78f9bc&gt;,
+ &lt;Future: pending, key: find_functional_groups-cccbed1e-64a3-420c-a349-1222e9a5791c&gt;,
+ &lt;Future: pending, key: find_functional_groups-958c7afb-20d7-44bc-abdb-c2f5b8b35b63&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-778b309a-c18a-4910-a4ec-5aecddc181f6&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee9f0111-0acd-4cc4-8248-09a613c65b85&gt;,
+ &lt;Future: pending, key: find_functional_groups-d2e66ced-a166-4920-a074-5b5a82518c2a&gt;,
+ &lt;Future: pending, key: find_functional_groups-ffd99b3b-fedb-4f8d-a2bc-4a9251c29673&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4189a83e-0f6e-4625-89f8-655b82f727db&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1a0f2bc7-c607-4472-bd27-30e1d55368e0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-338489bc-99f5-4930-9aa0-62116a542d79&gt;,
+ &lt;Future: pending, key: find_functional_groups-b198217a-e53c-4c02-9ca3-e3ca01fc93f1&gt;,
+ &lt;Future: pending, key: find_functional_groups-7d2a5364-9694-4d10-aa73-21e06cadd5a4&gt;,
+ &lt;Future: pending, key: find_functional_groups-a8f62958-5acd-4e7a-a9c3-4ac0baaa6184&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-024dee8a-38a0-42d5-9a6c-663a351b77a8&gt;,
+ &lt;Future: pending, key: find_functional_groups-bee06a9b-83bd-4679-ac75-2f085a4ea5a8&gt;,
+ &lt;Future: pending, key: find_functional_groups-a3af0f85-ea2c-46fd-a406-710807aa5f79&gt;,
+ &lt;Future: pending, key: find_functional_groups-ac7dc923-1100-4469-b5c9-567e68191dea&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-12d1a992-8e74-4426-a952-e7b04b9b689f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-24dd2fe1-2f92-4a9f-b222-4710525d32d3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1632428b-718a-4033-8d57-9de679cfd55a&gt;,
+ &lt;Future: pending, key: find_functional_groups-c5d35bf6-ddea-43c3-b203-1d8e6bdb37f4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-21c50c5c-da03-41ad-9b34-00cbaa24804c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-47d5f21c-2fbb-421d-969b-ae2af1ab2025&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2380ccb7-991c-4dea-a15d-c266676a4b03&gt;,
+ &lt;Future: pending, key: find_functional_groups-8496f742-2c8b-41a4-b56b-4d22a8a55aef&gt;,
+ &lt;Future: pending, key: find_functional_groups-d4836b87-7ad8-4fab-bac5-53fa1a3454a6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-35b78bc7-8ff4-48bc-9d65-5f906f0ba683&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1d4110cb-8859-4d04-8b01-99f63237d6a9&gt;,
+ &lt;Future: pending, key: find_functional_groups-eef86c33-a958-4a7e-ae7e-6ee960d68519&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-580308ff-da05-4283-921c-4f55daea058f&gt;,
+ &lt;Future: pending, key: find_functional_groups-e979900b-2303-41e1-9a3a-142e34ed08b3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5c372ed1-73bc-4ef9-89d2-8aa2db6a5cf4&gt;,
+ &lt;Future: pending, key: find_functional_groups-7b0d69b8-0b2b-4224-b335-d7f9f3827fa5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4d13af7c-b567-41be-84be-5e7cac669561&gt;,
+ &lt;Future: pending, key: find_functional_groups-a2829853-3ae4-45c6-8b48-4b0cf878de72&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-574a7c14-6179-4589-802f-0338d4369025&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0d73dcc0-4b28-425d-8e7a-570c51eb6ceb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1ef2f596-f85d-443e-ac37-6914d2d333c6&gt;,
+ &lt;Future: pending, key: find_functional_groups-b94ef6f2-47af-4c03-82da-1e823d70764a&gt;,
+ &lt;Future: pending, key: find_functional_groups-a9aca815-4ac6-4c75-99f0-f32743a9db2b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-43320cc1-3710-4f9d-b417-e55b36a3c5d4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3fd132a1-3219-4458-9fe7-07fb56ec74a7&gt;,
+ &lt;Future: pending, key: find_functional_groups-8fb39603-f683-438d-8a23-c2c7b8cafff6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1a882041-c77d-46fa-90c4-e94c9bfa8ab5&gt;,
+ &lt;Future: pending, key: find_functional_groups-ce845989-f865-485b-95b1-d06755fb32b2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-57c70769-b835-4fe8-954f-edd20759519a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5d2ede66-eca2-444c-ba7b-d05096473367&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-55205a9f-5f43-4ee7-8fd1-0747fb7f3fff&gt;,
+ &lt;Future: pending, key: find_functional_groups-ba7fb6d2-4c9c-4ea3-9c7d-17e07e84153b&gt;,
+ &lt;Future: pending, key: find_functional_groups-e3abd98c-d502-4f5b-a724-1016a2404b23&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-36a9ff21-b608-4c0d-a3cc-1a78c8056d6e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6bf920dd-8622-4d58-9d15-fbe849c90bfc&gt;,
+ &lt;Future: pending, key: find_functional_groups-ec31b5f0-96b2-4b67-b515-0b749a9e8c06&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-76adfb17-8b86-4f0f-b7f6-bf96e90aea0e&gt;,
+ &lt;Future: pending, key: find_functional_groups-ceff40f5-c5cf-4f90-ba18-5295d3500087&gt;,
+ &lt;Future: pending, key: find_functional_groups-bb5866e5-0e60-4cb9-b943-4c9972286ab9&gt;,
+ &lt;Future: pending, key: find_functional_groups-955d3cd0-3c83-4957-80f2-173c655f916b&gt;,
+ &lt;Future: pending, key: find_functional_groups-d2ce967e-8f82-4c01-8b33-448125c4a76d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-614859ba-1ec5-4b53-b966-cf075bf87487&gt;,
+ &lt;Future: pending, key: find_functional_groups-9e4e29e6-4e6c-4604-a1f4-2e7448fe7e7e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f2d8097-7727-437d-90dc-d5cd14030be1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-383ca933-f9c2-47a1-8754-e35e527a9acf&gt;,
+ &lt;Future: pending, key: find_functional_groups-d2f9ab92-473a-4ef1-afd7-be7992464a34&gt;,
+ &lt;Future: pending, key: find_functional_groups-db7dde23-eff2-4c84-a7da-576725da203e&gt;,
+ &lt;Future: pending, key: find_functional_groups-d8806ebd-4ffa-48f1-9fe0-e8bec0dca027&gt;,
+ &lt;Future: pending, key: find_functional_groups-b08fd336-4009-4893-aa1c-3a3148f68f4f&gt;,
+ &lt;Future: pending, key: find_functional_groups-cbdf6634-881e-4204-a559-f20054b1a516&gt;,
+ &lt;Future: pending, key: find_functional_groups-841b2e27-8f46-48dd-9654-5d96e0976cb3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-146a21cb-1a98-40bf-bb2c-0d4f45d42625&gt;,
+ &lt;Future: pending, key: find_functional_groups-9acfa9cc-1691-4a4e-8740-09beeee7a62e&gt;,
+ &lt;Future: pending, key: find_functional_groups-d08c4076-8e88-4926-8cce-9ccdf724076b&gt;,
+ &lt;Future: pending, key: find_functional_groups-fa3c33f2-ba2b-41f8-ae0e-f9ee54671b23&gt;,
+ &lt;Future: pending, key: find_functional_groups-96050f7e-62a6-4e41-a8fd-e5ac7cac0a95&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-473fab5d-2515-4e0b-8cc7-4d9b9922bee2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-30ad96dc-2bd8-427f-8d5e-b28d145103d1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3875a887-d82d-4832-bde2-bb03bef53d95&gt;,
+ &lt;Future: pending, key: find_functional_groups-dd2fbc69-1b78-4691-9174-cffdde2deed8&gt;,
+ &lt;Future: pending, key: find_functional_groups-dad6a43e-7b7f-4f70-9e53-f4805349e229&gt;,
+ &lt;Future: pending, key: find_functional_groups-7dae8edb-1dfd-482f-8632-9e1a4a497e5f&gt;,
+ &lt;Future: pending, key: find_functional_groups-b4691977-d639-4803-9c5e-77b74f545074&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-19ff7905-41d8-4b9d-8e05-7515bf68226a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-52b4a58a-4bee-4bfb-b6e1-9db1b8c5e466&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-38080931-bcc6-47bb-bdd1-5ec84f0777bc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5a55f2ca-e563-4d66-b076-5f0be2943da6&gt;,
+ &lt;Future: pending, key: find_functional_groups-fb9a7fd8-a6e1-4b39-ae5b-04bc3a287a7a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1187dcfe-e72d-4896-96d8-8b7abe2581ad&gt;,
+ &lt;Future: pending, key: find_functional_groups-abd88e7e-56f6-4b2a-97bf-37d2cc398976&gt;,
+ &lt;Future: pending, key: find_functional_groups-900f9b49-7e3b-4a25-87e2-bd6f64199749&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0bfe18e4-1ea4-48b8-86d6-3b9f2e236f44&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-159b0964-e752-41b7-8726-366a557f2488&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6df671d6-7939-4aec-ac81-5b6fe7405aa9&gt;,
+ &lt;Future: pending, key: find_functional_groups-d5de0ab1-ec13-4021-be50-93946b9b6499&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-72a9012f-8dcb-490d-a483-af953335315f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2a5eb84a-26cb-4e97-9886-e7378c4bc94c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4b6d2100-bde2-419c-91a6-0b0545642aee&gt;,
+ &lt;Future: pending, key: find_functional_groups-fe479ee2-7610-4829-bf03-59fba2503719&gt;,
+ &lt;Future: pending, key: find_functional_groups-aa89abb8-c999-4fff-95fb-8340ea01e188&gt;,
+ &lt;Future: pending, key: find_functional_groups-afd152f7-a219-4e41-b5ea-b69c3496086f&gt;,
+ &lt;Future: pending, key: find_functional_groups-de90726b-c306-46ee-b94f-c234988b37c7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6681cd45-6d9b-41cf-94d6-ac27f7a88175&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-20bbaabe-7048-4293-9171-d0d43e6e3c12&gt;,
+ &lt;Future: pending, key: find_functional_groups-99c2a7c1-03a2-4842-b476-b6b4afb750ff&gt;,
+ &lt;Future: pending, key: find_functional_groups-f9757121-1762-4f29-9440-986b42e5f8e9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-38929b17-b9bd-4950-81e7-58c88443f878&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-42899ad9-45d8-4f04-a7e4-914f832740b3&gt;,
+ &lt;Future: pending, key: find_functional_groups-a66c0645-3e17-49f3-8ee9-036ddd4d9b8d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4ce7c6db-484e-42c6-81a7-0e190835923b&gt;,
+ &lt;Future: pending, key: find_functional_groups-df940aa9-0707-4500-b3ce-fe19e2914478&gt;,
+ &lt;Future: pending, key: find_functional_groups-bd80653e-4fc9-450b-84fe-7ac9ef502e40&gt;,
+ &lt;Future: pending, key: find_functional_groups-b8170a2f-2d15-4e2a-a80b-8467ad6b6dc0&gt;,
+ &lt;Future: pending, key: find_functional_groups-c69cae93-1545-4175-8fa9-32d040eecdeb&gt;,
+ &lt;Future: pending, key: find_functional_groups-9f887f5a-2e8a-4c5a-a979-d3f4b2eb755f&gt;,
+ &lt;Future: pending, key: find_functional_groups-a45c6677-88c6-48bb-86ba-0b6f60c86622&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-19a39668-bb98-47b2-9030-00368421591e&gt;,
+ &lt;Future: pending, key: find_functional_groups-e4436db9-17e7-41c6-93fc-be26ad46bbf0&gt;,
+ &lt;Future: pending, key: find_functional_groups-c9142ea9-d660-44b6-9fda-1911d902a13f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0be03917-feef-4463-bcac-572ab0895b75&gt;,
+ &lt;Future: pending, key: find_functional_groups-9b8d792a-f782-4217-8708-099cd1828b97&gt;,
+ &lt;Future: pending, key: find_functional_groups-cde7c9af-23e9-4854-99db-0b3916b2b0e7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4e661057-75dd-4c46-8780-2f184558ff2e&gt;,
+ &lt;Future: pending, key: find_functional_groups-b39fe33e-c6d3-4775-9288-05c4bd9db663&gt;,
+ &lt;Future: pending, key: find_functional_groups-e5558e6f-d61f-4438-b4b0-67f8fc558d7b&gt;,
+ &lt;Future: pending, key: find_functional_groups-e5e46183-8634-4d75-8324-e08e1bd2f685&gt;,
+ &lt;Future: pending, key: find_functional_groups-e1863eff-f012-4613-b071-77ae4b4416fe&gt;,
+ &lt;Future: pending, key: find_functional_groups-f27893d2-4b2f-4ed9-9953-8e3210f6fe8a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6b5e8184-0d5e-4272-8e3a-c33ad9cfd418&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6e9f5e1b-e71d-4361-8cbd-72c1317f543b&gt;,
+ &lt;Future: pending, key: find_functional_groups-e7309a52-9f51-4410-a389-4695c87589dc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1a2cf6af-81a5-46b3-bc63-a0ab6fd360d1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5547dabf-9b41-40d0-bbdb-26b3fad7bc0b&gt;,
+ &lt;Future: pending, key: find_functional_groups-aa3b36cd-ea5a-4697-b938-b421ac8ab31b&gt;,
+ &lt;Future: pending, key: find_functional_groups-7b50ec1d-ca21-473b-85ed-0368383cc5b3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-50044f19-62db-4d0c-95b2-46e749967f50&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0d5630b3-a11d-4f70-8f69-551bccb04f65&gt;,
+ &lt;Future: pending, key: find_functional_groups-89da875c-17d9-45f2-b443-fb4781375194&gt;,
+ &lt;Future: pending, key: find_functional_groups-c4cd65af-c9dd-4959-aa74-15e993a2711b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6b6bb669-5432-4e7f-94cf-068269dfd8a3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5426296f-a052-4a46-bae8-2e1ec515c145&gt;,
+ &lt;Future: pending, key: find_functional_groups-82301a74-c485-4285-b138-64c5a1295364&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-19c191c5-c4b3-4c39-ae6d-eaf231b51eb7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-49c8abc4-e7e3-46f3-b1a7-4adf70656880&gt;,
+ &lt;Future: pending, key: find_functional_groups-bb84577c-8b2d-4477-87da-95a92000e72e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-27d1836d-e96b-4f55-a938-710bd4c541e1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5ee7b6b1-1d81-4601-96fd-49ad75154ba1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2d806fc1-056f-4c0b-837a-de42cb05b285&gt;,
+ &lt;Future: pending, key: find_functional_groups-9d8cfd3c-c26f-4c17-9606-de7a321e7e21&gt;,
+ &lt;Future: pending, key: find_functional_groups-a83639c5-0ee6-49fd-8d57-fbe7ee69d45c&gt;,
+ &lt;Future: pending, key: find_functional_groups-e032ec8d-4cbe-4cd9-b04d-cf36ccb511cf&gt;,
+ &lt;Future: pending, key: find_functional_groups-ab7fed6a-9e3e-4f14-a901-1bc6b8c22c98&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-14104134-c7a2-4f2b-a6e9-6e08a43b4bff&gt;,
+ &lt;Future: pending, key: find_functional_groups-a51573b7-8810-4652-8004-f45de5272f86&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-21900a53-0f83-4202-83a0-67a9a1f573c4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-411c2a91-ade7-496b-a6ac-548f9b60ed3b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a471f87-1dfa-4a09-aa4c-41a84a509bc4&gt;,
+ &lt;Future: pending, key: find_functional_groups-f741c409-5e25-4bba-af2b-25227bacd847&gt;,
+ &lt;Future: pending, key: find_functional_groups-be077cb4-c612-4c7a-9e90-275b265698a3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f7d544f-a1da-4631-a660-0d261c04a71c&gt;,
+ &lt;Future: pending, key: find_functional_groups-7e125971-53d1-4a6c-9de3-6ec6388bd93d&gt;,
+ &lt;Future: pending, key: find_functional_groups-bfdd30be-32e3-4b39-a34f-dcad92da6b9d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6d26510e-aad7-4803-b1c4-bed4dd0f6d23&gt;,
+ &lt;Future: pending, key: find_functional_groups-864a9aa6-d48f-46b6-b9f6-5791bcd273fc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5e256ac2-aa65-4f34-b750-8a005d50afb6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5dc883d5-0f5a-4378-a734-6b64b3492b87&gt;,
+ &lt;Future: pending, key: find_functional_groups-b4001f83-1418-4862-a141-f00b98b9a6b9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3ce4473b-6829-404f-bae7-d1b7aec8c568&gt;,
+ &lt;Future: pending, key: find_functional_groups-f8a60048-54e0-43ab-96a0-04af41839b2b&gt;,
+ &lt;Future: pending, key: find_functional_groups-9aa58ad9-7bcb-40c4-b2a7-86089e47f5e0&gt;,
+ &lt;Future: pending, key: find_functional_groups-95e13557-38c7-4e74-be4f-711141de98c1&gt;,
+ &lt;Future: pending, key: find_functional_groups-ed3490d4-df10-46e9-9f77-1348d778b993&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-51c47878-7862-4fdb-a460-77399ace47d0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-74c788fd-343c-4798-93d9-581a50f339f0&gt;,
+ &lt;Future: pending, key: find_functional_groups-fb57fb1a-70fd-4527-871f-e398c57b3538&gt;,
+ &lt;Future: pending, key: find_functional_groups-9198534b-ad5b-463e-bd53-24f108161b44&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-33a4bd7e-9a39-4374-bf78-423421322a0e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-67c64283-c520-41c1-9a61-a12b4b61a0c1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-664615b9-4dc2-4729-944f-9627f19f0685&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-22300541-5ff7-4163-ad87-f8f04bedd8e8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-20841001-7f3b-4844-b423-4be768c69272&gt;,
+ &lt;Future: pending, key: find_functional_groups-aa6e402c-70a0-4cd0-abcc-8576f5512d42&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-62809cfe-0bfb-444d-921f-c8d2ba805692&gt;,
+ &lt;Future: pending, key: find_functional_groups-c0d3565b-6bce-4d8b-98fb-c9957f6a5755&gt;,
+ &lt;Future: pending, key: find_functional_groups-92426605-750c-4b4f-900b-265f2ff6ca1f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0fea4685-b0a4-40f8-9843-31074e729324&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-49556986-2e18-4f15-96ca-7e97ed47c56e&gt;,
+ &lt;Future: pending, key: find_functional_groups-c13ea9ae-f422-47f5-a203-6ed3835f2a44&gt;,
+ &lt;Future: pending, key: find_functional_groups-ce9a1432-6d12-4bbc-a5fd-d4f4a3c486a9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3ef36f32-6955-432e-a26a-7bab957ef4ac&gt;,
+ &lt;Future: pending, key: find_functional_groups-eefc3ffa-f75c-4d55-891c-df937f1bb8cf&gt;,
+ &lt;Future: pending, key: find_functional_groups-7a48f7d7-3165-4bbc-bc87-c828c8e4372c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-56bb081a-a27f-40d0-a262-2c5993c91e72&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-50b5167b-f222-4bff-b462-1652afe93b99&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-314b913a-d3c9-4889-b507-348c25fddf13&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-22c67060-4aa2-433c-b512-0642330060c3&gt;,
+ &lt;Future: pending, key: find_functional_groups-bc12f05e-63e4-4086-891f-6ece17c174d4&gt;,
+ &lt;Future: pending, key: find_functional_groups-e2e04221-c9d4-4c23-968e-bbfefbea7692&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1ed01851-8bcb-4ae1-88b0-460c9c640bb8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-008130e5-5975-4687-b14d-5a0f0ceb7773&gt;,
+ &lt;Future: pending, key: find_functional_groups-8d72cdec-4ca6-47e4-9b31-61e7bec1d8ba&gt;,
+ &lt;Future: pending, key: find_functional_groups-f15dfa56-bbc0-4d21-bdac-9073e271844b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-07894841-61ac-4a21-ad44-45ff715ea11c&gt;,
+ &lt;Future: pending, key: find_functional_groups-b7961f80-60f6-4b95-b434-28f797305867&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-381af529-e903-4ce5-901a-d4046f2f79bd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-37ef76f4-9538-4ed8-9b20-3c0d544c1f4e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-17710ab7-f8e2-4fcb-85ac-359fb04e661b&gt;,
+ &lt;Future: pending, key: find_functional_groups-cf3c9d65-884a-4950-8850-bc8551cfa210&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ae956e7-d506-4b86-a7cc-68ddfa1cd10e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0dd964c7-14df-4f1d-963b-acca2cc5c8c2&gt;,
+ &lt;Future: pending, key: find_functional_groups-eec777ea-f85c-40eb-84a4-63126a5f5d2a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-51268f81-bb1d-4514-893c-6b0588631f12&gt;,
+ &lt;Future: pending, key: find_functional_groups-912ab2cc-e782-4780-b588-8fd8cd1e6fcb&gt;,
+ &lt;Future: pending, key: find_functional_groups-a7ab0234-7c9f-49c3-8cc7-90cac8217c09&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5bca505a-97de-4b10-85bb-a233e138d6ff&gt;,
+ &lt;Future: pending, key: find_functional_groups-7ab24cd4-3294-45dc-81f6-10c7f5c9bcc3&gt;,
+ &lt;Future: pending, key: find_functional_groups-e80fb189-3994-4824-a21f-f467483fcb33&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2e0a21c6-6c1d-4a6c-bdbf-d891a916d26a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4b491857-01b8-4e79-bfc1-8d7a90168cb7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-66a48154-e094-4ee0-bfdf-2d2188eb7f3f&gt;,
+ &lt;Future: pending, key: find_functional_groups-82674622-461a-493c-ad71-eda3c08ab75b&gt;,
+ &lt;Future: pending, key: find_functional_groups-db5d0c63-a14e-47bf-97a4-f49feccdfb11&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6fb51a4b-4466-45aa-9000-3c484a548166&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-10cebd37-845a-4f35-8bbb-12fe4ad993e3&gt;,
+ &lt;Future: pending, key: find_functional_groups-8a49a526-3e62-44fb-9884-880cbaba9795&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-46b51d3d-b80b-4724-87e6-c0c140265b07&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-76fb3a91-d026-4053-b2a3-55918df63aa7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-62094cef-9e31-48cf-b1ed-7c6544c5a4fb&gt;,
+ &lt;Future: pending, key: find_functional_groups-e9939dbf-e96a-4c3d-9766-7e57fc7621b5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f92c00d-ac44-428a-a46f-df5c4f6619f8&gt;,
+ &lt;Future: pending, key: find_functional_groups-fcd9a100-18de-488f-9a23-7ac8f354ba57&gt;,
+ &lt;Future: pending, key: find_functional_groups-e485fc7d-8a4a-437d-99bf-c804834f0af5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1fe4b22a-b03d-4b8f-827f-77529c598271&gt;,
+ &lt;Future: pending, key: find_functional_groups-dea3ad73-e098-4301-85af-9fcdd78aa203&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-27f39cc0-83cc-4b3d-8c27-722968ae04e8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1e17de79-3837-4022-8169-79b40ece74a4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-60837b72-16e0-4498-8e06-716e0e2365b4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1b340078-674d-425d-bf94-3b978b1df5ae&gt;,
+ &lt;Future: pending, key: find_functional_groups-8c3fbc7f-cbef-40f4-9278-b27fa9084c26&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-09c67000-e6fe-4c57-89fd-8f4f49965a61&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6784cfec-3810-4f2e-9e38-7bf84df81f9c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6c54b340-8912-409d-b711-e199cf3ed877&gt;,
+ &lt;Future: pending, key: find_functional_groups-970daa9d-2345-4dca-8ac5-72d441a91f16&gt;,
+ &lt;Future: pending, key: find_functional_groups-c0eedf0a-35c3-4017-9879-dfd82f163a06&gt;,
+ &lt;Future: pending, key: find_functional_groups-7a790693-2aa3-44da-a59f-527d124f50f4&gt;,
+ &lt;Future: pending, key: find_functional_groups-a12d4f5e-9680-48d1-ba50-d488d7d40811&gt;,
+ &lt;Future: pending, key: find_functional_groups-a4bd85b7-7470-4260-9d3c-52afe2f9a3e8&gt;,
+ &lt;Future: pending, key: find_functional_groups-f4085272-317d-4aad-8528-cf6ea52d4b93&gt;,
+ &lt;Future: pending, key: find_functional_groups-c6886d1d-eb75-41b1-ab5d-a4c6fcae0a93&gt;,
+ &lt;Future: pending, key: find_functional_groups-b27e09e0-6ed7-4c8b-92e7-45a627d0dbba&gt;,
+ &lt;Future: pending, key: find_functional_groups-778fedb1-e978-4824-aa22-d5eb9c2f7609&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee12f0df-abf8-41c6-8f35-fcef0b17c963&gt;,
+ &lt;Future: pending, key: find_functional_groups-82724e54-82a2-45ae-bafd-6ff163018236&gt;,
+ &lt;Future: pending, key: find_functional_groups-c4ee0f24-0c6c-4f1a-98af-3268a4b21d13&gt;,
+ &lt;Future: pending, key: find_functional_groups-ce1ba213-8e8f-4349-826a-221191c8d697&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4e04e9de-f269-4444-8b95-2ab477fbdedd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-08be9c1d-1ee9-4dde-b3f3-9dc72f0e9c75&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-265b4828-49c1-49f5-bb83-dc1a5030da7d&gt;,
+ &lt;Future: pending, key: find_functional_groups-b20db369-37fd-4246-b5f2-6c0ae81a9582&gt;,
+ &lt;Future: pending, key: find_functional_groups-7d64a786-2c9c-4fe7-8148-0ed3a2633adb&gt;,
+ &lt;Future: pending, key: find_functional_groups-ca7dedb6-039f-4b14-9d3b-32fba7fbbc4f&gt;,
+ &lt;Future: pending, key: find_functional_groups-e832cc6a-431d-4807-a6be-ca203368f915&gt;,
+ &lt;Future: pending, key: find_functional_groups-78f920f1-2f28-46d9-aa51-28f0d016175c&gt;,
+ &lt;Future: pending, key: find_functional_groups-d5d91025-b31e-439a-9870-3a91365b9df3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0b55fd03-27ea-4685-aa1c-cad1ed1e4a54&gt;,
+ &lt;Future: pending, key: find_functional_groups-97da9f0e-b8dd-4778-ba26-1482406be214&gt;,
+ &lt;Future: pending, key: find_functional_groups-f67d202b-bd7a-4182-a765-030838ffdec4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1e0adf3b-a018-4cfd-b6e1-1cff5c42d7ff&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2a5d4225-d97e-4f80-8859-35095eb9d308&gt;,
+ &lt;Future: pending, key: find_functional_groups-78a80c1b-05a9-401f-bc55-41ec44ee0f1b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6017516a-bf82-43a0-8bac-7bba85342a8f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2024fd8d-6577-477c-bcee-9b2b09cbdbe8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5822e278-f5a8-41ed-be13-241afa3a39e6&gt;,
+ &lt;Future: pending, key: find_functional_groups-e16a5add-a0dc-460d-9345-eafc2be7462a&gt;,
+ &lt;Future: pending, key: find_functional_groups-a9f706da-79e8-4157-bc24-1f5e88c2b763&gt;,
+ &lt;Future: pending, key: find_functional_groups-8d54e90b-2354-4914-af33-d35eaec0b1dc&gt;,
+ &lt;Future: pending, key: find_functional_groups-b2afd952-b2bb-4cf0-a64c-d6a0b4bd9bdb&gt;,
+ &lt;Future: pending, key: find_functional_groups-c69b86cc-43ee-449b-89dd-c85d81d10c4b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5a79d015-ea4a-42d6-a22f-d3a74a116ce8&gt;,
+ &lt;Future: pending, key: find_functional_groups-92c5eb0a-5b82-4214-ba68-fabd06265f56&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-39a20d50-58a1-419f-97be-04375cce06ad&gt;,
+ &lt;Future: pending, key: find_functional_groups-956c4273-923e-4b4b-b843-497064b7afc0&gt;,
+ &lt;Future: pending, key: find_functional_groups-f86a3916-f9ea-46f5-aa38-4aa63393f5d4&gt;,
+ &lt;Future: pending, key: find_functional_groups-e0a380aa-fab2-42b2-a3f3-4f459c79556a&gt;,
+ &lt;Future: pending, key: find_functional_groups-ab354c65-33ca-4ac3-8a5f-5ffcd3a29d84&gt;,
+ &lt;Future: pending, key: find_functional_groups-cf776aa9-a59e-4e10-b8a6-4961c6962444&gt;,
+ &lt;Future: pending, key: find_functional_groups-9e723b14-f9f6-4c8e-a4cc-e7e91d8af5c5&gt;,
+ &lt;Future: pending, key: find_functional_groups-f6183142-f039-4baf-bbf6-97d7a0d0bb28&gt;,
+ &lt;Future: pending, key: find_functional_groups-86c2c632-7b4a-42c7-b99e-bd2e73c6f821&gt;,
+ &lt;Future: pending, key: find_functional_groups-f47cd1d0-f789-4985-ad06-1f2a3236e25b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-08a8d074-97da-4fc7-8e67-50c20d2b7fea&gt;,
+ &lt;Future: pending, key: find_functional_groups-ccf61f4c-9874-48bc-8b0f-6271c3ba2257&gt;,
+ &lt;Future: pending, key: find_functional_groups-e8a93dbf-6a9e-4175-9a52-59e6542ef72f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4ba0ffcb-5c53-4a86-9a89-cb28427a6ef8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3a7612a6-53c2-4a47-be9f-28681d7ef91d&gt;,
+ &lt;Future: pending, key: find_functional_groups-c4dbc25e-5a40-4d04-943a-807ad4f5fe78&gt;,
+ &lt;Future: pending, key: find_functional_groups-aca106f4-ec16-408c-85a6-c44cbb0b76ae&gt;,
+ &lt;Future: pending, key: find_functional_groups-f340b15c-e749-45e2-bf02-e60adeb9b6cc&gt;,
+ &lt;Future: pending, key: find_functional_groups-be79e0db-b309-4192-bf28-43be4696c6a1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00c13d15-4537-40fd-ab29-91f2fbfc4cda&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-08de67e9-3b3f-4f44-ac4a-4e6bef48c7a2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-63ce74e1-2ab9-4b27-9435-4c0fa536d1a5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-302ec010-ac04-40dc-b154-6ad74dd28c6f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-473b02aa-b90b-4f2b-aae6-347eb7f8f81e&gt;,
+ &lt;Future: pending, key: find_functional_groups-eb441b9f-c27e-4af8-8d0b-192c25c6cca5&gt;,
+ &lt;Future: pending, key: find_functional_groups-e58c1027-953f-4bf4-a01f-35f55c984c48&gt;,
+ &lt;Future: pending, key: find_functional_groups-bc6d1e81-a82e-4d5d-bbd0-87d39e917c1e&gt;,
+ &lt;Future: pending, key: find_functional_groups-fd1a40ad-76dd-4879-afff-a3fd1c02eb96&gt;,
+ &lt;Future: pending, key: find_functional_groups-797f4a2a-1ce9-41fc-a0a4-a482b8b81a39&gt;,
+ &lt;Future: pending, key: find_functional_groups-cc934ea5-535e-47e9-9198-27d184bc4281&gt;,
+ &lt;Future: pending, key: find_functional_groups-edfe4054-f39e-4f69-b858-e35cf5737279&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1fc9a4b2-b0ed-42ad-aace-d462c823c492&gt;,
+ &lt;Future: pending, key: find_functional_groups-cafec169-f610-4fcc-a5db-f0dbbe7697c6&gt;,
+ &lt;Future: pending, key: find_functional_groups-cdc8a972-77e7-4e06-88b6-1970d5a4ad5a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6026ee57-52c6-4d9e-9ae9-6154d42939d8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4da17ae2-1dc4-416c-a728-55bd1893d1d8&gt;,
+ &lt;Future: pending, key: find_functional_groups-9be61242-97f7-49c8-8d8d-e04a46c26fc8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-63aa832a-cd0e-4dfb-a1f0-8a0fd26cb740&gt;,
+ &lt;Future: pending, key: find_functional_groups-bbda0491-5917-46b2-bb27-a1b748cdd482&gt;,
+ &lt;Future: pending, key: find_functional_groups-d07dafd3-471a-4bbf-a1ea-c974e34ebed8&gt;,
+ &lt;Future: pending, key: find_functional_groups-f91b9691-8db0-4553-9d9e-f21bd3e98e2a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-39dd3d7a-3ee3-4adb-b656-c1ea56e7b640&gt;,
+ &lt;Future: pending, key: find_functional_groups-d35ea9ea-6d65-46c7-ad6a-5a253931d1a0&gt;,
+ &lt;Future: pending, key: find_functional_groups-f9928030-d2d5-43e6-b7aa-bbc21f6f5d5e&gt;,
+ &lt;Future: pending, key: find_functional_groups-a245daea-4a0e-44e2-b95b-2e959b815acf&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-38b76a4d-b513-4dd5-b08e-0c772437ad14&gt;,
+ &lt;Future: pending, key: find_functional_groups-c43fa1b1-af11-4d21-851f-1a09e4301a0c&gt;,
+ &lt;Future: pending, key: find_functional_groups-92168686-c0ad-4352-9e94-b55c122af2e7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-42ea08ce-cd98-443c-a834-6914140179f9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-57e20ccc-6217-43e0-a0b8-1e9795893200&gt;,
+ &lt;Future: pending, key: find_functional_groups-89091359-8e91-4f6f-b04b-74599e2e78ca&gt;,
+ &lt;Future: pending, key: find_functional_groups-e821355f-3497-456a-98bc-7a8cff333328&gt;,
+ &lt;Future: pending, key: find_functional_groups-e0d1d21c-a8e7-4f10-b7fa-de02b68af099&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-01905836-c2d2-4628-bf12-5e32a464fafb&gt;,
+ &lt;Future: pending, key: find_functional_groups-e057da2d-d9a4-45b4-b2d9-4e56a8824dc3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-37bc895e-177b-4b77-84a2-8ce37d6cc849&gt;,
+ &lt;Future: pending, key: find_functional_groups-ab91d713-d05f-4b03-bf53-1cfddc75f5b6&gt;,
+ &lt;Future: pending, key: find_functional_groups-7bc00936-4e6d-42e7-907d-a5a9e041519f&gt;,
+ &lt;Future: pending, key: find_functional_groups-e2368bda-17d6-40e4-96f2-53f30c05be02&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6bd19312-9e09-4b52-92f6-1157fe527273&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-54106421-c8dd-44ce-bd38-fdd67687bc14&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1bd7f640-0817-4bbf-86dc-463398840de7&gt;,
+ &lt;Future: pending, key: find_functional_groups-e2099012-2214-4e36-8427-3c30ba8bdddf&gt;,
+ &lt;Future: pending, key: find_functional_groups-a22c1144-c8c1-4591-b6a8-1c0c6f5ed827&gt;,
+ &lt;Future: pending, key: find_functional_groups-e7bb8e3a-5729-4023-9ebf-1bc8d101ba0e&gt;,
+ &lt;Future: pending, key: find_functional_groups-feec3812-168d-4f87-afa3-8c49264cac72&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a50fc65-f524-439d-85d2-128138590b25&gt;,
+ &lt;Future: pending, key: find_functional_groups-b82d7bdd-2719-4570-829f-3376bc4ccaf9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6e8413b3-af19-4013-8643-44f07b942963&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-11d06d9f-208c-4f8a-9121-3e7da2cc2cea&gt;,
+ &lt;Future: pending, key: find_functional_groups-eb9d7554-551a-49de-b60d-7a3627171b29&gt;,
+ &lt;Future: pending, key: find_functional_groups-ec04f834-3367-4a63-9fa9-681c700f86c8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-615afc78-0ab6-4626-8992-ecc660ce09f6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5d005c26-34b7-40fb-9d4d-f58d8fb30bc6&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee4672fa-becf-45b1-ab69-068ed050b688&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-314533b8-d4fe-43a9-9709-5d17ee75b0e9&gt;,
+ &lt;Future: pending, key: find_functional_groups-926f8d04-4b07-447b-8f14-44dd384923c7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-53bd9fe7-918a-4d54-8f95-106b8549370f&gt;,
+ &lt;Future: pending, key: find_functional_groups-a973f522-a6a2-4ada-bcdc-803cb79f066a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-320fa337-61c6-45a3-8786-fc0ebd541edd&gt;,
+ &lt;Future: pending, key: find_functional_groups-ebd06942-d6a5-4274-80a6-e46586ddda7a&gt;,
+ &lt;Future: pending, key: find_functional_groups-bce6969f-9997-406d-96fc-0271505a71d1&gt;,
+ &lt;Future: pending, key: find_functional_groups-d0b123e6-0615-4f77-855f-d68492c8eed7&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ea5941d-a468-4ed6-bd67-2b01dd9cb83d&gt;,
+ &lt;Future: pending, key: find_functional_groups-9c3a23c4-0fce-46f9-9e28-530eaa6200c2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03eca410-d57b-4218-bad8-b84644493a21&gt;,
+ &lt;Future: pending, key: find_functional_groups-ba36cf3d-0664-40b6-b60f-98c93b48c4e1&gt;,
+ &lt;Future: pending, key: find_functional_groups-a6d920c4-95de-42b1-b83e-be6655716eec&gt;,
+ &lt;Future: pending, key: find_functional_groups-88e37914-4bc2-4e55-bb96-e8162c17a230&gt;,
+ &lt;Future: pending, key: find_functional_groups-ae25051d-361e-466e-98c3-1d53ef1a227b&gt;,
+ &lt;Future: pending, key: find_functional_groups-fe2f93bd-9ed3-40a4-ba44-452a021fb917&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00b43072-c675-4b4c-ac0c-c194b09ce97d&gt;,
+ &lt;Future: pending, key: find_functional_groups-c2eb516f-76d4-4ef1-8755-411da39d3c46&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-74bbc9b5-fa9f-40be-8452-5e6ed0ff5bf7&gt;,
+ &lt;Future: pending, key: find_functional_groups-9c3c2205-c686-4975-8de4-c4852d6e73a5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3458aa64-f3c9-4d24-ade5-7663966a4165&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-65c9bb60-3497-456b-a0ea-f3fa144b59a1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-33f6a4c1-5bd1-49e0-81b7-f54e1e2e53b1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2f60bfe3-6f0c-4972-b1fb-1f5e599cb622&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2efc5ce2-bdb9-4851-ab18-c2e44bf1decb&gt;,
+ &lt;Future: pending, key: find_functional_groups-919eea3b-7f45-412b-9208-fadc33865e5f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-16fa8beb-400b-467d-b8fb-d22ec28b7002&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-47944154-a842-4e81-a825-b10660b9317c&gt;,
+ &lt;Future: pending, key: find_functional_groups-e79e3953-bd9b-4717-8b5e-d0012845aa0f&gt;,
+ &lt;Future: pending, key: find_functional_groups-c85d1bf6-7eda-4ce0-a6f2-421858bee87e&gt;,
+ &lt;Future: pending, key: find_functional_groups-773d440c-4607-4a55-af6d-116f52c1b1fe&gt;,
+ &lt;Future: pending, key: find_functional_groups-fa280f10-7d56-4fcc-99e1-a4f5e1cea220&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a6930a6-c241-4e14-ad80-47213dcffb6f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5c10d7c7-4578-40a7-bd93-72627ca4a7e8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-27b85490-3eed-4c84-9e17-25ad2e7d5c42&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-10c9c578-3036-44e6-8541-d153129f6391&gt;,
+ &lt;Future: pending, key: find_functional_groups-f156dacd-c2b2-4243-924c-e0c85a107eec&gt;,
+ &lt;Future: pending, key: find_functional_groups-d5e04bb7-7840-440c-9704-51496f354a29&gt;,
+ &lt;Future: pending, key: find_functional_groups-af9f7760-e8f1-41a4-938f-31b43f69b015&gt;,
+ &lt;Future: pending, key: find_functional_groups-efc78e4c-6d60-482c-a763-13060e27327b&gt;,
+ &lt;Future: pending, key: find_functional_groups-fdbb07c2-e2dc-468d-ad82-d3adf9961016&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0337c94c-c81f-4a32-b5b8-963cbe58bf9e&gt;,
+ &lt;Future: pending, key: find_functional_groups-999b0483-a73a-455b-8f19-fd7913897943&gt;,
+ &lt;Future: pending, key: find_functional_groups-ca792111-0378-4bef-aedd-a09ef5d3f677&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-08bccee8-facb-47ce-8357-b1347c37d44c&gt;,
+ &lt;Future: pending, key: find_functional_groups-87173530-8833-43c0-a844-0705603d2db6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-402cba1c-351b-4862-b77b-4d8dd3ba9fec&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-74adddde-91bc-40e4-a09f-554491ee864d&gt;,
+ &lt;Future: pending, key: find_functional_groups-8196895e-620b-4502-bc1c-3f245771f06c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4f9a3df0-b4cd-43b1-9b05-8467f0c4a98a&gt;,
+ &lt;Future: pending, key: find_functional_groups-ca8c4ffd-902d-47ec-8b63-0e2ed7dbb0ad&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-21279f27-5ea4-406d-9b42-cfd1da7ab74b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-72a004ba-194b-485e-8989-cc5ad243cd34&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-44dc2edf-aaa1-43ba-b4f4-ecbff2960e10&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5e65eebb-21be-40a5-b49c-5cbe44341dbb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-26303d20-e2cf-45d2-9c9a-44362238a7f6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1a381d91-b876-4aeb-aa5a-6f1a0d6bfacf&gt;,
+ &lt;Future: pending, key: find_functional_groups-9c85f65e-172c-4564-a963-994da4da766a&gt;,
+ &lt;Future: pending, key: find_functional_groups-db9aed1b-c43a-4255-8280-47e1e58b70cc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-47f4b75b-c961-4ed3-87a8-062938c40beb&gt;,
+ &lt;Future: pending, key: find_functional_groups-c2d3017d-96e5-4bdc-966b-d1ddb79fee26&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f116094-f1f0-4872-a013-910cf14519b9&gt;,
+ &lt;Future: pending, key: find_functional_groups-9990f5ab-720a-487c-94ac-1cc692cb85ae&gt;,
+ &lt;Future: pending, key: find_functional_groups-961977b9-c504-4d99-b00e-40bf4f35b4d7&gt;,
+ &lt;Future: pending, key: find_functional_groups-ea8ae831-bb36-4799-bb49-a5beeaad87b6&gt;,
+ &lt;Future: pending, key: find_functional_groups-ae75564a-896b-441d-9c82-99ae4f1d145f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-45e2e494-a287-4aad-968e-d40c9bee7482&gt;,
+ &lt;Future: pending, key: find_functional_groups-b9cf2d2b-10d2-4065-a27b-93be8395f6b7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-67b6f81f-184b-455f-9d6f-085a0086cb84&gt;,
+ &lt;Future: pending, key: find_functional_groups-befae674-3832-477d-bd07-9005ab90ae7b&gt;,
+ &lt;Future: pending, key: find_functional_groups-ef97da1d-63c9-462a-b1bb-845ae47168b7&gt;,
+ &lt;Future: pending, key: find_functional_groups-b632ad38-4d51-4aa4-a354-6a98cde5ce8c&gt;,
+ &lt;Future: pending, key: find_functional_groups-e6471d66-a075-4412-b55d-b90368a15171&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4a29b238-15dd-46e8-a90e-8576faa24350&gt;,
+ &lt;Future: pending, key: find_functional_groups-dc62253d-4e20-4d9f-b09c-79b886f5d1fe&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2cef59aa-0851-4825-96e5-36f921c6a84a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-323e9aa6-cf2e-4231-b270-9308edcf1be5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c235fee-15e2-4190-a598-0c83899320d3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00b133bd-b404-41cb-9008-0cc8e56a28a4&gt;,
+ &lt;Future: pending, key: find_functional_groups-cdec10d8-f99c-4348-b5d4-72e41e18b976&gt;,
+ &lt;Future: pending, key: find_functional_groups-f022423b-272e-44c1-ac95-8e2a6c7fa864&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3dd28534-f0c7-486b-a3dd-f5cdc4d63cab&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-67cf8000-b067-414e-a69f-7d102d7bc26a&gt;,
+ &lt;Future: pending, key: find_functional_groups-8af4d287-ebf1-48e8-ac5b-64bebf8278b1&gt;,
+ &lt;Future: pending, key: find_functional_groups-b8e7a168-c050-49a9-9d5f-9657b9620f00&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-19550fd3-5d5a-4ba3-aee5-2a6c1a7df357&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0be10783-63e1-45ad-a9f0-dc2ed81db892&gt;,
+ &lt;Future: pending, key: find_functional_groups-780acc60-8a04-4b77-9fe5-4e0277428380&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2383be40-e08f-4bf9-88bf-d6244b43755b&gt;,
+ &lt;Future: pending, key: find_functional_groups-873d3dc7-2c7a-4452-9d69-0770a3cb2375&gt;,
+ &lt;Future: pending, key: find_functional_groups-d7168e33-7304-4ded-927d-2c469732e288&gt;,
+ &lt;Future: pending, key: find_functional_groups-b523da15-bfb8-4368-97d8-24d7e5e31bdf&gt;,
+ &lt;Future: pending, key: find_functional_groups-b1d3aa76-421f-455c-beb9-8ee19763c3f9&gt;,
+ &lt;Future: pending, key: find_functional_groups-992a9cd2-8aa8-4ffe-97c3-a7459f3fd581&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-16d45a13-7a0f-4b7b-93e1-d3564eda1023&gt;,
+ &lt;Future: pending, key: find_functional_groups-fb6d755c-12e5-4565-9719-0c00dd54dffa&gt;,
+ &lt;Future: pending, key: find_functional_groups-be97e5bf-f8f1-4c1f-94cc-25c696ff375b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6673a480-e3bb-44b8-bfa5-ca566cd1b347&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-64c02079-e4b4-4f74-b463-e05430c7bc8b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-30c63f07-1c4a-42cc-a76d-5f87a792dd06&gt;,
+ &lt;Future: pending, key: find_functional_groups-92a67b00-8d30-4988-9d6c-b30b17c57e4d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-65fecf4e-80c0-467d-ae27-11323ab83b18&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-023faa66-65de-4dff-9603-336dac999038&gt;,
+ &lt;Future: pending, key: find_functional_groups-c79b25cf-bb35-4bee-b2fb-cb06d18507c1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-353b12f1-1cef-4682-b3f5-b1c792ab70b1&gt;,
+ &lt;Future: pending, key: find_functional_groups-f38deaf5-2a0a-4f1c-be0c-ce604a7d35e4&gt;,
+ &lt;Future: pending, key: find_functional_groups-efe28ccd-491c-4d81-881d-9c1499433337&gt;,
+ &lt;Future: pending, key: find_functional_groups-c22752c6-720e-4df1-b5bc-afde2630e92e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-30225954-fc73-4850-b261-506d1d847311&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c53f73a-034e-49ec-8037-e0c3466f1721&gt;,
+ &lt;Future: pending, key: find_functional_groups-829bd70a-dcd2-47a4-ae32-f45421881403&gt;,
+ &lt;Future: pending, key: find_functional_groups-de7c4005-52b7-46ca-968c-d299097c15f1&gt;,
+ &lt;Future: pending, key: find_functional_groups-e3e90386-a29e-4410-9a77-e199a76753e9&gt;,
+ &lt;Future: pending, key: find_functional_groups-da162df1-13ac-49d8-ba69-6a5acdd67e13&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-35c7a9ef-8113-464b-b313-ef0973fa975e&gt;,
+ &lt;Future: pending, key: find_functional_groups-d735371b-9ebb-472f-88e9-bcf9212eb53c&gt;,
+ &lt;Future: pending, key: find_functional_groups-c90a492e-652f-408b-8bf0-333e9010dedd&gt;,
+ &lt;Future: pending, key: find_functional_groups-b2a2ac90-476d-4c7e-99d4-04dd6ca3d3c1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-51b91af2-5715-4ec8-8069-fa8aff5e6a43&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f8745f3-56f7-447f-a77b-a9b720dcf1f0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-245bb12c-1363-4421-8c2a-d4f2b2b8f132&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-496cd956-0a64-4be3-be7b-7a8427184e29&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6edb2488-6a94-45fe-aec7-00111ba7cc31&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4168b7a5-f445-4306-9fb1-2e29a3d71562&gt;,
+ &lt;Future: pending, key: find_functional_groups-b7746607-7a80-4d2a-9ef2-7e67631988de&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-70391fb7-bb57-430a-813d-a29992df4bb3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-65405102-323f-4049-ab48-f77d4f2ca85b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-310586ce-95b8-4635-9a51-9b53681c78ae&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-57ad0114-61df-452c-a866-b34471c542be&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-56bab0ac-964d-4821-afcf-1b80d015abc2&gt;,
+ &lt;Future: pending, key: find_functional_groups-ed5a0e42-5f45-4027-b259-a31cbfc86735&gt;,
+ &lt;Future: pending, key: find_functional_groups-90c6d3cc-126b-414b-95a2-88887aec172f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-053c908c-01e7-4de3-b832-544d27ca5472&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-05d013ee-b39b-4086-8a32-9bfe2ec038e7&gt;,
+ &lt;Future: pending, key: find_functional_groups-f423ad3a-4be2-4ba0-be73-f7397b8ad803&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-517b9974-8002-4040-a704-a73a7e5c1b71&gt;,
+ &lt;Future: pending, key: find_functional_groups-f9a43717-0b54-4aaf-9486-fc13c73bd95e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-58013bce-bf3d-46c0-963a-113011e2d5aa&gt;,
+ &lt;Future: pending, key: find_functional_groups-f61a73be-521e-4cbf-95b1-f6f7710da134&gt;,
+ &lt;Future: pending, key: find_functional_groups-a772a92b-c9bc-4623-86ea-f5f5f9d59f09&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5823d31f-0966-49ef-9c3a-a00da97efab4&gt;,
+ &lt;Future: pending, key: find_functional_groups-9bd0893c-9995-448f-a14f-384196507e2c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0b455bd8-4d0f-4eca-b502-5688c1dbefef&gt;,
+ &lt;Future: pending, key: find_functional_groups-8f2d5ded-65f4-422e-acd5-f33f51930094&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-728a6b90-84f7-49c7-b7d0-b009d77a78b8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-18488dc3-674d-4e29-a24a-f529da8b6540&gt;,
+ &lt;Future: pending, key: find_functional_groups-c46f5d36-a286-48c7-8ef7-292e23f6b287&gt;,
+ &lt;Future: pending, key: find_functional_groups-80778778-c960-4e37-80a4-0c22dc7ec22e&gt;,
+ &lt;Future: pending, key: find_functional_groups-993297ec-2f2c-4292-aaae-2a02c8e68aad&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2b5cb415-a5da-460d-bbeb-778fae1d8c00&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4b9cae99-108a-4b5b-a106-3cc63dfe8838&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1a24734-83b7-4c11-80c0-db3eb7c90c46&gt;,
+ &lt;Future: pending, key: find_functional_groups-a241251d-fa12-46fb-9875-017c667400e9&gt;,
+ &lt;Future: pending, key: find_functional_groups-c8e07189-8c2f-4ada-88f0-d896230fdda5&gt;,
+ &lt;Future: pending, key: find_functional_groups-873f59aa-4ca6-44c4-a6b9-973d56220fc1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1d0ab40d-7822-4c35-87fd-dbb4bc085e18&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-44710d85-d9c2-4ebe-9676-a45418be37ba&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0d288d19-6da6-48a0-abb2-8e1a9dd92a0b&gt;,
+ &lt;Future: pending, key: find_functional_groups-9017ec66-6fb2-495d-b885-8e062aada2be&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6dba6dac-afe9-400e-8dcf-2141a80ea369&gt;,
+ &lt;Future: pending, key: find_functional_groups-cbd40864-7052-4b2b-83f3-15e361a0fe60&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1406d896-ef7d-4788-937a-ef41c11c2461&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-227d7cb8-0808-48bd-903f-8e5d8d3fbba8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0ea47ac2-e49d-4be6-a090-58d869d83f9d&gt;,
+ &lt;Future: pending, key: find_functional_groups-e8ea42fd-495d-4cf7-8949-1b8053766b8b&gt;,
+ &lt;Future: pending, key: find_functional_groups-95407996-b32b-4ddf-96f8-f8d90048924b&gt;,
+ &lt;Future: pending, key: find_functional_groups-fd6e9de9-2ff5-47d6-a008-68c27b7a4990&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1814548f-66f0-4c94-a6a3-b561da08c8b2&gt;,
+ &lt;Future: pending, key: find_functional_groups-a729c199-7704-4a53-b91d-7403564540b0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-13f622f5-8cfc-42d4-973e-93a74f7430dd&gt;,
+ &lt;Future: pending, key: find_functional_groups-8cd4c45c-2436-41ce-9037-bb5acf173c17&gt;,
+ &lt;Future: pending, key: find_functional_groups-8ef5739c-c53e-4689-8156-6e33333ab836&gt;,
+ &lt;Future: pending, key: find_functional_groups-f4f92d47-7304-4a7c-a586-85f4577f9c41&gt;,
+ &lt;Future: pending, key: find_functional_groups-bde2d9cd-f0c7-4b97-99fa-8040dbe06f9b&gt;,
+ &lt;Future: pending, key: find_functional_groups-eb80417a-00cd-40c6-9f73-82474257bf0f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2519b6f1-4c7b-4dad-9eab-069256b0ec4a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-04f35db4-80c7-49b4-96d9-2c32d9d02786&gt;,
+ &lt;Future: pending, key: find_functional_groups-c3d14056-b347-4b2c-9646-5bc34dd9dd2c&gt;,
+ &lt;Future: pending, key: find_functional_groups-b2b104f6-23e6-4ad6-87c7-6b732cf7ae9c&gt;,
+ &lt;Future: pending, key: find_functional_groups-f92efd49-4a6a-4424-9c68-b3624eff01b3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4a8de2c0-ced3-4e30-9225-2870007436d9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5500efb5-f2bf-4562-9584-55aaf7ce15cb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1ed972da-d660-44ba-aaa3-f8f3c97d205e&gt;,
+ &lt;Future: pending, key: find_functional_groups-b9d3ebcb-52cc-424d-9e71-7f43784b230a&gt;,
+ &lt;Future: pending, key: find_functional_groups-d454ffec-d288-4036-86b1-6b15f071c396&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0fd60d5e-096d-44e6-a1e3-14d9e39b45ea&gt;,
+ &lt;Future: pending, key: find_functional_groups-98dc810d-3ed7-4d8e-ad3a-00923278bbf8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0b39db1a-99f4-4a86-8343-80c66b8ee6be&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-24ae0649-c3a6-48e8-adbf-8a1867e3655c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-10d32ebc-23a4-4e9d-9c22-956102fde527&gt;,
+ &lt;Future: pending, key: find_functional_groups-be00483b-96f0-45ab-9412-ad905c9c38ec&gt;,
+ &lt;Future: pending, key: find_functional_groups-96990c7f-bb73-45e5-9530-47f231f6ae4c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00dd2942-5c2d-423f-abb7-39fb7e0875ac&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1cfcd3b0-ac3e-4044-af3d-19bb590e0b26&gt;,
+ &lt;Future: pending, key: find_functional_groups-def5431d-701c-426e-81a3-30c31251537b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-616f150c-eaaf-4c20-820c-bd6fc8a37427&gt;,
+ &lt;Future: pending, key: find_functional_groups-f6057b8f-293b-41b3-8abd-d8b2ae6d7d8d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-275d99b6-8542-4574-b730-2c78c4d4643b&gt;,
+ &lt;Future: pending, key: find_functional_groups-b8e44e46-ae4b-4c2b-8280-00eed7055f61&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4b103b45-0fee-4869-b1be-68ecbd79b8dd&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1748f86-ab46-472b-a575-79bf6142fe02&gt;,
+ &lt;Future: pending, key: find_functional_groups-a0b93c67-d40a-47bb-8dd9-4bd4e47c0818&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5100c798-5aba-430c-a906-90f230c22038&gt;,
+ &lt;Future: pending, key: find_functional_groups-bca8b8b9-dc57-4638-bf54-fe4710cff427&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-477a0acc-7fa8-44d5-97be-5b76815ad868&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1b3151a-e10e-4e7d-9a85-79715b7118b3&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ea741e2-eb23-4fd8-8e0e-4a12c80bd939&gt;,
+ &lt;Future: pending, key: find_functional_groups-b46ae6a8-b31b-4d37-87b3-61add8e5b9f7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1cea4362-1c14-47b6-9340-b1dfce8a6cf9&gt;,
+ &lt;Future: pending, key: find_functional_groups-fc20fea7-f9d7-44b9-ae9c-2f86c7f0351c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-67db7154-81d4-44b7-bb9b-324f8a4e6dc2&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee3b417f-45d0-48db-a074-bfc14691d7fc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3e7d9f3e-e0f4-4c90-b3e8-a23f2705b727&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-44c7416a-0f44-4c5e-91a5-8f852d2b1c57&gt;,
+ &lt;Future: pending, key: find_functional_groups-f11204a9-9c5a-471a-b390-e075d1a1d226&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6bbb13b9-13b0-4bbc-be90-70619c41f3c6&gt;,
+ &lt;Future: pending, key: find_functional_groups-cc6dc0c8-e754-4cff-a365-19480628505f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-68d0f03e-848b-4178-be33-5ade6a6be927&gt;,
+ &lt;Future: pending, key: find_functional_groups-a25af295-9291-4bc2-838a-d35246983da1&gt;,
+ &lt;Future: pending, key: find_functional_groups-e7bc6dbf-69e0-41d6-8bc8-b332d7257af6&gt;,
+ &lt;Future: pending, key: find_functional_groups-c0e13803-529c-44b2-aa1b-02bef8ba5634&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-47588e19-96b6-4edc-b36a-0eb903547a20&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-43bc793b-d1fa-4330-bddb-6b22e661ed57&gt;,
+ &lt;Future: pending, key: find_functional_groups-d13d9167-b699-4867-ad09-9faaf5152604&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ff71766-ec7a-44a8-b265-050a708dd55f&gt;,
+ &lt;Future: pending, key: find_functional_groups-b7c8f571-ec2a-432b-b27f-5d2a5a8ede48&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0372cb3d-7235-4069-bbbe-66d6402acb41&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-735512d2-888c-4d4c-a998-4b9a180c577e&gt;,
+ &lt;Future: pending, key: find_functional_groups-f7793684-b3a0-4964-adde-543bb5f210df&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3d64dc82-50e5-4396-9527-914189b5deac&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ec7e34a-de65-45b5-ab62-886f0289f240&gt;,
+ &lt;Future: pending, key: find_functional_groups-f9650a15-6176-4f4a-b23c-ec990ec5c149&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0805bc2a-b7c0-412a-a34b-e41cc156a572&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1108de8e-f140-46dc-a03e-4464719594a5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-7693c7f8-d5d0-48e9-b188-26af1598e90a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f7b7783-d258-4779-9b20-63542bd92f13&gt;,
+ &lt;Future: pending, key: find_functional_groups-f48b22a5-9546-45e8-8a7d-35ff9b76f387&gt;,
+ &lt;Future: pending, key: find_functional_groups-9bd8511b-1194-4a2c-821a-34f4db3864d9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-52d04366-c1a6-42e4-b97f-660ab089006c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-66d59465-99e8-4565-b4bb-73eb41780b86&gt;,
+ &lt;Future: pending, key: find_functional_groups-9ef69469-2784-4698-ae2d-1ea1935d428a&gt;,
+ &lt;Future: pending, key: find_functional_groups-c5735ddf-a9c0-406f-a7e6-2e7b8a3f5be1&gt;,
+ &lt;Future: pending, key: find_functional_groups-c8fdacd4-c6cf-4739-a3cf-c41ddeb241cb&gt;,
+ &lt;Future: pending, key: find_functional_groups-7f2e36c6-cda0-4e0c-9c24-87fa64f2a4ce&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1187ddfe-e2d6-4cee-bcb7-bc17031ad48e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-02a3cf41-8fb9-40c3-ab8f-08968330b626&gt;,
+ &lt;Future: pending, key: find_functional_groups-fce2ffd1-f444-4f9e-80a1-75fdf513159f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5fdf9016-8f11-4440-9efb-898a1db074df&gt;,
+ &lt;Future: pending, key: find_functional_groups-d7b91d27-599e-4f8b-96b9-92a302d0f821&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-53e16c41-ff2a-4ac9-a3a6-79cd7de0dadd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-50909580-2d51-4b4f-801b-1924159e4e0e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-77ecd8e8-3cef-41e7-9730-bece35ed06eb&gt;,
+ &lt;Future: pending, key: find_functional_groups-c371c7b9-7ee8-4967-96e7-e2632c5f41b2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6f265f94-d606-42d3-a371-f15cf1803e6b&gt;,
+ &lt;Future: pending, key: find_functional_groups-a98caee5-d585-4428-a510-d3c560ab01ad&gt;,
+ &lt;Future: pending, key: find_functional_groups-d58b1da0-8f3c-4c81-a70b-dec38b50b7ff&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2177a36f-88ca-41a9-bea6-fd7eee4b4914&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-356339e9-101e-4634-b975-1e01f17d6521&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-212becac-dba5-4a93-8279-04ef1ae96c94&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-32a59880-7a35-4493-b6a2-b2acd6f0c449&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0fa96865-e14b-45a0-8d23-1cd85372ad50&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-40d75512-9a1f-4858-84b7-1a598625e3c8&gt;,
+ &lt;Future: pending, key: find_functional_groups-df6092f9-4859-41e0-bf54-75a26f64e7f3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c00ab64-5dbb-4f67-a04f-b857d8bfe0be&gt;,
+ &lt;Future: pending, key: find_functional_groups-f97477e6-d65b-4353-b3ed-34bf6a477509&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2b3129c5-76ce-49e2-80cb-cfdd1693dc2b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-11e4c948-7e99-401d-a9d7-87c9acc5f43f&gt;,
+ &lt;Future: pending, key: find_functional_groups-a1a99bdd-25da-4565-a527-6886997920fe&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4da27bf6-fb3b-48d6-b247-1d83e854d787&gt;,
+ &lt;Future: pending, key: find_functional_groups-c8cbeb29-b95c-4a81-8bcb-f47dbf686028&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6ca288b7-6a94-4b0b-bea1-0ed245201730&gt;,
+ &lt;Future: pending, key: find_functional_groups-8b12b48c-0cb3-45ca-83f6-04b23b39f1ab&gt;,
+ &lt;Future: pending, key: find_functional_groups-79a5ef3f-bd7a-49b0-95d6-e9c418bc5653&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5eaadaf6-4665-48e5-81d3-66029f6479e3&gt;,
+ &lt;Future: pending, key: find_functional_groups-bae80427-99ca-48c7-9907-fb6fa6e7bcca&gt;,
+ &lt;Future: pending, key: find_functional_groups-d799ba74-2444-4eb2-9758-fedfdc72580e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0b084b0c-15a6-46c7-8ec1-bae09d650ef2&gt;,
+ &lt;Future: pending, key: find_functional_groups-a099b844-667d-46b9-80a6-39ff9eacfc7d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2405a969-5167-4902-9dd3-af6c44d1678b&gt;,
+ &lt;Future: pending, key: find_functional_groups-941374d0-c137-4ff1-98be-65b8acf60ea2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6dbbe0a8-4af8-4253-b822-3b525a940db2&gt;,
+ &lt;Future: pending, key: find_functional_groups-882e40d3-1bf6-4c05-a7fe-31734e41a7c8&gt;,
+ &lt;Future: pending, key: find_functional_groups-b387de8c-5ee4-4493-8e36-b85ab296ce60&gt;,
+ &lt;Future: pending, key: find_functional_groups-eacc9e6c-6866-4cf7-9f48-393bf974da7f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-58f9b238-98fa-42e9-8f5e-39fd7444df83&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3f4d1ae9-357a-4828-9e53-deea528b9bb1&gt;,
+ &lt;Future: pending, key: find_functional_groups-a5058cb4-74b5-4766-bd2a-145bc499d4d1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0921734d-2a38-4c32-902b-31882a011af4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-47223070-e922-4ece-959d-05c392fbebf4&gt;,
+ &lt;Future: pending, key: find_functional_groups-844301bb-e180-4d14-a7de-f371270b3b45&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2c5ac3bc-75aa-40b4-b08a-06f39e3a324b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-23402c4a-8182-45fb-bb94-cc0be80da948&gt;,
+ &lt;Future: pending, key: find_functional_groups-b7129c52-6719-470f-b1f1-3847f56f53a7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-06589a86-3872-4f66-b3ce-d74e3208e116&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-126ebe9d-9ded-4a66-baa0-2b8027070950&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-21b9b0b1-a0af-4c5d-8ea8-a7ad1ca832ae&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-44d3de05-0344-4bd9-a8c6-a963c0c9a072&gt;,
+ &lt;Future: pending, key: find_functional_groups-e8a82696-5667-4772-8de9-3da58ccde670&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00936afc-9cdd-497a-a34e-48de5c607934&gt;,
+ &lt;Future: pending, key: find_functional_groups-7a6b11c9-0ba8-44bc-b433-f631bb9ecbcf&gt;,
+ &lt;Future: pending, key: find_functional_groups-c26be3f7-976a-42f3-b20c-60f0144ca687&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-127f6159-93bc-4595-bd8c-e6ac49bd2d99&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-427a7038-a692-4b94-aafa-35eaa8aa9fc8&gt;,
+ &lt;Future: pending, key: find_functional_groups-96c37dc0-d933-4035-8662-69f955487f84&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-43f7a967-1181-41fc-a500-4df3bd79ec14&gt;,
+ &lt;Future: pending, key: find_functional_groups-b91c12d5-fd86-494f-b4f6-3f569af440d5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03c5360e-c67b-44cf-be85-8a74ca000fa3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4d09f0f6-344f-4f08-83f5-3a21b740a5c4&gt;,
+ &lt;Future: pending, key: find_functional_groups-ad95ae22-8d69-47e8-ac48-88c6b831d16d&gt;,
+ &lt;Future: pending, key: find_functional_groups-f46e3f5f-6ec7-4f0b-95bc-4ba55a6d67ee&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1d9fd9de-9c79-4cbb-aa52-16a2d6604c5e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-331f5123-d1c4-4a36-a706-623f9002f1e7&gt;,
+ &lt;Future: pending, key: find_functional_groups-dbb2592f-d5eb-400d-9008-abc8bf2328fb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0ac91f83-3220-4201-a5c8-a634cb51a66d&gt;,
+ &lt;Future: pending, key: find_functional_groups-b2c4a68a-5279-4be5-ad9c-909f94e6aee1&gt;,
+ &lt;Future: pending, key: find_functional_groups-806a5910-4bba-4b08-a65e-daaefffdc593&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-604ced8a-65e4-41a7-8ceb-b3f5374ea1a0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0dabf1b0-6664-43ea-994a-5f626acf0405&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-129f6f98-f09c-4004-89e2-bf90e041f62f&gt;,
+ &lt;Future: pending, key: find_functional_groups-c3052dd0-f541-4350-8735-4de9d0a86667&gt;,
+ &lt;Future: pending, key: find_functional_groups-c205c37a-4f10-408c-9de2-c51acf2609df&gt;,
+ &lt;Future: pending, key: find_functional_groups-e5100dc1-d80a-4506-b8a2-e15e6c853dde&gt;,
+ &lt;Future: pending, key: find_functional_groups-f378aa9a-94e9-4933-915d-edfd870002f7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4574b48f-6be1-43ed-a018-0a4249f95058&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-16f669a2-8a18-44f4-9e32-bd6f086bf8bb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2a3fa205-aa0a-46cf-b223-f717e4a3679f&gt;,
+ &lt;Future: pending, key: find_functional_groups-adebe432-d837-4240-862a-ffb8c3d476c4&gt;,
+ &lt;Future: pending, key: find_functional_groups-9271aac2-5cdd-4540-a5d3-b77be96dd487&gt;,
+ &lt;Future: pending, key: find_functional_groups-8949453e-7f82-4b25-9bc9-d444568b4f10&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-46c9cfc4-d417-4f72-9de7-9a774f66c0f4&gt;,
+ &lt;Future: pending, key: find_functional_groups-91f0d8fa-9ed3-4908-9eb6-80815be4802e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-12ceb5f1-4c46-4c80-a9d3-768562d539e7&gt;,
+ &lt;Future: pending, key: find_functional_groups-81d33d15-0ee3-4711-b8d6-496f35b26119&gt;,
+ &lt;Future: pending, key: find_functional_groups-f50c0a3c-4585-4ebb-a968-e85441a680ed&gt;,
+ &lt;Future: pending, key: find_functional_groups-92e4c990-13cb-42f3-ad50-c4d8a1af6a50&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-55da6263-6fb7-41d3-8312-0ded05624a19&gt;,
+ &lt;Future: pending, key: find_functional_groups-892e54cd-42be-4b0b-98ed-d246a26342d2&gt;,
+ &lt;Future: pending, key: find_functional_groups-b1eee7e3-e4f7-4984-a265-7711271fc05b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6ca1ce5f-05cf-4b52-ae94-2b36f89b2a9b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-49059cde-46fe-4a46-b8e5-cf34fc8b8111&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-02e816cc-2787-4ef9-9bcd-272b91f10278&gt;,
+ &lt;Future: pending, key: find_functional_groups-a255aae2-49c7-44db-8605-d3ad2360fc22&gt;,
+ &lt;Future: pending, key: find_functional_groups-de96ddba-2c6c-42f4-8db2-ba49c0a6801c&gt;,
+ &lt;Future: pending, key: find_functional_groups-a0041c69-e567-4780-8b02-b679b9b013fb&gt;,
+ &lt;Future: pending, key: find_functional_groups-99e38256-2155-4488-842c-7e200965c7a8&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c28341b-9cbf-4497-a83d-8bbc609e7eb5&gt;,
+ &lt;Future: pending, key: find_functional_groups-a95cf1a6-613e-4fa9-83e4-0774e23d3c76&gt;,
+ &lt;Future: pending, key: find_functional_groups-dd5aabcc-1c24-489c-99cf-e5668df04498&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5d8d9694-1a74-47fc-a37f-6dd5980d0d64&gt;,
+ &lt;Future: pending, key: find_functional_groups-ecccf865-bf95-4631-bb1b-3660cc58b498&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1318d3d2-ae75-4c50-86e5-5a646aa2c2d6&gt;,
+ &lt;Future: pending, key: find_functional_groups-99d02059-9277-4460-a823-a8a94a76c8b5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3f8273a5-5d06-453f-b41f-ad080f850f6d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6943b95b-3f9e-488a-987b-82032786dc32&gt;,
+ &lt;Future: pending, key: find_functional_groups-f93c987c-04d9-4d47-962f-425116e4b202&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-07824501-ee0b-445b-9448-b658407dca0f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-06adbcf5-2643-4ffd-9f8f-2b871bf12ecc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-18e0e885-17e9-4cf9-b0e3-1a2b6c6ecf55&gt;,
+ &lt;Future: pending, key: find_functional_groups-b92a9a5f-cb2c-42e3-88f4-a0d0bdc41371&gt;,
+ &lt;Future: pending, key: find_functional_groups-862f55b8-f308-4996-844a-680ea96138f1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-18ba3b0d-eedc-4c3a-bd44-f5606111a73b&gt;,
+ &lt;Future: pending, key: find_functional_groups-9e45b6f8-8bc0-49ca-a854-d30eaea2e9d3&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1ac8222-fbd6-4ac7-a11e-47f2fd3c94c5&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-07371c24-daf9-4934-bf95-7476aed43fc8&gt;,
+ &lt;Future: pending, key: find_functional_groups-c300c12a-988c-4291-9d33-fe4b853ff94b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-41f71729-8b6d-4b94-b1cd-5f2ed22ed6e0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-54dde29e-44a7-4ef0-a659-ff50e04556fe&gt;,
+ &lt;Future: pending, key: find_functional_groups-95aba187-d475-4332-bdfe-50c331468419&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2c8f2d52-c5e6-4555-9cc3-de2ef58f1f68&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3f45e2ef-edae-4cc3-972f-37b8d44369c5&gt;,
+ &lt;Future: pending, key: find_functional_groups-951024c7-216f-404e-b49b-ec6a1b2d2d02&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-51f4a073-e072-414f-aef2-daf6ffb3c4d2&gt;,
+ &lt;Future: pending, key: find_functional_groups-d9ad6586-0702-4369-b7eb-b6b685790919&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-73b2262d-f69b-4f9f-a849-2ca1dab4175f&gt;,
+ &lt;Future: pending, key: find_functional_groups-e121e277-cf02-4a8c-88e8-dba846be6912&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-008719b8-0f7a-44d7-8342-97ad11133c35&gt;,
+ &lt;Future: pending, key: find_functional_groups-904b60bc-2dd3-46da-9ef1-d4b986f58860&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-24d39f67-e2bd-43c3-9cd4-f91360dc2d39&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03f69fc2-8a38-43da-9c0b-55673b9fe797&gt;,
+ &lt;Future: pending, key: find_functional_groups-925ea693-743e-425a-9ed3-343fd26c5bfe&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1f52fb9c-b0a2-406d-a98a-d008a72ee173&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-15fc3beb-056f-4e46-a4a8-94ab4267eb1f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-23b3add4-c208-4391-b85e-59ea2a39e04b&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-155aa2ed-bb45-4e77-a3ca-e8af6af50689&gt;,
+ &lt;Future: pending, key: find_functional_groups-bdacc37c-b62e-455c-a6d3-3280c722df16&gt;,
+ &lt;Future: pending, key: find_functional_groups-804f2bf9-fe4a-49ef-8d8a-5d141181ffdf&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a95d361-a2e6-44ad-acb0-cdbceb8dd1a0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03c7862a-5510-470d-84ce-0b33ceb95dd2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-400a0a14-63bf-4e72-937c-b0e57de629cb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1fd90205-dab9-4373-9699-6dcd4dad3e11&gt;,
+ &lt;Future: pending, key: find_functional_groups-a0f5bad5-1cf9-4e25-987b-2414108acbb0&gt;,
+ &lt;Future: pending, key: find_functional_groups-97fcd99c-6e32-42ce-8f10-fbf73f4f27d2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6e0cbb28-3f2c-4019-b49b-4bdb76d4ebd7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5840b6d6-55de-4c64-aa05-8e9022f8b39d&gt;,
+ &lt;Future: pending, key: find_functional_groups-b76cdaa8-92f3-45ce-93f0-66b092881983&gt;,
+ &lt;Future: pending, key: find_functional_groups-e1955b9f-7099-47c2-8612-cda43bc9a1dd&gt;,
+ &lt;Future: pending, key: find_functional_groups-82871279-2f21-4565-8fb9-08665052818f&gt;,
+ &lt;Future: pending, key: find_functional_groups-ab9ad121-0f08-46e9-a169-dac54292470e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0cda89f5-ca90-4db0-8e0f-66b2b0adbee2&gt;,
+ &lt;Future: pending, key: find_functional_groups-ee0c107a-77ed-40c5-89ba-8771476d4a09&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-08105ff3-2d7f-4338-84bc-d17e12c2e41a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c95a2fe-81f1-45bd-aa5d-174fda5af4dc&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-32e87210-d9c3-48c7-98b5-01e22255c7df&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4db4828c-3bbc-4e17-bb7e-a64f056b5816&gt;,
+ &lt;Future: pending, key: find_functional_groups-903f43ff-57be-458f-89f4-47bb6a54d4e4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-27c4029f-3cd7-4309-8fb0-7d214bfb9fe1&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-450732ad-277c-44f1-a543-d7204cfe1904&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-192dc736-aa12-4fd9-85fd-2198a643566f&gt;,
+ &lt;Future: pending, key: find_functional_groups-863f7fa0-432e-4f40-bb1c-aa82b307e951&gt;,
+ &lt;Future: pending, key: find_functional_groups-b5cb239c-6dd3-46cc-b585-4f46711f10a9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2d49ad12-f860-4fe6-b278-b41319d77d9c&gt;,
+ &lt;Future: pending, key: find_functional_groups-d3555a2e-4ccf-4a7a-ba9e-6e5a41dae1df&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5329ef09-a5bd-4388-ba80-545479358ecf&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-7322261b-451f-4de3-9676-f1b9fe5fe1ef&gt;,
+ &lt;Future: pending, key: find_functional_groups-fc24f2a4-9cd9-43a0-acab-d970c2bd422e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6910a0f0-9588-47c8-ba5c-99c0c7765fac&gt;,
+ &lt;Future: pending, key: find_functional_groups-f97aa388-631c-41ac-9bb9-c6abe9cfd5d3&gt;,
+ &lt;Future: pending, key: find_functional_groups-bba0e776-c5ed-4bde-bd01-264fa897fb52&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-641c88b0-bd4b-4e4f-bfd6-a8e01daafb70&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-36bfd784-cb23-487d-bd88-ad0cfeb9841d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6227669a-6dd1-4253-8a30-08860067960c&gt;,
+ &lt;Future: pending, key: find_functional_groups-fc9f24ba-6a1e-46c9-8a47-73d50e382df2&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-03a8e2dc-c60d-48b6-9ab0-5ac448c6c8f5&gt;,
+ &lt;Future: pending, key: find_functional_groups-f5a82f5e-3a3e-44c7-aa67-579df513acfa&gt;,
+ &lt;Future: pending, key: find_functional_groups-eb86744a-0d8c-4784-b78e-e173b3e33194&gt;,
+ &lt;Future: pending, key: find_functional_groups-fe0f4c28-dc38-4ed8-bc46-77daed3b5112&gt;,
+ &lt;Future: pending, key: find_functional_groups-c39a1dc3-87d3-4aae-82b8-d8e5d37f4166&gt;,
+ &lt;Future: pending, key: find_functional_groups-f508bd80-3d32-4b19-8612-d49051734ab1&gt;,
+ &lt;Future: pending, key: find_functional_groups-c003aea1-c36c-4c36-9b13-6d6497795eed&gt;,
+ &lt;Future: pending, key: find_functional_groups-defc1067-ffba-438d-9ecb-fe364ac79be9&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-685230f0-3055-4cd3-8e31-c76d77471b0a&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5b5e2067-6727-49e4-8784-220a7cf53648&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6a55eaf5-d7a9-4751-a4c2-5ce38fe7c1ca&gt;,
+ &lt;Future: pending, key: find_functional_groups-79c07622-91f4-429c-98a0-f8a940630e9e&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-330d8c4c-7231-4afc-beff-9a4cfe7a159b&gt;,
+ &lt;Future: pending, key: find_functional_groups-f253d28e-e1dc-45a5-93d9-6b8636f93f74&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-7471ba6f-40d1-4b69-8b94-07ff6987842b&gt;,
+ &lt;Future: pending, key: find_functional_groups-fd9ec8fc-3bf5-4a28-abc3-d028418bd3f5&gt;,
+ &lt;Future: pending, key: find_functional_groups-cf062854-f789-4887-9464-59691d174451&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-6737ff55-e22a-44f1-8e13-c9e5da8fc90f&gt;,
+ &lt;Future: pending, key: find_functional_groups-fedd6ad8-9898-4223-8bc0-d9022a390239&gt;,
+ &lt;Future: pending, key: find_functional_groups-7b148a89-3b89-4637-8202-fcf3ef837ce0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2b49ca39-5743-453f-8750-91930f179436&gt;,
+ &lt;Future: pending, key: find_functional_groups-d905e821-e91c-4950-aadb-2bf0496f7bc4&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0fbfdbdb-3131-4e96-a581-e7274b0d80f7&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-3d655499-e160-49a8-9842-28914a329fbd&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2396a100-1c89-488d-8694-f4a779486870&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-23f23ce4-3a5b-49d5-9a45-a851acd1540b&gt;,
+ &lt;Future: pending, key: find_functional_groups-f7fae20c-777f-435b-badb-686903dc0117&gt;,
+ &lt;Future: pending, key: find_functional_groups-baf97e2c-d256-48c6-9028-5b932ca0b9c8&gt;,
+ &lt;Future: pending, key: find_functional_groups-b6828fab-abe0-4f5b-a154-ad8e152effbe&gt;,
+ &lt;Future: pending, key: find_functional_groups-ea55e2ee-eb0b-4608-881f-0407b3906db6&gt;,
+ &lt;Future: pending, key: find_functional_groups-ce5dc2bc-56d9-4915-b208-327f985f63be&gt;,
+ &lt;Future: pending, key: find_functional_groups-d4129dea-0f42-4b00-a259-abb64b41dd7f&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5ae2d8a7-c731-4696-95c2-c7638890fe89&gt;,
+ &lt;Future: pending, key: find_functional_groups-9f951dbd-6fc5-412f-8e0c-388fa84298de&gt;,
+ &lt;Future: pending, key: find_functional_groups-d49d8772-e510-41e5-9d55-700de2b75a35&gt;,
+ &lt;Future: pending, key: find_functional_groups-b13e1352-041a-487a-aecd-5243388c2314&gt;,
+ &lt;Future: pending, key: find_functional_groups-dfd5de98-ca79-4e46-b87b-312a2bba47c7&gt;,
+ &lt;Future: pending, key: find_functional_groups-baf170aa-29e4-4eec-b6ef-a2903d993607&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0452c238-583c-43a2-93dd-3819864c5d75&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-4fd2e64e-6c49-4f10-8423-5f8e2161ef8c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5e1b1112-5c1c-45ae-ab7e-547204bcf30c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-41001280-7860-412b-91e7-8c4ba35612fb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1ae717d9-7aa9-4def-ab0b-1667e7658bb8&gt;,
+ &lt;Future: pending, key: find_functional_groups-95bf0bb9-4d30-4d58-b2dd-54cc16cf149d&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-31bfb162-5358-4d71-af8a-82a6ffe217fe&gt;,
+ &lt;Future: pending, key: find_functional_groups-8712e536-8c05-4e2a-a22b-48c571fd1099&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-73c50d2c-eca5-4ef7-b472-546ab4df5372&gt;,
+ &lt;Future: pending, key: find_functional_groups-d13d1244-1176-4349-a90b-50d81e1df587&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-64b4b71f-ab2d-4204-a444-0856d147eee0&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-2ed0a17d-b02d-4484-a45b-53e73f803b8c&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-376c7f8b-7c76-456a-9576-d0ed6ff7b5c3&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-55d078af-0de1-42f0-9e23-d063e579cbf6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-1c5b6a8b-8c7d-4755-a81f-d2cc2042caa9&gt;,
+ &lt;Future: pending, key: find_functional_groups-b973809f-3189-414e-8ebd-2d90736194a6&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-5b88ed5d-cfde-468f-9183-04a2a8d8eaa7&gt;,
+ &lt;Future: pending, key: find_functional_groups-d3488c65-ef89-4dbb-ade6-79f39f6aef93&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-00afdd70-26f7-4feb-bcb7-a05ce78156bb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0e44bcff-2284-4222-b3c6-e6124d7fa43d&gt;,
+ &lt;Future: pending, key: find_functional_groups-dbb02960-409d-4daa-afdc-94e3f818d5fd&gt;,
+ &lt;Future: pending, key: find_functional_groups-dbb7a892-09d3-4daa-9682-9fc6a2a58312&gt;,
+ &lt;Future: pending, key: find_functional_groups-e7916c5b-e086-408e-833e-35a87566976e&gt;,
+ &lt;Future: pending, key: find_functional_groups-95cae707-bf2d-49e2-b363-0464387b5103&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-61819b4b-d26e-4423-8786-64c08f2e5120&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-0f9adfb1-8a97-49c6-8ef6-5093cc37389e&gt;,
+ &lt;Future: pending, key: find_functional_groups-abe4cf3c-cbf4-4afe-a4c0-9772efa13fb3&gt;,
+ &lt;Future: pending, key: find_functional_groups-824b07b9-cadc-4c46-aab5-248b033f1cfb&gt;,
+ &lt;Future: pending, key: find_functional_groups-91dd5e3f-f871-45d5-9f08-8cc033d971fb&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-631f6814-2645-4a8d-914a-b8e362e41954&gt;,
+ &lt;Future: finished, type: dict, key: find_functional_groups-33dfd6f1-088e-4dae-993d-8b98d89c2b45&gt;,
+ &lt;Future: pending, key: find_functional_groups-e1bd28a6-8467-40ee-ae01-dc6cdb69b3c2&gt;,
+ &lt;Future: pending, key: find_functional_groups-aa9d57c6-bbe7-4c76-a4ca-2b17b38bb594&gt;,
+ &lt;Future: pending, key: find_functional_groups-d1e02b1b-a8c2-4e3d-aa94-7ee1262e557f&gt;,
+ &lt;Future: pending, key: find_functional_groups-c2309244-f6ff-4f15-a13c-e4027484e49e&gt;,
+ ...]</code></pre>
+</div>
+</div>
+<div id="cell-41" class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>outputs[<span class="dv">5</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>(optional) save the matches to a pickle file if you need to for plotting or further analysis.</p>
+<div id="cell-43" class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>pickle.dump(outputs,<span class="bu">open</span>(<span class="st">'functional_groups_core_gt_05.pkl'</span>,<span class="st">'wb'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Let’s count the number of materials that contain each of the functional groups so that we can plot it later.</p>
+<div id="cell-45" class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> count_not_none_entries(list_of_dicts):</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    counts <span class="op">=</span> {key: <span class="dv">0</span> <span class="cf">for</span> key <span class="kw">in</span> list_of_dicts[<span class="dv">0</span>].keys()}</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> dict_ <span class="kw">in</span> list_of_dicts:</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> key, value <span class="kw">in</span> dict_.items():</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> value <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span>:</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>                counts[key] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> counts</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Example usage:</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(count_not_none_entries(outputs))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Visualize the materials counts for each functional group as a bar plot using Plotly (if you switch out the renderer to ‘notebook_connected’ you can interact with the plot).</p>
+<div id="cell-47" class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> plot_counts(counts):</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    fig <span class="op">=</span> go.Figure(data<span class="op">=</span>[</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>        go.Bar(name<span class="op">=</span><span class="st">'Counts'</span>, x<span class="op">=</span><span class="bu">list</span>(counts.keys()), y<span class="op">=</span><span class="bu">list</span>(counts.values()))</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    ])</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>    fig.update_layout(title<span class="op">=</span><span class="st">'Counts of single ring aromatics in CoRE MOF 2019 with vf &gt; 0.5'</span>,</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>                      xaxis_title<span class="op">=</span><span class="st">'single ring aromatics'</span>,</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>                      yaxis_title<span class="op">=</span><span class="st">'Counts'</span>)</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>    fig.write_image(<span class="st">'single_ring_aromatics_countes.png'</span>, width<span class="op">=</span><span class="dv">800</span>, height<span class="op">=</span><span class="dv">400</span>, scale<span class="op">=</span><span class="dv">2</span>)</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>    fig.show(renderer<span class="op">=</span><span class="st">'png'</span>)</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Example usage:</span></span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>counts <span class="op">=</span> count_not_none_entries(outputs)</span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>plot_counts(counts)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Pretty cool, right? From here I’ll leave it to you to do what ever post processing you want.</p>
+
+
+
+
+ <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+ <!-- /content -->
+
+
+
+
+</body></html>

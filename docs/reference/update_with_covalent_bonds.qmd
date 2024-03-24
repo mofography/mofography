@@ -1,0 +1,31 @@
+# update_with_covalent_bonds { #mofography.analyze.update_with_covalent_bonds }
+
+`analyze.update_with_covalent_bonds(ase_atoms, nlist=None)`
+
+It takes an ASE atoms object and returns an ASE atoms object with the covalent bonds and bond orders
+added to the info dictionary. 
+
+The function also takes an optional argument, nlist, which is a list of nearest neighbors. If nlist
+is not provided, the function will calculate the nearest neighbors using the voronoi_on_atoms
+function. 
+
+The function uses the pymatgen CovalentBond class to determine if two atoms are bonded. The
+CovalentBond class uses the bond length and bond tolerance to determine if two atoms are bonded. The
+bond length is the sum of the covalent radii of the two atoms. The bond tolerance is a user defined
+parameter. The default value is 0.1. 
+
+The function also checks if the nearest image of an atom is in the unit cell. If not, the function
+will add that site to the structure even if it is across
+
+## Parameters
+
+| Name        | Type   | Description                                                                                                              | Default    |
+|-------------|--------|--------------------------------------------------------------------------------------------------------------------------|------------|
+| `ase_atoms` |        | the atoms object you want to update                                                                                      | _required_ |
+| `nlist`     |        | a list of pairs of atoms that are neighbors. If you don't have this, you can use the voronoi_on_atoms function to get it | `None`     |
+
+## Returns
+
+| Type   | Description                       |
+|--------|-----------------------------------|
+|        | AseAtomsAdaptor.get_atoms(struct) |

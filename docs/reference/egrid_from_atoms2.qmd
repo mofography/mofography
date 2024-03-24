@@ -1,0 +1,44 @@
+# egrid_from_atoms2 { #mofography.compute.egrid_from_atoms2 }
+
+`compute.egrid_from_atoms2(ase_atoms, spacing=0.5, blocksize=20000, forcefield_mixed=None, cutoff=12.5, probe_symbol='He', return_ncells=False, precompute=True)`
+
+> It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid. 
+
+The function is a bit long, but it's not too complicated. 
+
+The first part of the function is just to get the grid points. 
+
+The second part is to get the forcefield parameters for the atoms. 
+
+The third part is to get the positions of the atoms in the unit cell, and to get the unit cell
+vectors. 
+
+The fourth part is to repeat the unit cell to get the positions of the atoms in the repeated unit
+cell. 
+
+The fifth part is to map the grid point energy function onto the grid points. 
+
+The sixth part is to reshape the grid points into a 3D array. 
+
+The seventh part is to return the grid points. 
+
+The eighth part is to return the number of repetitions of the unit cell if that return_ncells parameter is turned on.
+
+## Parameters
+
+| Name               | Type   | Description                                                                                                                                                     | Default    |
+|--------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `ase_atoms`        |        | an ase atoms object                                                                                                                                             | _required_ |
+| `spacing`          |        | the spacing of the grid points                                                                                                                                  | `0.5`      |
+| `blocksize`        |        | the size of the chunks that the grid is split into. This is important for memory management, defaults to 20000 (optional)                                       | `20000`    |
+| `forcefield_mixed` |        | This is a list of the forcefield parameters for each atom in the unit cell                                                                                      | `None`     |
+| `cutoff`           |        | the cutoff distance for the Lennard-Jones potential                                                                                                             | `12.5`     |
+| `probe_symbol`     |        | the symbol of the probe atom used to calculate the van der Waals radii, defaults to He (optional)                                                               | `'He'`     |
+| `return_ncells`    |        | if True, returns the number of cells needed to meet the cutoff, defaults to False (optional)                                                                    | `False`    |
+| `precompute`       |        | if True, then the AABB is precomputed and passed to the function. If False, then the positions and cell are passed to the function, defaults to True (optional) | `True`     |
+
+## Returns
+
+| Type   | Description                                                                                          |
+|--------|------------------------------------------------------------------------------------------------------|
+|        | The grid2 is a dask array, which is a lazy array. It is not computed until you call compute() on it. |
