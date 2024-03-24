@@ -286,13 +286,13 @@ Note
 <ul>
 <li>Add the path to mofography to your python path in your scripts and notebooks before you import,</li>
 </ul>
-<div id="7e62afe3" class="cell" data-execution_count="1">
+<div id="dd6f0af7" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> sys</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>sys.path.append(os.path.abspath(<span class="st">'path_to_mofography'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>of course, replace <code>path_to_mofography</code> with the relative path to the mofography directory on your local machine. This way we are not installing anything yet, so if there are changes to the source code, you can simply pull the latest changes using <code>git pull</code> and use them withouth having to reinstall the package everytime. <code>### Test the installation 🧪 - Import mofography to see if it works. There are CIF files in the</code>mofography/examples/TestCIFs` folder, which you can use to test the package. Let’s use a full-on clustering workflow with default parameters on the IRMOF-1 structure. More information on the inner workings of the workflow are provided in the <a href="./quick_cluster.html">Quick cluster</a> tutorial.</p>
-<div id="f30ee3a7" class="cell" data-execution_count="2">
+<div id="a42d2b53" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> read(<span class="st">'path_to_mofography/examples/TestCIFs/P1-IRMOF-1.cif'</span>)</span>
