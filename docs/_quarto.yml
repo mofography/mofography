@@ -4,7 +4,7 @@ project:
 website:
   page-navigation: true
   navbar:
-    background: dark
+    background: '#343a40'
     search: true
     logo:   logo.png
     left:
@@ -23,7 +23,7 @@ website:
       href: github.com/arung-northwestern/mofography
 format:
   html:  
-    theme: materia
+    theme: cosmo
     toc: true
 
 metadata-files:
