@@ -82,3 +82,59 @@ def zoom_grid(grid, zoom_factor):
     import dask.array as da
     from scipy.ndimage import zoom
     return da.from_array(zoom(grid, zoom_factor, mode = 'grid-wrap', order=1))
+
+def find_psd_peaks(psd, **kwargs):
+
+
+    from scipy.signal import find_peaks_cwt, cwt, ricker
+
+    # * set default parameters
+    height  = kwargs.get('height', 0.2)
+    width = kwargs.get('width', 15)
+
+    # print('height: {}, width: {}'.format(height, width))
+    # * compute the continuous wavelet transform
+    cwt_psd= cwt(psd, wavelet=ricker, widths=[width])[0]
+
+    #* compute peaks
+    peaks = find_peaks_cwt(psd, min_snr = height,widths=width)
+
+    #* filter out peaks that are below the height threshold
+    valid_peaks = [p for p in peaks if cwt_psd[p]>height ]
+
+    return valid_peaks
+
+
+
+def compare_psd_peaks(peak_values1, peak_values2):
+
+
+
+    import numpy as np 
+
+    # * sort by length of peaks
+    peak_values_array = np.array([peak_values1, peak_values2])
+    sorted_indices  = np.argsort([len(peak_values1), len(peak_values2)])
+    peak_values_array = peak_values_array[sorted_indices]
+
+    # * assign to right order
+    x2 = peak_values_array[0] # shorter one
+    x1 = peak_values_array[1] # longer one
+
+    # Find the indices of the closest values in x1 for each value in x2
+    indices = np.interp(x2, x1, np.arange(len(x1)))
+
+    # Round the indices to the nearest integer
+    indices = np.round(indices).astype(int)
+
+    # Get the closest values in x1 for each value in x2
+    closest_values = x1[indices]
+
+    sorted_and_matched = np.array([x2, closest_values])
+
+    reconstructed_list = [[],[]]
+    for i in sorted_indices:
+        reconstructed_list[i] = sorted_and_matched[i]
+    # Print the closest values
+    # print(closest_values)
+    return reconstructed_list

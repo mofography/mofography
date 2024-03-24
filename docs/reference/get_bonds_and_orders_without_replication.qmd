@@ -1,0 +1,4 @@
+# get_bonds_and_orders_without_replication { #mofography.analyze.get_bonds_and_orders_without_replication }
+
+`analyze.get_bonds_and_orders_without_replication(ase_atoms, nlist=None)`
+

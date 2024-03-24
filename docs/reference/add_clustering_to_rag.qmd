@@ -1,0 +1,20 @@
+# add_clustering_to_rag { #mofography.compute.add_clustering_to_rag }
+
+`compute.add_clustering_to_rag(rag2, return_cluster_obj=False, no_pbc=False, **kwargs)`
+
+The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph
+and adds clustering information to the graph nodes.
+
+## Parameters
+
+| Name                 | Type   | Description                                                                                                                                                                                                                                                                     | Default    |
+|----------------------|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `rag2`               |        | The `rag2` parameter in the `add_clustering_to_rag` function is expected to be a NetworkX graph object representing a region adjacency graph (RAG) with nodes and attributes. This graph is used to perform clustering on the data associated with the nodes in the graph       | _required_ |
+| `return_cluster_obj` |        | The `return_cluster_obj` parameter in the `add_clustering_to_rag` function determines whether the function should return the clustering object along with the modified graph (`rag2`) or just the modified graph itself, defaults to False (optional)                           | `False`    |
+| `no_pbc`             |        | The `no_pbc` parameter in the `add_clustering_to_rag` function is a boolean flag that specifies whether to use data without periodic boundary conditions (PBC). If `no_pbc` is set to `True`, the function will use data without PBC, while if it, defaults to False (optional) | `False`    |
+
+## Returns
+
+| Type   | Description                                                                                                                                                                                                                                                 |
+|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | If `return_cluster_obj` is set to `True`, the function will return a tuple containing the updated RAG (`rag2`) and the clustering object (`clustering`). If `return_cluster_obj` is set to `False`, the function will return just the updated RAG (`rag2`). |

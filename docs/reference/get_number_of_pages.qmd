@@ -1,0 +1,19 @@
+# get_number_of_pages { #mofography.data.get_number_of_pages }
+
+`data.get_number_of_pages(url, headers, params)`
+
+Get the number of pages of the result, from the url, for a given set of headers and parameters
+
+## Parameters
+
+| Name      | Type   | Description               | Default    |
+|-----------|--------|---------------------------|------------|
+| `url`     | string | url for MOFDb for example | _required_ |
+| `headers` | dict   | dictionary of headers     | _required_ |
+| `params`  | dict   | dictionary of parameters  | _required_ |
+
+## Returns
+
+| Type   | Description                   |
+|--------|-------------------------------|
+| int    | number of pages in the result |

@@ -1,0 +1,19 @@
+# sample_path { #mofography.compute.sample_path }
+
+`compute.sample_path(path_indices, points_per_path=100)`
+
+It takes a list of points and returns a list of points that are evenly spaced along the path defined
+by the input points using spline interpolation
+
+## Parameters
+
+| Name              | Type   | Description                                                               | Default    |
+|-------------------|--------|---------------------------------------------------------------------------|------------|
+| `path_indices`    |        | a numpy array of shape (n,3) where n is the number of points in the path  | _required_ |
+| `points_per_path` |        | The number of points to sample along the path, defaults to 100 (optional) | `100`      |
+
+## Returns
+
+| Type   | Description                                             |
+|--------|---------------------------------------------------------|
+|        | a list of points that are evenly spaced along the path. |

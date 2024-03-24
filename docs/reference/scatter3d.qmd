@@ -1,0 +1,28 @@
+# scatter3d { #mofography.visualize.scatter3d }
+
+`visualize.scatter3d(X, name='trace name', mode='markers', marker_color='blue', marker_size=12, marker_line_color='white', marker_symbol='circle', marker_line_width=1, line_color='black', line_width=2, hovertext=None, text=None, **kwargs)`
+
+It takes a 3D array of points and returns a Plotly scatter3d object
+
+## Parameters
+
+| Name                | Type   | Description                                                                               | Default        |
+|---------------------|--------|-------------------------------------------------------------------------------------------|----------------|
+| `X`                 |        | the data matrix, with each row being a data point and each column being a feature         | _required_     |
+| `name`              |        | name of the trace, defaults to trace name here (optional)                                 | `'trace name'` |
+| `mode`              |        | 'markers', 'lines', 'lines+markers', 'text', 'none', defaults to markers (optional)       | `'markers'`    |
+| `marker_color`      |        | color of the points, defaults to blue (optional)                                          | `'blue'`       |
+| `marker_size`       |        | size of the marker, defaults to 12 (optional)                                             | `12`           |
+| `marker_line_color` |        | The color of the line around the marker, defaults to white (optional)                     | `'white'`      |
+| `marker_symbol`     |        | https://plotly.com/python/reference/#scatter-marker-symbol, defaults to circle (optional) | `'circle'`     |
+| `marker_line_width` |        | The width of the lines around the markers, defaults to 1 (optional)                       | `1`            |
+| `line_color`        |        | color of the line connecting the points, defaults to black (optional)                     | `'black'`      |
+| `line_width`        |        | width of the line connecting the points, defaults to 2 (optional)                         | `2`            |
+| `hovertext`         |        | text to show when hovering over a point                                                   | `None`         |
+| `text`              |        | text to display when hovering over a point                                                | `None`         |
+
+## Returns
+
+| Type   | Description               |
+|--------|---------------------------|
+|        | A plotly scatter3d object |

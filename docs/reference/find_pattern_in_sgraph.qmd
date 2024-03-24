@@ -1,0 +1,19 @@
+# find_pattern_in_sgraph { #mofography.analyze.find_pattern_in_sgraph }
+
+`analyze.find_pattern_in_sgraph(sgraph, pattern)`
+
+It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the
+pattern graph to the nodes of the original graph
+
+## Parameters
+
+| Name      | Type   | Description                                    | Default    |
+|-----------|--------|------------------------------------------------|------------|
+| `sgraph`  |        | the graph we want to search for the pattern in | _required_ |
+| `pattern` |        | The pattern graph to be searched for           | _required_ |
+
+## Returns
+
+| Type   | Description                                                                                                                     |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|
+|        | A list of dictionaries. Each dictionary has the node labels of the pattern as keys and the node labels of the sgraph as values. |

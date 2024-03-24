@@ -1,0 +1,4 @@
+# optimize_molecule_at_node { #mofography.compute.optimize_molecule_at_node }
+
+`compute.optimize_molecule_at_node(node, rag, ref_coords, energy_interpolator=None, n_trials=50, n_jobs=-1, **kwargs_egrid)`
+

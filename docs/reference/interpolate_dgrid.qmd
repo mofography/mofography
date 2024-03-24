@@ -1,0 +1,17 @@
+# interpolate_dgrid { #mofography.compute.interpolate_dgrid }
+
+`compute.interpolate_dgrid(dgrid)`
+
+The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation.
+
+## Parameters
+
+| Name    | Type   | Description                                                                                                                                                                                                                                                              | Default    |
+|---------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `dgrid` |        | The `interpolate_dgrid` function you provided seems to be interpolating a 3D grid using linear interpolation. To use this function, you need to pass a 3D grid (`dgrid`) as a parameter. The grid should be a numpy array representing the values at different points in | _required_ |
+
+## Returns
+
+| Type   | Description                                                                                                                                             |
+|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | The function `interpolate_dgrid` returns a RegularGridInterpolator object `dl` that is created using the input `dgrid` and linear interpolation method. |

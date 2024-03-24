@@ -1,0 +1,26 @@
+# plot_surface_dgrid { #mofography.visualize.plot_surface_dgrid }
+
+`visualize.plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None, color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :', **kwargs_mesh)`
+
+It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
+returns a plotly mesh3d object that can be plotted using plotly
+
+Args:
+  dgrid: the density grid
+  isovalue: the value of the isosurface to be plotted
+  ase_atoms: ASE atoms object
+  region_labels: a 3D array of the same shape as the density grid. Each voxel in the density grid is
+assigned a label. The labels are used to color the surface.
+  select: a list of region labels to plot. If 'all' is selected, all regions are plotted. Defaults
+to all
+  opacity: The opacity of the surface.
+  cscale: a colorscale for the regions. If None, a random colorscale is generated.
+  color: color of the cell. Defaults to blue
+  stepsize: The step size for the marching cubes algorithm. Defaults to 1
+  stylize: if True, will apply some random style choices, purely personal preference. Defaults to
+False
+  random_seed: This is used to generate the random colors for the regions. If you want to reproduce
+the same colors, use the same random seed. Defaults to 0
+
+Returns:
+  a plotly mesh3d object.

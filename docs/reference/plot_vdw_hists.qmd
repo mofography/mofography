@@ -1,0 +1,4 @@
+# plot_vdw_hists { #mofography.visualize.plot_vdw_hists }
+
+`visualize.plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster')`
+

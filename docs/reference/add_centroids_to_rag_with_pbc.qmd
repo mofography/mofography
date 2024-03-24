@@ -1,0 +1,32 @@
+# add_centroids_to_rag_with_pbc { #mofography.compute.add_centroids_to_rag_with_pbc }
+
+`compute.add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape)`
+
+> For each group of nodes that are connected by periodic boundary conditions, find the centroid of
+the group and add it to the graph as a node attribute. 
+
+The function takes in a graph, a list of properties, a list of groups of nodes that are connected by
+periodic boundary conditions, an ASE atoms object, and the shape of the image. 
+
+The function first makes a copy of the graph. Then, it loops through each group of nodes that are
+connected by periodic boundary conditions. For each group, it finds the indices of the properties
+that correspond to the nodes in the group. If there is more than one node in the group, it finds the
+centroid of the group by taking the circular mean of the coordinates of the nodes in the group. If
+there is only one node in the group, it finds the centroid of the node by taking the mean of the
+coordinates of the node. Finally, it adds the centroid of the group
+
+## Parameters
+
+| Name         | Type   | Description                                                                                                          | Default    |
+|--------------|--------|----------------------------------------------------------------------------------------------------------------------|------------|
+| `rag`        |        | the Region Adjacency Graph object from skimage (skimage.future.graph.rag class)                                      | _required_ |
+| `props`      |        | a list of dictionaries, each dictionary contains the label and the coordinates of the centroid of the cluster        | _required_ |
+| `pbc_groups` |        | a list of lists, where each list contains the labels of the atoms that are connected by periodic boundary conditions | _required_ |
+| `ase_atoms`  |        | the atoms object from ASE                                                                                            | _required_ |
+| `shape`      |        | shape of the image                                                                                                   | _required_ |
+
+## Returns
+
+| Type   | Description                                                         |
+|--------|---------------------------------------------------------------------|
+|        | The rag is being returned with the centroid_pbc added to the nodes. |

@@ -1,0 +1,22 @@
+# get_sampling_paths_for_region { #mofography.compute.get_sampling_paths_for_region }
+
+`compute.get_sampling_paths_for_region(region_index, connections, dgrid, regions, maxima, shape, ase_atoms)`
+
+> It finds the paths from the maxima of a region to the windows of that region
+
+## Parameters
+
+| Name           | Type   | Description                                                                                           | Default    |
+|----------------|--------|-------------------------------------------------------------------------------------------------------|------------|
+| `region_index` |        | the index of the region you want to find the paths for                                                | _required_ |
+| `connections`  |        | a list of tuples, each tuple contains the indices of the connected regions and the window coordinates | _required_ |
+| `dgrid`        |        | the distance grid                                                                                     | _required_ |
+| `maxima`       |        | the indices of the maxima of the region                                                               | _required_ |
+| `shape`        |        | shape of the grid                                                                                     | _required_ |
+| `ase_atoms`    |        | ASE atoms object                                                                                      | _required_ |
+
+## Returns
+
+| Type   | Description                   |
+|--------|-------------------------------|
+|        | The paths are being returned. |

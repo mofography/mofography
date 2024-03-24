@@ -1,0 +1,4 @@
+# add_vdw_hist_to_rag { #mofography.compute.add_vdw_hist_to_rag }
+
+`compute.add_vdw_hist_to_rag(rag, regions, energy_interpolator=None, upper_bound=1000, use_pbc=False, pbc_groups=None, bins_energy=None, density=False, **kwargs_egrid)`
+

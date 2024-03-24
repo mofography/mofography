@@ -1,0 +1,25 @@
+---
+title: "Publications"
+format: html
+eval: False
+toc: true
+---
+
+## Cite MOFography
+
+This is the original MOFography paper(s), please cite it if you use MOFography in your work:
+
+```{bib}
+@article{mofography,
+    title={MOFography: Advanced Characterization of Crystalline Nanopores using Pore Graphs},
+    author={Gopalan, Arun and Shi, Kaihng and Sarkisov, Lev},
+    journal={TBD}, 
+    year={2024},
+    publisher={TBD}
+}
+
+```
+
+## Related Publications
+
+These are some of the publications that have used MOFography. 

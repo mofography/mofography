@@ -1,0 +1,13 @@
+---
+title: "Gallery"
+format: html
+toc: true
+---
+
+## What is this page?
+
+This is a place to showcase some of the cool illustrations made using MOFography. If you'd like your work to be shown here, please reach out to us at. 
+
+## Static Images 
+
+## Interacive images

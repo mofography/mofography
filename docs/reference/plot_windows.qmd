@@ -1,0 +1,17 @@
+# plot_windows { #mofography.visualize.plot_windows }
+
+`visualize.plot_windows(connections, **kwargs)`
+
+It takes a list of connections and returns a plotly scatter trace of the windows.
+
+## Parameters
+
+| Name          | Type   | Description                                                        | Default    |
+|---------------|--------|--------------------------------------------------------------------|------------|
+| `connections` |        | a list of lists, output from the connections from regions function | _required_ |
+
+## Returns
+
+| Type   | Description                              |
+|--------|------------------------------------------|
+|        | A plotly scatter 3D trace of the windows |
