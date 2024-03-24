@@ -1,0 +1,20 @@
+# plot_aromatic_rings { #mofography.visualize.plot_aromatic_rings }
+
+`visualize.plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None, kwargs_rings=dict(mode='lines', line=dict(color='white', width=2), showlegend=False, legendgroup='aromatics', legendgrouptitle_text='Aromatic rings', name='Aromatic rings'), kwargs_highlight=dict(color='skyblue', opacity=0.5, alphahull=-1, showlegend=False, legendgroup='aromatics', legendgrouptitle_text='Aromatic rings', name='Aromatic highlights'))`
+
+It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
+used to plot the aromatic cycles
+
+## Parameters
+
+| Name                         | Type   | Description                                                                                                                                          | Default    |
+|------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `sgraph`                     |        | the sgraph object                                                                                                                                    | _required_ |
+| `isomorphic_aromatic_cycles` |        | a list of lists of node indices that are aromatic rings. If you don't have this, you can set it to None and the function will try to find it for you | `None`     |
+| `highlight_color`            |        | The color of the highlighted aromatic rings, defaults to lightskyblue (optional)                                                                     | _required_ |
+
+## Returns
+
+| Type   | Description                                          |
+|--------|------------------------------------------------------|
+|        | A tuple of the data_circle and ring_highlight_traces |

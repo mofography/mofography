@@ -1,0 +1,28 @@
+# draw_framework { #mofography.visualize.draw_framework }
+
+`visualize.draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_labels=False, bond_data=None, bond_color=None, bond_colorscale='Cividis', bond_opacity=0.9, colorscheme=get_default_colors(), atoms_opacity=0.9, dia_scale=1)`
+
+It takes an ASE atoms object and returns a list of plotly traces that can be used to plot the
+framework
+
+## Parameters
+
+| Name               | Type   | Description                                                                                                                                                                                                                        | Default                |
+|--------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------|
+| `ase_atoms`        |        | ASE atoms object                                                                                                                                                                                                                   | _required_             |
+| `bond_orders`      |        | A list of bond orders for each bond. If None, then the bond orders are calculated using covalent radii                                                                                                                             | `None`                 |
+| `show_aromatics`   |        | If True, it will detect aromatic rings and plot them, defaults to True (optional)                                                                                                                                                  | `True`                 |
+| `show_atom_labels` |        | If True, shows the atom labels, defaults to False (optional)                                                                                                                                                                       | `False`                |
+| `bond_data`        |        | A dictionary of bond data. The keys are the names of the data and the values are the data itself                                                                                                                                   | `None`                 |
+| `bond_color`       |        | This is the color of the bonds. If you provide a string, it will be used as a key to look for a list of bond colors in the ase_atoms.info dict. If you provide a list, it will be used as the bond colors. If you provide a single | `None`                 |
+| `bond_colorscale`  |        | The colorscale for the bonds, defaults to Cividis (optional)                                                                                                                                                                       | `'Cividis'`            |
+| `bond_opacity`     |        | opacity of the bonds                                                                                                                                                                                                               | `0.9`                  |
+| `colorscheme`      |        | A list of colors to be used for coloring the atoms                                                                                                                                                                                 | `get_default_colors()` |
+| `atoms_opacity`    |        | opacity of the atoms                                                                                                                                                                                                               | `0.9`                  |
+| `dia_scale`        |        | This is a scaling factor for the atom sizes, defaults to 1 (optional)                                                                                                                                                              | `1`                    |
+
+## Returns
+
+| Type   | Description                                       |
+|--------|---------------------------------------------------|
+|        | A list of plotly.graph_objects.Scatter3d objects. |

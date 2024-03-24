@@ -1,0 +1,4 @@
+# find_functional_groups { #mofography.analyze.find_functional_groups }
+
+`analyze.find_functional_groups(ase_atoms, functional_groups)`
+

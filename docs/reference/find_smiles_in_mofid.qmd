@@ -1,0 +1,19 @@
+# find_smiles_in_mofid { #mofography.analyze.find_smiles_in_mofid }
+
+`analyze.find_smiles_in_mofid(mofid, pattern_smiles)`
+
+It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each
+SMILES string is found in the MOFid string
+
+## Parameters
+
+| Name             | Type   | Description                                                       | Default    |
+|------------------|--------|-------------------------------------------------------------------|------------|
+| `mofid`          |        | the MOFid string                                                  | _required_ |
+| `pattern_smiles` |        | a list of SMILES strings that you want to search for in the MOFid | _required_ |
+
+## Returns
+
+| Type   | Description                                         |
+|--------|-----------------------------------------------------|
+|        | A list of lists of the patterns found in the MOFid. |

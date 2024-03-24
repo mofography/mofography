@@ -1,0 +1,19 @@
+# get_subset_atoms { #mofography.analyze.get_subset_atoms }
+
+`analyze.get_subset_atoms(ase_atoms, subset)`
+
+It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing
+only the atoms in the list
+
+## Parameters
+
+| Name        | Type   | Description                      | Default    |
+|-------------|--------|----------------------------------|------------|
+| `ase_atoms` |        | the atoms object of the material | _required_ |
+| `subset`    |        | a list of atom ids               | _required_ |
+
+## Returns
+
+| Type   | Description                                |
+|--------|--------------------------------------------|
+|        | The atoms object with the subset of atoms. |

@@ -1,0 +1,4 @@
+# gpe_aabb2 { #mofography.compute.gpe_aabb2 }
+
+`compute.gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff)`
+

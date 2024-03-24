@@ -1,0 +1,20 @@
+# find_rings_in_ase_atoms { #mofography.analyze.find_rings_in_ase_atoms }
+
+`analyze.find_rings_in_ase_atoms(mat_atoms, cycle_lengths=[5, 6, 7, 8], make_unique=True)`
+
+The function `find_rings_in_ase_atoms` takes an ASE atoms object, identifies cycles in the
+corresponding graph, filters cycles based on length, and optionally returns unique cycles.
+
+## Parameters
+
+| Name            | Type   | Description                                                                                                                                                                                                                                                                                                            | Default        |
+|-----------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| `mat_atoms`     |        | The `mat_atoms` parameter is a representation of a material system in the form of atoms. It likely contains information about the atomic positions, types of atoms, and possibly other properties of the material. The function `find_rings_in_ase_atoms` takes this material system represented by atoms and performs | _required_     |
+| `cycle_lengths` |        | The `cycle_lengths` parameter is a list of integers that specifies the lengths of cycles to be considered when filtering the cycles found in the graph. In the provided function `find_rings_in_ase_atoms`, the cycles found in the graph are filtered based on their length, and only cycles with lengths             | `[5, 6, 7, 8]` |
+| `make_unique`   |        | The `make_unique` parameter in the `find_rings_in_ase_atoms` function determines whether to return only unique cycles or all cycles that meet the specified criteria, defaults to True (optional)                                                                                                                      | `True`         |
+
+## Returns
+
+| Type   | Description                                                                                                                                                                                                                                                                                                                             |
+|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | The function `find_rings_in_ase_atoms` returns either unique cycles or all cycles based on the input parameters. If `make_unique` is set to True, it returns chemically unique cycles of specified lengths (5, 6, 7, 8). If `make_unique` is set to False, it returns all cycles of specified lengths without filtering for uniqueness. |

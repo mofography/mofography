@@ -1,0 +1,17 @@
+# voronoi_on_atoms { #mofography.analyze.voronoi_on_atoms }
+
+`analyze.voronoi_on_atoms(ase_atoms, points=None)`
+
+It takes an ASE atoms object and returns a freud Voronoi object
+
+## Parameters
+
+| Name        | Type   | Description               | Default    |
+|-------------|--------|---------------------------|------------|
+| `ase_atoms` |        | the atoms object from ASE | _required_ |
+
+## Returns
+
+| Type   | Description        |
+|--------|--------------------|
+|        | The Voronoi object |

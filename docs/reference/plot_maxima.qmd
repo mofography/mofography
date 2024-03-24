@@ -1,0 +1,20 @@
+# plot_maxima { #mofography.visualize.plot_maxima }
+
+`visualize.plot_maxima(dgrid, maxima, ase_atoms, **kwargs)`
+
+It takes in a 3D grid of data, a list of indices of local maxima, and an ASE atoms object, and
+returns a plotly scatter3d object with the local maxima plotted as points.
+
+## Parameters
+
+| Name        | Type   | Description                     | Default    |
+|-------------|--------|---------------------------------|------------|
+| `dgrid`     |        | the density grid                | _required_ |
+| `maxima`    |        | the indices of the local maxima | _required_ |
+| `ase_atoms` |        | the atoms object from ASE       | _required_ |
+
+## Returns
+
+| Type   | Description               |
+|--------|---------------------------|
+|        | A plotly scatter3d object |

@@ -1,0 +1,4 @@
+# find_unique_sgraphs { #mofography.analyze.find_unique_sgraphs }
+
+`analyze.find_unique_sgraphs(sgraphs)`
+

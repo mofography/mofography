@@ -1,0 +1,4 @@
+# mark_points_with_largest_including_dia { #mofography.compute.mark_points_with_largest_including_dia }
+
+`compute.mark_points_with_largest_including_dia(region_index, regions, connections, dgrid, maxima, ase_atoms, maxima_radii)`
+

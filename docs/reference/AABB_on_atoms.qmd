@@ -1,0 +1,18 @@
+# AABB_on_atoms { #mofography.compute.AABB_on_atoms }
+
+`compute.AABB_on_atoms(ase_atoms, points=None)`
+
+> This function takes an ASE atoms object and returns a freud AABBQuery object
+
+## Parameters
+
+| Name        | Type   | Description                | Default    |
+|-------------|--------|----------------------------|------------|
+| `ase_atoms` |        | ASE atoms object           | _required_ |
+| `points`    |        | the positions of the atoms | `None`     |
+
+## Returns
+
+| Type   | Description   |
+|--------|---------------|
+|        | The AABB tree |

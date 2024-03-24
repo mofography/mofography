@@ -1,0 +1,21 @@
+# gpe_aabb { #mofography.compute.gpe_aabb }
+
+`compute.gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff)`
+
+It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff
+distance, and returns the energy of each grid point
+
+## Parameters
+
+| Name               | Type   | Description                                                                                                                                                       | Default    |
+|--------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| `grid_points`      |        | the points you want to evaluate the energy at                                                                                                                     | _required_ |
+| `aabb_object`      |        | aabb object from the aabbquery class from freud                                                                                                                   | _required_ |
+| `forcefield_mixed` |        | a numpy array of shape (n,2) where n is the number of atoms in the system. The first column is the epsilon parameter and the second column is the sigma parameter | _required_ |
+| `cutoff`           |        | the cutoff distance for the neighbor search                                                                                                                       | _required_ |
+
+## Returns
+
+| Type   | Description                    |
+|--------|--------------------------------|
+|        | The energy of each grid point. |

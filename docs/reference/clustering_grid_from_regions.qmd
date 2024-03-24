@@ -1,0 +1,4 @@
+# clustering_grid_from_regions { #mofography.compute.clustering_grid_from_regions }
+
+`compute.clustering_grid_from_regions(regions, rag2, cluster_key='cluster')`
+

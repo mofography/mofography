@@ -1,0 +1,157 @@
+# Function reference {.doc .doc-index}
+
+## Compute
+
+Description of this module.
+
+| | |
+| --- | --- |
+| [AABB_on_atoms](AABB_on_atoms.qmd#mofography.compute.AABB_on_atoms) | > This function takes an ASE atoms object and returns a freud AABBQuery object |
+| [add_best_optuna_trial_to_rag](add_best_optuna_trial_to_rag.qmd#mofography.compute.add_best_optuna_trial_to_rag) |  |
+| [add_centroids_to_rag_with_pbc](add_centroids_to_rag_with_pbc.qmd#mofography.compute.add_centroids_to_rag_with_pbc) | > For each group of nodes that are connected by periodic boundary conditions, find the centroid of |
+| [add_clustering_to_rag](add_clustering_to_rag.qmd#mofography.compute.add_clustering_to_rag) | The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph |
+| [add_clustering_to_rag_energy](add_clustering_to_rag_energy.qmd#mofography.compute.add_clustering_to_rag_energy) |  |
+| [add_clustering_to_rag_energy_js](add_clustering_to_rag_energy_js.qmd#mofography.compute.add_clustering_to_rag_energy_js) |  |
+| [add_clustering_to_rag_geometry_js](add_clustering_to_rag_geometry_js.qmd#mofography.compute.add_clustering_to_rag_geometry_js) | Adds cluster information to a region adjacency graph (RAG) by calculating the Jensen-Shannon distance between two histograms of distances. |
+| [add_clustering_to_rag_pca](add_clustering_to_rag_pca.qmd#mofography.compute.add_clustering_to_rag_pca) | The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the |
+| [add_maxima_to_rag](add_maxima_to_rag.qmd#mofography.compute.add_maxima_to_rag) | > This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms |
+| [add_pbc_to_rag](add_pbc_to_rag.qmd#mofography.compute.add_pbc_to_rag) | It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG |
+| [add_props_to_graph](add_props_to_graph.qmd#mofography.compute.add_props_to_graph) | The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and |
+| [add_props_to_rag](add_props_to_rag.qmd#mofography.compute.add_props_to_rag) |  |
+| [add_psd_to_rag](add_psd_to_rag.qmd#mofography.compute.add_psd_to_rag) | > This function takes a graph, a list of region properties, a list of bins, an ase atoms object, and |
+| [add_psd_to_rag_with_pbc](add_psd_to_rag_with_pbc.qmd#mofography.compute.add_psd_to_rag_with_pbc) | > It takes a rag, a list of properties, a list of pbc groups, a list of bins, an ase atoms object |
+| [add_vdw_hist_to_rag](add_vdw_hist_to_rag.qmd#mofography.compute.add_vdw_hist_to_rag) |  |
+| [add_window_info_to_rag](add_window_info_to_rag.qmd#mofography.compute.add_window_info_to_rag) | It takes a RAG and a list of connections and adds the window information to the RAG as edge |
+| [apply_pbc](apply_pbc.qmd#mofography.compute.apply_pbc) | It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions |
+| [apply_periodic_map](apply_periodic_map.qmd#mofography.compute.apply_periodic_map) | It takes an array of integers and a dictionary that maps integers to integers, and returns an array |
+| [calc_path_components](calc_path_components.qmd#mofography.compute.calc_path_components) | Calculate the PCA components of a path in a RAG. |
+| [clustering_grid_from_regions](clustering_grid_from_regions.qmd#mofography.compute.clustering_grid_from_regions) |  |
+| [compare_two_paths](compare_two_paths.qmd#mofography.compute.compare_two_paths) | It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple |
+| [connections_from_regions_and_dgrid](connections_from_regions_and_dgrid.qmd#mofography.compute.connections_from_regions_and_dgrid) | It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance |
+| [dask_grid_over_atoms](dask_grid_over_atoms.qmd#mofography.compute.dask_grid_over_atoms) | Generate a dask array of grid points over an ase atoms object with a specified grid spacing |
+| [dgrid_from_atoms](dgrid_from_atoms.qmd#mofography.compute.dgrid_from_atoms) | The function `dgrid_from_atoms` generates a distance grid over atoms using Dask arrays and computes |
+| [dgrid_from_atoms_cpu](dgrid_from_atoms_cpu.qmd#mofography.compute.dgrid_from_atoms_cpu) | This function generates a distance grid over atoms using Dask arrays and pandas, with an option to |
+| [dgrid_from_atoms_gpu](dgrid_from_atoms_gpu.qmd#mofography.compute.dgrid_from_atoms_gpu) | The function `dgrid_from_atoms_gpu` calculates a distance grid based on atomic positions using GPU |
+| [egrid_from_atoms2](egrid_from_atoms2.qmd#mofography.compute.egrid_from_atoms2) | > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid.  |
+| [filter_percolated_paths](filter_percolated_paths.qmd#mofography.compute.filter_percolated_paths) | The function filters paths based on whether their corresponding path windows meet a certain size |
+| [find_isomorphic_path_groups](find_isomorphic_path_groups.qmd#mofography.compute.find_isomorphic_path_groups) |  |
+| [find_paths](find_paths.qmd#mofography.compute.find_paths) |  |
+| [get_connections_for_rag](get_connections_for_rag.qmd#mofography.compute.get_connections_for_rag) |  |
+| [get_diametrically_opposite_points](get_diametrically_opposite_points.qmd#mofography.compute.get_diametrically_opposite_points) |  |
+| [get_distances_for_path](get_distances_for_path.qmd#mofography.compute.get_distances_for_path) | > For each grid point, find the nearest neighbors, and return the minimum distance to the nearest |
+| [get_energies_for_group](get_energies_for_group.qmd#mofography.compute.get_energies_for_group) |  |
+| [get_energies_for_group2](get_energies_for_group2.qmd#mofography.compute.get_energies_for_group2) | This function calculates the energies for a group of regions using an energy interpolator and |
+| [get_energy_interpolator](get_energy_interpolator.qmd#mofography.compute.get_energy_interpolator) | This function creates a 3D regular grid interpolator for energy values given an input energy grid. |
+| [get_percolated_paths_on_rag](get_percolated_paths_on_rag.qmd#mofography.compute.get_percolated_paths_on_rag) |  |
+| [get_periodic_map](get_periodic_map.qmd#mofography.compute.get_periodic_map) | It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary |
+| [get_pld_for_rag](get_pld_for_rag.qmd#mofography.compute.get_pld_for_rag) |  |
+| [get_pld_from_percolated_paths_path_windows](get_pld_from_percolated_paths_path_windows.qmd#mofography.compute.get_pld_from_percolated_paths_path_windows) |  |
+| [get_psd_on_rag](get_psd_on_rag.qmd#mofography.compute.get_psd_on_rag) |  |
+| [get_rag_from_regions_and_grid](get_rag_from_regions_and_grid.qmd#mofography.compute.get_rag_from_regions_and_grid) | > It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each |
+| [get_region_props_for_regions](get_region_props_for_regions.qmd#mofography.compute.get_region_props_for_regions) | It takes a list of regions and returns a list of region properties |
+| [get_repetitions_to_meet_cutoff](get_repetitions_to_meet_cutoff.qmd#mofography.compute.get_repetitions_to_meet_cutoff) | It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each |
+| [get_sampling_paths_for_region](get_sampling_paths_for_region.qmd#mofography.compute.get_sampling_paths_for_region) | > It finds the paths from the maxima of a region to the windows of that region |
+| [get_wall_windows2](get_wall_windows2.qmd#mofography.compute.get_wall_windows2) |  |
+| [gpd_aabb](gpd_aabb.qmd#mofography.compute.gpd_aabb) | This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned |
+| [gpe_aabb](gpe_aabb.qmd#mofography.compute.gpe_aabb) | It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff |
+| [gpe_aabb2](gpe_aabb2.qmd#mofography.compute.gpe_aabb2) |  |
+| [interpolate_dgrid](interpolate_dgrid.qmd#mofography.compute.interpolate_dgrid) | The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation. |
+| [mark_points_with_largest_including_dia](mark_points_with_largest_including_dia.qmd#mofography.compute.mark_points_with_largest_including_dia) |  |
+| [optimize_molecule_at_node](optimize_molecule_at_node.qmd#mofography.compute.optimize_molecule_at_node) |  |
+| [rag_from_connections](rag_from_connections.qmd#mofography.compute.rag_from_connections) | This Python function creates a graph representation of regions of interest based on connections and |
+| [regions_from_dgrid](regions_from_dgrid.qmd#mofography.compute.regions_from_dgrid) | The function `regions_from_dgrid` takes a density grid as input and identifies regions based on |
+| [repeat_to_meet_cutoff](repeat_to_meet_cutoff.qmd#mofography.compute.repeat_to_meet_cutoff) | It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new |
+| [sample_path](sample_path.qmd#mofography.compute.sample_path) | It takes a list of points and returns a list of points that are evenly spaced along the path defined |
+
+## Visualize
+
+Description of this module.
+
+| | |
+| --- | --- |
+| [add_hoverdata_to_atoms_traces](add_hoverdata_to_atoms_traces.qmd#mofography.visualize.add_hoverdata_to_atoms_traces) |  |
+| [cylinders_for_bonds](cylinders_for_bonds.qmd#mofography.visualize.cylinders_for_bonds) | It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a |
+| [draw_framework](draw_framework.qmd#mofography.visualize.draw_framework) | It takes an ASE atoms object and returns a list of plotly traces that can be used to plot the |
+| [get_default_colors](get_default_colors.qmd#mofography.visualize.get_default_colors) | [summary] |
+| [get_isosurface_mesh](get_isosurface_mesh.qmd#mofography.visualize.get_isosurface_mesh) | The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input |
+| [make_bg_image](make_bg_image.qmd#mofography.visualize.make_bg_image) | It takes a 2D array and a colormap and returns a plotly image object that can be used as a |
+| [make_pore_size_distribution_fig_from_rag](make_pore_size_distribution_fig_from_rag.qmd#mofography.visualize.make_pore_size_distribution_fig_from_rag) | The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore |
+| [mesh_for_atoms](mesh_for_atoms.qmd#mofography.visualize.mesh_for_atoms) | > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter |
+| [plot_aromatic_rings](plot_aromatic_rings.qmd#mofography.visualize.plot_aromatic_rings) | It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be |
+| [plot_cell](plot_cell.qmd#mofography.visualize.plot_cell) | It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit |
+| [plot_cycle_highlights](plot_cycle_highlights.qmd#mofography.visualize.plot_cycle_highlights) | It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be |
+| [plot_everything](plot_everything.qmd#mofography.visualize.plot_everything) | It takes in the output of the do_it_all function and returns a plotly figure |
+| [plot_framework_as_mesh](plot_framework_as_mesh.qmd#mofography.visualize.plot_framework_as_mesh) | It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace |
+| [plot_maxima](plot_maxima.qmd#mofography.visualize.plot_maxima) | It takes in a 3D grid of data, a list of indices of local maxima, and an ASE atoms object, and |
+| [plot_mesh](plot_mesh.qmd#mofography.visualize.plot_mesh) | It takes a trimesh object and returns a plotly mesh3d object. |
+| [plot_molecule_at_best_optuna_trials](plot_molecule_at_best_optuna_trials.qmd#mofography.visualize.plot_molecule_at_best_optuna_trials) | This function plots a molecule using the best Optuna trials. |
+| [plot_paths](plot_paths.qmd#mofography.visualize.plot_paths) | The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by |
+| [plot_pore_graph](plot_pore_graph.qmd#mofography.visualize.plot_pore_graph) |  |
+| [plot_psds](plot_psds.qmd#mofography.visualize.plot_psds) | > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group.  |
+| [plot_rag](plot_rag.qmd#mofography.visualize.plot_rag) |  |
+| [plot_snapshot_raspa_pdb](plot_snapshot_raspa_pdb.qmd#mofography.visualize.plot_snapshot_raspa_pdb) |  |
+| [plot_subset_of_atoms](plot_subset_of_atoms.qmd#mofography.visualize.plot_subset_of_atoms) | > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of |
+| [plot_surface_dgrid](plot_surface_dgrid.qmd#mofography.visualize.plot_surface_dgrid) | It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and |
+| [plot_vdw_hists](plot_vdw_hists.qmd#mofography.visualize.plot_vdw_hists) |  |
+| [plot_windows](plot_windows.qmd#mofography.visualize.plot_windows) | It takes a list of connections and returns a plotly scatter trace of the windows. |
+| [scatter3d](scatter3d.qmd#mofography.visualize.scatter3d) | It takes a 3D array of points and returns a Plotly scatter3d object |
+| [spheres_for_atoms](spheres_for_atoms.qmd#mofography.visualize.spheres_for_atoms) | It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with |
+| [spheres_for_positions](spheres_for_positions.qmd#mofography.visualize.spheres_for_positions) | It takes a list of positions and a list of radii and returns a list of trimesh objects that are |
+| [trimesh_from_pyvista](trimesh_from_pyvista.qmd#mofography.visualize.trimesh_from_pyvista) | `trimesh_from_pyvista(pv_mesh)` takes a PyVista mesh and returns a Trimesh mesh |
+
+## Analyze
+
+Description of this module.
+
+| | |
+| --- | --- |
+| [detect_smiles_in_mol](detect_smiles_in_mol.qmd#mofography.analyze.detect_smiles_in_mol) | It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of |
+| [find_aromatic_cycles_in_sgraph](find_aromatic_cycles_in_sgraph.qmd#mofography.analyze.find_aromatic_cycles_in_sgraph) | > Find all cycles in the graph, then find all cycles that are composed of double bonds, then find |
+| [find_chemically_unique_cycles](find_chemically_unique_cycles.qmd#mofography.analyze.find_chemically_unique_cycles) | > The function takes a list of cycles and a graph as input, and returns the indices of the unique |
+| [find_cycles_in_sgraph](find_cycles_in_sgraph.qmd#mofography.analyze.find_cycles_in_sgraph) | > The function takes a graph and returns a list of cycles in the graph.  |
+| [find_functional_groups](find_functional_groups.qmd#mofography.analyze.find_functional_groups) |  |
+| [find_pattern_in_sgraph](find_pattern_in_sgraph.qmd#mofography.analyze.find_pattern_in_sgraph) | It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the |
+| [find_rings_in_ase_atoms](find_rings_in_ase_atoms.qmd#mofography.analyze.find_rings_in_ase_atoms) | The function `find_rings_in_ase_atoms` takes an ASE atoms object, identifies cycles in the |
+| [find_smiles_in_mofid](find_smiles_in_mofid.qmd#mofography.analyze.find_smiles_in_mofid) | It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each |
+| [find_unique_sgraphs](find_unique_sgraphs.qmd#mofography.analyze.find_unique_sgraphs) |  |
+| [get_atoms_from_smiles](get_atoms_from_smiles.qmd#mofography.analyze.get_atoms_from_smiles) | This function takes a SMILES string as input and returns an ASE Atoms object with the atomic |
+| [get_bond_types](get_bond_types.qmd#mofography.analyze.get_bond_types) | It takes a list of bond orders and returns a list of bond types |
+| [get_bonds_and_orders_without_replication](get_bonds_and_orders_without_replication.qmd#mofography.analyze.get_bonds_and_orders_without_replication) |  |
+| [get_subset_atoms](get_subset_atoms.qmd#mofography.analyze.get_subset_atoms) | It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing |
+| [sgraph_from_atoms](sgraph_from_atoms.qmd#mofography.analyze.sgraph_from_atoms) | It takes an ase atoms object and returns a networkx graph object with the nodes and edges |
+| [update_with_covalent_bonds](update_with_covalent_bonds.qmd#mofography.analyze.update_with_covalent_bonds) | It takes an ASE atoms object and returns an ASE atoms object with the covalent bonds and bond orders |
+| [voronoi_on_atoms](voronoi_on_atoms.qmd#mofography.analyze.voronoi_on_atoms) | It takes an ASE atoms object and returns a freud Voronoi object |
+
+## Data
+
+Description of this module.
+
+| | |
+| --- | --- |
+| [add_graph_to_db](add_graph_to_db.qmd#mofography.data.add_graph_to_db) | The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled |
+| [atoms_from_mofdb_df](atoms_from_mofdb_df.qmd#mofography.data.atoms_from_mofdb_df) | This function takes a MOFDB dataframe from get_data_from_mofdb routine, which has a column called 'cif' that contains CIF data as strings, and |
+| [bound_fetch](bound_fetch.qmd#mofography.data.bound_fetch) |  |
+| [create_db_from_pickled_graphs](create_db_from_pickled_graphs.qmd#mofography.data.create_db_from_pickled_graphs) | The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled |
+| [fetch](fetch.qmd#mofography.data.fetch) |  |
+| [get_data_from_mofdb](get_data_from_mofdb.qmd#mofography.data.get_data_from_mofdb) | This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api  |
+| [get_graph](get_graph.qmd#mofography.data.get_graph) | The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it, |
+| [get_mofdb_data](get_mofdb_data.qmd#mofography.data.get_mofdb_data) | Compile a asyncio Future containing the results of a search by making requests to MOFDb in parallel asynchronously |
+| [get_num_graphs](get_num_graphs.qmd#mofography.data.get_num_graphs) | The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified |
+| [get_number_of_pages](get_number_of_pages.qmd#mofography.data.get_number_of_pages) | Get the number of pages of the result, from the url, for a given set of headers and parameters |
+| [mix_lorentz_berthelot](mix_lorentz_berthelot.qmd#mofography.data.mix_lorentz_berthelot) | It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary |
+| [read_cif_string](read_cif_string.qmd#mofography.data.read_cif_string) | It takes a string of CIF data and returns an ASE atoms object. |
+| [read_raspa_pdb](read_raspa_pdb.qmd#mofography.data.read_raspa_pdb) | created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___  |
+| [show_percolated_paths_as_df](show_percolated_paths_as_df.qmd#mofography.data.show_percolated_paths_as_df) | The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path |
+
+## Helper
+
+Description of this module.
+
+| | |
+| --- | --- |
+| [compare_psd_peaks](compare_psd_peaks.qmd#mofography.helper.compare_psd_peaks) |  |
+| [find_coord_from_indices](find_coord_from_indices.qmd#mofography.helper.find_coord_from_indices) | Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object. |
+| [find_psd_peaks](find_psd_peaks.qmd#mofography.helper.find_psd_peaks) |  |
+| [get_fractional_coordinates](get_fractional_coordinates.qmd#mofography.helper.get_fractional_coordinates) | Find the fractional coordinates for a bunch of cartesian corrdinates in a box corresponding to an ase.atoms object |
+| [interpolate_labels](interpolate_labels.qmd#mofography.helper.interpolate_labels) | Create a scipy.interpolator.RegularGridInterpolator, using 'nearest' method for the region labels (or any 3D numpy grid)  |
+| [zoom_grid](zoom_grid.qmd#mofography.helper.zoom_grid) | It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by |

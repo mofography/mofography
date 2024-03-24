@@ -1,0 +1,22 @@
+# plot_framework_as_mesh { #mofography.visualize.plot_framework_as_mesh }
+
+`visualize.plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={})`
+
+It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
+of the aromatic rings.
+
+## Parameters
+
+| Name                | Type   | Description                                                                                   | Default                                                                                                                |
+|---------------------|--------|-----------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| `ase_atoms`         |        | an ase.Atoms object                                                                           | _required_                                                                                                             |
+| `show_rings`        |        | if True, will plotO the aromatic rings as well, defaults to True (optional)                   | `True`                                                                                                                 |
+| `stylize`           |        | if True, will apply some lighting and other effects to the mesh, defaults to False (optional) | `False`                                                                                                                |
+| `kwargs_frame_mesh` |        | keyword arguments for mesh_for_atoms                                                          | `dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework')` |
+| `kwargs_highlight`  |        | keyword arguments for plot_aromatic_rings                                                     | _required_                                                                                                             |
+
+## Returns
+
+| Type   | Description               |
+|--------|---------------------------|
+|        | A tuple of plotly traces. |
