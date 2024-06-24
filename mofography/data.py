@@ -338,8 +338,8 @@ def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields['uff'], probe_symbol
     ff = forcefield
     frame_ff = np.vstack(operator.itemgetter(*ase_atoms.get_chemical_symbols())(ff)) # framework force field
     probe_ff =ff[probe_symbol] # proble
-    lb_sigma = (frame_ff[:,0] + probe_ff[0])/2 # mixed sigma
-    lb_epsilon = np.sqrt(frame_ff[:,1] * probe_ff[1]) #mixed epsilon
+    lb_epsilon = (frame_ff[:,0] + probe_ff[0])/2 # mixed sigma
+    lb_sigma = np.sqrt(frame_ff[:,1] * probe_ff[1]) #mixed epsilon
     lb_ff = np.vstack((lb_sigma, lb_epsilon)).T # mixed sigma an d epsilon
     return lb_ff
 def show_percolated_paths_as_df(paths, path_windows, path_lengths):
