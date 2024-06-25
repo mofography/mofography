@@ -1,30 +1,32 @@
 # """
 # Gathering, analyzing and maniupulating large data for mofography
-# ██████╗  █████╗ ████████╗ █████╗ 
+# ██████╗  █████╗ ████████╗ █████╗
 # ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
 # ██║  ██║███████║   ██║   ███████║
 # ██║  ██║██╔══██║   ██║   ██╔══██║
 # ██████╔╝██║  ██║   ██║   ██║  ██║
 # ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-                                
+
 
 # """
 
 # TODO figure out how to use these routines to pull data from a python file
 # TODO without using boiler plate code as much as possible
 
+
 async def fetch(url, session):
-        async with session.get(url) as response:
-            # print(await response.read())
-            return await response.json()
+    async with session.get(url) as response:
+        # print(await response.read())
+        return await response.json()
+
 
 async def bound_fetch(sem, url, session):
-        # Getter function with semaphoe.
-        async with sem:
-            return await fetch(url, session)
+    # Getter function with semaphoe.
+    async with sem:
+        return await fetch(url, session)
 
 
-async def get_mofdb_data(session, url,params, headers, npages, limit=1000):
+async def get_mofdb_data(session, url, params, headers, npages, limit=1000):
     """Compile a asyncio Future containing the results of a search by making requests to MOFDb in parallel asynchronously
 
     :param session: object of the ClientSession
@@ -41,17 +43,18 @@ async def get_mofdb_data(session, url,params, headers, npages, limit=1000):
     :type limit: int, optional
     :return: an instance of asyncio.Future that contains all the search results
     :rtype: asyncio.Future
-    """        
+    """
     from furl import furl
     import asyncio
+
     tasks = []
     from rich.progress import track
+
     # create instance of Semaphore
     sem = asyncio.Semaphore(limit)
-    for i in track(range(1,npages+1)):
-
+    for i in track(range(1, npages + 1)):
         url_string = furl(url)
-        params['page']=i
+        params["page"] = i
         url_string.set(params)
 
         # pass Semaphore and session to every GET request
@@ -61,8 +64,8 @@ async def get_mofdb_data(session, url,params, headers, npages, limit=1000):
     responses = asyncio.gather(*tasks)
     return await responses
 
-def get_number_of_pages(url, headers, params):
 
+def get_number_of_pages(url, headers, params):
     """
     Get the number of pages of the result, from the url, for a given set of headers and parameters
 
@@ -74,17 +77,20 @@ def get_number_of_pages(url, headers, params):
     :type params: dict
     :return: number of pages in the result
     :rtype: int
-    """    
+    """
 
     import requests
+
     resp = requests.get(url=url, headers=headers, params=params)
     resp = resp.json()
-    return resp['pages']
+    return resp["pages"]
+
+
 def create_db_from_pickled_graphs(db_path, pickle_path):
     """
     The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled
     graphs in it from a given pickle file.
-    
+
     :param db_path: The `db_path` parameter is the path to the SQLite database where you want to store
     the graphs. This is the location where the graphs will be saved after being pickled, compressed, and
     inserted into the database
@@ -94,7 +100,6 @@ def create_db_from_pickled_graphs(db_path, pickle_path):
     database
     """
 
-    
     import sqlite3
     import pickle
     import gzip
@@ -102,11 +107,11 @@ def create_db_from_pickled_graphs(db_path, pickle_path):
     # Connect to the SQLite database and create a table to store graphs
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS graphs
-                 (id INTEGER PRIMARY KEY, data BLOB)''')
+    c.execute("""CREATE TABLE IF NOT EXISTS graphs
+                 (id INTEGER PRIMARY KEY, data BLOB)""")
 
     # Unpickle your collection of graphs
-    with open(pickle_path, 'rb') as f:
+    with open(pickle_path, "rb") as f:
         graphs = pickle.load(f)
 
     # For each graph, pickle it, compress it, and store it in the SQLite database
@@ -121,7 +126,7 @@ def get_graph(db_path, id):
     """
     The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
     and returns the graph.
-    
+
     :param db_path: The `db_path` parameter is the file path to the SQLite database where the graph data
     is stored. This function connects to the SQLite database at the specified path to retrieve the graph
     data
@@ -146,11 +151,12 @@ def get_graph(db_path, id):
     pickled_graph = gzip.decompress(compressed_graph)
     return pickle.loads(pickled_graph)
 
+
 def add_graph_to_db(db_path, graph):
     """
     The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled
     graph in it.
-    
+
     :param db_path: The `db_path` parameter is the file path to the SQLite database where you want to
     store the graph data. This function connects to the SQLite database at the specified path and
     inserts the compressed graph data into the database
@@ -173,11 +179,12 @@ def add_graph_to_db(db_path, graph):
     c.execute("INSERT INTO graphs (data) VALUES (?)", (compressed_graph,))
     conn.commit()
 
+
 def get_num_graphs(db_path):
     """
     The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified
     by the `db_path`.
-    
+
     :param db_path: The `db_path` parameter in the `get_num_graphs` function is the path to the SQLite
     database file that contains the table of graphs. This function connects to the SQLite database at
     the specified path, executes a SQL query to count the number of rows in the `graphs` table, and
@@ -196,17 +203,25 @@ def get_num_graphs(db_path):
     num_graphs = c.fetchone()[0]
 
     return num_graphs
-def get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', params={'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1} , headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'},npages=None, limit=1000):
+
+
+def get_data_from_mofdb(
+    url="https://mof.tech.northwestern.edu/mofs/#.json",
+    params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
+    headers={"loading": "cm3(STP)/cm3", "pressure": "bar"},
+    npages=None,
+    limit=1000,
+):
     """
-    This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api 
+    This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api
     It takes in a url, parameters, headers, number of pages and a path to the mofography repository and
-    returns a pandas dataframe of the data. 
-    
+    returns a pandas dataframe of the data.
+
     The function is asynchronous and uses the aiohttp library to make multiple requests to the MOFDB
-    API. 
-    
-    
-    
+    API.
+
+
+
     :param url: The url of the MOF database, defaults to https://mof.tech.northwestern.edu/mofs/#.json
     (optional)
     :param params: a dictionary of parameters to be passed to the url. The default parameters are: {'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1}
@@ -222,66 +237,75 @@ def get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', par
     import asyncio
     import numpy as np
     import nest_asyncio
-    nest_asyncio.apply()
-    import pandas as pd 
 
+    nest_asyncio.apply()
+    import pandas as pd
 
     # just put page:1 in the params it doesn't matter, only the npages parameter is used
-    params['page']=1
+    params["page"] = 1
 
-    if npages==None:
-        npages=get_number_of_pages(url, headers, params)
-    
+    if npages == None:
+        npages = get_number_of_pages(url, headers, params)
+
     # This shouldn't be called in a function (similar to initiating a Dask cluster)
     loop = asyncio.get_event_loop()
     # with ClientSession(headers= headers) as session:
     session = ClientSession(headers=headers)
-    fut = asyncio.ensure_future(get_mofdb_data(session, url=url, params=params, headers=headers, npages=npages, limit=limit))
+    fut = asyncio.ensure_future(
+        get_mofdb_data(
+            session, url=url, params=params, headers=headers, npages=npages, limit=limit
+        )
+    )
     loop.run_until_complete(fut)
     session.close()
-    data_df = pd.DataFrame(list(np.hstack(([f['results'] for f in fut.result()]))))
+    data_df = pd.DataFrame(list(np.hstack(([f["results"] for f in fut.result()]))))
 
-    return data_df   
+    return data_df
+
 
 def read_cif_string(cif):
     """
     It takes a string of CIF data and returns an ASE atoms object.
-    
+
     :param cif: The CIF file as a string
     :return: the ASE atoms object.
     """
-    from ase.io import read 
+    from ase.io import read
     import io
-    try:
-        output = read(io.BytesIO(bytes(cif, encoding='utf-8')), format='cif')
-    except: 
-        output = 'NaN'
-    return output
-def atoms_from_mofdb_df(mofdb_df):
 
+    try:
+        output = read(io.BytesIO(bytes(cif, encoding="utf-8")), format="cif")
+    except:
+        output = "NaN"
+    return output
+
+
+def atoms_from_mofdb_df(mofdb_df):
     """
     This function takes a MOFDB dataframe from get_data_from_mofdb routine, which has a column called 'cif' that contains CIF data as strings, and
     returns a list of ASE atoms objects
-    
+
     :param mofdb_df: the dataframe containing the MOFDB data
     :return: A list of atoms objects.
     """
     import numpy as np
     from tqdm import tqdm
-    # import dask.bag as db 
+
+    # import dask.bag as db
     # from dask.diagnostics import ProgressBar
     # with ProgressBar():
     #     atoms_list = db.from_sequence(mofdb_df['cif'], npartitions=20).map(read_cif_string).compute()
     # from rich.progress import track
-    atoms_list = [read_cif_string(x) for x in tqdm(mofdb_df['cif'])]
-    for i,a in enumerate(atoms_list):
-        if a!='NaN':
-            a.info['name'] = mofdb_df['name'][i]
-            
-    return np.array(atoms_list, dtype='object')
+    atoms_list = [read_cif_string(x) for x in tqdm(mofdb_df["cif"])]
+    for i, a in enumerate(atoms_list):
+        if a != "NaN":
+            a.info["name"] = mofdb_df["name"][i]
+
+    return np.array(atoms_list, dtype="object")
+
 
 def read_raspa_pdb(path_to_file):
-        """
+    """
             created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
             _ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __\
             | '__/ _ \/ _` |/ _` | | '__/ _` / __| '_ \ / _` |  / /_)/ /\ /__\//
@@ -299,33 +323,157 @@ def read_raspa_pdb(path_to_file):
             :rtype: a python dictionary with 'cells', 'symbols' and 'coord' which stand for cell dimensions, printed symbols and coordinates
             """
 
-        import numpy as np
+    import numpy as np
 
-        f = open(path_to_file).readlines()
-        start = np.where(["MODEL" in line for line in f])[0] + 2  # * Start of config
-        ends = np.where(["ENDMDL" in line for line in f])[0]  # End for config
-        cryst = np.where(["CRYST" in line for line in f])[0]  # box shape for the config
+    f = open(path_to_file).readlines()
+    start = np.where(["MODEL" in line for line in f])[0] + 2  # * Start of config
+    ends = np.where(["ENDMDL" in line for line in f])[0]  # End for config
+    cryst = np.where(["CRYST" in line for line in f])[0]  # box shape for the config
 
-        data = [f[start[i]:ends[i]] for i in range(len(start))]
+    data = [f[start[i] : ends[i]] for i in range(len(start))]
 
-        coord = np.array([[np.array(line.split()[4:7]).astype(float) for line in d] for d in data])
-        cell_dims = np.array([np.array(line.split())[1:].astype(float) for line in f if "CRYST" in line])
-        symbols = np.array([[np.array(line.split()[2]) for line in d] for d in data])
+    coord = np.array(
+        [[np.array(line.split()[4:7]).astype(float) for line in d] for d in data]
+    )
+    cell_dims = np.array(
+        [np.array(line.split())[1:].astype(float) for line in f if "CRYST" in line]
+    )
+    symbols = np.array([[np.array(line.split()[2]) for line in d] for d in data])
 
-        output = {}
-        output['cells'] = cell_dims
-        output['coords'] = coord
-        output['symbols'] = symbols
+    output = {}
+    output["cells"] = cell_dims
+    output["coords"] = coord
+    output["symbols"] = symbols
 
-        return output
-    
+    return output
+
+
 global forcefields
-forcefields = dict(uff={'Ac':[16.60,3.10],'Ag':[18.11,2.80],'Al':[254.09,4.01],'Am':[7.04,3.01],'Ar':[93.08,3.45],'As':[155.47,3.77],'At':[142.89,4.23],'Au':[19.62,2.93],'B':[90.57,3.64],'Ba':[183.15,3.30],'Be':[42.77,2.45],'Bi':[260.63,3.89],'Bk':[6.54,2.97],'Br':	[126.29,	3.73],'C':[52.83,3.43],'Ca':[119.75,3.03],'Cd':[114.72,2.54],'Ce':[6.54,3.17],'Cf':[6.54,2.95],'Cl':[114.21,3.52],'Cm':[6.54,2.96],'Co':[7.04,2.56],'Cr':[7.55,2.69],'Cu':[2.52,3.11],'Cs':[22.64,4.02],'Dy':[3.52,3.05],'Eu':[4.03,3.11],'Er':[3.52,3.02],'Es':[6.04,2.94],'F':[25.16,3.00],'Fe':[6.54,2.59],'Fm':[6.04,2.93],'Fr':[25.16,4.37],'Ga':[208.81,3.90],'Ge':[190.69,3.81],'Gd':[4.53,3.00],'H':[22.14,2.57],'He':[10.9,2.64],'Hf':[36.23,2.80],'Hg':[193.71,2.41],'Ho':[3.52,3.04],'I':[170.57,4.01],'In':[301.39,3.98],'Ir':[36.73,2.53],'K':[17.61,3.40],'Kr':[110.69,3.69],'La':[8.55,3.14],'Li':[12.58,2.18],'Lu':[20.63,3.24],'Lr':[5.53,2.88],'Md':[5.53,2.92],'Mg':[55.85,2.69],'Mn':[6.54,2.64],'Mo':[28.18,2.72],'N':[34.72,3.26],'Na':[15.09,2.66],'Ne':[21.13,2.66],'Nb':[29.69,2.82],'Nd':[5.03,3.18],'No':[5.53,2.89],'Ni':[7.55,2.52],'Np':[9.56,3.05],'O':[30.19,3.12],'Os':[18.62,2.78],'P':[153.46,3.69],'Pa':[11.07,3.05],'Pb':[333.59,3.83],'Pd':[24.15,2.58],'Pm':[4.53,3.16],'Po':[163.52,4.20],'Pr':[5.03,3.21],'Pt':[40.25,2.45],'Pu':[8.05,3.05],'Ra':[203.27,3.28],'Rb':[20.13,3.67],'Re':[33.21,2.63],'Rh':[26.67,2.61],'Rn':[124.78,4.25],'Ru':[28.18,2.64],'S':[137.86,3.59],'Sb':[225.91,3.94],'Sc':[9.56,2.94],'Se':[146.42,3.75],'Si':[202.27,3.83],'Sm':[4.03,3.14],'Sn':[285.28,3.91],'Sr':[118.24,3.24],'Ta':[40.75,2.82],'Tb':[3.52,3.07],'Tc':[24.15,2.67],'Te':[200.25,3.98],'Th':[13.08,3.03],'Ti':[8.55,2.83],'Tl':[342.14,3.87],'Tm':[3.02,3.01],'U':[11.07,3.02],'V':[8.05,2.80],'W':[33.71,2.73],'Xe':[167.04,3.92],'Y':[36.23,2.98],'Yb':[114.72,2.99],'Zn':[62.39,2.46],'Zr':[34.72,2.78],'CH4_sp3':[148.0,3.73],'CH3_sp3':[98.0,3.75],'CH2_sp3':[46.0,3.95],'CH_sp3':[10,4.68],'C_sp3':[0.5,6.4],'H_h2':	[	0.0,0.0],'H_com':	[	36.7,2.958],'N_n2':[36.0,3.31],'N_com':[0.0,0.0],'O_co2':[79.0,3.05],'C_co2':[27.0,2.80],'Ow':	[	78.0,	3.15]})
+forcefields = dict(
+    uff={
+        "Ac": [16.60, 3.10],
+        "Ag": [18.11, 2.80],
+        "Al": [254.09, 4.01],
+        "Am": [7.04, 3.01],
+        "Ar": [93.08, 3.45],
+        "As": [155.47, 3.77],
+        "At": [142.89, 4.23],
+        "Au": [19.62, 2.93],
+        "B": [90.57, 3.64],
+        "Ba": [183.15, 3.30],
+        "Be": [42.77, 2.45],
+        "Bi": [260.63, 3.89],
+        "Bk": [6.54, 2.97],
+        "Br": [126.29, 3.73],
+        "C": [52.83, 3.43],
+        "Ca": [119.75, 3.03],
+        "Cd": [114.72, 2.54],
+        "Ce": [6.54, 3.17],
+        "Cf": [6.54, 2.95],
+        "Cl": [114.21, 3.52],
+        "Cm": [6.54, 2.96],
+        "Co": [7.04, 2.56],
+        "Cr": [7.55, 2.69],
+        "Cu": [2.52, 3.11],
+        "Cs": [22.64, 4.02],
+        "Dy": [3.52, 3.05],
+        "Eu": [4.03, 3.11],
+        "Er": [3.52, 3.02],
+        "Es": [6.04, 2.94],
+        "F": [25.16, 3.00],
+        "Fe": [6.54, 2.59],
+        "Fm": [6.04, 2.93],
+        "Fr": [25.16, 4.37],
+        "Ga": [208.81, 3.90],
+        "Ge": [190.69, 3.81],
+        "Gd": [4.53, 3.00],
+        "H": [22.14, 2.57],
+        "He": [10.9, 2.64],
+        "Hf": [36.23, 2.80],
+        "Hg": [193.71, 2.41],
+        "Ho": [3.52, 3.04],
+        "I": [170.57, 4.01],
+        "In": [301.39, 3.98],
+        "Ir": [36.73, 2.53],
+        "K": [17.61, 3.40],
+        "Kr": [110.69, 3.69],
+        "La": [8.55, 3.14],
+        "Li": [12.58, 2.18],
+        "Lu": [20.63, 3.24],
+        "Lr": [5.53, 2.88],
+        "Md": [5.53, 2.92],
+        "Mg": [55.85, 2.69],
+        "Mn": [6.54, 2.64],
+        "Mo": [28.18, 2.72],
+        "N": [34.72, 3.26],
+        "Na": [15.09, 2.66],
+        "Ne": [21.13, 2.66],
+        "Nb": [29.69, 2.82],
+        "Nd": [5.03, 3.18],
+        "No": [5.53, 2.89],
+        "Ni": [7.55, 2.52],
+        "Np": [9.56, 3.05],
+        "O": [30.19, 3.12],
+        "Os": [18.62, 2.78],
+        "P": [153.46, 3.69],
+        "Pa": [11.07, 3.05],
+        "Pb": [333.59, 3.83],
+        "Pd": [24.15, 2.58],
+        "Pm": [4.53, 3.16],
+        "Po": [163.52, 4.20],
+        "Pr": [5.03, 3.21],
+        "Pt": [40.25, 2.45],
+        "Pu": [8.05, 3.05],
+        "Ra": [203.27, 3.28],
+        "Rb": [20.13, 3.67],
+        "Re": [33.21, 2.63],
+        "Rh": [26.67, 2.61],
+        "Rn": [124.78, 4.25],
+        "Ru": [28.18, 2.64],
+        "S": [137.86, 3.59],
+        "Sb": [225.91, 3.94],
+        "Sc": [9.56, 2.94],
+        "Se": [146.42, 3.75],
+        "Si": [202.27, 3.83],
+        "Sm": [4.03, 3.14],
+        "Sn": [285.28, 3.91],
+        "Sr": [118.24, 3.24],
+        "Ta": [40.75, 2.82],
+        "Tb": [3.52, 3.07],
+        "Tc": [24.15, 2.67],
+        "Te": [200.25, 3.98],
+        "Th": [13.08, 3.03],
+        "Ti": [8.55, 2.83],
+        "Tl": [342.14, 3.87],
+        "Tm": [3.02, 3.01],
+        "U": [11.07, 3.02],
+        "V": [8.05, 2.80],
+        "W": [33.71, 2.73],
+        "Xe": [167.04, 3.92],
+        "Y": [36.23, 2.98],
+        "Yb": [114.72, 2.99],
+        "Zn": [62.39, 2.46],
+        "Zr": [34.72, 2.78],
+        "CH4_sp3": [148.0, 3.73],
+        "CH3_sp3": [98.0, 3.75],
+        "CH2_sp3": [46.0, 3.95],
+        "CH_sp3": [10, 4.68],
+        "C_sp3": [0.5, 6.4],
+        "H_h2": [0.0, 0.0],
+        "H_com": [36.7, 2.958],
+        "N_n2": [36.0, 3.31],
+        "N_com": [0.0, 0.0],
+        "O_co2": [79.0, 3.05],
+        "C_co2": [27.0, 2.80],
+        "Ow": [78.0, 3.15],
+    }
+)
 
-def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields['uff'], probe_symbol='He'):
+
+def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields["uff"], probe_symbol="He"):
     """
     It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary
-    
+
     :param ase_atoms: the atoms object from ASE
     :param forcefield: a dictionary of force field parameters for the atoms in the framework
     :param probe_symbol: the symbol of the probe atom, defaults to He (optional)
@@ -334,20 +482,25 @@ def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields['uff'], probe_symbol
 
     # * let 's ge tteh lorentz berthelot rules mixed force field params for the interactions
     import numpy as np
-    import operator 
+    import operator
+
     ff = forcefield
-    frame_ff = np.vstack(operator.itemgetter(*ase_atoms.get_chemical_symbols())(ff)) # framework force field
-    probe_ff =ff[probe_symbol] # proble
-    lb_epsilon = (frame_ff[:,0] + probe_ff[0])/2 # mixed sigma
-    lb_sigma = np.sqrt(frame_ff[:,1] * probe_ff[1]) #mixed epsilon
-    lb_ff = np.vstack((lb_sigma, lb_epsilon)).T # mixed sigma an d epsilon
+    frame_ff = np.vstack(
+        operator.itemgetter(*ase_atoms.get_chemical_symbols())(ff)
+    )  # framework force field
+    probe_ff = ff[probe_symbol]  # proble
+    lb_sigma = (frame_ff[:, 1] + probe_ff[1]) / 2  # mixed sigma
+    lb_epsilon = np.sqrt(frame_ff[:, 0] * probe_ff[0])  # mixed epsilon
+    lb_ff = np.vstack((lb_epsilon, lb_sigma)).T  # mixed sigma an d epsilon
     return lb_ff
+
+
 def show_percolated_paths_as_df(paths, path_windows, path_lengths):
     """
     The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path
     lengths, sorts it by the number of elements in the paths list and then by path lengths, and returns
     the sorted DataFrame.
-    
+
     :param paths: A list of paths, where each entry represent teh index of a pocket/node on the pore graph
     :param path_windows: Path windows are the sizes of the windows encountered along the path
     :param path_lengths: The number of jumps or edges along the path
@@ -357,9 +510,15 @@ def show_percolated_paths_as_df(paths, path_windows, path_lengths):
     import pandas as pd
 
     # * make a dataframe with the paths and the window sizes and the path lengths
-    df = pd.DataFrame({'paths':paths, 'path_windows':path_windows, 'path_lengths':path_lengths})
+    df = pd.DataFrame(
+        {"paths": paths, "path_windows": path_windows, "path_lengths": path_lengths}
+    )
     # Sort the DataFrame by the number of elements in the list in column 0, and then by column 2
-    df_sorted = df.assign(col0_len=df['paths'].apply(len)).sort_values(['col0_len', 'path_lengths']).drop('col0_len', axis=1)
+    df_sorted = (
+        df.assign(col0_len=df["paths"].apply(len))
+        .sort_values(["col0_len", "path_lengths"])
+        .drop("col0_len", axis=1)
+    )
 
     # Print the sorted DataFrame
     # print(df_sorted)

@@ -4800,110 +4800,78 @@ def repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5):
 
 
 def gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff):
+    """
+    The function `gpe_aabb2` calculates Lennard-Jones energy contributions for grid points based on
+    neighboring particles within a specified cutoff distance using positions instead of neighborlist passed as 
+    argument as in `gpe_aabb' subroutine.
+    
+    :param grid_points: The function `gpe_aabb2` seems to be calculating the Lennard-Jones potential
+    energy for a set of grid points based on the positions of particles, a cell, a mixed force field,
+    and a cutoff distance
+    :param positions: The `positions` parameter in the `gpe_aabb2` function represents the positions of
+    particles in a simulation. These positions are used to calculate the interactions between the
+    particles and the grid points within a certain cutoff distance. The function performs calculations
+    based on the positions of the particles and the grid points
+    :param cell: The `cell` parameter in the `gpe_aabb2` function represents the simulation box or cell
+    in which the particles are contained. It defines the periodic boundaries and the size of the
+    simulation box in three dimensions. The `cell` parameter is used in the AABBQuery to specify the
+    simulation box
+    :param forcefield_mixed: The function `gpe_aabb2` seems to be calculating the Lennard-Jones
+    potential energy for a given set of grid points based on the provided force field parameters. The
+    key steps involved in the calculation include querying neighboring points within a specified cutoff
+    distance, computing the Lennard-Jones
+    :param cutoff: The `cutoff` parameter in the `gpe_aabb2` function represents the maximum distance
+    within which to consider neighboring points when performing calculations. It is used to filter out
+    points that are beyond this distance from each grid point during the computation
+    :return: The function `gpe_aabb2` is returning the calculated Lennard-Jones potential energy values
+    `v` for each grid point based on the provided input parameters.
+    """
+
     import numpy as np
+
     from freud.locality import AABBQuery
 
     ab_r = AABBQuery(cell, positions).query(
         grid_points, query_args=dict(mode="ball", r_max=cutoff, exclude_ii=True)
     )
-    ab_r_nl = ab_r.toNeighborList(sort_by_distance=True)
-
-    indices = ab_r_nl.point_indices
-    distances = ab_r_nl.distances
-    segments = ab_r_nl.segments
-    inter_params = np.take(forcefield_mixed, indices, axis=0)
-    sig = inter_params[:, 1]
-    eps = inter_params[:, 0]
-    sd = np.power(np.divide(sig, distances), 6)
-
-    # Initialize v with zeros
-    v = np.zeros_like(grid_points)
-
-    # Only perform reduction on grid points with neighbors
-    has_neighbors = np.diff(segments, prepend=-1) != 0
-    v[has_neighbors] = np.add.reduceat(
-        np.multiply(4 * eps, ((sd) ** 2 - (sd))), segments[has_neighbors]
-    )
-
-    return v
-
-
-# def gpe_aabb2(grid_points,positions, cell,forcefield_mixed,cutoff):
-#
-#     import numpy as np
-#
-#     from freud.locality import AABBQuery
-#     ab_r=AABBQuery(cell,positions).query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
-#     # ab_r=aabb_object.query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
-#     ab_r_nl=ab_r.toNeighborList(sort_by_distance=True)#convertquerytoneighborlist
-#     #nls=ab_r_nl.point_indices.reshape(-1,n_neighbors)#gettheindicesoftheneighborsforeachgridpt.tolookuptheradiilater
-#     #dists=ab_r_nl.distances.reshape(-1,n_neighbors)#getthedistancestotheneighborsofeachgridpt.
-#     #print(ab,ab_r,ab_r_nl,nls,[radii[nl]fornlinnls])#,np.min(dists-[radii[nl]fornlinnls],axis=1))
-#     #returntheminimum(shortestdistancetothesurface)ineachrow
-#
-#
-#     indices = ab_r_nl.point_indices # * frame indices within cutoff at each grid point
-#     distances = ab_r_nl.distances # * distances to frame indices at each grid point
-#     segments = ab_r_nl.segments # * number of frame indices at each grid point
-#     inter_params = np.take(forcefield_mixed, indices, axis=0) # * get the parameters for each frame index at each grid point
-#     sig  = inter_params[:,1] # * get the sigma values for each frame index at each grid point
-#     eps  = inter_params[:,0]    # * get the epsilon values for each frame index at each grid point
-#     sd = np.power(np.divide(sig, distances), 6) # * (sigma/distance)^6
-#     # sig = np.array([forcefield[i][1] for i in indices])
-#     # eps = np.array([forcefield[i][0] for i in indices])
-#
-#     # print(len(indices),len(distances),len(segments),len(sig),len(eps)) #, np.take(forcefield, indices))
-#     v = np.add.reduceat(np.multiply(4*eps, ((sd)**2-(sd))), segments) # * sum the energy contributions for each grid point
-#     # E = np.add.reduceat(4*eps*((sig/distances)**12-(sig/distances)**6), segments, axis=0)
-#
-#
-#     # E = [lj_sum(d, s, e) for d, s, e in zip(distances, sig, eps)]
-#
-#     # return np.vstack(E).reshape(-1,1)
-#     return v
-
-
-def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
-    """
-    It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff
-    distance, and returns the energy of each grid point
-
-    :param grid_points: the points you want to evaluate the energy at
-    :param aabb_object: aabb object from the aabbquery class from freud
-    :param forcefield_mixed: a numpy array of shape (n,2) where n is the number of atoms in the system.
-    The first column is the epsilon parameter and the second column is the sigma parameter
-    :param cutoff: the cutoff distance for the neighbor search
-    :return: The energy of each grid point.
-    """
-
-    # def lj_sum(dists, sig, eps):
-    #     return np.sum(4*eps*((sig/dists)**12-(sig/dists)**6))
-
-    # Performthenearestneighborquerywithn-neighbors(10bydefault)
-
-    import numpy as np
-
-    ab_r = aabb_object.query(
-        grid_points, query_args=dict(mode="ball", r_max=cutoff, exclude_ii=True)
-    )
-
+    # ab_r=aabb_object.query(grid_points,query_args=dict(mode='ball',r_max=cutoff,exclude_ii=True))
     ab_r_nl = ab_r.toNeighborList(sort_by_distance=True)  # convertquerytoneighborlist
     # nls=ab_r_nl.point_indices.reshape(-1,n_neighbors)#gettheindicesoftheneighborsforeachgridpt.tolookuptheradiilater
     # dists=ab_r_nl.distances.reshape(-1,n_neighbors)#getthedistancestotheneighborsofeachgridpt.
     # print(ab,ab_r,ab_r_nl,nls,[radii[nl]fornlinnls])#,np.min(dists-[radii[nl]fornlinnls],axis=1))
     # returntheminimum(shortestdistancetothesurface)ineachrow
-    indices = ab_r_nl.point_indices
-    distances = ab_r_nl.distances
-    segments = ab_r_nl.segments
-    inter_params = np.take(forcefield_mixed, indices, axis=0)
-    sig = inter_params[:, 1]
-    eps = inter_params[:, 0]
-    sd = np.power(np.divide(sig, distances), 6)
+
+    indices = ab_r_nl.point_indices  # * frame indices within cutoff at each grid point
+    distances = ab_r_nl.distances  # * distances to frame indices at each grid point
+    segments = ab_r_nl.segments  # * number of frame indices at each grid point
+    inter_params = np.take(
+        forcefield_mixed, indices, axis=0
+    )  # * get the parameters for each frame index at each grid point
+    sig = inter_params[
+        :, 1
+    ]  # * get the sigma values for each frame index at each grid point
+    eps = inter_params[
+        :, 0
+    ]  # * get the epsilon values for each frame index at each grid point
+    sd = np.power(np.divide(sig, distances), 6)  # * (sigma/distance)^6
+    lj = 4 * eps * (sd ** 2 - sd)  # * Lennard-Jones terms
+
+    ncounts = ab_r_nl.neighbor_counts  # * number of neighbors at each grid point
+    grid_point_indices = np.repeat(
+        np.arange(len(ncounts)), ncounts
+    )  # * repeat the grid point indices for each neighbor
+
+    v = np.bincount(
+        grid_point_indices, weights=lj, minlength=len(ncounts)
+    )  # * sum the energies for each grid point
+
     # sig = np.array([forcefield[i][1] for i in indices])
     # eps = np.array([forcefield[i][0] for i in indices])
 
     # print(len(indices),len(distances),len(segments),len(sig),len(eps)) #, np.take(forcefield, indices))
-    v = np.add.reduceat(np.multiply(4 * eps, ((sd) ** 2 - (sd))), segments)
+    # v = np.add.reduceat(
+    #     np.multiply(4 * eps, ((sd) ** 2 - (sd))), segments
+    # )  # * sum the energy contributions for each grid point
     # E = np.add.reduceat(4*eps*((sig/distances)**12-(sig/distances)**6), segments, axis=0)
 
     # E = [lj_sum(d, s, e) for d, s, e in zip(distances, sig, eps)]
@@ -4911,6 +4879,148 @@ def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
     # return np.vstack(E).reshape(-1,1)
     return v
 
+
+# def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
+#     import numpy as np
+
+#     ab_r = aabb_object.query(
+#         grid_points, query_args=dict(mode="ball", r_max=cutoff, exclude_ii=True)
+#     )
+
+#     ab_r_nl = ab_r.toNeighborList(sort_by_distance=True)
+
+#     indices = ab_r_nl.point_indices
+#     distances = ab_r_nl.distances
+#     segments = ab_r_nl.segments
+#     inter_params = np.take(forcefield_mixed, indices, axis=0)
+#     sig = inter_params[:, 1]
+#     eps = inter_params[:, 0]
+#     sd = np.power(np.divide(sig, distances), 6)
+
+#     # Initialize v with zeros
+#     v = np.zeros(len(grid_points))
+
+#     # Only perform reduction on grid points with neighbors
+#     has_neighbors = np.diff(segments, prepend=-1) != 0
+#     v[has_neighbors] = np.add.reduceat(
+#         np.multiply(4 * eps, ((sd) ** 2 - (sd))), segments[has_neighbors]
+#     )
+
+#     return v
+def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
+    """
+    The function `gpe_aabb` calculates Lennard-Jones potentials for grid points based on their distances
+    to neighboring points within a specified cutoff distance.
+    
+    :param grid_points: The `grid_points` parameter in the `gpe_aabb` function represents the
+    coordinates of points in a grid. These points are used for calculations involving a AABB
+    (Axis-Aligned Bounding Box) object, a force field, and a specified cutoff distance. The function
+    calculates Lennard-J
+    :param aabb_object: The function `gpe_aabb` you provided seems to calculate the Lennard-Jones
+    potentials for a set of grid points based on an axis-aligned bounding box (AABB) object, a force
+    field, and a cutoff distance
+    :param forcefield_mixed: The `forcefield_mixed` parameter in the `gpe_aabb` function seems to
+    represent a mixed force field containing interaction parameters for each pair of particles. The
+    function calculates Lennard-Jones potentials between grid points and their neighboring particles
+    based on these interaction parameters
+    :param cutoff: The `cutoff` parameter in the `gpe_aabb` function represents the maximum distance
+    within which interactions between grid points and AABB (Axis-Aligned Bounding Box) objects will be
+    considered. Any interactions beyond this distance will not be included in the calculations
+    :return: The function `gpe_aabb` returns an array `v` containing the Lennard-Jones potentials
+    calculated for each grid point based on the provided input parameters `grid_points`, `aabb_object`,
+    `forcefield_mixed`, and `cutoff`.
+    """
+
+
+    import numpy as np
+    ab_r = aabb_object.query(
+        grid_points, query_args=dict(mode="ball", r_max=cutoff, exclude_ii=True)
+    )
+
+    ab_r_nl = ab_r.toNeighborList(sort_by_distance=True)  # Convert query to neighbor list
+    indices = ab_r_nl.point_indices
+    distances = ab_r_nl.distances
+    # segments = ab_r_nl.segments
+    inter_params = np.take(forcefield_mixed,indices, axis=0)
+    sig = inter_params[:, 1]
+    eps = inter_params[:, 0]
+    # Initialize energies array
+    # segments = np.cumsum(ab_r_nl.neighbor_counts)
+    # segments = np.insert(segments, 0, 0)
+    # print(segments)
+    # Calculate the scaled distances (sigma/distance)^6
+    ncounts = ab_r_nl.neighbor_counts
+    # print('number of entries',  len(distances))
+    # print('len of neighbors ', len(ncounts))
+    # print('total numbero f neighbors', np.sum(ncounts))
+    # print('ncounts',    ab_r_nl.neighbor_counts)
+    # print('number of grid points', len(grid_points))
+
+    # compute the corresponding Lennard-Jones terms
+    sd = np.power(np.divide(sig,distances), 6)
+    lj_potentials = 4 * eps * (sd ** 2 - sd)
+    # repeat the grid point indices for each neighbor
+    grid_point_indices = np.repeat(np.arange(len(ncounts)), ncounts)
+
+    # Use np.bincount to sum energies for each grid point
+    # Weights are the energies, and minlength ensures the result includes all grid points
+    v = np.bincount(grid_point_indices, weights=lj_potentials, minlength=len(ncounts))
+
+    # Use np.add.reduceat to sum potentials for each segment
+    # v = np.add.reduceat(lj_potentials, segments[:-1])
+    # print('Len of energies ', len(v))
+    # print('min of energies ', v.min())
+    # print('grid point with min energy', grid_points[v.argmin()])
+    return v
+
+# def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
+#     """
+#     It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff
+#     distance, and returns the energy of each grid point
+
+#     :param grid_points: the points you want to evaluate the energy at
+#     :param aabb_object: aabb object from the aabbquery class from freud
+#     :param forcefield_mixed: a numpy array of shape (n,2) where n is the number of atoms in the system.
+#     The first column is the epsilon parameter and the second column is the sigma parameter
+#     :param cutoff: the cutoff distance for the neighbor search
+#     :return: The energy of each grid point.
+#     """
+
+#     # def lj_sum(dists, sig, eps):
+#     #     return np.sum(4*eps*((sig/dists)**12-(sig/dists)**6))
+
+#     # Performthenearestneighborquerywithn-neighbors(10bydefault)
+
+#     import numpy as np
+
+#     ab_r = aabb_object.query(
+#         grid_points, query_args=dict(mode="ball", r_max=cutoff, exclude_ii=True)
+#     )
+
+#     ab_r_nl = ab_r.toNeighborList(sort_by_distance=True)  # convertquerytoneighborlist
+#     # nls=ab_r_nl.point_indices.reshape(-1,n_neighbors)#gettheindicesoftheneighborsforeachgridpt.tolookuptheradiilater
+#     # dists=ab_r_nl.distances.reshape(-1,n_neighbors)#getthedistancestotheneighborsofeachgridpt.
+#     # print(ab,ab_r,ab_r_nl,nls,[radii[nl]fornlinnls])#,np.min(dists-[radii[nl]fornlinnls],axis=1))
+#     # returntheminimum(shortestdistancetothesurface)ineachrow
+#     indices = ab_r_nl.point_indices
+#     distances = ab_r_nl.distances
+#     segments = ab_r_nl.segments
+#     inter_params = np.take(forcefield_mixed, indices, axis=0)
+#     sig = inter_params[:, 1]
+#     eps = inter_params[:, 0]
+#     sd = np.power(np.divide(sig, distances), 6)
+#     # sig = np.array([forcefield[i][1] for i in indices])
+#     # eps = np.array([forcefield[i][0] for i in indices])
+
+#     # print(len(indices),len(distances),len(segments),len(sig),len(eps)) #, np.take(forcefield, indices))
+#     v = np.add.reduceat(np.multiply(4 * eps, ((sd) ** 2 - (sd))), segments)
+#     # E = np.add.reduceat(4*eps*((sig/distances)**12-(sig/distances)**6), segments, axis=0)
+
+#     # E = [lj_sum(d, s, e) for d, s, e in zip(distances, sig, eps)]
+
+#     # return np.vstack(E).reshape(-1,1)
+#     return v
+#
 
 # def aabb_for_atoms(ase_atoms):
 
@@ -4938,7 +5048,7 @@ def egrid_from_atoms2(
     cutoff=12.5,
     probe_symbol="He",
     return_ncells=False,
-    precompute=True,
+    precompute_aabb=True,
 ):
     """
     > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid.
@@ -5012,7 +5122,7 @@ def egrid_from_atoms2(
     forcefield_mixed_repeat = np.tile(forcefield_mixed, (nrepeats, 1))
 
     # mix_lorentz_berthelot(ase_atoms_repeat, forcefield = forcefields['uff'], probe_symbol=probe_symbol)
-    if precompute:
+    if precompute_aabb:
         ab_repeat = AABB_on_atoms(ase_atoms_repeat)
         # * map the grid point energy function that uses position and cell, on to the grid points
         grid2 = da.map_blocks(
