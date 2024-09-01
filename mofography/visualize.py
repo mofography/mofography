@@ -1755,16 +1755,16 @@ def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5
     rgba_colors_with_opacity = [[int(c[0] * 255), int(c[1] * 255), int(c[2] * 255), int(sphere_opacity*255)] for c in rgba_colors]
     # rgba_colors_with_opacity = [[int(c[0] ), int(c[1] ), int(c[2] ), opacity] for c in rgba_colors]
 
-    print(rgba_colors_with_opacity)
+    # print(rgba_colors_with_opacity)
 
     if show_spheres:
         spheres =spheres_for_positions(maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30)
-        print([s.visual.vertex_colors for s in spheres])
+        # print([s.visual.vertex_colors for s in spheres])
         for i, s in enumerate(spheres):
-            print(rgba_colors_with_opacity[i])
+            # print(rgba_colors_with_opacity[i])
             s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i]) 
             # s.visual.vertex_colors =  trimesh.visual.random_color()
-        print([s.visual.vertex_colors for s in spheres])
+        # print([s.visual.vertex_colors for s in spheres])
         # Concatenate all spheres into one trimesh object
         # spheres = trimesh.util.concatenate(spheres)
         mesh = plot_mesh(spheres, stylize=True, opacity=sphere_opacity, name='maxima spheres')
