@@ -1545,46 +1545,232 @@ def plot_windows(connections, **kwargs):
     return go.Scatter3d(x=windows[:,0], y=windows[:,1], z=windows[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity), hovertext=hovertext, name=name, **kwargs)
 
 
-def plot_maxima(dgrid, maxima, ase_atoms, **kwargs):
-    """
-    It takes in a 3D grid of data, a list of indices of local maxima, and an ASE atoms object, and
-    returns a plotly scatter3d object with the local maxima plotted as points.
+# def plot_maxima(dgrid, maxima, ase_atoms, **kwargs):
+#     """
+#     it takes in a 3d grid of data, a list of indices of local maxima, and an ase atoms object, and
+#     returns a plotly scatter3d object with the local maxima plotted as points.
     
-    :param dgrid: the density grid
-    :param maxima: the indices of the local maxima
-    :param ase_atoms: the atoms object from ASE
-    :return: A plotly scatter3d object
+#     :param dgrid: the density grid
+#     :param maxima: the indices of the local maxima
+#     :param ase_atoms: the atoms object from ase
+#     :return: a plotly scatter3d object
+#     """
+
+
+#     import numpy as np 
+#     import plotly.graph_objects as go
+
+#     from .helper import find_coord_from_indices
+#     maxima_coords = find_coord_from_indices(maxima, dgrid.shape,ase_atoms)
+#     #set defaults for kwargs
+#     cage_radii = dgrid[tuple(maxima.t)]
+#     # angstrom = str('\u212b').encode('utf-8', errors='ignore').decode('utf-8')
+#     # a = a.encode('ascii', 'ignore')
+#     cage_labels = [('{} a').format(c) for c in np.round(cage_radii, decimals =2)]
+#     hovertext = [str(i+1)+' '+j for i,j in enumerate(cage_labels)]
+
+#     # read entries from kwargs, with defaults
+#     name = kwargs.get('name', 'local maxima')
+#     marker_size = kwargs.get('marker_size', 15)
+#     opacity = kwargs.get('opacity', 0.85)
+#     marker_color = kwargs.get('marker_color', cage_radii)
+#     hovertext = kwargs.get('hovertext', hovertext)
+#     marker_colorscale = kwargs.get('marker_colorscale', 'viridis')
+#     #remove the entries we have already read 
+#     kwargs.pop('name', none)
+#     kwargs.pop('marker_size', none)
+#     kwargs.pop('opacity', none)
+#     kwargs.pop('marker_color', none)
+#     kwargs.pop('hovertext', none)
+
+#     return go.scatter3d(x=maxima_coords[:,0], y=maxima_coords[:,1], z=maxima_coords[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity, colorscale=marker_colorscale), hovertext=hovertext, name=name, **kwargs)
+
+# def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, **kwargs):
+#     """
+#     The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima,
+#     optionally showing spheres around the maxima points.
+    
+#     :param dgrid: The `dgrid` parameter seems to represent a grid of values, possibly related to density
+#     or distances
+#     :param maxima: The `maxima` parameter in the `plot_maxima` function represents the indices of the
+#     local maxima in the density grid. These indices are used to locate the positions of the maxima in 3D
+#     space
+#     :param ase_atoms: The `ase_atoms` parameter in the `plot_maxima` function seems to represent the
+#     atomic structure of a material system. It is likely an input that provides information about the
+#     atomic positions and possibly other properties of the atoms in the system. This information is used
+#     in conjunction with the `dgrid`
+#     :param show_spheres: The `show_spheres` parameter in the `plot_maxima` function is a boolean
+#     parameter that determines whether to display spheres around the maxima points in the plot. If
+#     `show_spheres` is set to `True`, spheres will be displayed around the maxima points based on the
+#     provided coordinates, defaults to False (optional)
+#     :return: The function `plot_maxima` returns either a `scatter` plot or a combination of `scatter`
+#     plot and `mesh` depending on the value of the `show_spheres` parameter. If `show_spheres` is `True`,
+#     it returns both the `scatter` plot and the `mesh` object. If `show_spheres` is `False`, it returns
+#     only the `scatter
+#     """
+    
+#     import numpy as np
+#     import plotly.graph_objects as go
+#     import trimesh
+#     from .helper import find_coord_from_indices
+#     # from mofography import spheres_for_positions, plot_mesh, find_coord_from_indices
+#     maxima_coords = mgr.find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
+#     cage_radii = dgrid[tuple(maxima.T)]
+#     cage_labels = [("{} A").format(c) for c in np.round(cage_radii, decimals=2)]
+#     hovertext = [str(i + 1) + " " + j for i, j in enumerate(cage_labels)]
+
+#     name = kwargs.get("name", "local maxima")
+#     marker_size = kwargs.get("marker_size", 15)
+#     opacity = kwargs.get("opacity", 0.85)
+#     marker_color = kwargs.get("marker_color", cage_radii)
+#     hovertext = kwargs.get("hovertext", hovertext)
+#     marker_colorscale = kwargs.get("marker_colorscale", "Viridis")
+#     sphere_opacity = kwargs.get("sphere_opacity", 0.5)
+
+#     kwargs.pop("name", None)
+#     kwargs.pop("marker_size", None)
+#     kwargs.pop("opacity", None)
+#     kwargs.pop("marker_color", None)
+#     kwargs.pop("hovertext", None)
+#     kwargs.pop("sphere_opacity",None)
+
+#     scatter = go.Scatter3d(
+#         x=maxima_coords[:, 0],
+#         y=maxima_coords[:, 1],
+#         z=maxima_coords[:, 2],
+#         mode="markers",
+#         marker=dict(
+#             size=marker_size,
+#             color=marker_color,
+#             opacity=opacity,
+#             colorscale=marker_colorscale,
+#         ),
+#         hovertext=hovertext,
+#         name=name,
+#         **kwargs,
+#     )
+
+#     if show_spheres:
+#         spheres =spheres_for_positions(maxima_coords, cage_radii, color=[255,255,255, sphere_opacity])
+#         # Concatenate all spheres into one trimesh object
+#         spheres = trimesh.util.concatenate(spheres)
+#         mesh = plot_mesh([spheres], stylize=True)
+#         return scatter, mesh
+#     else:
+#         return scatter
+
+
+def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs):
+    """
+    The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima, and
+    optionally displays spheres around the maxima with interpolated colors.
+    
+    :param dgrid: The `dgrid` parameter is likely a grid of values representing some property, such as
+    electron density or energy, at different points in space. This grid is used to identify local
+    maxima, which are points where the value is higher than at neighboring points. The function
+    `plot_maxima` takes
+    :param maxima: The `plot_maxima` function you provided seems to be for plotting local maxima in a 3D
+    plot using Plotly. The `maxima` parameter you mentioned is likely a NumPy array containing the
+    coordinates of the local maxima points in the grid
+    :param ase_atoms: The `ase_atoms` parameter in the `plot_maxima` function is used to provide atomic
+    positions and information about the structure. It is used to find the coordinates of the maxima in
+    the grid relative to the atomic positions provided by `ase_atoms`. This information is essential for
+    visualizing the local
+    :param show_spheres: The `show_spheres` parameter in the `plot_maxima` function is a boolean flag
+    that determines whether to display spheres at the maximum coordinates. If set to `True`, spheres
+    will be shown at the maximum coordinates based on the provided data. If set to `False`, only markers
+    will be, defaults to False (optional)
+    :param sphere_opacity: The `sphere_opacity` parameter in the `plot_maxima` function controls the
+    opacity of the spheres that are displayed in the plot. It determines how transparent or opaque the
+    spheres will appear in the visualization. The value of `sphere_opacity` ranges from 0 (completely
+    transparent) to 1
+    :return: The function `plot_maxima` returns either a Scatter3d plot or a combination of Scatter3d
+    plot and mesh plot, depending on the value of the `show_spheres` parameter. If `show_spheres` is
+    `True`, it returns both the Scatter3d plot and the mesh plot of spheres representing the maxima. If
+    `show_spheres` is `False`, it returns
     """
 
-
-    import numpy as np 
+    import numpy as np
     import plotly.graph_objects as go
-
+    import trimesh
+    from matplotlib.colors import to_rgba
     from .helper import find_coord_from_indices
-    maxima_coords = find_coord_from_indices(maxima, dgrid.shape,ase_atoms)
-    #set defaults for kwargs
+    # from mofography import spheres_for_positions, plot_mesh, find_coord_from_indices
+    maxima_coords = find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
     cage_radii = dgrid[tuple(maxima.T)]
-    # angstrom = str('\u212b').encode('utf-8', errors='ignore').decode('utf-8')
-    # a = a.encode('ascii', 'ignore')
-    cage_labels = [('{} A').format(c) for c in np.round(cage_radii, decimals =2)]
-    hovertext = [str(i+1)+' '+j for i,j in enumerate(cage_labels)]
+    cage_labels = [("{} A").format(c) for c in np.round(cage_radii, decimals=2)]
+    hovertext = [str(i + 1) + " " + j for i, j in enumerate(cage_labels)]
 
-    # read entries from kwargs, with defaults
-    name = kwargs.get('name', 'local maxima')
-    marker_size = kwargs.get('marker_size', 15)
-    opacity = kwargs.get('opacity', 0.85)
-    marker_color = kwargs.get('marker_color', cage_radii)
-    hovertext = kwargs.get('hovertext', hovertext)
-    marker_colorscale = kwargs.get('marker_colorscale', 'Viridis')
-    #remove the entries we have already read 
-    kwargs.pop('name', None)
-    kwargs.pop('marker_size', None)
-    kwargs.pop('opacity', None)
-    kwargs.pop('marker_color', None)
-    kwargs.pop('hovertext', None)
+    name = kwargs.get("name", "local maxima")
+    marker_size = kwargs.get("marker_size", 15)
+    opacity = kwargs.get("opacity", 0.85)
+    marker_color = kwargs.get("marker_color", cage_radii)
+    hovertext = kwargs.get("hovertext", hovertext)
+    marker_colorscale = kwargs.get("marker_colorscale", "Viridis")
+
+    kwargs.pop("name", None)
+    kwargs.pop("marker_size", None)
+    kwargs.pop("opacity", None)
+    kwargs.pop("marker_color", None)
+    kwargs.pop("hovertext", None)
+
+    scatter = go.Scatter3d(
+        x=maxima_coords[:, 0],
+        y=maxima_coords[:, 1],
+        z=maxima_coords[:, 2],
+        mode="markers",
+        marker=dict(
+            size=marker_size,
+            color=marker_color,
+            opacity=opacity,
+            colorscale=marker_colorscale,
+        ),
+        hovertext=hovertext,
+        name=name,
+        **kwargs,
+    )
+    data_values = np.array(scatter.marker.color, dtype=float)
+
+    # Normalize data values to range [0, 1]
+    normalized_values = (data_values - data_values.min()) / (data_values.max() - data_values.min())
+
+    # Define the colorscale
+    colorscale =scatter.marker.colorscale
 
 
-    return go.Scatter3d(x=maxima_coords[:,0], y=maxima_coords[:,1], z=maxima_coords[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity, colorscale=marker_colorscale), hovertext=hovertext, name=name, **kwargs)
+    # Function to interpolate colors
+    def interpolate_color(colorscale, value):
+        for i in range(len(colorscale) - 1):
+            if colorscale[i][0] <= value <= colorscale[i + 1][0]:
+                t = (value - colorscale[i][0]) / (colorscale[i + 1][0] - colorscale[i][0])
+                color1 = np.array(to_rgba(colorscale[i][1]))
+                color2 = np.array(to_rgba(colorscale[i + 1][1]))
+                return (1 - t) * color1 + t * color2
+        return np.array(to_rgba(colorscale[-1][1]))
+
+    # Interpolate colors for each normalized value
+    rgba_colors = [interpolate_color(colorscale, val) for val in normalized_values]
+
+    # Convert colors to RGBA format with specified opacity
+    rgba_colors_with_opacity = [[int(c[0] * 255), int(c[1] * 255), int(c[2] * 255), int(sphere_opacity*255)] for c in rgba_colors]
+    # rgba_colors_with_opacity = [[int(c[0] ), int(c[1] ), int(c[2] ), opacity] for c in rgba_colors]
+
+    print(rgba_colors_with_opacity)
+
+    if show_spheres:
+        spheres =spheres_for_positions(maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30)
+        print([s.visual.vertex_colors for s in spheres])
+        for i, s in enumerate(spheres):
+            print(rgba_colors_with_opacity[i])
+            s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i]) 
+            # s.visual.vertex_colors =  trimesh.visual.random_color()
+        print([s.visual.vertex_colors for s in spheres])
+        # Concatenate all spheres into one trimesh object
+        # spheres = trimesh.util.concatenate(spheres)
+        mesh = plot_mesh(spheres, stylize=True, opacity=sphere_opacity, name='maxima spheres')
+        return scatter, mesh
+    else:
+        return scatter
 
 def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
     """
@@ -1958,3 +2144,4 @@ def make_pore_size_distribution_fig_from_rag(rag):
     )
 
     return fig
+# %%
