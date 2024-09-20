@@ -1471,8 +1471,40 @@ def AABB_on_atoms(ase_atoms, points=None):
     # Perform the nearest neighbor query with n-neighbors (10 by default)
 
     return ab
+def get_wall_windows3(regions, maxima, dgrid, ase_atoms, wall_thickness):
+    """
+    This function calculates the wall windows based on the provided regions, maxima, dgrid, and other parameters.
+    
+    :param regions: The labeled regions from the segmentation.
+    :param maxima: The maxima points in the dgrid.
+    :param dgrid: The dgrid data.
+    :param ase_atoms: The ASE atoms object.
+    :param wall_thickness: The thickness of the wall to consider.
+    :return: A list of wall windows.
+    """
+    wall_windows = []
+    wregs_l, wregs_r = [], []  # Assuming these are defined somewhere in your code
+    window_coords_l, window_coords_r = [], []  # Assuming these are defined somewhere in your code
+    window_radii_l, window_radii_r = [], []  # Assuming these are defined somewhere in your code
 
+    # Ensure that window_coords_l and window_coords_r are properly shaped
+    window_rows_l = np.vstack(
+        [
+            [*w, np.array(window_coords_l[i]).flatten(), window_radii_l[i]]  # Flatten to ensure 1D
+            for i, w in enumerate(wregs_l)
+        ]
+    )
+    window_rows_r = np.vstack(
+        [
+            [*w, np.array(window_coords_r[i]).flatten(), window_radii_r[i]]  # Flatten to ensure 1D
+            for i, w in enumerate(wregs_r)
+        ]
+    )
 
+    wall_windows.append(window_rows_l)
+    wall_windows.append(window_rows_r)
+
+    return wall_windows
 def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
     import numpy as np
     from icecream import ic
@@ -1543,23 +1575,19 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
                 )
                 ic(window_coords_l)
                 ic(window_coords_r)
-                window_rows_l = np.vstack(
-                    [
-                        [*w, np.array([window_coords_l[i]]), window_radii_l[i]]
-                        for i, w in enumerate(wregs_l)
-                    ]
-                )
-                window_rows_r = np.vstack(
-                    [
-                        [*w, np.array([window_coords_r[i]]), window_radii_r[i]]
-                        for i, w in enumerate(wregs_r)
-                    ]
-                )
-                wall_windows.append(window_rows_l)
-                wall_windows.append(window_rows_r)
+                window_rows_l = [
+                    [*w, np.array([window_coords_l[i]]), window_radii_l[i]]
+                    for i, w in enumerate(wregs_l)
+                ]
+                window_rows_r = [
+                    [*w, np.array([window_coords_r[i]]), window_radii_r[i]]
+                    for i, w in enumerate(wregs_r)
+                ]
+                wall_windows.extend(window_rows_l)
+                wall_windows.extend(window_rows_r)
 
     if len(wall_windows) > 0:
-        wall_windows = np.vstack(wall_windows)
+        wall_windows = np.array(wall_windows, dtype=object)
     return wall_windows
 
 
@@ -3487,7 +3515,7 @@ def add_clustering_to_rag(rag2, return_cluster_obj=False, no_pbc=False, **kwargs
     from sklearn.cluster import AgglomerativeClustering
 
     # get kwargs that are passed, if not set defaults
-    affinity = kwargs.get("affinity", "euclidean")
+    metric = kwargs.get("metric", "euclidean")
     linkage = kwargs.get("linkage", "single")
     n_clusters = kwargs.get("n_clusters", None)
     connectivity = kwargs.get("connectivity", None)
@@ -3496,15 +3524,24 @@ def add_clustering_to_rag(rag2, return_cluster_obj=False, no_pbc=False, **kwargs
     compute_distances = kwargs.get("compute_distances", False)
 
     if len(X) > 1:
-        clustering = AgglomerativeClustering(
-            compute_full_tree=compute_full_tree,
-            connectivity=connectivity,
-            compute_distances=compute_distances,
-            linkage=linkage,
-            distance_threshold=distance_threshold,
-            n_clusters=n_clusters,
-            affinity=affinity,
-        ).fit(X)
+        # Remove 'affinity' from kwargs if it's present
+        affinity = kwargs.pop('affinity', None)
+        
+        # Use 'metric' instead of 'affinity'
+        if affinity and not metric:
+            metric = affinity  # Use the old affinity value as metric if provided
+        
+        clustering_params = {
+            'compute_full_tree': compute_full_tree,
+            'connectivity': connectivity,
+            'compute_distances': compute_distances,
+            'linkage': linkage,
+            'distance_threshold': distance_threshold,
+            'n_clusters': n_clusters,
+            'metric': metric
+        }
+
+        clustering = AgglomerativeClustering(**clustering_params).fit(X)
 
         # * Add the clustering info to rag
         for i in rag2.nodes():
