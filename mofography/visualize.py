@@ -164,24 +164,29 @@ def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
     import random
     import plotly.express as px 
     import numpy as np
-    # coordinates = []
-    # hovertext=[]
-    # marker_color = []
-    path_traces =[]
+
+    # Get all maxima coordinates at once
+    maxima_dict = nx.get_node_attributes(rag, 'maxima')
     colorscale = getattr(px.colors.qualitative, colorscale)
-    for i,path in enumerate(paths):
-        # coordinates = coordinates+list(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
-        maxima_dict= nx.get_node_attributes(rag, 'maxima')
-        coordinates= np.vstack(map(maxima_dict.get, path))
-        # coordinates = np.vstack(nx.get_node_attributes(rag.subgraph(path), 'maxima').values())
-        # coordinates.append([None, None, None])
-        # hovertext = hovertext + ['Path: '+str(i)]*len(path)
-        hovertext ='P'+str(i)+': '+'->'.join([str(p) for p in path])        # hovertext.append(None)
-        # marker_color= marker_color+ [random.choice(colorscale)]*len(path)
-        marker_color= random.choice(colorscale)
-        line_color = 'yellow'
-        # marker_color.append('rgb(0,0,0)')
-        path_trace = go.Scatter3d(x=coordinates[:,0], y=coordinates[:,1], z=coordinates[:,2], mode='markers+lines', marker=dict(size=25, color=marker_color),line=dict(width=10,color=line_color), hovertext=hovertext, name=hovertext ,**kwargs)
+
+    path_traces = []
+    for i, path in enumerate(paths):
+        # Get coordinates for this path
+        coordinates = np.array([maxima_dict[node] for node in path])
+        
+        marker_color = random.choice(colorscale)
+        
+        path_trace = go.Scatter3d(
+            x=coordinates[:, 0], 
+            y=coordinates[:, 1], 
+            z=coordinates[:, 2], 
+            mode='markers+lines', 
+            marker=dict(size=25, color=marker_color),
+            line=dict(width=10, color='yellow'), 
+            hovertext=f'P{i}: {" -> ".join(map(str, path))}',
+            name=f'Path:{i}',
+            **kwargs
+        )
         path_traces.append(path_trace)
     
     return path_traces
