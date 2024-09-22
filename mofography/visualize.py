@@ -190,7 +190,7 @@ def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
         path_traces.append(path_trace)
     
     return path_traces
-#     return data_plot
+
 def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
                        color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :', **kwargs_mesh):
     """
@@ -218,7 +218,6 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
       a plotly mesh3d object.
     """
 
-
     import numpy as np
     import copy
     import plotly.graph_objects as go
@@ -226,9 +225,8 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
     import plotly.express as px
     import trimesh 
 
-    # dgrid_copy = copy.deepcopy(dgrid)  # deepcopy of the grid
-    regions_copy= copy.deepcopy(region_labels)  # deepcopy of the grid
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T  # get cell matrix
+    regions_copy = copy.deepcopy(region_labels)
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T
 
     # * Compute the isosurface using Marching Cubes Lewiner as usual
     from skimage.measure import marching_cubes as mc
@@ -250,13 +248,13 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
 
         # *  Make a colorscale using random colors if no colorscale is provided
         if cscale is None:
-            cvals = np.linspace(0, 1, (regions_copy.max()).astype(int))
-            rand_ints = np.random.randint(low=0, high=256, size=(regions_copy.max().astype(int), 3))
-
+            max_region = int(regions_copy.max())
+            cvals = np.linspace(0, 1, max_region)
+            rand_ints = np.random.randint(low=0, high=256, size=(max_region, 3))
             cscale = [[cvals[i],
-                       "rgb(" + str(rand_ints[i][0]) + ',' + str(rand_ints[i][1]) + ',' + str(
-                           rand_ints[i][2]) +','+str(opacity)+ ')'] for i in range((regions_copy.max()).astype(int))]
-        if type(cscale) == str:
+                       f"rgba({rand_ints[i][0]},{rand_ints[i][1]},{rand_ints[i][2]},{opacity})"] 
+                      for i in range(max_region)]
+        elif isinstance(cscale, str):
             try:
                 cscale = getattr(px.colors.qualitative, cscale)
             except:
@@ -265,63 +263,56 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
                 except:
                     pass
 
-            # cscale = [[cvals[i],
-            #         "rgb(" + str(np.random.randint(0, 256)) + ',' + str(np.random.randint(0, 256)) + ',' + str(
-            #             np.random.randint(0, 256)) + ')'] for i in range((region_labels.max()).astype(int))]
-
-        # if select!='all':
-        #     cscale[np.where(regions_list,select, invert=True)]='rgba(0,0,0,0)'
-
-        #  Find the colour for the vertices
         from scipy.interpolate import RegularGridInterpolator as RGI
-        xx = np.linspace(0,regions_copy.shape[0] - 1,regions_copy.shape[0])
-        yy = np.linspace(0,regions_copy.shape[1] - 1,regions_copy.shape[1])
-        zz = np.linspace(0,regions_copy.shape[2] - 1,regions_copy.shape[2])
-        rl = RGI((xx, yy, zz),regions_copy, method='nearest')
-
-        # * Select only some regions
+        xx = np.linspace(0, regions_copy.shape[0] - 1, regions_copy.shape[0])
+        yy = np.linspace(0, regions_copy.shape[1] - 1, regions_copy.shape[1])
+        zz = np.linspace(0, regions_copy.shape[2] - 1, regions_copy.shape[2])
+        rl = RGI((xx, yy, zz), regions_copy, method='nearest')
 
         if select != 'all':
             #* make a submesh using the selected regions
             import trimesh
-            mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals = normals, process=False)
-            select_these_faces = np.where(np.all(np.isin(rl(verts[faces]), select, assume_unique=False), axis=1))
-            submesh = mesh.submesh(select_these_faces, append=True)
-            verts, faces = submesh.vertices, submesh.faces
+            mesh = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=normals, process=False)
             
+            # Create a mask for faces to select
+            face_mask = np.all(np.isin(rl(verts[faces]), select, assume_unique=False), axis=1)
+            
+            # Get the indices of the faces to keep
+            faces_to_keep = np.where(face_mask)[0]
+            
+            # Use submesh with the face indices
+            submesh = mesh.submesh([faces_to_keep], append=True)
+            
+            # submesh is now a Trimesh object, so we can directly access its vertices and faces
+            verts, faces = submesh.vertices, submesh.faces
+        
         #* Generate values to color by using the interpolated region labels
         colours = rl(verts)
         #  Find the actual coordinates of the vertices for plotting
         hovertext = [hover_label + str(int(c)) for c in colours]
         true_verts = np.dot(cell, (verts / region_labels.shape).T).T
-        data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2], intensity=colours.astype(int), intensitymode='vertex',
-                              hoverinfo='all', hovertext=hovertext, flatshading=False, colorscale=cscale, i=faces[:, 0],
-                              j=faces[:, 1], k=faces[:, 2], opacity=opacity, name=name, showlegend=showlegend, **kwargs_mesh)
-
-    else:  # if no region labels are provided color by a flat color
-
+        
+        # Map colours to the full colorscale range
+        colour_indices = colours.astype(int) - 1  # Adjust for 0-based indexing
+        
+        data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2], 
+                              intensity=colour_indices, intensitymode='vertex',
+                              hoverinfo='all', hovertext=hovertext, flatshading=False, 
+                              colorscale=cscale, i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], 
+                              opacity=opacity, name=name, showlegend=showlegend, **kwargs_mesh)
+    else:
         true_verts = np.dot(cell, (verts / dgrid.shape).T).T
         data_plot = go.Mesh3d(x=true_verts[:, 0], y=true_verts[:, 1], z=true_verts[:, 2],
-                              hoverinfo='all',
-                              i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], opacity=opacity, color=color,
-                              name=name , showlegend=showlegend, **kwargs_mesh)
+                              hoverinfo='all', i=faces[:, 0], j=faces[:, 1], k=faces[:, 2], 
+                              opacity=opacity, color=color, name=name, showlegend=showlegend, **kwargs_mesh)
 
-    if stylize:  # some random style choices, purely personal preference.
-        # can be modified after ploting as well. see plotly docs.
-        data_plot.update(lighting=dict(ambient=0.18,
-                                       diffuse=1,
-                                       fresnel=0.1,
-                                       specular=1,
-                                       roughness=0.05,
-                                       facenormalsepsilon=1e-15,
-                                       vertexnormalsepsilon=1e-15),
-                         lightposition=dict(x=10,
-                                            y=10,
-                                            z=30
-                                            ), showscale=False
-                         )
+    if stylize:
+        data_plot.update(lighting=dict(ambient=0.18, diffuse=1, fresnel=0.1, specular=1,
+                                       roughness=0.05, facenormalsepsilon=1e-15, vertexnormalsepsilon=1e-15),
+                         lightposition=dict(x=10, y=10, z=30), showscale=False)
 
     return data_plot
+
 def plot_cell(ase_atoms, color='purple', name='cell'):
     """
     It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit
@@ -526,23 +517,58 @@ def scatter3d(X, name='trace name', mode='markers', marker_color='blue', marker_
 
 # *  Function to plot the region adjacency graph
 def plot_rag(G, plot_with='maxima', **kwargs):
-    # node_trace = []
     import numpy as np
     import plotly.graph_objects as go
+
+    # If there are no edges, plot only the nodes
+    if G.number_of_edges() == 0:
+        node_coords = []
+        node_labels = []
+        for node in G.nodes():
+            if node != 0:  # Skip node 0
+                node_coords.append(G.nodes[node][plot_with])
+                node_labels.append(f'Node: {G.nodes[node]["labels"][0]}')
+        
+        if node_coords:
+            node_coords = np.array(node_coords)
+            return go.Scatter3d(
+                x=node_coords[:, 0],
+                y=node_coords[:, 1],
+                z=node_coords[:, 2],
+                mode='markers',
+                hovertext=node_labels,
+                **kwargs
+            )
+        else:
+            # If there are no nodes except 0, return an empty scatter plot
+            return go.Scatter3d(x=[], y=[], z=[], mode='markers', **kwargs)
+
+    # If there are edges, proceed with the original edge plotting
     edge_trace = []
-    hovertext=[]
+    hovertext = []
     for edge in G.edges():
         if 0 not in edge:
             n1, n2 = edge
             edge_trace.append(G.nodes[n1][plot_with])
             edge_trace.append(G.nodes[n2][plot_with])
             edge_trace.append([None, None, None])
-            hovertext.append('Node: '+str(G.nodes[n1]['labels'][0]))
-            hovertext.append('Node: '+str(G.nodes[n2]['labels'][0]))
+            hovertext.append(f'Node: {G.nodes[n1]["labels"][0]}')
+            hovertext.append(f'Node: {G.nodes[n2]["labels"][0]}')
             hovertext.append(None)
-    edge_trace = np.vstack(edge_trace)
-    # print(edge_trace)
-    return go.Scatter3d(x=edge_trace[:, 0], y=edge_trace[:, 1], z=edge_trace[:, 2], hovertext= hovertext, **kwargs)
+
+    if edge_trace:
+        edge_trace = np.vstack(edge_trace)
+        return go.Scatter3d(
+            x=edge_trace[:, 0],
+            y=edge_trace[:, 1],
+            z=edge_trace[:, 2],
+            mode='lines+markers',
+            hovertext=hovertext,
+            **kwargs
+        )
+    else:
+        # If all edges involve node 0, plot only the nodes
+        return plot_rag(G, plot_with, **kwargs)
 
 
 def plot_pore_graph(G):
@@ -2150,3 +2176,137 @@ def make_pore_size_distribution_fig_from_rag(rag):
 
     return fig
 # %%
+def plot_pld_locations(dgrid, pld_locations, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs):
+    """
+    Generate a 3D scatter plot with markers representing PLD locations, and
+    optionally display spheres around the PLD locations.
+    
+    Parameters:
+    -----------
+    dgrid : numpy.ndarray
+        The distance grid of the structure.
+    pld_locations : numpy.ndarray
+        Array of grid indices where PLD occurs.
+    ase_atoms : ase.Atoms
+        The ASE Atoms object representing the structure.
+    show_spheres : bool, optional
+        Whether to display spheres at the PLD locations. Default is False.
+    sphere_opacity : float, optional
+        Opacity of the spheres. Default is 0.5.
+    **kwargs : dict
+        Additional keyword arguments to customize the plot.
+
+    Returns:
+    --------
+    plotly.graph_objs.Scatter3d or tuple
+        Scatter3d plot, or tuple of (Scatter3d, Mesh3d) if show_spheres is True.
+    """
+
+    import numpy as np
+    import plotly.graph_objects as go
+    import trimesh
+    from matplotlib.colors import to_rgba
+    from .helper import find_coord_from_indices
+
+    pld_coords = find_coord_from_indices(pld_locations, dgrid.shape, ase_atoms)
+    pld_radii = dgrid[tuple(pld_locations.T)]
+    pld_labels = [("{:.2f} A").format(r) for r in pld_radii]  # Diameter = 2 * radius
+    hovertext = [f"PLD {i+1}: {label}" for i, label in enumerate(pld_labels)]
+
+    name = kwargs.get("name", "PLD locations")
+    marker_size = kwargs.get("marker_size", 15)
+    opacity = kwargs.get("opacity", 0.85)
+    marker_color = kwargs.get("marker_color", "red")
+    marker_symbol = kwargs.get("marker_symbol", "diamond")
+
+    scatter = go.Scatter3d(
+        x=pld_coords[:, 0],
+        y=pld_coords[:, 1],
+        z=pld_coords[:, 2],
+        mode="markers",
+        marker=dict(
+            size=marker_size,
+            color=marker_color,
+            opacity=opacity,
+            symbol=marker_symbol,
+        ),
+        hovertext=hovertext,
+        name=name,
+        **kwargs,
+    )
+
+    if show_spheres:
+        # from .helper import spheres_for_positions, plot_mesh
+        spheres = spheres_for_positions(pld_coords, pld_radii, theta_resolution=30, phi_resolution=30)
+        for s in spheres:
+            s.visual.vertex_colors = np.array([255, 0, 0, int(sphere_opacity*255)])  # Red color
+        mesh = plot_mesh(spheres, stylize=True, opacity=sphere_opacity, name='PLD spheres')
+        return scatter, mesh
+    else:
+        return scatter
+def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, ase_atoms, probe_radius=None, isovalue=1.6, **kwargs):
+    """
+    Generate mesh traces for percolated clusters at a given probe radius.
+
+    Parameters:
+    -----------
+    percolation_history : list
+        The percolation history as returned by compute_percolation_history.
+    distance_grid : numpy.ndarray
+        The distance grid of the structure.
+    regions : numpy.ndarray
+        The segmented regions grid.
+    ase_atoms : ase.Atoms
+        The ASE Atoms object representing the structure.
+    probe_radius : float, optional
+        The probe radius to visualize. If None, use the last entry in percolation_history.
+    isovalue : float, optional
+        The isovalue for the surface plot. Default is 0.5.
+    **kwargs : dict
+        Additional keyword arguments to pass to plot_surface_dgrid.
+
+    Returns:
+    --------
+    list
+        A list of plotly.graph_objects.Mesh3d objects representing the percolated clusters.
+    """
+    if probe_radius is None:
+        entry = percolation_history[-1]
+    else:
+        entry = next((e for e in percolation_history if e[0] >= probe_radius), None)
+        if entry is None:
+            raise ValueError(f"No percolation data found for probe radius {probe_radius}")
+
+    threshold, components = entry
+
+    # Collect unique percolating components and their directions
+    unique_components = {}
+    for axis, comp_list in components.items():
+        for comp in comp_list:
+            comp_key = tuple(sorted(comp))
+            if comp_key in unique_components:
+                unique_components[comp_key].append(axis)
+            else:
+                unique_components[comp_key] = [axis]
+
+    mesh_traces = []
+
+    # Generate mesh for each unique component
+    for i, (comp, axes) in enumerate(unique_components.items(), 1):
+        # Get direction labels
+        dir_labels = ['x' if 0 in axes else '', 'y' if 1 in axes else '', 'z' if 2 in axes else '']
+        dir_str = ''.join(dir_labels)
+        
+        # Generate the mesh
+        mesh = plot_surface_dgrid(
+            distance_grid, 
+            isovalue, 
+            ase_atoms, 
+            region_labels=regions,
+            select=comp,
+            name=f'Component {i}_{dir_str}',
+            **kwargs
+        )
+        mesh_traces.append(mesh)
+
+    return mesh_traces
