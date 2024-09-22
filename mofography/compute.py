@@ -5924,7 +5924,7 @@ def compute_pld(path_to_cif, kwargs={}):
     mat_atoms = read(path_to_cif)
     distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
     return find_pore_limiting_radius(distance_grid)*2
-def get_pore_dia_mgr(path_to_cif, kwargs={}):
+def get_pore_dia_mgr(mat_atoms, kwargs={}):
     """
     Compute the pore diameters (LCD, PLD, DFSD) from a CIF file.
 
@@ -5950,7 +5950,7 @@ def get_pore_dia_mgr(path_to_cif, kwargs={}):
     spacing = kwargs.get('spacing', 0.5)
     block_size = kwargs.get('block_size', 50000)
     
-    mat_atoms = read(path_to_cif)
+    # mat_atoms = read(path_to_cif)
     distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
     
     lcd = distance_grid.max() * 2
