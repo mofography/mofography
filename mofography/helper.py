@@ -138,3 +138,134 @@ def compare_psd_peaks(peak_values1, peak_values2):
     # Print the closest values
     # print(closest_values)
     return reconstructed_list
+
+def convert_to_cygwin_path(windows_path):
+    """Convert a Windows path to a Cygwin-style path and escape spaces.
+
+    Args:
+        windows_path: The Windows-style path to convert.
+
+    Returns:
+        str: The converted Cygwin-style path with escaped spaces.
+
+    Example:
+        >>> convert_to_cygwin_path(Path(r"C:\Program Files\MyApp"))
+        '/c/Program\\ Files/MyApp'
+    """
+    import os  # Importing os for path manipulation
+
+    cygwin_path = str(windows_path).replace('\\', '/')
+    if cygwin_path[1:3] == ':':
+        cygwin_path = '/' + cygwin_path[0].lower() + cygwin_path[2:]
+
+    # Escape spaces with backslashes
+    cygwin_path = cygwin_path.replace(' ', '\\ ')
+    return cygwin_path
+
+
+def make_command(path_to_cif, executable_path, flags=""):
+    """Create a command string for running a Cygwin executable with a CIF file.
+
+    Args:
+        path_to_cif: The path to the CIF file.
+
+        executable_path: The path to the executable.
+        flags: Additional flags to include in the command.
+
+    Returns:
+        str: The command string to be executed in Cygwin.
+
+    Example:
+        >>> command = make_command(Path(r"C:\path\to\file.cif"), Path(r"C:\path\to\executable"), "-ha -res")
+
+        >>> print(command)
+
+        'C:/path/to/executable -ha -res C:/path/to/file.cif'
+    """
+    import os  # Importing os for path manipulation
+
+
+    # Convert paths to Cygwin format
+    cygwin_executable_path = convert_to_cygwin_path(executable_path)
+    cygwin_cif_path = convert_to_cygwin_path(path_to_cif)
+
+    # Print the resolved paths for debugging
+    print("Cygwin Executable Path:", cygwin_executable_path)
+    print("Cygwin CIF Path:", cygwin_cif_path)
+
+    # Prepare the command for Cygwin terminal without quotes around paths
+    command = f"{cygwin_executable_path} {flags} {cygwin_cif_path}"
+    print('Command is', command)
+    return command
+def run_cygwin_from_jupyter(cygwin_command, cygwin_path=r"C:\cygwin64\bin"):
+    """Run a Cygwin command from a Jupyter notebook.
+
+    Args:
+        cygwin_command: The command to run in Cygwin.
+        cygwin_path: The path to the Cygwin installation (default is r"C:\cygwin64\bin").
+
+    Returns:
+        None: This function prints the output and errors directly.
+    """
+    import os  # Importing os for environment manipulation
+    import subprocess  # Importing subprocess to run commands
+
+    # Add Cygwin bin to the PATH
+    os.environ["PATH"] = f"{cygwin_path};{os.environ['PATH']}"
+
+    # Run the command
+    result = subprocess.run(
+        [f"{cygwin_path}\\bash.exe", "-c", cygwin_command],
+        capture_output=True,
+        text=True,
+        shell=True
+    )
+
+    # Print the output
+    print(result.stdout)
+
+    # Print any errors
+    if result.stderr:
+        print("Errors:", result.stderr)
+
+def run_cygwin_from_jupyter_rt(cygwin_command, cygwin_path=r"C:\cygwin64\bin"):
+    """Run a Cygwin command from a Jupyter notebook in real-time.
+
+    Args:
+        cygwin_command: The command to run in Cygwin.
+        cygwin_path: The path to the Cygwin installation (default is r"C:\cygwin64\bin").
+
+    Returns:
+        int: The return code of the process.
+    """
+    import os  # Importing os for environment manipulation
+    import subprocess  # Importing subprocess to run commands
+    import sys  # Importing sys for flushing output
+
+    # Add Cygwin bin to the PATH
+    os.environ["PATH"] = f"{cygwin_path};{os.environ['PATH']}"
+
+    # Run the command
+    process = subprocess.Popen(
+        [f"{cygwin_path}\\bash.exe", "-c", cygwin_command],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,
+        universal_newlines=True
+    )
+
+    # Print output in real-time
+    for line in process.stdout:
+        print(line, end='')
+        sys.stdout.flush()  # Ensure output is displayed immediately
+
+    # Print errors (if any)
+    for line in process.stderr:
+        print("Error:", line, end='', file=sys.stderr)
+        sys.stderr.flush()  # Ensure error output is displayed immediately
+
+    # Wait for the process to complete and get the return code
+    return_code = process.wait()
+
+    return return_code
