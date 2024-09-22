@@ -5844,3 +5844,211 @@ def add_best_optuna_trial_to_rag(
         for node, trial in zip(rag.nodes, best_trials):
             rag.nodes[node]["best_trial_{}".format(molecule_name)] = trial
     return rag
+def pad_periodic(arr):
+    import numpy as np
+    """Pad array with periodic boundaries."""
+    return np.pad(arr, 1, mode='wrap')
+
+def check_percolation_periodic(distance_grid, threshold):
+    import numpy as np
+    from scipy.ndimage import label, generate_binary_structure
+    # Create a binary grid where True represents void space
+    binary_grid = distance_grid > threshold
+    
+    # Pad the binary grid with periodic boundaries
+    padded_grid = pad_periodic(binary_grid)
+    
+    # Create a structure for 3D connectivity
+    structure = generate_binary_structure(3, 1)
+    
+    # Label connected components
+    labeled, _ = label(padded_grid, structure=structure)
+    
+    # Remove padding
+    labeled = labeled[1:-1, 1:-1, 1:-1]
+    
+    # Check percolation in all three directions
+    for axis in range(3):
+        # Get unique labels on opposite faces
+        face1 = set(np.unique(labeled.take(0, axis=axis)))
+        face2 = set(np.unique(labeled.take(-1, axis=axis)))
+        
+        # Check if any label (except 0) appears on both faces
+        if len(face1.intersection(face2) - {0}) > 0:
+            return True
+    
+    return False
+
+def find_pore_limiting_radius(distance_grid):
+    import numpy as np
+    # Sort unique values in the distance grid
+    unique_radii = np.sort(np.unique(distance_grid))
+    unique_radii = unique_radii[unique_radii > 0]  # Consider only positive radii
+
+    # Binary search for the pore limiting diameter
+    left, right = 0, len(unique_radii) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        threshold = unique_radii[mid]
+        
+        if check_percolation_periodic(distance_grid, threshold):
+            left = mid + 1  # Percolation exists, try a larger threshold
+        else:
+            right = mid - 1  # No percolation, try a smaller threshold
+    
+    # The pore limiting diameter is the last threshold that allowed percolation
+    return unique_radii[right] if right >= 0 else None
+def compute_pld(path_to_cif, kwargs={}):
+    """
+    Compute the pore limiting diameter (PLD) from a CIF file.
+
+    Parameters
+    ----------
+    path_to_cif : Path
+        The path to the CIF file.
+    kwargs : dict, optional
+        Additional keyword arguments. Default is an empty dictionary.
+        - spacing : float, optional
+            The spacing for the distance grid. Default is 0.5.
+        - block_size : int, optional
+            The block size for processing. Default is 50000.
+
+    Returns
+    -------
+    float or None
+        The pore limiting diameter if found, otherwise None.
+    """
+    from ase.io import read
+    spacing = kwargs.get('spacing', 0.5)
+    block_size = kwargs.get('block_size', 50000)
+    mat_atoms = read(path_to_cif)
+    distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    return find_pore_limiting_radius(distance_grid)*2
+def get_pore_dia_mgr(path_to_cif, kwargs={}):
+    """
+    Compute the pore diameters (LCD, PLD, DFSD) from a CIF file.
+
+    Parameters:
+    -----------
+    path_to_cif : Path or str
+        The path to the CIF file.
+    kwargs : dict, optional
+        Additional keyword arguments.
+        - spacing : float, optional
+            The spacing for the distance grid. Default is 0.5.
+        - block_size : int, optional
+            The block size for processing. Default is 50000.
+
+    Returns:
+    --------
+    tuple
+        (lcd, pld, dfsd, distance_grid)
+    """
+    from ase.io import read
+    import numpy as np
+    from scipy.ndimage import label
+    spacing = kwargs.get('spacing', 0.5)
+    block_size = kwargs.get('block_size', 50000)
+    
+    mat_atoms = read(path_to_cif)
+    distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    
+    lcd = distance_grid.max() * 2
+    pld = find_pore_limiting_radius(distance_grid) * 2
+    
+    # Compute DFSD
+    pld_threshold = pld / 2
+    binary_grid = distance_grid > pld_threshold
+    labeled, _ = label(pad_periodic(binary_grid))
+    labeled = labeled[1:-1, 1:-1, 1:-1]
+    
+    percolating_labels = set()
+    for axis in range(3):
+        face1 = set(np.unique(labeled.take(0, axis=axis)))
+        face2 = set(np.unique(labeled.take(-1, axis=axis)))
+        percolating_labels.update(face1.intersection(face2) - {0})
+    
+    percolating_mask = np.isin(labeled, list(percolating_labels))
+    dfsd = distance_grid[percolating_mask].max() * 2
+    
+    return lcd, pld, dfsd, distance_grid
+
+def compute_percolation_history(distance_grid=None, regions=None, maxima=None, path_to_cif=None, kwargs={}):
+    """
+    Compute the percolation history with region and maxima information.
+
+    Parameters:
+    -----------
+    distance_grid : numpy.ndarray, optional
+        The pre-computed distance grid.
+    regions : numpy.ndarray, optional
+        The pre-computed segmented regions.
+    maxima : list, optional
+        The pre-computed list of local maxima indices.
+    path_to_cif : Path or str, optional
+        The path to the CIF file (used if distance_grid is None).
+    kwargs : dict, optional
+        Additional keyword arguments.
+        - spacing : float, optional
+            The spacing for the distance grid. Default is 0.5.
+        - block_size : int, optional
+            The block size for processing. Default is 50000.
+        - mask_thickness : float, optional
+            The mask thickness for region segmentation. Default is 1.5.
+        - step : float, optional
+            The step size for probe radius increments. Default is 0.1 Angstrom.
+
+    Returns:
+    --------
+    tuple
+        (percolation_history, pld_locations, distance_grid, regions, maxima)
+    """
+    from scipy.ndimage import label as scipy_label
+    from ase.io import read
+    import numpy as np
+    # import mofography as mgr
+    
+    spacing = kwargs.get('spacing', 0.5)
+    block_size = kwargs.get('block_size', 50000)
+    mask_thickness = kwargs.get('mask_thickness', 1.5)
+    step = kwargs.get('step', 0.05)
+    
+    if distance_grid is None:
+        if path_to_cif is None:
+            raise ValueError("Either distance_grid or path_to_cif must be provided.")
+        _, _, _, distance_grid = get_pore_dia_mgr(path_to_cif, kwargs)
+    
+    if regions is None or maxima is None:
+        regions, maxima = regions_from_dgrid(distance_grid, mask_thickness=mask_thickness)
+    
+    # Compute PLD
+    pld = find_pore_limiting_radius(distance_grid) * 2
+    
+    # Find PLD locations
+    pld_locations = np.argwhere(np.isclose(distance_grid, pld/2, atol=1e-10))
+    
+    percolation_history = []
+    
+    for threshold in np.arange(0, pld/2 + step, step):
+        binary_grid = distance_grid > threshold
+        labeled, _ = scipy_label(pad_periodic(binary_grid))
+        labeled = labeled[1:-1, 1:-1, 1:-1]
+        
+        percolating_components = {0: [], 1: [], 2: []}
+        
+        for axis in range(3):
+            face1 = set(np.unique(labeled.take(0, axis=axis)))
+            face2 = set(np.unique(labeled.take(-1, axis=axis)))
+            percolating_labels = face1.intersection(face2) - {0}
+            
+            for label in percolating_labels:
+                percolating_mask = labeled == label
+                percolating_regions = np.unique(regions[percolating_mask])
+                percolating_regions = percolating_regions[percolating_regions != 0]  # Remove background
+                percolating_components[axis].append(percolating_regions.tolist())
+        
+        if any(percolating_components.values()):
+            percolation_history.append((threshold, percolating_components))
+    
+    return percolation_history, pld_locations, distance_grid, regions, maxima
+
