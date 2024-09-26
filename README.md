@@ -85,28 +85,28 @@ Find tutorials in the [Docs](https://arung-northwestern.github.io/mofography/doc
 
 ### Basic tutorials 🌱
 
-1. [Quick cluster notebook](docs/quick_cluster.ipynb) - Get a feel for the whole thing
-2. [Basic structure analysis notebook](docs/basic_structure_io.ipynb)
-3. [Basic structure visualization notebook](docs/quick_structure_visualization.ipynb)
-4. [Distance grid notebook](docs/distance_grid.ipynb)
-5. [Region segmentation notebook](docs/region_segmentation.ipynb)
-6. [PBC notebook](docs/applying_pbc.ipynb) - Applying Periodic Boundary Conditions
-7. [RAG notebook](docs/region_adjacency_graph.ipynb) - Region Adjacency Graph (Pore graph)
-8. [Connections and windows notebook](docs/connections_and_windows.ipynb)
-9. [Pocket type detection notebook](docs/pockets_detection.ipynb)
+1. [Quick cluster](docs/quick_cluster.ipynb): Get a feel for the whole thing
+2. [Basic structure analysis](docs/basic_structure_io.ipynb): Learn fundamental structure analysis techniques
+3. [Basic structure visualization](docs/quick_structure_visualization.ipynb): Explore simple visualization methods
+4. [Distance grid](docs/distance_grid.ipynb): Calculate and visualize distance grids
+5. [Region segmentation](docs/region_segmentation.ipynb): Understand how to segment regions in materials
+6. [Applying Periodic Boundary Conditions](docs/applying_pbc.ipynb): Master PBC concepts
+7. [Region Adjacency Graph (RAG)](docs/region_adjacency_graph.ipynb): Dive into pore graph analysis
+8. [Connections and windows](docs/connections_and_windows.ipynb): Detect windows in materials
+9. [Pocket type detection](docs/pockets_detection.ipynb): Identify different types of pockets
 
 ### Advanced tutorials 🚀
 
 These can be completed in any order after finishing the basic tutorials:
 
-- [Advanced structure visualization notebook](docs/framework_visualization_example.ipynb)
-- [Framework subset visualization notebook](docs/plot_subset_as_mesh_tutorial.ipynb)
-- [PLD and percolation history notebook](docs/pld_and_percolation.ipynb)
-- [Compute pore diameters notebook](docs/compute_pore_diameters.ipynb)
-- [MOFDB notebook](docs/mofdb_example.ipynb)
-- [HTS Dask notebook](docs/hts_using_mofography.ipynb)
-- [Functional groups notebook](docs/detect_functional_groups_in_dataset.ipynb)
-- [GCN tutorial](docs/graph_convolution_on_rags_ccr.ipynb)
+- [Advanced structure visualization](docs/framework_visualization_example.ipynb): Explore complex visualization techniques
+- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb): Learn to visualize specific parts of frameworks
+- [PLD and percolation history](docs/pld_and_percolation.ipynb): Analyze pore limiting diameter and percolation
+- [Compute pore diameters](docs/compute_pore_diameters.ipynb): Compare MOFography vs MOFDB (zeo++) in high-throughput computations
+- [MOFDB example](docs/mofdb_example.ipynb): Grab a dataset from MOFDB and perform workflow on random materials
+- [High-throughput characterization](docs/hts_using_mofography.ipynb): Construct pore graphs for IZA dataset using Mofography and Dask
+- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb): Identify functional groups/moieties in datasets like CoREMOF
+- [Graph Convolutional Neural Network (GCN)](docs/graph_convolution_on_rags_ccr.ipynb): Train a GCN on RAGs to predict hydrogen adsorption
 
 ## Copyright ©️
 
