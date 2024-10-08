@@ -210,6 +210,71 @@ def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=No
         atoms_list.append(atoms)
     return atoms_list
 
+def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, natoms_per_molecule=1, index_list=None):
+
+    """
+    Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell.
+
+    :param pdb_file: the pdb file you want to analyze
+    :param regions_cluster: the region map for a single unit cell
+    :param unit_cell: the unit cell matrix or ASE Atoms object containing the unit cell information
+    :param natoms_per_molecule: number of atoms per molecule. This is currently only implemented for 1,
+    defaults to 1 (optional)
+    :param index_list: list of indices of atoms to use in the pdb file. If None, all atoms are used
+    :return: A dictionary with the number of atoms in each cluster type and the total number of atoms.
+    """
+    import numpy as np
+    from .helper import interpolate_labels
+    from ase.geometry import wrap_positions
+    from ase import Atoms
+
+    atoms_list = get_atoms_list_for_pdb(pdb_file, index_list=index_list)
+    unique_cluster_types = np.unique(regions_cluster)
+    # remove background 0
+    unique_cluster_types = unique_cluster_types[unique_cluster_types!=0]
+
+    # * make a dictionary of cluster types to store their counts and means
+    cluster_type_counts = {str(c-1):[] for c in unique_cluster_types}
+    cluster_type_counts['total']= []
+
+    # this is the interpolator function for a single unit cell
+    region_interp = interpolate_labels(regions_cluster)
+
+    if natoms_per_molecule != 1:
+        print('ERROR: natoms_per_molecule is not 1, currently only implemented for 1')
+
+    # Get the unit cell
+    if isinstance(unit_cell, Atoms):
+        cell = unit_cell.get_cell()
+    else:
+        cell = unit_cell
+
+    # loop over the snapshots in the pdb
+    for snap in atoms_list:
+        # Get the positions from the snapshot
+        positions = snap.get_positions()
+        
+        # Wrap the positions to the unit cell
+        wrapped_positions = wrap_positions(positions, cell)
+        
+        # Convert to fractional coordinates
+        scaled_positions = cell.scaled_positions(wrapped_positions)
+        
+        # Apply the region map
+        cluster_indices = region_interp(scaled_positions)
+        
+        number_total = len(cluster_indices)
+        for c in unique_cluster_types:
+            cluster_type_counts[str(c-1)].append(len(np.where(cluster_indices == c)[0]))
+        cluster_type_counts['total'].append(number_total)
+
+    for c in unique_cluster_types:
+        cluster_type_counts[str(c-1)+'_mean'] = np.mean(cluster_type_counts[str(c-1)])
+        cluster_type_counts[str(c-1)+'_std'] = np.std(cluster_type_counts[str(c-1)])
+    cluster_type_counts['total_mean'] = np.mean(cluster_type_counts['total'])
+
+    return cluster_type_counts
+
 # TODO: Implement for natoms > 1
 def apply_region_map_to_raspa_pdb(pdb_file, regions_cluster_super, natoms_per_molecule=1, index_list=None):
     """
