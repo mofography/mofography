@@ -304,7 +304,7 @@ def atoms_from_mofdb_df(mofdb_df):
     return np.array(atoms_list, dtype="object")
 
 
-def read_raspa_pdb(path_to_file):
+def read_raspa_pdb(path_to_file, symbol_map=None):
     """
             created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
             _ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __\
@@ -312,10 +312,12 @@ def read_raspa_pdb(path_to_file):
             | | |  __/ (_| | (_| | | | | (_| \__ \ |_) | (_| | / ___/ /_// \/  \
             |_|  \___|\__,_|\__,_| |_|  \__,_|___/ .__/ \__,_| \/  /___,'\_____/
                                                 |_|                            
+
             Reads the output PDB movie file from RASPA into separate configurations, including the chemical symbols and
             cell dimensions. 
             :type path_to_file: str
             :param path_to_file: path to the RASPA PDB file
+            :param symbol_map: Optional dictionary mapping custom symbols to standard element symbols.
         
             :raises:
             Not sure.
@@ -330,20 +332,48 @@ def read_raspa_pdb(path_to_file):
     ends = np.where(["ENDMDL" in line for line in f])[0]  # End for config
     cryst = np.where(["CRYST" in line for line in f])[0]  # box shape for the config
 
-    data = [f[start[i] : ends[i]] for i in range(len(start))]
+    data = [f[start[i]: ends[i]] for i in range(len(start))]
 
-    coord = np.array(
-        [[np.array(line.split()[4:7]).astype(float) for line in d] for d in data]
-    )
+    # Initialize lists to hold coordinates and symbols
+    coords = []
+    symbols = []  # Change: Initialize symbols as a list of lists
+    skipped_lines = []  # List to hold skipped lines
+
+    for d in data:
+        coord = []
+        config_symbols = []  # New list to hold symbols for the current configuration
+        for line in d:
+            parts = line.split()
+            if len(parts) >= 7:  # Ensure there are enough parts to avoid index errors
+                try:
+                    coord.append(np.array(parts[4:7], dtype=float))
+                    # Use symbol_map if provided, otherwise use the original symbol
+                    symbol = parts[2]
+                    if symbol_map and symbol in symbol_map:
+                        symbol = symbol_map[symbol]  # Replace with mapped symbol if exists
+                    config_symbols.append(symbol)  # Append the standardized symbol to the current config
+                except ValueError:
+                    skipped_lines.append(line.strip())  # Add the skipped line to the list
+                    continue  # Skip lines that cannot be converted to float
+
+        coords.append(np.array(coord))
+        symbols.append(config_symbols)  # Change: Append the list of symbols for the current config
+
     cell_dims = np.array(
         [np.array(line.split())[1:].astype(float) for line in f if "CRYST" in line]
     )
-    symbols = np.array([[np.array(line.split()[2]) for line in d] for d in data])
 
-    output = {}
-    output["cells"] = cell_dims
-    output["coords"] = coord
-    output["symbols"] = symbols
+    output = {
+        "cells": cell_dims,
+        "coords": np.array(coords, dtype=object),  # Use dtype=object to handle varying lengths
+        "symbols": np.array(symbols, dtype=object)  # Use dtype=object for symbols
+    }
+
+    # Print warning if any lines were skipped
+    if skipped_lines:
+        print("Warning: The following lines were skipped due to conversion issues:")
+        for skipped in skipped_lines:
+            print(f"  - {skipped}")
 
     return output
 
