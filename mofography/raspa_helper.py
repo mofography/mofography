@@ -181,13 +181,42 @@ def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
 
 
 
-def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=None, trace_name='adsorbates', pbc=[1, 1, 1]):
+# def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=None, trace_name='adsorbates', pbc=[1, 1, 1]):
+#     """
+#     It reads a RASPA pdb file and returns a list of ASE atoms objects
+    
+#     :param pdb_file: the name of the pdb file
+#     :param index_list: a list of indices of the configurations you want to extract from the pdb file. If
+#     you want all of them, just leave it as None
+#     :return: A list of atoms objects.
+#     """
+
+#     from ase import Atoms
+#     import numpy as np
+#     from .data import read_raspa_pdb
+#     from rich.progress import track
+#     config_data = read_raspa_pdb(pdb_file)
+#     atoms_list = []
+#     if index_list is None:
+#         index_list = np.arange(len(config_data['coords']))
+#     for index in track(index_list, description='Reading Configs'):
+#         coords = config_data['coords'][index]
+#         sym = config_data['symbols'][index]
+#         sym = [str(c) for c in sym]
+#         cell = config_data['cells'][index]
+#         # nmolecules = len(coords) // natoms  # numbre of co2 molecules
+#         # convert to ase atoms object
+#         atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1, 1, 1])
+#         atoms_list.append(atoms)
+#     return atoms_list
+def get_atoms_list_for_pdb(pdb_file, index_list=None, symbol_map=None):
     """
     It reads a RASPA pdb file and returns a list of ASE atoms objects
     
     :param pdb_file: the name of the pdb file
     :param index_list: a list of indices of the configurations you want to extract from the pdb file. If
     you want all of them, just leave it as None
+    :param symbol_map: Optional dictionary mapping custom symbols to standard element symbols.
     :return: A list of atoms objects.
     """
 
@@ -195,22 +224,41 @@ def get_atoms_list_for_pdb(pdb_file, index_list=None):#, natoms, bonds_in_ref=No
     import numpy as np
     from .data import read_raspa_pdb
     from rich.progress import track
-    config_data = read_raspa_pdb(pdb_file)
+
+    config_data = read_raspa_pdb(pdb_file, symbol_map=symbol_map)
     atoms_list = []
+    
     if index_list is None:
         index_list = np.arange(len(config_data['coords']))
+    
     for index in track(index_list, description='Reading Configs'):
         coords = config_data['coords'][index]
         sym = config_data['symbols'][index]
+        
+        # Check if coords is empty or not
+        if coords.size == 0:
+            print(f"Warning: No coordinates found for index {index}. Skipping this configuration.")
+            continue
+        
+        # Ensure symbols are in the correct format
         sym = [str(c) for c in sym]
-        cell = config_data['cells'][index]
-        # nmolecules = len(coords) // natoms  # numbre of co2 molecules
-        # convert to ase atoms object
-        atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1, 1, 1])
-        atoms_list.append(atoms)
+        
+        # Check if cell dimensions are available
+        if index < len(config_data['cells']):
+            cell = config_data['cells'][index]
+        else:
+            print(f"Warning: No cell dimensions found for index {index}. Skipping this configuration.")
+            continue
+        
+        # Convert to ASE Atoms object
+        try:
+            atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1, 1, 1])
+            atoms_list.append(atoms)
+        except Exception as e:
+            print(f"Error creating Atoms object for index {index}: {e}")
+    
     return atoms_list
-
-def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, natoms_per_molecule=1, index_list=None):
+def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, natoms_per_molecule=1, index_list=None, symbol_map=None):
 
     """
     Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell.
@@ -228,7 +276,7 @@ def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, 
     from ase.geometry import wrap_positions
     from ase import Atoms
 
-    atoms_list = get_atoms_list_for_pdb(pdb_file, index_list=index_list)
+    atoms_list = get_atoms_list_for_pdb(pdb_file, index_list=index_list, symbol_map=symbol_map)
     unique_cluster_types = np.unique(regions_cluster)
     # remove background 0
     unique_cluster_types = unique_cluster_types[unique_cluster_types!=0]
