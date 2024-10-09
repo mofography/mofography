@@ -2310,3 +2310,233 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
         mesh_traces.append(mesh)
 
     return mesh_traces
+def plot_electrostatic_volume(potential_V, cell, atoms):
+    """
+    Create a Volume trace for the electrostatic potential with meaningful isosurfaces.
+    
+    :param potential_V: 3D array of potential values in volts
+    :param cell: Cell matrix
+    :param atoms: ASE Atoms object
+    :return: Volume trace
+    """
+    import plotly.graph_objects as go
+    import numpy as np
+    from collections import defaultdict
+    
+    nx, ny, nz = potential_V.shape
+    
+    # Create a meshgrid in fractional coordinates
+    x, y, z = np.meshgrid(np.linspace(0, 1, nx),
+                          np.linspace(0, 1, ny),
+                          np.linspace(0, 1, nz),
+                          indexing='ij')
+    
+    # Transform fractional coordinates to Cartesian
+    cart_coords = np.dot(np.column_stack((x.flatten(), y.flatten(), z.flatten())), cell)
+    x_cart, y_cart, z_cart = cart_coords[:, 0].reshape(x.shape), cart_coords[:, 1].reshape(y.shape), cart_coords[:, 2].reshape(z.shape)
+
+    # Get unique elements in the system
+    elements = set(atoms.get_chemical_symbols())
+
+    # Define groups of elements
+    metal_group = {'Li', 'Na', 'K', 'Rb', 'Cs', 'Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'La', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg'}
+    electronegative_group = {'O', 'N', 'F', 'Cl', 'Br', 'I', 'S', 'Se', 'Te', 'P', 'As', 'Sb'}
+
+    # Find present metals and electronegative elements
+    present_metals = metal_group.intersection(elements)
+    present_electronegative = electronegative_group.intersection(elements)
+
+    # Collect potentials for different element groups
+    potentials_dict = defaultdict(list)
+
+    for element in elements:
+        if element in present_metals or element in present_electronegative or element == 'C':
+            element_potentials = get_potential_near_atoms(atoms, potential_V, potential_V.shape, element=element, radius=1.0)
+            potentials_dict[element].extend(element_potentials)
+
+    # Calculate isosurface values
+    if present_metals:
+        positive_iso = max(np.percentile(potentials, 75) for element, potentials in potentials_dict.items() if element in present_metals and len(potentials) > 0)
+    else:
+        positive_iso = np.percentile(potential_V, 95)
+
+    if present_electronegative:
+        negative_iso = min(np.percentile(potentials, 25) for element, potentials in potentials_dict.items() if element in present_electronegative and len(potentials) > 0)
+    else:
+        negative_iso = np.percentile(potential_V, 5)
+
+    # Add more isosurfaces
+    num_isosurfaces = 9
+    isosurfaces = np.linspace(negative_iso, positive_iso, num_isosurfaces)
+
+    # Create the volume trace
+    volume_trace = go.Volume(
+        x=x_cart.flatten(),
+        y=y_cart.flatten(),
+        z=z_cart.flatten(),
+        value=potential_V.flatten(),
+        isomin=negative_iso,
+        isomax=positive_iso,
+        opacity=0.1,
+        surface_count=num_isosurfaces,
+        colorscale='RdBu',
+        reversescale=True,
+        colorbar=dict(title="Potential (V)"),
+        hoverinfo='all',
+        hoverlabel=dict(bgcolor='white'),
+        caps=dict(x_show=False, y_show=False, z_show=False),
+        name='Electrostatic potential Poisson',
+        showlegend=True,
+    )
+
+    print(f"Isosurface values: {isosurfaces}")
+    print(f"Positive isosurface threshold: {positive_iso:.2f}")
+    print(f"Negative isosurface threshold: {negative_iso:.2f}")
+
+    return volume_trace
+def get_potential_near_atoms(atoms, potential, grid_shape, element='Zn', radius=1.0):
+    """
+    Get potential values near atoms of a specific element.
+    
+    :param atoms: ASE Atoms object
+    :param potential: 3D array of potential values
+    :param grid_shape: Shape of the potential grid
+    :param element: Element symbol to look for
+    :param radius: Radius around the atom to check (in Angstroms)
+    :return: List of potential values near the specified atoms
+    """
+    import numpy as np
+
+    cell = atoms.get_cell()
+    positions = atoms.get_scaled_positions()
+    symbols = atoms.get_chemical_symbols()
+    
+    potentials_near_atoms = []
+    
+    print(f"Searching for {element} atoms...")
+    
+    for pos, sym in zip(positions, symbols):
+        if sym == element:
+            print(f"Found {element} atom at position {pos}")
+            # Convert position to grid indices
+            grid_pos = pos * grid_shape
+            
+            # Define a small box around the atom
+            box_size = int(radius / (cell.cellpar()[:3] / grid_shape).max())
+            x, y, z = np.round(grid_pos).astype(int)
+            
+            # Get potential values in the box
+            x_indices = (max(0, x - box_size), min(grid_shape[0], x + box_size + 1))
+            y_indices = (max(0, y - box_size), min(grid_shape[1], y + box_size + 1))
+            z_indices = (max(0, z - box_size), min(grid_shape[2], z + box_size + 1))
+            
+            potentials = potential[
+                x_indices[0]:x_indices[1],
+                y_indices[0]:y_indices[1],
+                z_indices[0]:z_indices[1]
+            ]
+            
+            potentials_near_atoms.extend(potentials.flatten())
+    
+    print(f"Found {len(potentials_near_atoms)} potential values near {element} atoms")
+    
+    return potentials_near_atoms
+def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacity=0.3):
+    """
+    Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info.
+    
+    :param potential_V: 3D array of potential values in volts
+    :param cell: Cell matrix
+    :param atoms: ASE Atoms object
+    :param step: Step size for marching cubes algorithm. Higher values result in coarser surfaces.
+    :param base_opacity: Base opacity for the surfaces. Adjust this to make surfaces more or less transparent.
+    :return: A single combined Plotly Mesh3d trace
+    """
+    import numpy as np
+    from collections import defaultdict
+    from skimage import measure
+    from .helper import find_coord_from_indices
+    import plotly.graph_objects as go
+
+    # Get unique elements in the system
+    elements = set(atoms.get_chemical_symbols())
+
+    # Define groups of elements
+    metal_group = {'Li', 'Na', 'K', 'Rb', 'Cs', 'Be', 'Mg', 'Ca', 'Sr', 'Ba', 'Sc', 'Ti', 'V', 'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'La', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg'}
+    electronegative_group = {'O', 'N', 'F', 'Cl', 'Br', 'I', 'S', 'Se', 'Te', 'P', 'As', 'Sb'}
+
+    # Find present metals and electronegative elements
+    present_metals = metal_group.intersection(elements)
+    present_electronegative = electronegative_group.intersection(elements)
+
+    # Collect potentials for different element groups
+    potentials_dict = defaultdict(list)
+
+    for element in elements:
+        if element in present_metals or element in present_electronegative or element == 'C':
+            element_potentials = get_potential_near_atoms(atoms, potential_V, potential_V.shape, element=element, radius=1.0)
+            potentials_dict[element].extend(element_potentials)
+
+    # Calculate isosurface values
+    if present_metals and any(potentials for element, potentials in potentials_dict.items() if element in present_metals):
+        positive_iso = max(np.percentile(potentials, 75) for element, potentials in potentials_dict.items() if element in present_metals and len(potentials) > 0)
+    else:
+        positive_iso = np.percentile(potential_V, 95)
+
+    if present_electronegative and any(potentials for element, potentials in potentials_dict.items() if element in present_electronegative):
+        negative_iso = min(np.percentile(potentials, 25) for element, potentials in potentials_dict.items() if element in present_electronegative and len(potentials) > 0)
+    else:
+        negative_iso = np.percentile(potential_V, 5)
+
+    # Add more isosurfaces
+    num_isosurfaces = 10
+    iso_values = np.linspace(negative_iso, positive_iso, num_isosurfaces)
+
+    print(f"Isosurface values: {iso_values}")
+
+    # Get the cell vectors from the ASE Atoms object
+    cell_vectors = cell
+    print(f"Cell vectors: {cell_vectors}")
+    # Create mesh traces
+    all_vertices = []
+    all_faces = []
+    all_intensities = []
+    vertex_offset = 0
+
+    for iso_value in iso_values:
+        verts, faces, _, _ = measure.marching_cubes(potential_V, iso_value, step_size=step)
+        # print(f"verts: {verts}")
+        # print(f"faces: {faces}")
+        cartesian_vertices = find_coord_from_indices(verts, potential_V.shape, atoms)       
+        # Scale vertices to the correct cartesian coordinates
+        # Correct scaling for non-orthorhombic cells
+        # Calculate the scaling factors based on the actual dimensions of the cell
+        # scaling_factors = np.array(potential_V.shape) / np.array([cell_vectors[0, 0], cell_vectors[1, 1], cell_vectors[2, 2]])
+        # verts_scaled = np.dot(verts / scaling_factors, cell_vectors)
+        
+        all_vertices.append(cartesian_vertices)
+        # all_vertices.append(verts_scaled)
+        all_faces.append(faces + vertex_offset)
+        all_intensities.extend([iso_value] * len(verts))
+        vertex_offset += len(verts)
+
+    all_vertices = np.vstack(all_vertices)
+    all_faces = np.vstack(all_faces)
+
+    combined_mesh = go.Mesh3d(
+        x=all_vertices[:, 0],
+        y=all_vertices[:, 1],
+        z=all_vertices[:, 2],
+        i=all_faces[:, 0],
+        j=all_faces[:, 1],
+        k=all_faces[:, 2],
+        colorscale='viridis',
+        intensity=all_intensities,
+        intensitymode='vertex',
+        opacity=base_opacity,
+        name='Electrostatic Potential',
+        showlegend=True,
+        hovertemplate='x: %{x:.2f}<br>y: %{y:.2f}<br>z: %{z:.2f}<br>Potential: %{intensity:.2f} V<extra></extra>'
+    )
+
+    return [combined_mesh]
