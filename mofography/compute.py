@@ -6149,4 +6149,104 @@ def solve_poisson_spectral(atoms, grid_spacing=0.2, epsilon_r=1.0):
     print(f"  Mean: {np.mean(phi):.2e}")
     
     return phi, grid_shape, cell
+def setup_poisson_spectral_gpu(atoms, grid_shape):
+    """
+    Set up the system for solving the Poisson equation using a spectral method.
+    
+    :param atoms: ASE Atoms object
+    :param grid_shape: Tuple of grid points in each direction
+    :return: Charge density on grid, grid shape, and cell matrix
+    """
+    from ase.geometry import complete_cell
+    import cupy as cp
+    cell = cp.asarray(complete_cell(atoms.get_cell())).T  # Transpose to get column vectors
+    volume = cp.abs(cp.linalg.det(cell))
+    print(grid_shape)
+    grid_shape = tuple(grid_shape.tolist())
+    rho = cp.zeros(grid_shape)
+    positions = cp.asarray(atoms.get_scaled_positions())
+    charges = cp.array(atoms.info['_atom_site_charge'])
+    
+    # Distribute charges to grid points using trilinear interpolation
+    for pos, q in zip(positions, charges):
+        index = pos * cp.asarray(grid_shape)
+        index_floor = cp.floor(index).astype(int) % cp.asarray(grid_shape)
+        weights = index - index_floor
+        
+        for i in range(2):
+            for j in range(2):
+                for k in range(2):
+                    weight = (1 - weights[0])**abs(i - 1) * weights[0]**i * \
+                             (1 - weights[1])**abs(j - 1) * weights[1]**j * \
+                             (1 - weights[2])**abs(k - 1) * weights[2]**k
+                    rho[(index_floor[0] + i) % grid_shape[0], 
+                        (index_floor[1] + j) % grid_shape[1], 
+                        (index_floor[2] + k) % grid_shape[2]] += q * weight
+    
+    rho /= volume
+    return rho, grid_shape, cell
+def solve_poisson_spectral_gpu(atoms, grid_spacing=0.2, epsilon_r=1.0):
+    """
+    Solve the Poisson equation using a spectral method for non-orthogonal, periodic systems.
+    
+    :param atoms: ASE Atoms object
+    :param grid_spacing: Desired grid spacing in Angstroms
+    :param epsilon_r: Relative permittivity of the system
+    :return: Electrostatic potential (V), grid shape, and cell matrix
+    """
+    import cupy as cp
+    from cupy.fft import fftn, ifftn
+    from ase.geometry import complete_cell
+    from scipy.constants import epsilon_0, e
 
+    cell = cp.asarray(complete_cell(atoms.get_cell())).T
+    cell_lengths = cp.linalg.norm(cell, axis=0)
+    grid_shape = cp.ceil(cell_lengths / grid_spacing).astype(int)
+    
+    # Convert grid_shape to a tuple of integers
+    # grid_shape_tuple = tuple(grid_shape.tolist())
+    
+    rho, grid_shape, cell = setup_poisson_spectral_gpu(atoms, grid_shape)
+    print(grid_shape)
+    # grid_shape = tuple(grid_shape.tolist())
+    
+    # Compute metric tensor G
+    G = cp.linalg.inv(cell.T @ cell)
+    
+    # Generate k-vectors
+    kx = 2 * cp.pi * cp.fft.fftfreq(grid_shape[0])
+    ky = 2 * cp.pi * cp.fft.fftfreq(grid_shape[1])
+    kz = 2 * cp.pi * cp.fft.fftfreq(grid_shape[2])
+    
+    Kx, Ky, Kz = cp.meshgrid(kx, ky, kz, indexing='ij')
+    
+    # Compute k^T * G * k
+    k_dot_G_k = (Kx * G[0, 0] + Ky * G[1, 0] + Kz * G[2, 0]) * Kx + \
+                 (Kx * G[0, 1] + Ky * G[1, 1] + Kz * G[2, 1]) * Ky + \
+                 (Kx * G[0, 2] + Ky * G[1, 2] + Kz * G[2, 2]) * Kz
+    
+    # Avoid division by zero
+    k_dot_G_k[0, 0, 0] = 1.0
+    
+    # Solve Poisson equation in Fourier space
+    rho_k = fftn(rho)
+    phi_k = rho_k / (epsilon_r * epsilon_0 * k_dot_G_k)
+    phi_k[0, 0, 0] = 0  # Set average potential to zero
+    
+    # Transform back to real space
+    phi = cp.real(ifftn(phi_k))
+    
+    # Convert to Volts
+    phi *= e / (4 * cp.pi * epsilon_0 * epsilon_r)
+    
+    # Print important details about the solved grid
+    print(f"Grid shape: {grid_shape}")
+    cell_m = cell * 1e-10  # Convert cell dimensions to meters
+    volume_m3 = cp.abs(cp.linalg.det(cell_m))
+    print(f"Cell volume: {volume_m3:.2e} m^3")
+    print(f"Potential stats (V):")
+    print(f"  Min: {cp.min(phi):.2e}")
+    print(f"  Max: {cp.max(phi):.2e}")
+    print(f"  Mean: {cp.mean(phi):.2e}")
+    
+    return phi, grid_shape, cell
