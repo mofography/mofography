@@ -307,7 +307,9 @@ def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, 
         
         # Convert to fractional coordinates
         scaled_positions = cell.scaled_positions(wrapped_positions)
-        
+
+        # shift any scaled positions if they are out of bounds
+        scaled_positions = scaled_positions%1
         # Apply the region map
         cluster_indices = region_interp(scaled_positions)
         
