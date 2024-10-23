@@ -97,7 +97,234 @@ def dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000):
     cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T  # cell matrix
     return da.dot(cell, gpoints.T).T, (nx, ny, nz)  # return the actual coordinates
 
+def dgrid_from_atoms_cpu_no_aabb(ase_atoms, radii=None, spacing=0.2, block_size=20000):
+    """
+    The function `dgrid_from_atoms_no_aabb` calculates a distance grid based on the cpu but without using 
+    an AABB cell list to accelerate the calculation. Although substantially slower, this function might provide
+    better smoothness of the distance grid, especially matrials with small pores. 
 
+    :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms_no_aabb` function is expected to be
+    an ASE Atoms object, which represents a collection of atoms and their properties. This object
+    typically contains information such as atomic positions, unit cell parameters, atomic symbols, and
+    other properties of the atoms in
+    :param radii: The `radii` parameter in the `dgrid_from_atoms_no_aabb` function represents the van der
+    Waals radii of the atoms in the atomic structure provided as input. These radii are used in the
+    calculation of the distance grid. If the `radii` parameter is not provided by the
+    :param spacing: The `spacing` parameter in the `dgrid_from_atoms_no_aabb` function represents the
+    distance between grid points in the generated grid. It determines the resolution of the grid where
+    the distances from atoms to grid points are calculated. A smaller spacing value will result in a
+    higher resolution grid with more grid points,
+    :param block_size: The `block_size` parameter in the `dgrid_from_atoms_no_aabb` function determines the
+    size of each block used for processing the data. In this function, it is used for chunking the data
+    and processing it in parallel on the CPU. A larger `block_size` can be more efficient but too big can lead to memory issues, defaults
+    to 10000 (optional)
+    :return: The function `dgrid_from_atoms_no_aabb` returns a 3D numpy array representing a distance grid
+    computed based on the input atomic structure provided in the form of ASE atoms. The distance grid is
+    calculated by computing the minimum distance between each point on the grid and the atoms in the
+    structure, taking into account the atomic radii.
+    """
+
+    from ase.io import read
+    import numpy as np
+    import dask.array as da
+    # import cupy as cp
+    import pandas as pd
+    from tqdm import tqdm
+    import ase
+
+    # data    = read(path_to_cif)
+    fpoints = (ase_atoms.get_scaled_positions() - 0.5)
+    cell =  (ase.geometry.complete_cell(ase_atoms.get_cell())).T
+    # from ase.data import vdw_radii
+    # radius_series = pd.Series({'H': 0.31, 'He': 0.28, 'Li': 1.28, 'Be': 0.96,
+    #                         'B': 0.84, 'C': 0.73, 'N': 0.71, 'O': 0.66,
+    #                         'F': 0.57, 'Ne': 0.58, 'Na': 1.66, 'Mg': 1.41,
+    #                         'Al': 1.21, 'Si': 1.11, 'P': 1.07, 'S': 1.05,
+    #                         'Cl': 1.02, 'Ar': 1.06, 'K': 2.03, 'Ca': 1.76,
+    #                         'Sc': 1.70, 'Ti': 1.60, 'V': 1.53, 'Cr': 1.39,
+    #                         'Mn': 1.50, 'Fe': 1.42, 'Co': 1.38, 'Ni': 1.24,
+    #                         'Cu': 1.32, 'Zn': 1.22, 'Ga': 1.22, 'Ge': 1.20,
+    #                         'As': 1.19, 'Se': 1.20, 'Br': 1.20, 'Kr': 1.16,
+    #                         'Rb': 2.20, 'Sr': 1.95, 'Y': 1.90, 'Zr': 1.75,
+    #                         'Nb': 1.64, 'Mo': 1.54, 'Tc': 1.47, 'Ru': 1.46,
+    #                         'Rh': 1.42, 'Pd': 1.39, 'Ag': 1.45, 'Cd': 1.44,
+    #                         'In': 1.42, 'Sn': 1.39, 'Sb': 1.39, 'Te': 1.38,
+    #                         'I': 1.39, 'Xe': 1.40, 'Cs': 2.44, 'Ba': 2.15,
+    #                         'La': 2.07, 'Ce': 2.04, 'Pr': 2.03, 'Nd': 2.01,
+    #                         'Pm': 1.99, 'Sm': 1.98, 'Eu': 1.98, 'Gd': 1.96,
+    #                         'Tb': 1.94, 'Dy': 1.92, 'Ho': 1.92, 'Er': 1.89,
+    #                         'Tm': 1.90, 'Yb': 1.87, 'Lu': 1.87, 'Hf': 1.75,
+    #                         'Ta': 1.70, 'W': 1.62, 'Re': 1.51, 'Os': 1.44,
+    #                         'Ir': 1.41, 'Pt': 1.36, 'Au': 1.36, 'Hg': 1.32,
+    #                         'Tl': 1.45, 'Pb': 1.46, 'Bi': 1.48, 'Po': 1.40,
+    #                         'At': 1.50, 'Rn': 1.50, 'Fr': 2.60, 'Ra': 2.21,
+    #                         'Ac': 2.15, 'Th': 2.06, 'Pa': 2.00, 'U': 1.96,
+    #                         'Np': 1.90, 'Pu': 1.87, 'Am': 1.80, 'Cm': 1.69})
+    # radii = cp.asarray(radius_series[data.get_chemical_symbols()].values).reshape(-1, 1)
+    if radii is None:
+        vdw_radii = pd.Series(
+            {
+                "H": 110.00000000000001,
+                "He": 140.0,
+                "Li": 182.0,
+                "Be": 153.0,
+                "B": 192.0,
+                "C": 170.0,
+                "N": 155.0,
+                "O": 152.0,
+                "F": 147.0,
+                "Ne": 154.0,
+                "Na": 227.0,
+                "Mg": 173.0,
+                "Al": 184.0,
+                "Si": 210.0,
+                "P": 180.0,
+                "S": 180.0,
+                "Cl": 175.0,
+                "Ar": 188.0,
+                "K": 275.0,
+                "Ca": 231.0,
+                "Sc": 215.0,
+                "Ti": 211.0,
+                "V": 206.99999999999997,
+                "Cr": 206.0,
+                "Mn": 204.99999999999997,
+                "Fe": 204.0,
+                "Co": 200.0,
+                "Ni": 197.0,
+                "Cu": 196.0,
+                "Zn": 200.99999999999997,
+                "Ga": 187.0,
+                "Ge": 211.0,
+                "As": 185.0,
+                "Se": 190.0,
+                "Br": 185.0,
+                "Kr": 202.0,
+                "Rb": 303.0,
+                "Sr": 249.00000000000003,
+                "Y": 231.99999999999997,
+                "Zr": 223.0,
+                "Nb": 218.00000000000003,
+                "Mo": 217.0,
+                "Tc": 216.0,
+                "Ru": 213.0,
+                "Rh": 210.0,
+                "Pd": 210.0,
+                "Ag": 211.0,
+                "Cd": 218.00000000000003,
+                "In": 193.0,
+                "Sn": 217.0,
+                "Sb": 206.0,
+                "Te": 206.0,
+                "I": 198.0,
+                "Xe": 216.0,
+                "Cs": 343.0,
+                "Ba": 268.0,
+                "La": 243.00000000000003,
+                "Ce": 242.0,
+                "Pr": 240.0,
+                "Nd": 239.0,
+                "Pm": 238.0,
+                "Sm": 236.0,
+                "Eu": 235.0,
+                "Gd": 234.0,
+                "Tb": 233.0,
+                "Dy": 231.0,
+                "Ho": 229.99999999999997,
+                "Er": 229.0,
+                "Tm": 227.0,
+                "Yb": 225.99999999999997,
+                "Lu": 224.00000000000003,
+                "Hf": 223.0,
+                "Ta": 222.00000000000003,
+                "W": 218.00000000000003,
+                "Re": 216.0,
+                "Os": 216.0,
+                "Ir": 213.0,
+                "Pt": 213.0,
+                "Au": 214.0,
+                "Hg": 223.0,
+                "Tl": 196.0,
+                "Pb": 202.0,
+                "Bi": 206.99999999999997,
+                "Po": 197.0,
+                "At": 202.0,
+                "Rn": 220.00000000000003,
+                "Fr": 348.0,
+                "Ra": 283.0,
+                "Ac": 247.00000000000003,
+                "Th": 245.00000000000003,
+                "Pa": 243.00000000000003,
+                "U": 241.0,
+                "Np": 239.0,
+                "Pu": 243.00000000000003,
+                "Am": 244.0,
+                "Cm": 245.00000000000003,
+                "Bk": 244.0,
+                "Cf": 245.00000000000003,
+                "Es": 245.00000000000003,
+                "Fm": 245.00000000000003,
+                "Md": 246.0,
+                "No": 246.0,
+                "Lr": 246.0,
+                "Rf": np.nan,
+                "Db": np.nan,
+                "Sg": np.nan,
+                "Bh": np.nan,
+                "Hs": np.nan,
+                "Mt": np.nan,
+                "Ds": np.nan,
+                "Rg": np.nan,
+                "Cn": np.nan,
+                "Nh": np.nan,
+                "Fl": np.nan,
+                "Mc": np.nan,
+                "Lv": np.nan,
+                "Ts": np.nan,
+                "Og": np.nan,
+            }
+        )
+        radii = (
+            vdw_radii[ase_atoms.get_chemical_symbols()].values / 100.0
+        ).reshape(-1, 1)
+
+    # * the vdw radii mendeleev is in picometers
+    # radii = cp.asarray(vdw_radii[ase_atoms.get_atomic_numbers()].values/100).reshape(-1, 1)
+    [nx, ny, nz] = (ase_atoms.cell.cellpar()[0:3] / spacing).astype(
+        int
+    ) + 1
+    #     print([nx,ny,nz])
+    gpoints = (
+        da.stack(
+            da.meshgrid(
+                np.linspace(-0.5, 0.5, nx),
+                np.linspace(-0.5, 0.5, ny),
+                np.linspace(-0.5, 0.5, nz),
+                indexing="ij",
+            ),
+            -1,
+        )
+        .reshape(-1, 3)
+        .rechunk(block_size, 3)
+    )
+
+    #     def gpd(points, fpoints=fpoints, cell=cell, radii=radii):
+    #         points = cp.asarray(points)
+    #         return cp.min(cp.linalg.norm(cp.dot(cell, (cp.expand_dims(points, axis=1)-cp.expand_dims(fpoints, axis=0)-cp.around(cp.expand_dims(points, axis=1)-cp.expand_dims(fpoints, axis=0))).reshape(-1,3).T).T, axis=1).reshape(fpoints.shape[0],-1)-radii, axis=0)
+
+    def gpd_np(points, fpoints=fpoints, cell=cell, radii=radii):
+        # points = cp.asarray(points)
+        # fpoints = cp.asarray(fpoints)
+        # radii = cp.asarray(radii)
+        diff = np.expand_dims(points, axis=1) - np.expand_dims(fpoints, axis=0)
+        diff = (diff - np.around(diff)).reshape(-1, 3)
+        diff = np.dot(cell, diff.T).T
+        diff = np.linalg.norm(diff, axis=1).reshape(-1, fpoints.shape[0]) - radii.T
+        return np.min(diff, axis=1)
+
+    dgrid = gpoints.map_blocks(gpd_np, chunks=(block_size, ), dtype="float32", drop_axis=1)
+    return dgrid.compute().reshape(nx, ny, nz)
+  
 def dgrid_from_atoms(
     ase_atoms,
     radii=None,
@@ -201,7 +428,7 @@ def dgrid_from_atoms(
                 "Rh": 210.0,
                 "Pd": 210.0,
                 "Ag": 211.0,
-                "Cd": 218.00000000000003,
+              "Cd": 218.00000000000003,
                 "In": 193.0,
                 "Sn": 217.0,
                 "Sb": 206.0,
