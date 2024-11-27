@@ -6477,3 +6477,75 @@ def solve_poisson_spectral_gpu(atoms, grid_spacing=0.2, epsilon_r=1.0):
     print(f"  Mean: {cp.mean(phi):.2e}")
     
     return phi, grid_shape, cell
+def compute_accessible_volume(dgrid, probe_radius=None, mat_atoms=None):
+    """
+    Compute the accessible volume based on the distance grid and probe radius.
+
+    Parameters
+    ----------
+    dgrid : numpy.ndarray
+        The distance grid computed from the atomic structure.
+    probe_radius : float, optional
+        The radius of the probe to use for volume calculation. 
+        If None, defaults to the radius of helium (atomic number 2).
+    mat_atoms : ase.Atoms
+        The atomic structure for which the volume is being calculated.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the void fraction, void volume in cc_cc, 
+        and void volume in cc_g.
+    """
+    import numpy as np
+    from ase.data import vdw_radii
+    from ase.units import _amu
+
+    if probe_radius is None:
+        probe_radius = vdw_radii[2]  # helium atomic number is 2
+
+    void_fraction = np.sum(dgrid > 0) / dgrid.size
+    voxel_volume = mat_atoms.get_volume() / dgrid.size  # this is in A^3
+    void_volume = np.sum(dgrid > probe_radius) * voxel_volume  # this is in A^3
+    void_volume_cc_cc = void_volume / mat_atoms.get_volume()  # this is in A^3/A^3
+    mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # this is in g
+    void_volume_cc_g = void_volume * 1e-24 / mass_g  # this is in cm^3/g
+    
+    return {
+        'void_fraction': void_fraction,
+        'void_volume_cc_cc': void_volume_cc_cc,
+        'void_volume_cc_g': void_volume_cc_g
+    }
+
+def compute_surface_area(dgrid, probe_radius=None, mat_atoms=None):
+    """
+    Compute the surface area based on the distance grid and probe radius.
+
+    Parameters
+    ----------
+    dgrid : numpy.ndarray
+        The distance grid computed from the atomic structure.
+    probe_radius : float, optional
+        The radius of the probe to use for surface area calculation. 
+        If None, defaults to the radius of helium (atomic number 2).
+    mat_atoms : ase.Atoms
+        The atomic structure for which the surface area is being calculated.
+
+    Returns
+    -------
+    float
+        The surface area in m^2/g.
+    """
+    import numpy as np
+    from ase.data import vdw_radii
+    from ase.units import _amu
+
+    if probe_radius is None:
+        probe_radius = vdw_radii[2]  # helium atomic number is 2
+    from .visualize import get_isosurface_mesh
+    # import mofography as mgr
+    isosurface_mesh = get_isosurface_mesh(dgrid, probe_radius, mat_atoms)
+    mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # this is in grams
+    sa_m2g = isosurface_mesh.area_faces.sum() * 1e-20 / mass_g
+    
+    return sa_m2g
