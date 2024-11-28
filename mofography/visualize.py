@@ -33,7 +33,7 @@ epic_layout = dict(template='plotly_dark',
 
 global publication_layout
 publication_layout = dict(template='plotly_white',
-                    scene=dict(xaxis=dict(zeroline=True, visible=True), yaxis_visible=True,  aspectmode='data'),
+                    scene=dict(xaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True), yaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True),  aspectmode='data'),
                     margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='togglegroup'))
 
 # def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
@@ -1076,9 +1076,22 @@ def spheres_for_positions(positions, radii=None, scale=0.8, color=[[255, 255, 25
         # s.visual.material.roughnesFactor=0.15
         s.visual.vertex_colors = color[i]
     return spheres_tmesh
-def plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name='adsorbates', pbc=[1,1,1] ):
-    
+def plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name='adsorbates', pbc=[1, 1, 1]):
+    """Plots a snapshot of a RASPA PDB file.
 
+    Args:
+        pdb_file (str): The path to the PDB file.
+        index (int): The index of the snapshot to plot.
+        natoms (int): The number of atoms in a single molecule.
+        bonds_in_ref (list, optional): A list of bonds to reference. Defaults to an empty list. If the list is empty, 
+        it assumes that the bonds are 1-2, 2-3, 3-4, etc.
+        trace_name (str, optional): The name of the trace for the plot. Defaults to 'adsorbates'.
+        pbc (list, optional): A list indicating periodic boundary conditions. Defaults to [1, 1, 1].
+
+    Returns:
+        mol_mesh_trace: The mesh trace for the plotted molecules.
+    """
+    
     from .data import read_raspa_pdb 
     import numpy as np
 
@@ -1087,33 +1100,30 @@ def plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name
     sym = data['symbols'][index]
     sym = [str(c) for c in sym]
     cell = data['cells'][index]
-    nmolecules = len(coords)//natoms # numbre of co2 molecules
-    #conver to ase atoms object
-    from ase import Atoms 
-    atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1,1,1])
+    nmolecules = len(coords) // natoms  # number of CO2 molecules
 
-    # we also need teh co2 bonds for plotting
-    # in this case this is easy, since we know the bonds are 1-2 and 2-3
-    if len(bonds_in_ref)==0:
+    # Convert to ASE Atoms object
+    from ase import Atoms 
+    atoms = Atoms(symbols=sym, positions=coords, cell=cell, pbc=[1, 1, 1])
+
+    # We also need the CO2 bonds for plotting
+    # In this case, this is easy, since we know the bonds are 1-2 and 2-3
+    if len(bonds_in_ref) == 0:
         bonds = []
         for i in range(nmolecules):
-            for a in range(natoms-1):
-                bonds.append([i*natoms+a, i*natoms+a+1])
+            for a in range(natoms - 1):
+                bonds.append([i * natoms + a, i * natoms + a + 1])
     else:
         bonds = []
         for i in range(nmolecules):
             for b in bonds_in_ref:
-                bonds.append([i*natoms + b[0], i*natoms+b[1]])
-                # bonds.append([i*natoms+1, i*natoms+a2])
-            
-    
+                bonds.append([i * natoms + b[0], i * natoms + b[1]])
 
-    mol_mesh = mesh_for_atoms(ase_atoms =atoms, bonds =bonds)
-    mol_mesh_trace = plot_mesh([mol_mesh] , name=trace_name, stylize=True)
-    atoms.info['covalent_bonds']=bonds
+    mol_mesh = mesh_for_atoms(ase_atoms=atoms, bonds=bonds)
+    mol_mesh_trace = plot_mesh([mol_mesh], name=trace_name, stylize=True)
+    atoms.info['covalent_bonds'] = bonds
     mol_mesh_trace = add_hoverdata_to_atoms_traces(mol_mesh_trace, atoms)
     return mol_mesh_trace
-
 
 def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[127, 128, 129, 255], cylinder_resolution=15):
     """
