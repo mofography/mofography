@@ -408,6 +408,33 @@ def block_pockets_at_random_and_write(file_path, rag, ase_atoms, random_seed=123
     return blocking_fractions, _
 
 
-
+def block_specific_pockets_and_write(file_path, rag, ase_atoms, pocket_ids_to_block):
+    """
+    Takes specific pocket IDs and writes their blocking information to a file.
+    
+    :param file_path: the path to the file you want to write the blocking information to
+    :param rag: the networkx graph object
+    :param ase_atoms: ASE atoms object
+    :param pocket_ids_to_block: list of pocket IDs to block
+    """
+    from .helper import get_fractional_coordinates
+    import numpy as np
+    import networkx as nx
+    
+    centroid_dict = nx.get_node_attributes(rag, 'centroid')
+    size_dict = nx.get_node_attributes(rag, 'maxima_radii')
+    
+    # Get centroids and sizes for specified pockets
+    pockets_to_block_centroids = np.vstack([centroid_dict[p] for p in pocket_ids_to_block])
+    pockets_to_block_sizes = np.vstack([size_dict[p] for p in pocket_ids_to_block])
+    
+    # Convert to fractional coordinates
+    scaled_centroids = get_fractional_coordinates(pockets_to_block_centroids, ase_atoms)
+    scaled_centroids = np.round(scaled_centroids, 2)
+    
+    # Write to file
+    with open(file_path, 'w') as blocking_file:
+        for i, s in enumerate(scaled_centroids):
+            blocking_file.write(f"{s[0]}\t{s[1]}\t{s[2]}\t{np.round(pockets_to_block_sizes[i][0], 2)}\n")
 
 #
