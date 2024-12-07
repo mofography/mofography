@@ -7,7 +7,9 @@ mofography 🧪🔬
 <!-- Add logo -->
 
 <!-- ![](./docs/logo.png) -->
-![](./docs/mofography_logo_dark_background.png)
+<!-- ![](./docs/simple_logo_black_grey.png) -->
+![](./docs/mofography_logo_dark_background.png#gh-dark-mode-only)
+![](./docs/mofography_logo_white_background.png#gh-light-mode-only)
 
 A powerful Python package for the analysis, visualization, featurization, and machine learning on molecular pores in nanoporous materials. 🔍🧠
 
