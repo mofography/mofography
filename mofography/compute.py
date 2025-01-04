@@ -5716,27 +5716,78 @@ def get_energies_for_group2(
         return energies, all_group_scaled
     else:
         return energies
-
-
-def get_energy_interpolator(egrid):
+def get_energy_interpolator(egrid, neighborhood_size=4):
     """
-    This function creates a 3D regular grid interpolator for energy values given an input energy grid.
+    Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them
+    with a value higher than their local neighborhood maximum.
 
-    :param egrid: a 3D numpy array representing a grid of energy values. The shape of the array should
-    be (n_x, n_y, n_z), where n_x, n_y, and n_z are the number of grid points in the x, y, and z
-    directions, respectively
-    :return: a RegularGridInterpolator object that can be used to interpolate values from a 3D energy
-    grid.
+    :param egrid: a 3D numpy array representing a grid of energy values with shape (n_x, n_y, n_z)
+    :param neighborhood_size: size of neighborhood to check in each direction (default: 4)
+    :return: a RegularGridInterpolator object for the 3D energy grid
     """
-
     import numpy as np
     from scipy.interpolate import RegularGridInterpolator as RGI
+    import warnings
 
-    xx = np.linspace(0, 1, egrid.shape[0])
-    yy = np.linspace(0, 1, egrid.shape[1])
-    zz = np.linspace(0, 1, egrid.shape[2])
-    energy_interpolator = RGI((xx, yy, zz), egrid, method="slinear")
+    # Create a copy to avoid modifying the original array
+    egrid_clean = np.copy(egrid)
+    
+    # Find indices of NaN values
+    nan_indices = np.where(np.isnan(egrid_clean))
+    
+    if len(nan_indices[0]) > 0:
+        warnings.warn(f"Found {len(nan_indices[0])} NaN values in energy grid. Replacing with high energy values.")
+        
+        # Process each NaN value
+        for idx in zip(*nan_indices):
+            # Define neighborhood bounds (handling edge cases)
+            x_min, x_max = max(0, idx[0]-neighborhood_size), min(egrid.shape[0], idx[0]+neighborhood_size+1)
+            y_min, y_max = max(0, idx[1]-neighborhood_size), min(egrid.shape[1], idx[1]+neighborhood_size+1)
+            z_min, z_max = max(0, idx[2]-neighborhood_size), min(egrid.shape[2], idx[2]+neighborhood_size+1)
+            
+            # Get neighborhood values (excluding NaNs)
+            neighborhood = egrid_clean[x_min:x_max, y_min:y_max, z_min:z_max]
+            valid_values = neighborhood[~np.isnan(neighborhood)]
+            
+            if len(valid_values) > 0:
+                # Set to 10% higher than the maximum value in neighborhood
+                high_energy = np.max(valid_values) * 1.1
+                warnings.warn(f"Replacing NaN at position {idx} with value {high_energy:.2e} "
+                            f"(10% higher than local maximum {np.max(valid_values):.2e})")
+            else:
+                # If no valid neighbors, use a very high value
+                high_energy = 1E8
+                warnings.warn(f"No valid neighbors found for NaN at position {idx} in {neighborhood_size}x{neighborhood_size}x{neighborhood_size} "
+                            f"neighborhood. Using default high value: {high_energy:.2e}")
+            
+            egrid_clean[idx] = high_energy
+    
+    xx = np.linspace(0, 1, egrid_clean.shape[0])
+    yy = np.linspace(0, 1, egrid_clean.shape[1])
+    zz = np.linspace(0, 1, egrid_clean.shape[2])
+    
+    energy_interpolator = RGI((xx, yy, zz), egrid_clean, method="slinear")
     return energy_interpolator
+
+# def get_energy_interpolator(egrid):
+#     """
+#     This function creates a 3D regular grid interpolator for energy values given an input energy grid.
+
+#     :param egrid: a 3D numpy array representing a grid of energy values. The shape of the array should
+#     be (n_x, n_y, n_z), where n_x, n_y, and n_z are the number of grid points in the x, y, and z
+#     directions, respectively
+#     :return: a RegularGridInterpolator object that can be used to interpolate values from a 3D energy
+#     grid.
+#     """
+
+#     import numpy as np
+#     from scipy.interpolate import RegularGridInterpolator as RGI
+
+#     xx = np.linspace(0, 1, egrid.shape[0])
+#     yy = np.linspace(0, 1, egrid.shape[1])
+#     zz = np.linspace(0, 1, egrid.shape[2])
+#     energy_interpolator = RGI((xx, yy, zz), egrid, method="slinear")
+#     return energy_interpolator
 
 
 def add_clustering_to_rag_energy_js(
