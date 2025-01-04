@@ -1043,7 +1043,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 #     # for i in range(number_of_regions):
 #     #     reg_labels[reg_labels== old_labels[i]] = new_labels[i]
 #     return reg_labels, new_max_indices.T
-def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactness=0):
+def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=0, threshold_abs=0.5):
     """
     The function `regions_from_dgrid` takes a density grid as input and identifies regions based on
     local maxima, with options for adjusting parameters like mask thickness and compactness.
@@ -1125,7 +1125,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     # new_max_indices = max_indices[keep_these-1].T
 
     new_max_indices = np.array(
-        peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, p_norm=2)
+        peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, p_norm=2, threshold_abs=threshold_abs)
     ).T
     if len(new_max_indices.T) < len(max_indices.T):
         warnings.warn("Some maxima excluded as they fell inside the mask_thickness")
@@ -1144,7 +1144,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactne
     )
 
     new_max_indices = np.array(
-        peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, p_norm=2)
+        peak_local_max(dgrid, labels=reg_labels, num_peaks_per_label=1, p_norm=2, threshold_abs=threshold_abs)
     ).T
     # ir = interpolate_labels(reg_labels)
     # new_max_indices = (new_max_indices.T[np.argsort(ir(new_max_indices.T/dgrid.shape))]).T
