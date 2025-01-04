@@ -5646,7 +5646,7 @@ def get_energies_for_group(
 
 # endregion
 def get_energies_for_group2(
-    group, regions, energy_interpolator=None, return_scaled_coords=False, **kwargs_egrid
+    group, regions, energy_interpolator=None, return_scaled_coords=False, max_sample_limit=10000, **kwargs_egrid
 ):  # ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False, block_size=20000, sample_fraction=1):
     """
     This function calculates the energies for a group of regions using an energy interpolator and
@@ -5661,6 +5661,7 @@ def get_energies_for_group2(
     the energies and the scaled coordinates of the points in the group or just the energies. If set to
     True, the function will return a tuple of two arrays: the energies and the scaled coordinates. If
     set to False, the function will only return the, defaults to False (optional)
+    :param max_sample_limit: Maximum number of samples to take from the group, defaults to 10000 (optional)
     :return: either the energies for all the points in the specified group or the energies and scaled
     coordinates for all the points in the specified group, depending on the value of the
     `return_scaled_coords` parameter.
@@ -5693,8 +5694,8 @@ def get_energies_for_group2(
         # * grid indices of all the points present in this group
 
         all_group_indices = np.vstack([props[pi]["coords"] for pi in prop_indices])
-        if len(all_group_indices) > 10000:
-            all_group_indices = random.sample(list(all_group_indices), 10000)
+        if len(all_group_indices) > max_sample_limit:
+            all_group_indices = random.sample(list(all_group_indices), max_sample_limit)
         # * normalize the indices to get the fractional coordinates
         all_group_scaled = np.divide(all_group_indices, shape)
 
