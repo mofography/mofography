@@ -5661,7 +5661,8 @@ def get_energies_for_group2(
     the energies and the scaled coordinates of the points in the group or just the energies. If set to
     True, the function will return a tuple of two arrays: the energies and the scaled coordinates. If
     set to False, the function will only return the, defaults to False (optional)
-    :param max_sample_limit: Maximum number of samples to take from the group, defaults to 10000 (optional)
+    :param max_sample_limit: Maximum number of samples to take from the group, defaults to 10000 (optional). Use a larger
+    max limit to get a smoother energy histogram, typically when sampling rough pockets with coarse grid. 
     :return: either the energies for all the points in the specified group or the energies and scaled
     coordinates for all the points in the specified group, depending on the value of the
     `return_scaled_coords` parameter.
