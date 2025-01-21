@@ -2550,3 +2550,212 @@ def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacit
     )
 
     return [combined_mesh]
+
+def plot_connections(connections, maxima, shape, ase_atoms, plot_periodic=True, **kwargs):
+    """Plot connections graph including periodic boundary connections.
+    
+    Args:
+        connections: List of connection arrays containing [node_indices, exists, type, coords, window_size]
+        maxima: Array of maxima positions in grid coordinates
+        shape: Shape of the grid (nx, ny, nz)
+        ase_atoms: ASE atoms object containing cell information
+        plot_periodic: Whether to plot periodic connections and nodes (default: True)
+        **kwargs: Additional arguments passed to go.Scatter3d
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from ase.geometry import complete_cell
+    
+    def get_nearest_image_to_window(pos, window_pos, cell):
+        """Find nearest periodic image of pos relative to window_pos"""
+        frac_pos = np.linalg.solve(cell.T, pos)
+        frac_window = np.linalg.solve(cell.T, window_pos)
+        diff = frac_pos - frac_window
+        diff = diff - np.round(diff)
+        nearest_frac = frac_window + diff
+        return np.dot(cell.T, nearest_frac)
+
+    # Get unique nodes from connections (both entries)
+    nodes = set()
+    for conn in connections:
+        nodes.update(conn[0])  # conn[0] contains both node indices
+    nodes = sorted(list(nodes))
+    print(nodes)
+    
+    # Get cell matrix with vectors as columns
+    cell = complete_cell(ase_atoms.get_cell()).T
+    
+    # Calculate node positions in real space
+    node_positions = {}
+    for i, node in enumerate(nodes):
+        # Convert grid coordinates to fractional coordinates
+        frac_coords = maxima[node-1] / np.array(shape)
+        # Convert fractional to real space coordinates
+        real_coords = np.dot(cell, frac_coords.T).T
+        node_positions[node] = real_coords
+    
+    # Modified color assignment
+    cscale = kwargs.get('cscale', px.colors.sequential.Turbo)
+    
+    # If sequential colorscale is provided as string, get the actual colorscale
+    if isinstance(cscale, str):
+        try:
+            cscale = getattr(px.colors.sequential, cscale)
+        except:
+            try:
+                cscale = getattr(px.colors.qualitative, cscale)
+            except:
+                pass
+    
+    # Create color mapping
+    if isinstance(cscale, list):
+        node_to_color = {node: px.colors.sample_colorscale(cscale, (i)/len(nodes))[0] 
+                        for i, node in enumerate(nodes)}
+    else:
+        node_to_color = {node: px.colors.sample_colorscale(cscale, (i)/len(nodes))[0] 
+                        for i, node in enumerate(nodes)}
+    
+    node_colors = [node_to_color[node] for node in nodes]
+    print(node_to_color)
+    # Create node positions and hover text for internal nodes
+    node_x, node_y, node_z = [], [], []
+    node_hover = []
+    
+    for node in nodes:
+        pos = node_positions[node]
+        node_x.append(pos[0])
+        node_y.append(pos[1])
+        node_z.append(pos[2])
+        hover_text = f"Index: {node}<br>Type: Internal<br>Position: ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}) Å"
+        node_hover.append(hover_text)
+
+    # Create internal edges from connections
+    edge_x, edge_y, edge_z = [], [], []
+    edge_hover = []
+    
+    for conn in connections:
+        if conn[1] and conn[2] == 'internal':  # if connection exists and is internal
+            n1, n2 = conn[0]
+            pos1 = node_positions[n1]
+            pos2 = node_positions[n2]
+            
+            edge_x.extend([pos1[0], pos2[0], None])
+            edge_y.extend([pos1[1], pos2[1], None])
+            edge_z.extend([pos1[2], pos2[2], None])
+            
+            if conn[3] is not None:
+                for window_pos, window_size in zip(conn[3], conn[4]):
+                    hover_text = (f"Internal edge: {n1}-{n2}<br>"
+                                f"Window position: ({window_pos[0]:.2f}, {window_pos[1]:.2f}, {window_pos[2]:.2f}) Å<br>"
+                                f"Window size: {window_size:.2f} Å")
+                    edge_hover.extend([hover_text, hover_text, None])
+            else:
+                hover_text = f"Internal edge: {n1}-{n2}"
+                edge_hover.extend([hover_text, hover_text, None])
+
+    # Create traces for internal structure
+    traces = [
+        # Nodes trace
+        go.Scatter3d(
+            x=node_x, y=node_y, z=node_z,
+            mode='markers',
+            marker=dict(
+                size=kwargs.get('marker_size', 10),
+                color=node_colors,
+                line=dict(width=2, color=node_colors)
+            ),
+            hovertext=node_hover,
+            hoverinfo='text',
+            name='Internal Maxima',
+            legendgroup='Pore Graph',
+            legendgrouptitle_text='Pore Graph'
+        ),
+        # Edges trace
+        go.Scatter3d(
+            x=edge_x, y=edge_y, z=edge_z,
+            mode='lines',
+            line=dict(width=4),
+            hovertext=edge_hover,
+            hoverinfo='text',
+            name='Internal Connections',
+            legendgroup='Pore Graph'
+        )
+    ]
+
+    if not plot_periodic:
+        return traces
+
+    # Process periodic connections
+    periodic_edges = []
+    periodic_nodes = []
+    periodic_edge_hover = []
+    periodic_node_hover = []
+
+    for conn in connections:
+        if conn[1] and conn[2] == 'periodic':  # if connection exists and is periodic
+            n1, n2 = conn[0]
+            pos1 = node_positions[n1]
+            pos2 = node_positions[n2]
+            
+            for window_pos, window_size in zip(conn[3], conn[4]):
+                pos2_image = get_nearest_image_to_window(pos2, window_pos, cell)
+                
+                periodic_edges.extend([pos1, pos2_image, [None, None, None]])
+                
+                hover_text = (f"Periodic edge: {n1}-{n2}<br>"
+                            f"Window position: ({window_pos[0]:.2f}, {window_pos[1]:.2f}, {window_pos[2]:.2f}) Å<br>"
+                            f"Window size: {window_size:.2f} Å")
+                periodic_edge_hover.extend([hover_text, hover_text, None])
+                
+                periodic_nodes.append(pos2_image)
+                
+                node_hover_text = (f"Index: {n2}<br>"
+                                 f"Type: Periodic<br>"
+                                 f"Position: ({pos2_image[0]:.2f}, {pos2_image[1]:.2f}, {pos2_image[2]:.2f}) Å")
+                periodic_node_hover.append(node_hover_text)
+
+    if periodic_edges:
+        # Add periodic edges trace
+        edge_array = np.vstack(periodic_edges)
+        traces.append(go.Scatter3d(
+            x=edge_array[:, 0],
+            y=edge_array[:, 1],
+            z=edge_array[:, 2],
+            mode='lines',
+            line=dict(
+                dash='dot',
+                width=kwargs.get('line_width', 4),
+                color='red'
+            ),
+            hovertext=periodic_edge_hover,
+            hoverinfo='text',
+            name='Periodic Connections',
+            legendgroup='Pore Graph'
+        ))
+
+        # Add periodic nodes trace
+        periodic_nodes = np.vstack(periodic_nodes)
+        maxima_indices = [conn[0][1] for conn in connections if conn[1] and conn[2] == 'periodic']
+        periodic_colors = [node_to_color[idx] for idx in maxima_indices]
+        
+        traces.append(go.Scatter3d(
+            x=periodic_nodes[:, 0],
+            y=periodic_nodes[:, 1],
+            z=periodic_nodes[:, 2],
+            mode='markers',
+            marker=dict(
+                symbol='circle-open',
+                size=kwargs.get('marker_size', 10),
+                color=periodic_colors,
+                line=dict(width=4, color=periodic_colors),
+                opacity=1,
+            ),
+            hovertext=periodic_node_hover,
+            hoverinfo='text',
+            name='Periodic Maxima',
+            legendgroup='Pore Graph'
+        ))
+
+    return traces
+
