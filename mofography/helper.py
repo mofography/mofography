@@ -11,7 +11,7 @@
                                                 
 
 # """                         
- 
+import numpy as np
 def find_coord_from_indices(indices, shape, ase_atoms):
     """Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object.
 
@@ -269,3 +269,58 @@ def run_cygwin_from_jupyter_rt(cygwin_command, cygwin_path=r"C:\cygwin64\bin"):
     return_code = process.wait()
 
     return return_code
+
+def spectral_smooth_3d(dgrid: np.ndarray, atoms, grid_spacing: float, sigma: float = 1.0) -> np.ndarray:
+    """
+    Smooth a 3D grid using spectral filtering with proper handling of non-orthogonal cells.
+    
+    Parameters
+    ----------
+    dgrid : np.ndarray
+        3D density grid
+    atoms : ase.Atoms
+        ASE Atoms object containing cell information
+    grid_spacing : float
+        Grid spacing in Angstroms (assumed uniform)
+    sigma : float
+        Smoothing parameter in Angstroms
+        
+    Returns
+    -------
+    np.ndarray
+        Smoothed 3D grid
+    """
+    import numpy as np
+    from scipy.fft import fftn, ifftn
+    from ase.geometry import complete_cell
+    
+    # Get cell and grid information
+    cell = complete_cell(atoms.get_cell()).T
+    
+    # Compute metric tensor G (equivalent to reciprocal space metric)
+    G = np.linalg.inv(cell.T @ cell)
+    
+    # Generate k-vectors scaled by grid spacing
+    # The 2π/L frequency becomes (2π/L)*(L/N) = 2π/(N*grid_spacing)
+    kx = 2 * np.pi * np.fft.fftfreq(dgrid.shape[0], d=grid_spacing)
+    ky = 2 * np.pi * np.fft.fftfreq(dgrid.shape[1], d=grid_spacing)
+    kz = 2 * np.pi * np.fft.fftfreq(dgrid.shape[2], d=grid_spacing)
+    
+    # Create meshgrid with proper indexing
+    Kx, Ky, Kz = np.meshgrid(kx, ky, kz, indexing='ij')
+    
+    # Compute k^T * G * k (proper metric for non-orthogonal cell)
+    k_squared = (Kx*G[0,0] + Ky*G[1,0] + Kz*G[2,0])*Kx + \
+                (Kx*G[0,1] + Ky*G[1,1] + Kz*G[2,1])*Ky + \
+                (Kx*G[0,2] + Ky*G[1,2] + Kz*G[2,2])*Kz
+    
+    # Create and apply Gaussian filter
+    gaussian_filter = np.exp(-k_squared * sigma**2 / 2)
+    
+    # Transform to Fourier space, apply filter, and transform back
+    fft_grid = fftn(dgrid)
+    filtered_fft = fft_grid * gaussian_filter
+    smoothed = np.real(ifftn(filtered_fft))
+    
+    return smoothed
+
