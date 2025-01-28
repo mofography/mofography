@@ -3354,7 +3354,7 @@ def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
 
     G = copy.deepcopy(rag)
     prop_labels = np.array([prop["label"] for prop in props])
-    for group in pbc_groups[1:]:  # * 0 is always the background
+    for group in pbc_groups: 
         prop_indices = [np.where(prop_labels == g)[0][0] for g in group]
         # print(group, prop_indices)
         if len(group) > 1:
