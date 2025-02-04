@@ -6602,3 +6602,259 @@ def compute_surface_area(dgrid, probe_radius=None, mat_atoms=None):
     sa_m2g = isosurface_mesh.area_faces.sum() * 1e-20 / mass_g
     
     return sa_m2g
+def gpd_aabb_hybrid(grid_points, ase_atoms, radii, n_neighbors=10):
+    """
+    Hybrid approach combining an AABB neighbor search with vectorized distance calculations.
+    
+    Assumptions:
+      - Input grid_points are Cartesian coordinates (as returned by dask_grid_over_atoms).
+      - The framework atoms are converted to fractional coordinates and centered into the range [-0.5, 0.5].
+      - The grid_points are converted to centered fractional coordinates using the inverse cell.
+      - The shortest distance is then computed after applying the minimum image convention.
+    
+    Parameters:
+      grid_points : (n_grid_points, 3) numpy array in Cartesian coordinates.
+      ase_atoms   : ASE atoms object.
+      radii       : numpy array of atomic van der Waals radii.
+      n_neighbors : Number of neighbors to consider for each grid point (default 10).
+      
+    
+    Returns:
+      min_distances : numpy array of shape (n_grid_points,) with computed distances.
+    """
+    import numpy as np
+    from freud.locality import AABBQuery
+    from freud.box import Box
+    from ase.geometry import complete_cell
+    from .helper import get_fractional_coordinates
+
+    # Ensure grid_points is a 2D array.
+    grid_points = np.atleast_2d(grid_points)
+    
+    # Get the complete (upper-triangular) cell and its inverse.
+    cell = complete_cell(ase_atoms.get_cell()).T
+    # inv_cell = np.linalg.inv(cell)
+    
+    # Convert framework atomic positions:
+    #    atom_cart: Cartesian positions (for neighbor search)
+    #    atom_frac: Fractional positions centered into the range [-0.5, 0.5]
+    atom_cart = ase_atoms.get_positions()
+    atom_frac = ase_atoms.get_scaled_positions() - 0.5
+
+    # Since dask_grid_over_atoms returns Cartesian grid points,
+    # we convert them back to fractional coordinates and then center them.
+    # grid_frac = np.dot(grid_points, inv_cell) - 0.5  # now in [-0.5, 0.5]
+    grid_frac = get_fractional_coordinates(grid_points, ase_atoms) - 0.5
+    
+
+
+    # --- AABB neighbor search in Cartesian coordinates ---
+    box = Box.from_matrix(cell, dimensions=3)
+    ab = AABBQuery(box=box, points=atom_cart)
+    ab_r = ab.query(grid_points, query_args=dict(mode="nearest", num_neighbors=n_neighbors, exclude_ii=True))
+    nl = ab_r.toNeighborList(sort_by_distance=True)
+    
+    # Reshape the neighbor indices to (n_grid_points, n_neighbors)
+    neighbor_indices = nl.point_indices.reshape(-1, n_neighbors)
+    
+    # Check whether the query returned valid neighbors.
+    # (This check prevents a broadcast issue if a block gets no neighbors.)
+    if neighbor_indices.size == 0 or neighbor_indices.shape[0] != grid_points.shape[0]:
+        return np.full((grid_points.shape[0],), np.inf)
+    
+    # Get the neighboring atoms' fractional positions and corresponding radii.
+    relevant_atoms = atom_frac[neighbor_indices]      # shape: (n_grid_points, n_neighbors, 3)
+    # print('SHape of relevant atoms is ', relevant_atoms.shape)
+    relevant_radii = radii[neighbor_indices]            # shape: (n_grid_points, n_neighbors)
+    
+    # --- Compute distances in fractional space ---
+    # Expand grid_frac so the subtraction is done per grid point.
+    grid_frac_expanded = np.expand_dims(grid_frac, axis=1)  # shape: (n_grid_points, 1, 3)
+    diff = grid_frac_expanded - relevant_atoms             # shape: (n_grid_points, n_neighbors, 3)
+    diff = (diff - np.round(diff)).reshape(-1,3) # apply the minimum image convention
+    
+    # Convert the fractional differences back to Cartesian differences.
+    diff= np.dot(cell, diff.T).T
+    distances = np.linalg.norm(diff, axis=1).reshape(-1, n_neighbors) - relevant_radii # (n_grid_points, n_neighbors)
+    
+
+    # For each grid point, select the smallest distance (then subtract the probe radius).
+    min_distances = np.min(distances, axis=1)
+    return min_distances
+
+
+def dgrid_from_atoms_cpu_hybrid(
+    ase_atoms,
+    radii=None,
+    spacing=0.25,
+    block_size=50000,
+    n_neighbors=10,
+    
+    precompute=True,
+):
+    """
+    Modified dgrid computation using a hybrid AABB query and explicit distance calculation.
+    
+    This function generates a Cartesian grid over the structure using dask_grid_over_atoms 
+    and then computes the distance grid by applying the hybrid function `gpd_aabb_hybrid`.
+    
+    Parameters:
+      ase_atoms   : ASE atoms object.
+      radii       : Optional numpy array of atomic radii (if None, default van der Waals radii are used).
+      spacing     : Grid spacing in angstroms.
+      block_size  : Number of grid points per dask array chunk.
+      n_neighbors : Number of nearest neighbors to consider.
+      
+      precompute  : If True, compute the array immediately.
+    
+    Returns:
+      dgrid : 3D numpy array of computed distances with shape determined by the grid dimensions.
+    """
+    import numpy as np
+    import dask.array as da
+    import pandas as pd
+    # import mofography as mgr  # assumes mgr.dask_grid_over_atoms is available
+
+    if radii is None:
+        vdw_radii = pd.Series(
+            {
+                "H": 110.00000000000001,
+                "He": 140.0,
+                "Li": 182.0,
+                "Be": 153.0,
+                "B": 192.0,
+                "C": 170.0,
+                "N": 155.0,
+                "O": 152.0,
+                "F": 147.0,
+                "Ne": 154.0,
+                "Na": 227.0,
+                "Mg": 173.0,
+                "Al": 184.0,
+                "Si": 210.0,
+                "P": 180.0,
+                "S": 180.0,
+                "Cl": 175.0,
+                "Ar": 188.0,
+                "K": 275.0,
+                "Ca": 231.0,
+                "Sc": 215.0,
+                "Ti": 211.0,
+                "V": 206.99999999999997,
+                "Cr": 206.0,
+                "Mn": 204.99999999999997,
+                "Fe": 204.0,
+                "Co": 200.0,
+                "Ni": 197.0,
+                "Cu": 196.0,
+                "Zn": 200.99999999999997,
+                "Ga": 187.0,
+                "Ge": 211.0,
+                "As": 185.0,
+                "Se": 190.0,
+                "Br": 185.0,
+                "Kr": 202.0,
+                "Rb": 303.0,
+                "Sr": 249.00000000000003,
+                "Y": 231.99999999999997,
+                "Zr": 223.0,
+                "Nb": 218.00000000000003,
+                "Mo": 217.0,
+                "Tc": 216.0,
+                "Ru": 213.0,
+                "Rh": 210.0,
+                "Pd": 210.0,
+                "Ag": 211.0,
+                "Cd": 218.00000000000003,
+                "In": 193.0,
+                "Sn": 217.0,
+                "Sb": 206.0,
+                "Te": 206.0,
+                "I": 198.0,
+                "Xe": 216.0,
+                "Cs": 343.0,
+                "Ba": 268.0,
+                "La": 243.00000000000003,
+                "Ce": 242.0,
+                "Pr": 240.0,
+                "Nd": 239.0,
+                "Pm": 238.0,
+                "Sm": 236.0,
+                "Eu": 235.0,
+                "Gd": 234.0,
+                "Tb": 233.0,
+                "Dy": 231.0,
+                "Ho": 229.99999999999997,
+                "Er": 229.0,
+                "Tm": 227.0,
+                "Yb": 225.99999999999997,
+                "Lu": 224.00000000000003,
+                "Hf": 223.0,
+                "Ta": 222.00000000000003,
+                "W": 218.00000000000003,
+                "Re": 216.0,
+                "Os": 216.0,
+                "Ir": 213.0,
+                "Pt": 213.0,
+                "Au": 214.0,
+                "Hg": 223.0,
+                "Tl": 196.0,
+                "Pb": 202.0,
+                "Bi": 206.99999999999997,
+                "Po": 197.0,
+                "At": 202.0,
+                "Rn": 220.00000000000003,
+                "Fr": 348.0,
+                "Ra": 283.0,
+                "Ac": 247.00000000000003,
+                "Th": 245.00000000000003,
+                "Pa": 243.00000000000003,
+                "U": 241.0,
+                "Np": 239.0,
+                "Pu": 243.00000000000003,
+                "Am": 244.0,
+                "Cm": 245.00000000000003,
+                "Bk": 244.0,
+                "Cf": 245.00000000000003,
+                "Es": 245.00000000000003,
+                "Fm": 245.00000000000003,
+                "Md": 246.0,
+                "No": 246.0,
+                "Lr": 246.0,
+                "Rf": np.nan,
+                "Db": np.nan,
+                "Sg": np.nan,
+                "Bh": np.nan,
+                "Hs": np.nan,
+                "Mt": np.nan,
+                "Ds": np.nan,
+                "Rg": np.nan,
+                "Cn": np.nan,
+                "Nh": np.nan,
+                "Fl": np.nan,
+                "Mc": np.nan,
+                "Lv": np.nan,
+                "Ts": np.nan,
+                "Og": np.nan,
+            }
+        )
+        radii = vdw_radii[ase_atoms.get_chemical_symbols()].values / 100.0
+
+    # Get the grid points -- note that dask_grid_over_atoms returns Cartesian coordinates and the grid shape.
+    gpoints, shape = dask_grid_over_atoms(ase_atoms, spacing=spacing, chunksize=block_size)
+    # Compute the distance grid by applying the hybrid function blockwise.
+
+
+    dgrid = gpoints.map_blocks(
+        gpd_aabb_hybrid,
+        ase_atoms,
+        radii,
+        n_neighbors=n_neighbors,
+        
+        dtype=float,
+        drop_axis=1
+    ).reshape(shape)
+    
+    if precompute:
+        return dgrid.compute()
+    return dgrid
