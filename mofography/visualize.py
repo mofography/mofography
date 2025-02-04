@@ -2317,6 +2317,8 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             name=f'Component {i}_{dir_str}',
             **kwargs
         )
+        mesh.legendgroup = 'percolated'
+        mesh.legendgrouptitle = dict(text='Percolated Clusters')
         mesh_traces.append(mesh)
 
     return mesh_traces
