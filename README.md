@@ -21,10 +21,10 @@ You can simply try out mofography after installing just the dependencies. In fac
 
 ### 1. Set up the environment 🛠️
 
-Create a new conda environment with Python 3.9:
+Create a new conda environment (optional, recommended so that we don't break anything):
 
 ```bash
-conda create -n mgr_env python=3.9
+conda create -n mgr_env 
 conda activate mgr_env
 ```
 
