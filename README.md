@@ -36,8 +36,7 @@ Using conda:
 conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy
 ```
 
-Using pip: 
-
+Using pip:
 
 *Note*: Make sure to install into the correct environment using `python -m pip install`
 
