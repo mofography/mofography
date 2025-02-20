@@ -21,10 +21,10 @@ You can simply try out mofography after installing just the dependencies. In fac
 
 ### 1. Set up the environment 🛠️
 
-Create a new conda environment (optional, recommended so that we don't break anything):
+Create a new conda environment (optional, recommended so that we don't break anything. Also you can specify the python version you want like `python=3.10`. We recommend `3.10` or higher.):
 
 ```bash
-conda create -n mgr_env 
+conda create -n mgr_env  python
 conda activate mgr_env
 ```
 
@@ -36,13 +36,17 @@ Using conda:
 conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy
 ```
 
-Using pip:
+Using pip: 
 
-```bash
-pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
-```
+
+*Note*: Make sure to install into the correct environment using `python -m pip install`
 
 *Note*: If you don't have a GPU, exclude `cupy` from the list of dependencies.
+
+```bash
+python -m pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
+```
+
 
 ### 3. Clone the repo 📥
 
