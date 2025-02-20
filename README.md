@@ -47,7 +47,6 @@ Using pip:
 python -m pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
 ```
 
-
 ### 3. Clone the repo 📥
 
 Download the zip file or use git:
@@ -63,9 +62,9 @@ cd mofography
 git pull
 ```
 
-### 4. Add mofography to your Python path 🐍
+### 4. Add mofography to your Python path 🐍 (Option A)
 
-In your scripts and notebooks, add:
+Since Mofography is under active development, you might want to clone and update it frequently, so instead of doing a hard install, you can safely add it to your Python path and use it in your scripts and notebooks:
 
 ```python
 import sys
@@ -74,6 +73,14 @@ sys.path.append(os.path.abspath('path_to_mofography'))
 ```
 
 Replace `path_to_mofography` with the relative path to the mofography directory on your local machine.
+
+### 4. Hard install (Option B)
+
+If you don't want to add Mofography to Python Path every time, you may prefer to install it as a package. Go to the Mofography cloned directory and do:
+
+```bash
+python setup.py install
+```
 
 ### 5. Test the package 🧪
 
