@@ -4291,6 +4291,101 @@ def find_paths(regions, rag2):
     return checks, check_these_paths_new
 
 
+# def get_connections_for_rag(
+#     rag,
+#     region_labels,
+#     maxima,
+#     ase_atoms,
+#     dgrid,
+#     minimum_window_separation=1.0,
+#     wall_windows=True,
+#     wall_thickness=2,
+# ):
+#     def find_windows(regs):
+#         import numpy as np
+#         from sklearn.cluster import AgglomerativeClustering
+
+#         i = regs[0]
+#         j = regs[1]
+#         check_flag = np.logical_or(
+#             np.logical_and(region_labels == i, outer.get(j)),
+#             np.logical_and(region_labels == j, outer.get(i)),
+#         )
+#         if np.sum(check_flag) > 0:
+#             # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
+#             windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+#             window_points = np.dot(
+#                 A_unit, (windices / region_labels.shape).T
+#             ).T  # * (N,3)
+#             # ic(window_points)
+#             # * No clustering
+#             # window_centers = np.mean(window_points, axis=0)
+
+#             # * DBScan
+#             # X_scaled = StandardScaler().fit_transform(window_points)
+#             # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
+#             # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+
+#             # if len(window_points) >1:
+#             # * Agglomerative
+#             ag = AgglomerativeClustering(
+#                 n_clusters=None,
+#                 linkage="single",
+#                 distance_threshold=minimum_window_separation,
+#                 compute_full_tree=True,
+#             ).fit(window_points)
+#             window_centers = np.vstack(
+#                 [
+#                     window_points[ag.labels_ == i].mean(axis=0)
+#                     for i in np.unique(ag.labels_)
+#                     if i != -1
+#                 ]
+#             )
+#             # else:
+#             # window_centers = window_points
+#             window_fractional = get_fractional_coordinates(window_centers, ase_atoms)
+#             window_radii = np.array(dinterp(window_fractional))
+#             return np.array(
+#                 [regs, True, "internal", window_centers, window_radii], dtype="object"
+#             )  # returns a list of [[r1,r2], connected or not, array of window_centers]
+#         else:
+#             return np.array([regs, False, "internal", None, None], dtype="object")
+
+#     # * find the internal windows
+#     from skimage.segmentation import find_boundaries
+#     from .helper import interpolate_labels, get_fractional_coordinates
+#     import ase
+#     import numpy as np
+#     from rich.progress import track
+
+#     connected_regions = np.vstack(list(rag.edges()))
+#     list_of_region_indices = np.delete(np.unique(region_labels), 0)
+#     outer = {
+#         reg: find_boundaries(region_labels == reg, mode="outer")
+#         for reg in list_of_region_indices
+#     }
+#     dinterp = interpolate_labels(dgrid)
+#     minimum_window_separation = 1.0
+#     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+
+#     connections = [
+#         find_windows(regs) for regs in track(rag.edges, description="Finding windows:")
+#     ]
+
+#     # * Windows on the wall are to be calculated (periodic windows)
+#     if wall_windows:
+#         wwl = get_wall_windows2(
+#             regions=region_labels,
+#             maxima=maxima,
+#             dgrid=dgrid,
+#             ase_atoms=ase_atoms,
+#             wall_thickness=wall_thickness,
+#         )
+#         if len(wwl) > 0:
+#             connections = connections + wwl.tolist()
+
+#     return connections
+
 def get_connections_for_rag(
     rag,
     region_labels,
@@ -4301,56 +4396,41 @@ def get_connections_for_rag(
     wall_windows=True,
     wall_thickness=2,
 ):
-    def find_windows(regs):
-        import numpy as np
-        from sklearn.cluster import AgglomerativeClustering
+    """Find connections between regions in a region adjacency graph (RAG) and identify window locations.
 
-        i = regs[0]
-        j = regs[1]
-        check_flag = np.logical_or(
-            np.logical_and(region_labels == i, outer.get(j)),
-            np.logical_and(region_labels == j, outer.get(i)),
-        )
-        if np.sum(check_flag) > 0:
-            # print("Edges found between "+str(i)+' and '+ str(j) + ' sum: '+str(np.sum(check_flag)))
-            windices = np.vstack(np.where(check_flag)).T  # * (N,3)
-            window_points = np.dot(
-                A_unit, (windices / region_labels.shape).T
-            ).T  # * (N,3)
-            # ic(window_points)
-            # * No clustering
-            # window_centers = np.mean(window_points, axis=0)
+    This function analyzes a RAG to find connections between adjacent regions and identifies the window 
+    locations where regions connect. It uses agglomerative clustering to group boundary points into windows
+    and finds the optimal window centers based on distance values.
 
-            # * DBScan
-            # X_scaled = StandardScaler().fit_transform(window_points)
-            # db = DBSCAN(eps=0.5, min_samples=10).fit(X_scaled)
-            # window_centers = np.vstack([window_points[db.labels_==i].mean(axis=0) for i in np.unique(db.labels_) if i != -1])
+    Parameters
+    ----------
+    rag : networkx.Graph
+        Region adjacency graph representing connections between regions
+    region_labels : numpy.ndarray
+        3D array of region labels where each unique value represents a different region
+    maxima : numpy.ndarray
+        Array containing the maxima points of each region
+    ase_atoms : ase.Atoms
+        ASE Atoms object containing the structure information
+    dgrid : numpy.ndarray
+        3D array of distance values on the grid
+    minimum_window_separation : float, optional
+        Minimum distance between separate windows, by default 1.0
+    wall_windows : bool, optional
+        Whether to calculate windows on periodic boundaries, by default True
+    wall_thickness : int, optional
+        Thickness of wall region for finding periodic windows, by default 2
 
-            # if len(window_points) >1:
-            # * Agglomerative
-            ag = AgglomerativeClustering(
-                n_clusters=None,
-                linkage="single",
-                distance_threshold=minimum_window_separation,
-                compute_full_tree=True,
-            ).fit(window_points)
-            window_centers = np.vstack(
-                [
-                    window_points[ag.labels_ == i].mean(axis=0)
-                    for i in np.unique(ag.labels_)
-                    if i != -1
-                ]
-            )
-            # else:
-            # window_centers = window_points
-            window_fractional = get_fractional_coordinates(window_centers, ase_atoms)
-            window_radii = np.array(dinterp(window_fractional))
-            return np.array(
-                [regs, True, "internal", window_centers, window_radii], dtype="object"
-            )  # returns a list of [[r1,r2], connected or not, array of window_centers]
-        else:
-            return np.array([regs, False, "internal", None, None], dtype="object")
-
+    Returns
+    -------
+    list
+        List of connections, where each connection is an array containing:
+        - [region1, region2]: The two connected region indices
+        - bool: Whether regions are connected
+        - str: Type of connection ("internal" or "wall")
+        - numpy.ndarray: Window center coordinates
+        - numpy.ndarray: Window radii
+    """
     # * find the internal windows
     from skimage.segmentation import find_boundaries
     from .helper import interpolate_labels, get_fractional_coordinates
@@ -4365,8 +4445,97 @@ def get_connections_for_rag(
         for reg in list_of_region_indices
     }
     dinterp = interpolate_labels(dgrid)
-    minimum_window_separation = 1.0
     A_unit = ase.geometry.complete_cell(ase_atoms.get_cell()).T
+
+    def find_windows(regs):
+        """Find windows between two regions.
+
+        Parameters
+        ----------
+        regs : tuple
+            Tuple of two region indices to check for connections
+
+        Returns
+        -------
+        numpy.ndarray
+            Array containing connection information:
+            [region indices, connected flag, type, window centers, window radii]
+        """
+        import numpy as np
+        from sklearn.cluster import AgglomerativeClustering
+
+        i = regs[0]
+        j = regs[1]
+        check_flag = np.logical_or(
+            np.logical_and(region_labels == i, outer.get(j)),
+            np.logical_and(region_labels == j, outer.get(i)),
+        )
+        if np.sum(check_flag) > 0:
+            windices = np.vstack(np.where(check_flag)).T  # * (N,3)
+            window_points = np.dot(
+                A_unit, (windices / region_labels.shape).T
+            ).T  # * (N,3)
+            
+            # * Agglomerative clustering to find window centers
+            ag = AgglomerativeClustering(
+                n_clusters=None,
+                linkage="single",
+                distance_threshold=minimum_window_separation,
+                compute_full_tree=True,
+            ).fit(window_points)
+            
+            # * Get distance values and region labels at window indices
+            d_windices = dgrid[tuple(windices.T)]  # distance values at the window indices
+            r_windices = region_labels[tuple(windices.T)]  # region labels at the window indices
+            
+            window_centers = []
+            for uwi in np.unique(ag.labels_):
+                # For each cluster that is not noise
+                if uwi != -1:
+                    # Get values for this cluster
+                    uwi_dvals = d_windices[ag.labels_ == uwi]  # distance values in the cluster
+                    uwi_points = window_points[ag.labels_ == uwi]  # points in the cluster
+                    uwi_r = r_windices[ag.labels_ == uwi]  # region labels in the cluster
+                    
+                    # For points in first region
+                    uwi_r1_indices = np.where(uwi_r == regs[0])[0]
+                    uwi_r1_dvals = uwi_dvals[uwi_r1_indices]
+                    uwi_r1_points = uwi_points[uwi_r1_indices]
+                    
+                    # Find the point with maximum distance value in first region
+                    if len(uwi_r1_indices) > 0:
+                        uwi_r1_max_indices = np.argmax(uwi_r1_dvals)
+                        uwi_r1_max_points = uwi_r1_points[uwi_r1_max_indices]
+                    else:
+                        continue  # Skip if no points from first region in this cluster
+                    
+                    # For points in second region
+                    uwi_r2_indices = np.where(uwi_r == regs[1])[0]
+                    uwi_r2_dvals = uwi_dvals[uwi_r2_indices]
+                    uwi_r2_points = uwi_points[uwi_r2_indices]
+                    
+                    # Find the point with maximum distance value in second region
+                    if len(uwi_r2_indices) > 0:
+                        uwi_r2_max_indices = np.argmax(uwi_r2_dvals)
+                        uwi_r2_max_points = uwi_r2_points[uwi_r2_max_indices]
+                    else:
+                        continue  # Skip if no points from second region in this cluster
+                    
+                    # Take the centroid of the two maxima of each region close to the window
+                    uwi_center = (uwi_r1_max_points + uwi_r2_max_points) / 2
+                    window_centers.append(uwi_center)
+            
+            if window_centers:
+                window_centers = np.vstack(window_centers)
+                window_fractional = get_fractional_coordinates(window_centers, ase_atoms)
+                window_radii = np.array(dinterp(window_fractional))
+                return np.array(
+                    [regs, True, "internal", window_centers, window_radii], dtype="object"
+                )
+            else:
+                return np.array([regs, False, "internal", None, None], dtype="object")
+        else:
+            return np.array([regs, False, "internal", None, None], dtype="object")
 
     connections = [
         find_windows(regs) for regs in track(rag.edges, description="Finding windows:")
