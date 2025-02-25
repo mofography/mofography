@@ -5596,8 +5596,8 @@ def get_energies_for_group(
     group,
     props,
     ase_atoms,
-    forcefield_mixed,
     shape,
+    forcefield_mixed=None,
     cutoff=12.5,
     return_coords=False,
     block_size=20000,
@@ -5606,8 +5606,14 @@ def get_energies_for_group(
     from .helper import find_coord_from_indices
     import numpy as np
     import dask.array as da
+    from .data import mix_lorentz_berthelot
+
+    # * assign forcefield_mixed if it is not provided
+    if forcefield_mixed is None:
+        forcefield_mixed = mix_lorentz_berthelot(ase_atoms)
 
     # * repeat the ase atoms and forcefield to meet cutoff
+
     # nrepeats = np.prod(mgr.get_repetitions_to_meet_cutoff(ase_atoms, cutoff))
     ase_atoms_repeat, forcefield_mixed_repeat = repeat_to_meet_cutoff(
         ase_atoms, forcefield_mixed, cutoff
