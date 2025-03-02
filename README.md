@@ -33,7 +33,7 @@ conda activate mgr_env
 Using conda:
 
 ```bash
-conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy
+conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy python-kaleido
 ```
 
 Using pip:
@@ -43,7 +43,7 @@ Using pip:
 *Note*: If you don't have a GPU, exclude `cupy` from the list of dependencies.
 
 ```bash
-python -m pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
+python -m pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy kaleido
 ```
 
 ### 3. Clone the repo 📥
