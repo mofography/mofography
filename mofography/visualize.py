@@ -2453,7 +2453,7 @@ def get_potential_near_atoms(atoms, potential, grid_shape, element='Zn', radius=
     print(f"Found {len(potentials_near_atoms)} potential values near {element} atoms")
     
     return potentials_near_atoms
-def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacity=0.3):
+def plot_electrostatic_isosurfaces(potential_V, atoms, isovals=None, num_isosurfaces=10, cscale='viridis', step=1, base_opacity=0.3):
     """
     Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info.
     
@@ -2468,8 +2468,10 @@ def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacit
     from collections import defaultdict
     from skimage import measure
     from .helper import find_coord_from_indices
+    from ase.geometry import complete_cell
     import plotly.graph_objects as go
-
+    # define the cell needed for plotting 
+    cell = complete_cell(atoms.cell).T
     # Get unique elements in the system
     elements = set(atoms.get_chemical_symbols())
 
@@ -2501,8 +2503,11 @@ def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacit
         negative_iso = np.percentile(potential_V, 5)
 
     # Add more isosurfaces
-    num_isosurfaces = 10
-    iso_values = np.linspace(negative_iso, positive_iso, num_isosurfaces)
+    # num_isosurfaces = 10
+    if isovals is None:
+        iso_values = np.linspace(negative_iso, positive_iso, num_isosurfaces)
+    else:
+        iso_values = isovals
 
     print(f"Isosurface values: {iso_values}")
 
@@ -2542,7 +2547,7 @@ def plot_electrostatic_isosurfaces(potential_V, cell, atoms, step=1, base_opacit
         i=all_faces[:, 0],
         j=all_faces[:, 1],
         k=all_faces[:, 2],
-        colorscale='viridis',
+        colorscale=cscale,
         intensity=all_intensities,
         intensitymode='vertex',
         opacity=base_opacity,
