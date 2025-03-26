@@ -36,6 +36,16 @@ publication_layout = dict(template='plotly_white',
                     scene=dict(xaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True), yaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True),  aspectmode='data'),
                     margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='togglegroup'))
 
+global default_mesh_lighting
+default_mesh_lighting= dict(
+        ambient=0.3,
+        diffuse=1.0,
+        fresnel=0.2,
+        specular=0.05,
+        roughness=0.5,
+    )
+
+
 # def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
 #                        color='blue', stepsize=1, stylize=False, random_seed=0):
 #     """
