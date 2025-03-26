@@ -580,6 +580,104 @@ def plot_rag(G, plot_with='maxima', **kwargs):
         # If all edges involve node 0, plot only the nodes
         return plot_rag(G, plot_with, **kwargs)
 
+def plot_rag_separate_traces(G, plot_with='maxima', **kwargs):
+    """Plot region adjacency graph with separate traces for nodes and edges.
+    
+    Args:
+        G: NetworkX graph
+        plot_with: Node attribute to use for coordinates ('maxima' or other)
+        **kwargs: Additional arguments passed to traces
+            node_kwargs: Dict of arguments for node trace
+            edge_kwargs: Dict of arguments for edge trace
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    
+    # Get kwargs specific to nodes and edges
+    node_kwargs = kwargs.pop('node_kwargs', {})
+    edge_kwargs = kwargs.pop('edge_kwargs', {})
+    
+    # Get colorscale
+    cscale = kwargs.get('cscale', px.colors.sequential.Turbo)
+    
+    # Create color mapping for nodes
+    node_to_color = {node: px.colors.sample_colorscale(cscale, (i)/len(G.nodes))[0] 
+                    for i, node in enumerate(G.nodes)}
+
+    # Initialize lists for node trace
+    node_coords = []
+    node_labels = []
+    node_trace_colors = []
+
+    # Collect node data
+    for node in G.nodes():
+        if node != 0:  # Skip node 0
+            node_coords.append(G.nodes[node][plot_with])
+            node_labels.append(f'Node: {G.nodes[node]["labels"][0]}')
+            node_trace_colors.append(node_to_color[node])
+
+    traces = []
+    
+    # Create node trace if we have nodes
+    if node_coords:
+        node_coords = np.array(node_coords)
+        node_trace = go.Scatter3d(
+            x=node_coords[:, 0],
+            y=node_coords[:, 1],
+            z=node_coords[:, 2],
+            mode='markers',
+            hovertext=node_labels,
+            marker=dict(
+                color=node_trace_colors,
+                size=node_kwargs.pop('marker_size', 10),
+                symbol=node_kwargs.pop('marker_symbol', 'circle')
+            ),
+            name='Internal Nodes',
+            legendgroup='Pore Graph',
+            legendgrouptitle_text='Pore Graph',
+            **node_kwargs
+        )
+        traces.append(node_trace)
+
+    # If there are edges, create edge trace
+    if G.number_of_edges() > 0:
+        edge_coords = []
+        edge_colors = []
+        edge_labels = []
+        
+        for edge in G.edges():
+            if 0 not in edge:
+                n1, n2 = edge
+                edge_coords.append(G.nodes[n1][plot_with])
+                edge_coords.append(G.nodes[n2][plot_with])
+                edge_coords.append([None, None, None])
+                
+                edge_colors.extend([node_to_color[n1], node_to_color[n2], None])
+                edge_labels.extend([
+                    f'Edge: {G.nodes[n1]["labels"][0]} - {G.nodes[n2]["labels"][0]}',
+                    f'Edge: {G.nodes[n1]["labels"][0]} - {G.nodes[n2]["labels"][0]}',
+                    None
+                ])
+
+        if edge_coords:
+            edge_coords = np.array(edge_coords)
+            edge_trace = go.Scatter3d(
+                x=edge_coords[:, 0],
+                y=edge_coords[:, 1],
+                z=edge_coords[:, 2],
+                mode='lines',
+                hovertext=edge_labels,
+                line=dict(
+                    width=edge_kwargs.pop('line_width', 4),
+                    color=edge_kwargs.pop('line_color', 'red')
+                ),
+                name='Internal Connections',
+                legendgroup='Pore Graph',
+                **edge_kwargs
+            )
+            traces.append(edge_trace)
+
+    return traces
 
 def plot_pore_graph(G):
     import networkx as nx
