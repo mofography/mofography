@@ -12,6 +12,8 @@
 # TODO Identify the different unique regions
 # TODO Fix the issue with  the border regions getting cut off
 
+import numpy as np 
+import ase
 
 def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
     """This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
