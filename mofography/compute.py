@@ -7118,3 +7118,180 @@ def get_pbc_groups(unmerged_regions, maxima_info):
     groups = {k: set(v) for k, v in groups.items()}
     return groups
 
+def detect_periodic_maxima_enhanced(
+    distance_grid: np.ndarray,
+    ase_atoms: ase.Atoms,
+    spacing: float,
+    maxima_mask: float = 0,
+    h: float = None,
+    threshold_abs: float = None,
+    min_distance: float = 1.0,
+    padding_thickness: int = None,
+    # smooth: bool = False,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Enhanced periodic maxima detection that handles:
+    1. Proper periodic influence regions
+    2. Detection of missing symmetric maxima
+    3. Merging of periodic copies
+    4. Special handling of boundary-split maxima
+
+    Parameters match detect_periodic_distance_maxima for consistency
+    """
+    import numpy as np
+    import itertools
+    from scipy.ndimage import distance_transform_edt
+    from skimage.morphology import h_maxima
+    from scipy.cluster.hierarchy import linkage, fcluster
+    from .helper import estimate_h_from_percolation_history
+    from ase.geometry import complete_cell
+    # create binary mask from distance grid
+    binary_mask = distance_grid > maxima_mask
+
+    # First compute periodic EDT with larger padding
+    if padding_thickness is None:
+        padding_thickness = calculate_padding_thickness(
+            distance_grid, ase_atoms, spacing)
+
+    print("padding thickness in maxima detection is ", padding_thickness)
+
+    # padding = int(np.ceil(binary_mask.max()/2/spacing))
+    padded_mask = np.pad(binary_mask, padding_thickness, mode="wrap")
+    dt_padded = distance_transform_edt(
+        padded_mask.astype(np.float32), sampling=spacing)
+
+    # Extract central region and smooth
+    dt_central = dt_padded[
+        padding_thickness:-padding_thickness,
+        padding_thickness:-padding_thickness,
+        padding_thickness:-padding_thickness,
+    ]
+    # this cannot be fully trusted, so let's not do this just yet.
+    # if smooth:
+    #     dt_smoothed = mgr.spectral_smooth_3d(
+    #         dt_central,
+    #         ase_atoms,
+    #         grid_spacing=spacing,
+    #         sigma=spacing * 3,  # Increased smoothing
+    #     )
+    # else:
+    #     dt_smoothed = dt_central
+    #
+    # If h is not provided, compute it from percolation history
+    if h is None:
+        h = estimate_h_from_percolation_history(dt_central)
+        print("h guess from percolation history is ", h)
+    else:
+        print("h is provided and is ", h)
+
+    # Continue with existing maxima detection using computed h
+    maxima = h_maxima(dt_central, h)
+    maxima_indices = np.array(np.where(maxima)).T
+    print("maxima indices", maxima_indices, "for h", h)
+    # Apply absolute threshold strictly based on the true grid not edt
+    if threshold_abs is not None:
+        threshold_mask =distance_grid[tuple(maxima_indices.T)] >= threshold_abs
+        maxima_indices = maxima_indices[threshold_mask]
+        if len(maxima_indices) == 0:
+            return dt_central, maxima_indices
+
+    # Calculate volumes for initial filtering
+    voxel_volume = abs(np.linalg.det(ase_atoms.cell)) / \
+        np.prod(dt_central.shape)
+    box_volume = abs(np.linalg.det(ase_atoms.cell))
+
+    # Check for missing symmetric maxima and boundary-split cases
+    cell = complete_cell(ase_atoms.get_cell())
+    new_maxima = []
+    # Define boundary tolerance (in grid points)
+    boundary_tol = max(
+        1, int(0.1 * min(dt_central.shape))
+    )  # 10% of smallest dimension or at least 1
+
+    for max_idx in maxima_indices:
+        # Check if this maximum is near a boundary
+        near_boundary = any(
+            coord < boundary_tol or coord > (size - boundary_tol)
+            for coord, size in zip(max_idx,dt_central.shape)
+        )
+
+        max_value =dt_central[tuple(max_idx)]
+
+        # Check periodic images
+        for i, j, k in itertools.product([-1, 0, 1], repeat=3):
+            if i == j == k == 0:
+                continue
+
+            # Get periodic image position
+            periodic_pos = max_idx + \
+                np.array([i, j, k]) * np.array(dt_central.shape)
+            periodic_idx = periodic_pos %dt_central.shape
+
+            # Convert to fractional then cartesian coordinates
+            frac_orig = max_idx /dt_central.shape
+            frac_periodic = periodic_pos /dt_central.shape
+
+            cart_orig = np.dot(cell, frac_orig)
+            cart_periodic = np.dot(cell, frac_periodic)
+
+            periodic_value =dt_central[tuple(periodic_idx)]
+
+            # Check for split maxima (near boundary and nearly identical values)
+            if (
+                near_boundary and abs(
+                    max_value - periodic_value) < 0.1 * max_value
+            ):  # 10% tolerance
+                continue  # Skip adding as new maximum - will be handled in clustering
+
+            # Check for missing symmetric maxima
+            if (
+                np.linalg.norm(cart_orig - cart_periodic) < min_distance
+                and abs(max_value - periodic_value) < h
+                and not maxima[tuple(periodic_idx)]
+            ):
+                new_maxima.append(periodic_idx)
+
+    # Combine original and new maxima
+    all_maxima = (
+        np.vstack([maxima_indices, new_maxima]
+                  ) if new_maxima else maxima_indices
+    )
+
+    print("maxima before merging", all_maxima)
+    print("maxima shape before merging", all_maxima.shape)
+    # Convert to fractional coordinates for periodic distance comparison
+    frac_coords = all_maxima /dt_central.shape
+    cart_coords = np.dot(cell, frac_coords.T).T
+    values =dt_central[tuple(all_maxima.T)]
+
+    if len(all_maxima) > 1:
+        # Custom distance matrix for clustering that considers periodicity
+        from scipy.spatial.distance import pdist, squareform
+
+        def periodic_distance(x1, x2):
+            dr = x1 - x2
+            # Map to [-0.5, 0.5] for each dimension
+            dr = dr - np.round(dr)
+            # Convert to cartesian
+            dr_cart = np.dot(cell, dr)
+            return np.linalg.norm(dr_cart)
+
+        distances = pdist(frac_coords, metric=periodic_distance)
+        Z = linkage(distances, method="single")
+        clusters = fcluster(Z, min_distance / spacing, criterion="distance")
+
+        merged_maxima = []
+        for cluster_id in range(1, clusters.max() + 1):
+            cluster_mask = clusters == cluster_id
+            cluster_values = values[cluster_mask]
+            cluster_points = all_maxima[cluster_mask]
+            best_idx = np.argmax(cluster_values)
+            merged_maxima.append(cluster_points[best_idx])
+
+        merged_maxima = np.array(merged_maxima)
+    else:
+        merged_maxima = all_maxima
+
+    return dt_central, merged_maxima, all_maxima
+
+def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None):
