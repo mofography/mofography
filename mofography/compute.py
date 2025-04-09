@@ -7078,3 +7078,43 @@ def dgrid_from_atoms_cpu_hybrid(
 
     return padding_thickness
 
+def get_pbc_groups(unmerged_regions, maxima_info):
+    """
+        Group unmerged regions based on periodic boundary conditions (PBC).
+
+        This function organizes unmerged regions into groups based on their maxima
+        indices. Each group is identified by a unique tuple of maxima indices 
+        (columns 2-4 of `maxima_info`), and contains the corresponding region indices 
+        (column 1 of `maxima_info`).
+
+        Args:
+            unmerged_regions (iterable): A collection of region indices that are not yet merged.
+            maxima_info (array-like): A 2D array where each row contains:
+                - Column 0: Region index
+                - Columns 1-3: Maxima indices (used as grouping keys)
+                - Column 4: Offsets in each direction
+                  You get this as output when you call the 'do_periodic_segmentation' on the distance grid (dgrid) 
+
+        Returns:
+            dict: A dictionary where keys are tuples of maxima indices (columns 2-4),
+                and values are sets of region indices (column 1) belonging to each group.
+        """
+    import numpy as n
+    from collections import defaultdict
+
+    # Assuming your array is called 'arr'
+    # Create a dictionary where keys are tuples of maxima indices (cols 2-4)
+    # and values are lists of corresponding indices (col 1)
+    groups = defaultdict(list)
+
+    for row in maxima_info:
+        if row[0] in unmerged_regions:
+            # Use tuple of columns 2-4 as key (converting to tuple for hashability)
+            key = tuple(row[1:4])
+            # Add the index (first column) to the corresponding group
+            groups[key].append(int(row[0]))
+
+    # Convert the dictionary values to sets if you want unique indices
+    groups = {k: set(v) for k, v in groups.items()}
+    return groups
+
