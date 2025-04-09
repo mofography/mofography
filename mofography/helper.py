@@ -384,3 +384,48 @@ def check_wall_per_dim(maxima, ase_atoms, spacing):
         is_wall_flags.append(is_wall)
     return np.vstack(is_wall_flags).reshape(-1, 3)
 
+def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
+    """
+    Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
+
+    Parameters:
+    -----------
+    maximum_indices : list of tuples [(z1, y1, x1), (z2, y2, x2), ...]
+        The coordinates of the maxima
+    box_shape : tuple (depth, height, width)
+        The shape of the original box
+    tolerance : tuple (zz, yy, xx)
+        The tolerance in each direction
+
+    Returns:
+    --------
+    locations : list of str
+        List of classifications for each point:
+        'inside' if the point is inside the box
+        'close_outside' if it's just outside within tolerance
+        'far_outside' if it's outside and beyond tolerance
+    """
+    depth, height, width = box_shape
+    zz, yy, xx = tolerance
+
+    locations = []
+
+    for z, y, x in maximum_indices:
+        # Check if the point is inside the box
+        if (0 <= z < depth) and (0 <= y < height) and (0 <= x < width):
+            locations.append("inside")
+
+        # Check if it's close outside (within tolerance)
+        elif (
+            (-zz <= z < depth + zz)
+            and (-yy <= y < height + yy)
+            and (-xx <= x < width + xx)
+        ):
+            locations.append("close_outside")
+
+        # Otherwise, it's far outside
+        else:
+            locations.append("far_outside")
+
+    return locations
+
