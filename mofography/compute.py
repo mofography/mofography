@@ -7035,6 +7035,7 @@ def dgrid_from_atoms_cpu_hybrid(
     if precompute:
         return dgrid.compute()
     return dgriddef calculate_padding_thickness(
+# new mods for periodic segmentation.
     dgrid: np.ndarray, ase_atoms: ase.Atoms, spacing: float
 ) -> int:
     """Calculate required padding thickness for periodic calculations.
