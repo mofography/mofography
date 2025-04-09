@@ -7034,4 +7034,47 @@ def dgrid_from_atoms_cpu_hybrid(
     
     if precompute:
         return dgrid.compute()
-    return dgrid
+    return dgriddef calculate_padding_thickness(
+    dgrid: np.ndarray, ase_atoms: ase.Atoms, spacing: float
+) -> int:
+    """Calculate required padding thickness for periodic calculations.
+
+    Args:
+        ase_atoms: ASE Atoms object containing cell information
+        spacing: Grid spacing in Angstroms
+
+    Returns:
+        Minimum number of padding cells needed to handle periodicity correctly
+    """
+    import numpy as np
+    # Get the complete cell vectors
+    # volume of each voxel
+    voxel_volume = ase_atoms.get_volume() / np.prod(dgrid.shape)
+    # box lengths and angles
+    la, lb, lc, alpha, beta, gamma = ase_atoms.cell.cellpar()
+    # convert to radians
+    alpha, beta, gamma = np.radians(alpha), np.radians(beta), np.radians(gamma)
+    # these are not unit vectors, they are voxel vectors
+    # unlike the cell, the voxel has same lengths in all directions, just the angles are different
+    eA = [spacing, 0, 0]
+    eB = [spacing * np.cos(gamma), spacing * np.sin(gamma), 0]
+    eC = [
+        spacing * np.cos(beta),
+        spacing * (np.cos(alpha) - np.cos(beta) *
+                   np.cos(gamma)) / np.sin(gamma),
+        voxel_volume / (spacing * spacing * np.sin(gamma)),
+    ]
+    # min voxel perpendicual length
+    lx_voxel, ly_voxel, lz_voxel = (
+        voxel_volume / np.linalg.norm(np.cross(eB, eC)),
+        voxel_volume / np.linalg.norm(np.cross(eC, eA)),
+        voxel_volume / np.linalg.norm(np.cross(eA, eB)),
+    )
+    min_perp_length_voxel = np.min([lx_voxel, ly_voxel, lz_voxel])
+    # Calculate required padding thickness
+    # Add 1 and use ceil to ensure we have enough padding
+    # just added some tolerance just to be safe
+    padding_thickness = int(np.ceil(dgrid.max() / min_perp_length_voxel) + 2)
+
+    return padding_thickness
+
