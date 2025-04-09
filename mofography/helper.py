@@ -598,3 +598,39 @@ def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
 
     return locations
 
+# don't really need this one, but, let's keep this anyway
+def periodic_gaussian_filter(arr, sigma):
+    """
+    Apply a periodic (wrap-around) Gaussian filter using np.roll.
+    
+    Parameters:
+    - arr: input ndarray (1D, 2D, or 3D)
+    - sigma: standard deviation of Gaussian
+    
+    Returns:
+    - Smoothed ndarray with same shape
+    """
+    import numpy as np
+    from itertools import product
+    arr = np.asarray(arr)
+    ndim = arr.ndim
+    radius = int(3 * sigma)  # Gaussian kernel truncation
+
+    # Create grid of all shifts
+    shifts = list(product(range(-radius, radius + 1), repeat=ndim))
+
+    # Precompute Gaussian weights
+    def gaussian_weight(shift):
+        return np.exp(-0.5 * sum((s / sigma) ** 2 for s in shift))
+
+    weights = np.array([gaussian_weight(s) for s in shifts])
+    weights /= weights.sum()
+
+    # Apply weighted rolling
+    smoothed = np.zeros_like(arr, dtype=np.float64)
+    for shift, weight in zip(shifts, weights):
+        rolled = arr
+        for axis, s in enumerate(shift):
+            rolled = np.roll(rolled, shift=s, axis=axis)
+        smoothed += weight * rolled
+
