@@ -553,6 +553,142 @@ def move_maximum_to_peak(
     return current_pos, current_value
 
 def estimate_h_from_percolation_history(distance_grid):
+    """
+
+    Estimate h parameter using PLR and analysis of percolation transition.
+    Returns a suitable h value for h-maxima detection.
+
+    """
+    import numpy as np
+    from scipy.ndimage import label as ndimage_label
+    from scipy.ndimage import generate_binary_structure
+    from scipy.signal import find_peaks
+    from .compute import find_pore_limiting_radius
+    # Find PLR using binary search
+    plr =find_pore_limiting_radius(distance_grid)
+    if plr is None:
+        print("No PLR found, using default h")
+        return 0.4  # fallback value
+
+    print(f"PLR found: {plr:.2f}")
+
+    # Create thresholds around PLR
+    # Reduced number of thresholds
+    thresholds = np.linspace(plr * 0.6, plr * 1.2, 12)
+    local_constrictions = []
+
+    # Parameters for peak detection
+    min_prominence = max(0.2, plr * 0.1)  # Scale prominence with PLR
+    min_distance = max(3, int(plr / 0.5))  # Scale distance with PLR
+
+    for threshold in thresholds:
+        binary = distance_grid > threshold
+        padded = np.pad(binary, 1, mode="wrap")
+        labeled, num_features = ndimage_label(
+            padded, generate_binary_structure(3, 3))
+        labeled = labeled[1:-1, 1:-1, 1:-1]
+
+        # Only process if we have a reasonable number of features
+        if num_features > 100:  # Skip if too fragmented
+            continue
+
+        # Analyze percolation in all directions
+        for axis in range(3):
+            face1 = set(np.unique(labeled.take(0, axis=axis)))
+            face2 = set(np.unique(labeled.take(-1, axis=axis)))
+            common = face1.intersection(face2) - {0}
+
+            for label_id in common:
+                component = labeled == label_id
+                channel_distances = distance_grid[component]
+
+                # Skip if channel is too small
+                if len(channel_distances) < 10:
+                    continue
+
+                # Normalize distances for peak detection
+                normalized_distances = (channel_distances - channel_distances.min()) / (
+                    channel_distances.max() - channel_distances.min()
+                )
+
+                peaks, properties = find_peaks(
+                    -normalized_distances,
+                    prominence=min_prominence,
+                    distance=min_distance,
+                )
+
+                if len(peaks) > 0:
+                    # Filter peaks by relative depth
+                    for i, peak_idx in enumerate(peaks):
+                        peak_value = channel_distances[peak_idx]
+                        prominence = properties["prominences"][i]
+
+                        # Only include significant constrictions
+                        if prominence > min_prominence and peak_value < plr:
+                            local_constrictions.append(
+                                {
+                                    "value": peak_value,
+                                    "prominence": prominence,
+                                    "relative_depth": prominence / peak_value,
+                                }
+                            )
+
+    if not local_constrictions:
+        print("No significant constrictions found")
+        h = min(0.4, max(0.1, plr * 0.15))
+        return h
+
+    # Convert to array and analyze
+    constriction_data = np.array(
+        [
+            (d["value"], d["prominence"], d["relative_depth"])
+            for d in local_constrictions
+        ],
+        dtype=[("value", float), ("prominence", float),
+               ("relative_depth", float)],
+    )
+
+    # Filter outliers using relative depth
+    q1, q3 = np.percentile(constriction_data["relative_depth"], [25, 75])
+    iqr = q3 - q1
+    valid_mask = (constriction_data["relative_depth"] >= q1 - 1.5 * iqr) & (
+        constriction_data["relative_depth"] <= q3 + 1.5 * iqr
+    )
+    valid_constrictions = constriction_data[valid_mask]
+
+    if len(valid_constrictions) == 0:
+        print("No valid constrictions after filtering")
+        h = min(0.4, max(0.1, plr * 0.15))
+        return h
+
+    print(f"Found {len(valid_constrictions)} valid constrictions")
+    print(
+        f"Value range: [{valid_constrictions['value'].min():.2f}, {valid_constrictions['value'].max():.2f}]"
+    )
+
+    # Calculate h using relative depth and PLR
+    avg_relative_depth = np.mean(valid_constrictions["relative_depth"])
+    max_prominence = np.max(valid_constrictions["prominence"])
+    min_prominence = np.min(valid_constrictions["prominence"])
+
+    # Adaptive h calculation
+    h_from_depth = avg_relative_depth * plr * 0.3
+    h_from_prominence = max_prominence * 0.5
+    print("h_from_depth is ", h_from_depth)
+    print("h from prominence is ", h_from_prominence)
+    print("average relative depth is ", avg_relative_depth)
+    print("minimum prominence is ", min_prominence)
+    # h = min(0.4, max(0.1, min(h_from_depth, h_from_prominence)))
+    h = min(0.4, min_prominence)
+
+    print(f"PLR: {plr:.2f}")
+    print(f"Average relative depth: {avg_relative_depth:.2f}")
+    print(f"Max prominence: {max_prominence:.2f}")
+    print(f"Min prominence: {min_prominence:.2f}")
+    print(f"Estimated h: {h:.2f}")
+
+    return h
+
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
     """
     Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
