@@ -634,3 +634,4 @@ def periodic_gaussian_filter(arr, sigma):
             rolled = np.roll(rolled, shift=s, axis=axis)
         smoothed += weight * rolled
 
+    return smoothed
