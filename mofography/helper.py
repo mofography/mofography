@@ -324,6 +324,7 @@ def spectral_smooth_3d(dgrid: np.ndarray, atoms, grid_spacing: float, sigma: flo
     
     return smoothed
 
+# these are new functions for periodic segmentation.
 def compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05):
     import numpy as np
     from ase.geometry import complete_cell
