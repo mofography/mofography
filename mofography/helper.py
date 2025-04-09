@@ -473,6 +473,86 @@ def find_touching_region_pairs(
     # Convert set of tuples to numpy array
     return np.array(list(touching_pairs))
 
+def move_maximum_to_peak(
+    original_pos,
+    padded_grid,
+    padding_thickness,
+    max_steps=100,
+    step_size=0.1,
+):
+    """
+    Move a maximum position to the nearest peak using gradient ascent,
+    constrained within the padded grid boundaries.
+
+    Parameters
+    ----------
+    original_pos : np.ndarray
+        Initial position of the maximum in grid coordinates
+    padded_grid : np.ndarray
+        Padded distance grid
+    padding_thickness : int
+        Thickness of padding
+    max_steps : int, optional
+        Maximum number of gradient ascent steps
+    step_size : float, optional
+        Step size for gradient ascent
+
+    Returns
+    -------
+    tuple[np.ndarray, float]
+        Optimized position and its value
+    """
+    import numpy as np
+    # Initialize current position and value
+    current_pos = original_pos.copy()
+    current_value = padded_grid[tuple(current_pos.astype(int))]
+    print("starting pos is ", current_pos)
+    print("starting value is ", current_value)
+    # Get grid dimensions
+    grid_dims = np.array(padded_grid.shape)
+
+    for _ in range(max_steps):
+        # Calculate gradient using central differences
+        gradients = []
+        for dim in range(3):
+            pos_plus = current_pos.copy()
+            pos_minus = current_pos.copy()
+
+            # Ensure we stay within bounds when calculating gradients
+            pos_plus[dim] = min(pos_plus[dim] + 1, grid_dims[dim] - 1)
+            pos_minus[dim] = max(pos_minus[dim] - 1, 0)
+
+            val_plus = padded_grid[tuple(pos_plus.astype(int))]
+            val_minus = padded_grid[tuple(pos_minus.astype(int))]
+            gradients.append((val_plus - val_minus) / 2)
+
+        gradient = np.array(gradients)
+        gradient_magnitude = np.linalg.norm(gradient)
+
+        # Stop if gradient is too small
+        if gradient_magnitude < 1e-6:
+            break
+
+        # Update position with bounds checking
+        new_pos = current_pos + step_size * gradient / gradient_magnitude
+
+        # Clip to grid boundaries
+        new_pos = np.clip(new_pos, 0, grid_dims - 1)
+
+        # Get value at new position
+        new_value = padded_grid[tuple(new_pos.astype(int))]
+
+        # Stop if we're not improving
+        if new_value <= current_value:
+            break
+
+        current_pos = new_pos
+        current_value = new_value
+    print("FInal value is ", current_value)
+    print("FInal pos is ", current_pos)
+    return current_pos, current_value
+
+def estimate_h_from_percolation_history(distance_grid):
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
     """
     Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
