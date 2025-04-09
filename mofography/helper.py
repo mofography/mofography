@@ -384,6 +384,95 @@ def check_wall_per_dim(maxima, ase_atoms, spacing):
         is_wall_flags.append(is_wall)
     return np.vstack(is_wall_flags).reshape(-1, 3)
 
+# find pairs of touchinhg regions to check for conncections, typically on a segemented grid of regions..
+def find_touching_region_pairs(
+    segmented_grid: np.ndarray, connectivity=26
+) -> np.ndarray:
+    """
+    Given a 3D grid of segmented regions (integer labels, with 0 as background),
+    this function returns an array of unique pairs of region labels that are in contact.
+    Works on padded grids without applying periodic boundary conditions.
+
+    Parameters
+    ----------
+    segmented_grid : np.ndarray
+        A 3D numpy array where 0 represents background and positive integers are region labels.
+    connectivity : int, optional
+        Connectivity to use: 6 (face-adjacent), 18 (face and edge-adjacent), or 26 (fully adjacent).
+        Default is 26.
+
+    Returns
+    -------
+    np.ndarray
+        An array of shape (n, 2) where each row is a sorted pair of touching region labels.
+    """
+    import numpy as np
+    # Define offsets based on connectivity
+    if connectivity == 6:
+        # Only face-adjacent (6-connectivity)
+        offsets = [(0, 0, 1), (0, 1, 0), (1, 0, 0),
+                   (0, 0, -1), (0, -1, 0), (-1, 0, 0)]
+    elif connectivity == 18:
+        # Face and edge-adjacent (18-connectivity)
+        offsets = [
+            (dz, dy, dx)
+            for dz in (-1, 0, 1)
+            for dy in (-1, 0, 1)
+            for dx in (-1, 0, 1)
+            if not (dz == dy == dx == 0) and (dz * dy * dx == 0)
+        ]
+    else:
+        # Full 26-connectivity (default)
+        offsets = [
+            (dz, dy, dx)
+            for dz in (-1, 0, 1)
+            for dy in (-1, 0, 1)
+            for dx in (-1, 0, 1)
+            if not (dz == dy == dx == 0)
+        ]
+    touching_pairs = set()
+    # Loop over each neighbor offset
+    for dz, dy, dx in offsets:
+        # Create shifted arrays with appropriate padding
+        if dz > 0:
+            z_src, z_dst = slice(0, -1), slice(1, None)
+        elif dz < 0:
+            z_src, z_dst = slice(1, None), slice(0, -1)
+        else:
+            z_src, z_dst = slice(None), slice(None)
+
+        if dy > 0:
+            y_src, y_dst = slice(0, -1), slice(1, None)
+        elif dy < 0:
+            y_src, y_dst = slice(1, None), slice(0, -1)
+        else:
+            y_src, y_dst = slice(None), slice(None)
+
+        if dx > 0:
+            x_src, x_dst = slice(0, -1), slice(1, None)
+        elif dx < 0:
+            x_src, x_dst = slice(1, None), slice(0, -1)
+        else:
+            x_src, x_dst = slice(None), slice(None)
+
+        # Get the regions from the original grid and the shifted position
+        reg1 = segmented_grid[z_src, y_src, x_src]
+        reg2 = segmented_grid[z_dst, y_dst, x_dst]
+
+        # Create a mask for valid region pairs (non-zero and different)
+        mask = (reg1 != reg2) & (reg1 > 0) & (reg2 > 0)
+
+        if np.any(mask):
+            # Get the region labels where they're touching
+            labels1 = reg1[mask]
+            labels2 = reg2[mask]
+
+            # Add sorted pairs to the set
+            for a, b in zip(labels1, labels2):
+                touching_pairs.add(tuple(sorted((int(a), int(b)))))
+    # Convert set of tuples to numpy array
+    return np.array(list(touching_pairs))
+
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
     """
     Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
