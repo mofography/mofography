@@ -324,3 +324,24 @@ def spectral_smooth_3d(dgrid: np.ndarray, atoms, grid_spacing: float, sigma: flo
     
     return smoothed
 
+def compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05):
+    import numpy as np
+    from ase.geometry import complete_cell
+
+    # get cell information for wall processing
+    cell = complete_cell(ase_atoms.get_cell())
+    ea, eb, ec = cell[0], cell[1], cell[2]
+    vol = abs(np.linalg.det(cell))
+
+    # calculate perpendicular lengths and wall cells
+    la_perp = vol / np.linalg.norm(np.cross(eb, ec))
+    lb_perp = vol / np.linalg.norm(np.cross(ec, ea))
+    lc_perp = vol / np.linalg.norm(np.cross(ea, eb))
+    wall_distances = np.array(
+        [wall_thickness * la_perp, wall_thickness *
+            lb_perp, wall_thickness * lc_perp]
+    )
+    wall_cells = np.ceil(wall_distances / spacing).astype(int)
+    return wall_cells
+
+
