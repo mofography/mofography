@@ -3245,3 +3245,9 @@ def plot_connections(connections, maxima, shape, ase_atoms, plot_periodic=True, 
     return traces
 
 
+def make_fig_orthographic(fig):
+    for trace in fig.data:
+        if trace.type == "mesh3d":
+            trace.update(lighting=default_mesh_lighting)
+    fig.update_layout(scene_camera_projection_type="orthographic")
+    return fig
