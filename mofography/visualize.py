@@ -1808,12 +1808,14 @@ def plot_windows(connections, **kwargs):
 #     else:
 #         return scatter
 
-
-def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs):
+def plot_maxima(
+    dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs
+):
     """
     The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima, and
-    optionally displays spheres around the maxima with interpolated colors.
-    
+    optionally displays spheres around the maxima with interpolated colors. The maxima indices can be outside the box as well. 
+    this function should still work fine. it will find the corresponding coordinates inside the box to get the cage radii.
+
     :param dgrid: The `dgrid` parameter is likely a grid of values representing some property, such as
     electron density or energy, at different points in space. This grid is used to identify local
     maxima, which are points where the value is higher than at neighboring points. The function
@@ -1838,22 +1840,28 @@ def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5
     `True`, it returns both the Scatter3d plot and the mesh plot of spheres representing the maxima. If
     `show_spheres` is `False`, it returns
     """
-
     import numpy as np
     import plotly.graph_objects as go
     import trimesh
     from matplotlib.colors import to_rgba
-    from .helper import find_coord_from_indices
-    # from mofography import spheres_for_positions, plot_mesh, find_coord_from_indices
-    maxima_coords = find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
-    cage_radii = dgrid[tuple(maxima.T)]
-    cage_labels = [("{} A").format(c) for c in np.round(cage_radii, decimals=2)]
-    hovertext = [str(i + 1) + " " + j for i, j in enumerate(cage_labels)]
+
+    maxima_coords = mgr.find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
+    # np.mod(maxima_indices, dgrid.shape)
+    cage_radii = dgrid[tuple((np.mod(maxima, dgrid.shape)).T)]
+
+    cage_labels = [("{} A").format(c)
+                   for c in np.round(cage_radii, decimals=2)]
+
+    hovertext = [
+        str(i + 1) + "  [" + " ".join(map(str, maxima[i])) + "]  " + j
+        for i, j in enumerate(cage_labels)
+    ]
 
     name = kwargs.get("name", "local maxima")
     marker_size = kwargs.get("marker_size", 15)
     opacity = kwargs.get("opacity", 0.85)
-    marker_color = kwargs.get("marker_color", cage_radii)
+    marker_color = kwargs.get(
+        "marker_color", np.array(range(1, len(maxima) + 1)))
     hovertext = kwargs.get("hovertext", hovertext)
     marker_colorscale = kwargs.get("marker_colorscale", "Viridis")
 
@@ -1873,53 +1881,197 @@ def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5
             color=marker_color,
             opacity=opacity,
             colorscale=marker_colorscale,
+            line=dict(width=2, color="black"),
         ),
         hovertext=hovertext,
         name=name,
         **kwargs,
     )
-    data_values = np.array(scatter.marker.color, dtype=float)
-
-    # Normalize data values to range [0, 1]
-    normalized_values = (data_values - data_values.min()) / (data_values.max() - data_values.min())
-
-    # Define the colorscale
-    colorscale =scatter.marker.colorscale
-
-
-    # Function to interpolate colors
-    def interpolate_color(colorscale, value):
-        for i in range(len(colorscale) - 1):
-            if colorscale[i][0] <= value <= colorscale[i + 1][0]:
-                t = (value - colorscale[i][0]) / (colorscale[i + 1][0] - colorscale[i][0])
-                color1 = np.array(to_rgba(colorscale[i][1]))
-                color2 = np.array(to_rgba(colorscale[i + 1][1]))
-                return (1 - t) * color1 + t * color2
-        return np.array(to_rgba(colorscale[-1][1]))
-
-    # Interpolate colors for each normalized value
-    rgba_colors = [interpolate_color(colorscale, val) for val in normalized_values]
-
-    # Convert colors to RGBA format with specified opacity
-    rgba_colors_with_opacity = [[int(c[0] * 255), int(c[1] * 255), int(c[2] * 255), int(sphere_opacity*255)] for c in rgba_colors]
-    # rgba_colors_with_opacity = [[int(c[0] ), int(c[1] ), int(c[2] ), opacity] for c in rgba_colors]
-
-    # print(rgba_colors_with_opacity)
 
     if show_spheres:
-        spheres =spheres_for_positions(maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30)
-        # print([s.visual.vertex_colors for s in spheres])
+        colorscale = scatter.marker.colorscale
+        data_values = np.array(scatter.marker.color, dtype=float)
+
+        # Only normalize if using a sequential colorscale
+        if isinstance(colorscale[0][1], str) and colorscale[0][1].startswith("rgb"):
+            # For qualitative colorscales, just use the colors directly
+            def parse_rgb(rgb_str):
+                # Extract RGB values from 'rgb(r, g, b)' string
+                rgb = rgb_str.strip("rgb()").split(",")
+                return [int(x) for x in rgb] + [int(sphere_opacity * 255)]
+
+            # If marker_color is sequential (1,2,3...), use it to index into colorscale
+            if np.issubdtype(data_values.dtype, np.number):
+                indices = (
+                    (data_values - data_values.min())
+                    / (data_values.max() - data_values.min())
+                    * (len(colorscale) - 1)
+                ).astype(int)
+                rgba_colors_with_opacity = [
+                    parse_rgb(colorscale[i][1]) for i in indices
+                ]
+            else:
+                # If marker_color is not numeric, cycle through the colorscale
+                rgba_colors_with_opacity = [
+                    parse_rgb(color[1]) for color in colorscale]
+                rgba_colors_with_opacity = [
+                    rgba_colors_with_opacity[i % len(rgba_colors_with_opacity)]
+                    for i in range(len(maxima))
+                ]
+        else:
+            # Original normalization for sequential colorscales
+            normalized_values = (data_values - data_values.min()) / (
+                data_values.max() - data_values.min()
+            )
+
+            def interpolate_color(colorscale, value):
+                for i in range(len(colorscale) - 1):
+                    if colorscale[i][0] <= value <= colorscale[i + 1][0]:
+                        t = (value - colorscale[i][0]) / (
+                            colorscale[i + 1][0] - colorscale[i][0]
+                        )
+                        color1 = np.array(to_rgba(colorscale[i][1]))
+                        color2 = np.array(to_rgba(colorscale[i + 1][1]))
+                        return (1 - t) * color1 + t * color2
+                return np.array(to_rgba(colorscale[-1][1]))
+
+            rgba_colors = [
+                interpolate_color(colorscale, val) for val in normalized_values
+            ]
+            rgba_colors_with_opacity = [
+                [
+                    int(c[0] * 255),
+                    int(c[1] * 255),
+                    int(c[2] * 255),
+                    int(sphere_opacity * 255),
+                ]
+                for c in rgba_colors
+            ]
+
+        spheres = mgr.spheres_for_positions(
+            maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30
+        )
         for i, s in enumerate(spheres):
-            # print(rgba_colors_with_opacity[i])
-            s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i]) 
-            # s.visual.vertex_colors =  trimesh.visual.random_color()
-        # print([s.visual.vertex_colors for s in spheres])
-        # Concatenate all spheres into one trimesh object
-        # spheres = trimesh.util.concatenate(spheres)
-        mesh = plot_mesh(spheres, stylize=True, opacity=sphere_opacity, name='maxima spheres')
+            s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i])
+
+        mesh = mgr.plot_mesh(
+            spheres, stylize=True, opacity=sphere_opacity, name="maxima spheres"
+        )
         return scatter, mesh
     else:
         return scatter
+
+# def plot_maxima(dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs):
+#     """
+#     The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima, and
+#     optionally displays spheres around the maxima with interpolated colors.
+#
+#     :param dgrid: The `dgrid` parameter is likely a grid of values representing some property, such as
+#     electron density or energy, at different points in space. This grid is used to identify local
+#     maxima, which are points where the value is higher than at neighboring points. The function
+#     `plot_maxima` takes
+#     :param maxima: The `plot_maxima` function you provided seems to be for plotting local maxima in a 3D
+#     plot using Plotly. The `maxima` parameter you mentioned is likely a NumPy array containing the
+#     coordinates of the local maxima points in the grid
+#     :param ase_atoms: The `ase_atoms` parameter in the `plot_maxima` function is used to provide atomic
+#     positions and information about the structure. It is used to find the coordinates of the maxima in
+#     the grid relative to the atomic positions provided by `ase_atoms`. This information is essential for
+#     visualizing the local
+#     :param show_spheres: The `show_spheres` parameter in the `plot_maxima` function is a boolean flag
+#     that determines whether to display spheres at the maximum coordinates. If set to `True`, spheres
+#     will be shown at the maximum coordinates based on the provided data. If set to `False`, only markers
+#     will be, defaults to False (optional)
+#     :param sphere_opacity: The `sphere_opacity` parameter in the `plot_maxima` function controls the
+#     opacity of the spheres that are displayed in the plot. It determines how transparent or opaque the
+#     spheres will appear in the visualization. The value of `sphere_opacity` ranges from 0 (completely
+#     transparent) to 1
+#     :return: The function `plot_maxima` returns either a Scatter3d plot or a combination of Scatter3d
+#     plot and mesh plot, depending on the value of the `show_spheres` parameter. If `show_spheres` is
+#     `True`, it returns both the Scatter3d plot and the mesh plot of spheres representing the maxima. If
+#     `show_spheres` is `False`, it returns
+#     """
+#
+#     import numpy as np
+#     import plotly.graph_objects as go
+#     import trimesh
+#     from matplotlib.colors import to_rgba
+#     from .helper import find_coord_from_indices
+#     # from mofography import spheres_for_positions, plot_mesh, find_coord_from_indices
+#     maxima_coords = find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
+#     cage_radii = dgrid[tuple(maxima.T)]
+#     cage_labels = [("{} A").format(c) for c in np.round(cage_radii, decimals=2)]
+#     hovertext = [str(i + 1) + " " + j for i, j in enumerate(cage_labels)]
+#
+#     name = kwargs.get("name", "local maxima")
+#     marker_size = kwargs.get("marker_size", 15)
+#     opacity = kwargs.get("opacity", 0.85)
+#     marker_color = kwargs.get("marker_color", cage_radii)
+#     hovertext = kwargs.get("hovertext", hovertext)
+#     marker_colorscale = kwargs.get("marker_colorscale", "Viridis")
+#
+#     kwargs.pop("name", None)
+#     kwargs.pop("marker_size", None)
+#     kwargs.pop("opacity", None)
+#     kwargs.pop("marker_color", None)
+#     kwargs.pop("hovertext", None)
+#
+#     scatter = go.Scatter3d(
+#         x=maxima_coords[:, 0],
+#         y=maxima_coords[:, 1],
+#         z=maxima_coords[:, 2],
+#         mode="markers",
+#         marker=dict(
+#             size=marker_size,
+#             color=marker_color,
+#             opacity=opacity,
+#             colorscale=marker_colorscale,
+#         ),
+#         hovertext=hovertext,
+#         name=name,
+#         **kwargs,
+#     )
+#     data_values = np.array(scatter.marker.color, dtype=float)
+#
+#     # Normalize data values to range [0, 1]
+#     normalized_values = (data_values - data_values.min()) / (data_values.max() - data_values.min())
+#
+#     # Define the colorscale
+#     colorscale =scatter.marker.colorscale
+#
+#
+#     # Function to interpolate colors
+#     def interpolate_color(colorscale, value):
+#         for i in range(len(colorscale) - 1):
+#             if colorscale[i][0] <= value <= colorscale[i + 1][0]:
+#                 t = (value - colorscale[i][0]) / (colorscale[i + 1][0] - colorscale[i][0])
+#                 color1 = np.array(to_rgba(colorscale[i][1]))
+#                 color2 = np.array(to_rgba(colorscale[i + 1][1]))
+#                 return (1 - t) * color1 + t * color2
+#         return np.array(to_rgba(colorscale[-1][1]))
+#
+#     # Interpolate colors for each normalized value
+#     rgba_colors = [interpolate_color(colorscale, val) for val in normalized_values]
+#
+#     # Convert colors to RGBA format with specified opacity
+#     rgba_colors_with_opacity = [[int(c[0] * 255), int(c[1] * 255), int(c[2] * 255), int(sphere_opacity*255)] for c in rgba_colors]
+#     # rgba_colors_with_opacity = [[int(c[0] ), int(c[1] ), int(c[2] ), opacity] for c in rgba_colors]
+#
+#     # print(rgba_colors_with_opacity)
+#
+#     if show_spheres:
+#         spheres =spheres_for_positions(maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30)
+#         # print([s.visual.vertex_colors for s in spheres])
+#         for i, s in enumerate(spheres):
+#             # print(rgba_colors_with_opacity[i])
+#             s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i]) 
+#             # s.visual.vertex_colors =  trimesh.visual.random_color()
+#         # print([s.visual.vertex_colors for s in spheres])
+#         # Concatenate all spheres into one trimesh object
+#         # spheres = trimesh.util.concatenate(spheres)
+#         mesh = plot_mesh(spheres, stylize=True, opacity=sphere_opacity, name='maxima spheres')
+#         return scatter, mesh
+#     else:
+#         return scatter
 
 def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
     """
@@ -3091,4 +3243,5 @@ def plot_connections(connections, maxima, shape, ase_atoms, plot_periodic=True, 
         ))
 
     return traces
+
 
