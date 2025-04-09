@@ -598,6 +598,109 @@ def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
 
     return locations
 
+def process_wall_maxima(
+    all_maxima,
+    distance_field,
+    padding_thickness,
+    wall_cells,
+    ase_atoms,
+    min_merge_ratio=0.8,
+):
+    """
+    Process wall maxima to identify and merge periodic copies.
+
+    Parameters
+    ----------
+    all_maxima : np.ndarray
+        Array of maxima positions in the original unpadded distance grid
+    distance_field : np.ndarray
+        Distance field
+    padding_thickness : int
+        Padding thickness used
+    wall_cells : np.ndarray
+        Number of cells considered as wall region
+    ase_atoms,
+        ASE atoms object
+    min_merge_ratio : float
+        Minimum ratio between smaller and larger maxima values to consider merging (default: 0.8)
+    """
+
+    import numpy as np
+    from ase.geometry import complete_cell
+
+    # original_shape = np.array(padded_grid.shape) - 2 * padding_thickness
+    original_shape = np.array(distance_field.shape)
+
+    # First, move all wall maxima to their nearest peaks
+    optimized_positions = []
+    optimized_values = []
+    wall_indices = []
+
+    # unit cell matrix
+    cell = complete_cell(ase_atoms.cell).T
+
+    print("\nDEBUG: Moving maxima to peaks")
+    for i, pos in enumerate(all_maxima):
+        is_wall = any(
+            coord < wall_cells[dim] or coord > (
+                original_shape[dim] - wall_cells[dim])
+            for dim, coord in enumerate(pos)
+        )
+
+        if is_wall:
+            opt_pos, opt_val = move_maximum_to_peak(
+                pos, distance_field, padding_thickness
+            )
+            print(
+                f"Maximum #{i}: Original pos = {pos}, Optimized pos = {opt_pos}, Value = {opt_val}"
+            )
+            optimized_positions.append(opt_pos)
+            optimized_values.append(opt_val)
+            wall_indices.append(i)
+
+    maxima_to_remove = []
+    print("\nDEBUG: Checking for nearby maxima using pore size criteria")
+
+    for i, idx1 in enumerate(wall_indices):
+        pos1 = optimized_positions[i]
+        val1 = optimized_values[i]
+
+        for j, idx2 in enumerate(wall_indices[i + 1:], i + 1):
+            pos2 = optimized_positions[j]
+            val2 = optimized_values[j]
+
+            # Calculate minimum image distance
+            min_dist = get_min_distance(pos1, pos2, cell, original_shape)
+
+            # Calculate the radius ratio (smaller/larger)
+            radius_ratio = min(val1, val2) / max(val1, val2)
+
+            # Calculate adaptive merging threshold based on the larger radius
+            # Use 2x the larger radius as maximum allowed distance
+            max_radius = max(val1, val2)
+            merge_distance = 2.0 * max_radius
+
+            print(f"\nComparing maxima #{idx1} and #{idx2}")
+            print(f"Positions: {pos1} vs {pos2}")
+            print(f"Values (pore radii): {val1:.3f} Å vs {val2:.3f} Å")
+            print(f"Radius ratio: {radius_ratio:.3f}")
+            print(f"Minimum image distance: {min_dist:.2f} Å")
+            print(f"Merge distance threshold: {merge_distance:.2f} Å")
+
+            # Merge criteria:
+            # 1. Radii are similar enough (controlled by min_merge_ratio)
+            # 2. Distance is less than 2x the larger radius
+            if radius_ratio > min_merge_ratio and min_dist < merge_distance:
+                # Keep the one with larger value
+                if val1 < val2:
+                    maxima_to_remove.append(idx1)
+                    print(f"Removing maximum #{idx1} (smaller radius)")
+                    break
+                else:
+                    maxima_to_remove.append(idx2)
+                    print(f"Removing maximum #{idx2} (smaller radius)")
+
+    return maxima_to_remove
 def get_min_distance(pos1, pos2, cell, original_shape):
     """
     Calculate minimum image distance between two points using ASE cell.
