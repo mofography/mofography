@@ -598,6 +598,37 @@ def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
 
     return locations
 
+def get_min_distance(pos1, pos2, cell, original_shape):
+    """
+    Calculate minimum image distance between two points using ASE cell.
+
+    Parameters
+    ----------
+    pos1, pos2 : np.ndarray
+        Positions in grid coordinates
+    cell : np.ndarray
+        ASE cell matrix
+    original_shape : np.ndarray
+        Shape of the original grid
+
+    Returns
+    -------
+    float
+        Minimum image distance in Angstroms
+    """
+    import numpy as np
+    # Convert to fractional coordinates
+    frac1 = pos1 / original_shape
+    frac2 = pos2 / original_shape
+
+    # Get minimum image difference
+    dr = frac1 - frac2
+    dr = dr - np.round(dr)  # Map to [-0.5, 0.5]
+
+    # Convert to cartesian coordinates
+    dr_cart = np.dot(cell, dr.T).T
+    return np.linalg.norm(dr_cart)
+
 # don't really need this one, but, let's keep this anyway
 def periodic_gaussian_filter(arr, sigma):
     """
