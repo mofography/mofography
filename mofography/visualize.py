@@ -592,6 +592,7 @@ def plot_rag_separate_traces(G, plot_with='maxima', **kwargs):
     """
     import numpy as np
     import plotly.graph_objects as go
+    import plotly.express as px
     
     # Get kwargs specific to nodes and edges
     node_kwargs = kwargs.pop('node_kwargs', {})
@@ -1845,7 +1846,8 @@ def plot_maxima(
     import trimesh
     from matplotlib.colors import to_rgba
 
-    maxima_coords = mgr.find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
+    from .helper import find_coord_from_indices
+    maxima_coords = find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
     # np.mod(maxima_indices, dgrid.shape)
     cage_radii = dgrid[tuple((np.mod(maxima, dgrid.shape)).T)]
 
@@ -1948,13 +1950,13 @@ def plot_maxima(
                 for c in rgba_colors
             ]
 
-        spheres = mgr.spheres_for_positions(
+        spheres =spheres_for_positions(
             maxima_coords, cage_radii, theta_resolution=30, phi_resolution=30
         )
         for i, s in enumerate(spheres):
             s.visual.vertex_colors = np.array(rgba_colors_with_opacity[i])
 
-        mesh = mgr.plot_mesh(
+        mesh = plot_mesh(
             spheres, stylize=True, opacity=sphere_opacity, name="maxima spheres"
         )
         return scatter, mesh
