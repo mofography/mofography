@@ -346,9 +346,9 @@ def compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05):
     return wall_cells
 
 
-def check_wall(maxima, ase_atoms, spacing):
+def check_wall(maxima, ase_atoms, spacing, wall_thickness=0.075):
     import numpy as np
-    wall_cells = compute_wall_cells(ase_atoms, spacing)
+    wall_cells = compute_wall_cells(ase_atoms, spacing, wall_thickness)
     # find shape consistent with how the dgrid is constructed in dask_grid_over_atoms
     # need that +1 at the end other wise the spacing wont be exact.
     shape = (np.array(ase_atoms.get_cell_lengths_and_angles()[:3]) / spacing).astype(
@@ -366,9 +366,9 @@ def check_wall(maxima, ase_atoms, spacing):
     return np.vstack(is_wall_flags).reshape(-1, 1)
 
 # functino to check if a maxim is at the wall of a cell, in multiple directions
-def check_wall_per_dim(maxima, ase_atoms, spacing):
+def check_wall_per_dim(maxima, ase_atoms, spacing, wall_thickness=0.075):
     import numpy as np
-    wall_cells = compute_wall_cells(ase_atoms, spacing)
+    wall_cells = compute_wall_cells(ase_atoms, spacing, wall_thickness)
     # find shape consistent with how the dgrid is constructed in dask_grid_over_atoms
     # need that +1 at the end other wise the spacing wont be exact.
     shape = (np.array(ase_atoms.get_cell_lengths_and_angles()[:3]) / spacing).astype(
