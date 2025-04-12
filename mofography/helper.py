@@ -507,8 +507,8 @@ def move_maximum_to_peak(
     # Initialize current position and value
     current_pos = original_pos.copy()
     current_value = padded_grid[tuple(current_pos.astype(int))]
-    print("starting pos is ", current_pos)
-    print("starting value is ", current_value)
+    # print("starting pos is ", current_pos)
+    # print("starting value is ", current_value)
     # Get grid dimensions
     grid_dims = np.array(padded_grid.shape)
 
@@ -549,8 +549,8 @@ def move_maximum_to_peak(
 
         current_pos = new_pos
         current_value = new_value
-    print("FInal value is ", current_value)
-    print("FInal pos is ", current_pos)
+    # print("FInal value is ", current_value)
+    # print("FInal pos is ", current_pos)
     return current_pos, current_value
 
 def estimate_h_from_percolation_history(distance_grid):
@@ -788,15 +788,13 @@ def process_wall_maxima(
             opt_pos, opt_val = move_maximum_to_peak(
                 pos, distance_field, padding_thickness
             )
-            print(
-                f"Maximum #{i}: Original pos = {pos}, Optimized pos = {opt_pos}, Value = {opt_val}"
-            )
+            # print( f"Maximum #{i}: Original pos = {pos}, Optimized pos = {opt_pos}, Value = {opt_val}")
             optimized_positions.append(opt_pos)
             optimized_values.append(opt_val)
             wall_indices.append(i)
 
     maxima_to_remove = []
-    print("\nDEBUG: Checking for nearby maxima using pore size criteria")
+    # print("\nDEBUG: Checking for nearby maxima using pore size criteria")
 
     for i, idx1 in enumerate(wall_indices):
         pos1 = optimized_positions[i]
@@ -817,13 +815,13 @@ def process_wall_maxima(
             max_radius = max(val1, val2)
             merge_distance = 2.0 * max_radius
 
-            print(f"\nComparing maxima #{idx1} and #{idx2}")
-            print(f"Positions: {pos1} vs {pos2}")
-            print(f"Values (pore radii): {val1:.3f} Å vs {val2:.3f} Å")
-            print(f"Radius ratio: {radius_ratio:.3f}")
-            print(f"Minimum image distance: {min_dist:.2f} Å")
-            print(f"Merge distance threshold: {merge_distance:.2f} Å")
-
+            # print(f"\nComparing maxima #{idx1} and #{idx2}")
+            # print(f"Positions: {pos1} vs {pos2}")
+            # print(f"Values (pore radii): {val1:.3f} Å vs {val2:.3f} Å")
+            # print(f"Radius ratio: {radius_ratio:.3f}")
+            # print(f"Minimum image distance: {min_dist:.2f} Å")
+            # print(f"Merge distance threshold: {merge_distance:.2f} Å")
+            #
             # Merge criteria:
             # 1. Radii are similar enough (controlled by min_merge_ratio)
             # 2. Distance is less than 2x the larger radius
