@@ -7428,40 +7428,43 @@ def detect_periodic_maxima_direct(
 
     return distance_grid, merged_maxima, all_maxima
 
+
+def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5):
     import numpy as np
     from skimage.segmentation import watershed
     import copy
     from ase.geometry import complete_cell
     import sparse
     from skimage.segmentation import find_boundaries
-    from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+    from concurrent.futures import ThreadPoolExecutor
+    from time import time
     from tqdm import tqdm
+    start_time = time()
+    from .helper import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs
+    print(f"TIMER STARTED")
+    # h = 0.11
     # NOTE: uncomment these imports when refactoring
-    from .helper import find_touching_region_pairs,compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels
+    # from .helper import find_touching_region_pairs,compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels
     # smooth = False
     if spacing is None:
         print('WARNING: Provided the spacing you used for dgrid, for more accurate calculation!\n')
         spacing = np.min(mat_atoms.get_cell_lengths_and_angles()[:3]/ (np.array(dgrid.shape)-1))
         print('Spacing estimated from dgrid and ase_atoms is ', spacing)
 
-    plr = find_pore_limiting_radius(dgrid)
-    print('Pore limiting radius is', plr)
-    if mask_thickness is None:
-        print('Mask thickness not provided\n')
-        print('Autoassigning to np.min(PLD/2 - 0.25, 0.5)\n')
-        mask_thickness =  np.min([plr/2 - 0.25, 0.5])
-            
-    print("h is", h)
-    print('mask thickness is ', mask_thickness)
-    if (plr-0.25) < mask_thickness:
-        print('WARNING: Mask thickness is too high, PLD enveloped by mask\n') 
+    if minimum_window_separation is None:
+        minimum_window_separation = spacing * 3
 
-    # mask_thickness = np.min([plr - 0.25, mask_thickness])
+    print("h is", h)
+    plr = find_pore_limiting_radius(dgrid)
+    print('TIME(s):',np.round( time() - start_time, decimals=2),'Pore limiting radius is', np.round(plr, decimals=2), '\n')
+    if (plr-0.25) < mask_thickness:
+        print('WARNING: Mask thickness is too high, resetting to pore limiting radius - 0.25\n')
+
+    mask_thickness = np.min([plr - 0.25, mask_thickness])
     # min_distance = 1.1
 #     threshold_abs = 1
 # # merged_maxima, all_maxima = detect_periodic_maxima_dgrid(dgrid, ase_atoms=mat_atoms, spacing=spacing, h=h)
-
-    dt, merged_maxima, all_maxima = detect_periodic_maxima_enhanced(
+    dt, merged_maxima, all_maxima =detect_periodic_maxima_direct(
         dgrid,
         mat_atoms,
         spacing,
@@ -7469,14 +7472,16 @@ def detect_periodic_maxima_direct(
         threshold_abs=threshold_abs,
         min_distance=min_distance,
         # smooth=smooth,
-        maxima_mask=0,
+        maxima_mask=mask_thickness,
     )
 
+    temp = np.ceil(merged_maxima)
     # compute wall cells
-    print('Computing maxima with PBC\n')
+    print('TIME(s):', np.round( time() - start_time, decimals=2), 'Computing maxima with PBC\n')
     #Computed merged maxima nad regions_pbc!
-    padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing)
-    wall_cells = compute_wall_cells(mat_atoms, spacing)
+    # padding_thickness=5
+    padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing) + np.ceil(extra_padding/spacing).astype(int)
+    wall_cells = compute_wall_cells(mat_atoms, spacing, wall_thickness)
     wall_maxima_to_remove = process_wall_maxima(
         merged_maxima,
         dgrid,
@@ -7484,6 +7489,7 @@ def detect_periodic_maxima_direct(
         wall_cells=wall_cells,
         ase_atoms=mat_atoms,
     )
+    wall_maxima_to_remove = []
     # print("maxima to remove are", wall_maxima_to_remove)
     optimized_positions = []
     optimized_values = []
@@ -7502,8 +7508,7 @@ def detect_periodic_maxima_direct(
         [m for i, m in enumerate(merged_maxima) if i not in all_removals]
     )
 
-
-    print("Computing regions with PBC \n")
+    print('TIME(s):', np.round(time() - start_time, decimals=2),"Computing regions with PBC \n")
     compactness = 0
     # compute markers for padded, periodic segmentation
     markers = np.zeros_like(dgrid, dtype=int)
@@ -7511,7 +7516,7 @@ def detect_periodic_maxima_direct(
         maxima_coords = tuple(merged_maxima.T)
         markers[maxima_coords] = np.arange(1, len(merged_maxima) + 1)
     else:
-        print("No valid maxima detected after merging.")
+        print("PROBLEM: No valid maxima detected after merging.")
     # void mask for segmentation to use the mask_thickness
     void_mask = dgrid > mask_thickness
     padded_grid = np.pad(dt, padding_thickness, mode="wrap")
@@ -7533,7 +7538,7 @@ def detect_periodic_maxima_direct(
     ]
     # print("Computed merged maxima nad regions_pbc!!")
 
-    print('Computing maxima and regions without PBC\n')
+    print('TIME(s):', np.round(time() - start_time, decimals=2) ,'Computing maxima and regions without PBC\n')
 
 # Step 2: Get unmerged maxima info using valid maxima
     original_shape = np.array(dgrid.shape)
@@ -7541,30 +7546,57 @@ def detect_periodic_maxima_direct(
     new_maxima_info_list = []
     counter = 1
     for m in merged_maxima:
-        m_pad = m + padding_thickness
-        for offs in np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1])).T.reshape(
-            -1, 3
-        ):
-            candidate = m_pad + offs * original_shape
-            if np.all(candidate >= 0) and np.all(candidate < padded_shape):
-                candidate_unpadded = candidate - padding_thickness
-                offset = candidate_unpadded // original_shape
-                image_coord = np.mod(candidate_unpadded, original_shape)
-                new_maxima_info_list.append(
-                    [
-                        counter,
-                        image_coord[0],
-                        image_coord[1],
-                        image_coord[2],
-                        offset[0],
-                        offset[1],
-                        offset[2],
-                    ]
-                )
-                counter += 1
-    maxima_info = np.array(new_maxima_info_list, dtype=int)
+            m_pad = m + padding_thickness
+            offset_ranges = [
+                range(-((p - 1) // o), (p - 1) // o + 1)
+                for p, o in zip(padded_shape, original_shape)
+            ]
+            for offs in np.array(np.meshgrid(*offset_ranges)).T.reshape(-1, 3):
+                candidate = m_pad + offs * original_shape
+                if np.all(candidate >= 0) and np.all(candidate < padded_shape):
+                    candidate_unpadded = candidate - padding_thickness
+                    offset = candidate_unpadded // original_shape
+                    image_coord = np.mod(candidate_unpadded, original_shape)
+                    new_maxima_info_list.append(
+                        [
+                            counter,
+                            image_coord[0],
+                            image_coord[1],
+                            image_coord[2],
+                            offset[0],
+                            offset[1],
+                            offset[2],
+                        ]
+                    )
+                    counter += 1
+
+    # for m in merged_maxima:
+    #     m_pad = m + padding_thickness
+    #     for offs in np.array(np.meshgrid([-1, 0, 1], [-1, 0, 1], [-1, 0, 1])).T.reshape(
+    #     # for offs in np.array(np.meshgrid(*[range(-2 ,3 ) for _ in range(3)])).T.reshape(
+    #         -1, 3
+    #     ):
+    #         candidate = m_pad + offs * original_shape
+    #         if np.all(candidate >= 0) and np.all(candidate < padded_shape):
+    #             candidate_unpadded = candidate - padding_thickness
+    #             offset = candidate_unpadded // original_shape
+    #             image_coord = np.mod(candidate_unpadded, original_shape)
+    #             new_maxima_info_list.append(
+    #                 [
+    #                     counter,
+    #                     image_coord[0],
+    #                     image_coord[1],
+    #                     image_coord[2],
+    #                     offset[0],
+    #                     offset[1],
+    #                     offset[2],
+    #                 ]
+    #             )
+    #             counter += 1
+    #
+    maxima_info = np.array(new_maxima_info_list,dtype=int)
     # print(maxima_info)
-    merged_maxima
+    # merged_maxima
 # Create unmerged markers and regions using valid maxima
     unmerged_markers = np.zeros_like(padded_grid, dtype=int)
     for info in maxima_info:
@@ -7585,15 +7617,16 @@ def detect_periodic_maxima_direct(
         padding_thickness:-padding_thickness,
         padding_thickness:-padding_thickness,
     ]
-    print("Computed regions without PBC\n")
+    print('TIME(s):', np.round(time() - start_time,decimals=2) ,"Computed regions without PBC\n")
 
 
-    print('Reindexng\n')
+    # set_trace()
+    print('TIME(s):', np.round(time() - start_time, decimals=2) ,'Reindexng\n')
+
 # NOTE: We need to reindex here,
 # index mapping for the merged_maxima in unmerged parts
 # Ensure merged maxima indices run from 1 to n
-# %% #* NOTE: we need this part for the valid maxima ids for plotting
-    wall_region_thicknesses = compute_wall_cells(mat_atoms, spacing)
+    wall_region_thicknesses = compute_wall_cells(mat_atoms, spacing, wall_thickness=wall_thickness)
 # let's start by keeping only those maxima that are there in the regions array
     maxima_indices = maxima_info[:, 1:4] + \
         maxima_info[:, 4:7] * np.array(dgrid.shape)
@@ -7611,40 +7644,72 @@ def detect_periodic_maxima_direct(
     valid_maxima_indices = maxima_indices[valid_maxima_mask]
 # Reindexing logic
     merged_maxima_indices = {tuple(m): i + 1 for i, m in enumerate(merged_maxima)}
+    print('constructing remap dict\n')
+    used_indices = set()
     remap_dict = {}
-# Assign indices to periodic maxima
+
+    # NOTE: Assign indices to periodic maxima
     for info in maxima_info:
         original_maxima = tuple(info[1:4])
         if np.all(info[4:7] == 0) and original_maxima in merged_maxima_indices:
-            remap_dict[info[0]] = merged_maxima_indices[original_maxima]
+            # remap_dict[info[0]] = merged_maxima_indices[original_maxima]
+            # if info[0] in remap_dict and remap_dict[info[0]] != merged_maxima_indices[original_maxima]:
+            target_index = merged_maxima_indices[original_maxima]
+            # Check if the target index is already used
+            if target_index in used_indices:
+                print(f"Conflict: Maxima {info[0]} maps to already-used index {target_index}")
+            else:
+                remap_dict[info[0]] = target_index
+                used_indices.add(target_index)
+
+            # remap_dict[info[0]] = merged_maxima_indices[original_maxima]
+
+    # print('stage 1 maxima_pbc', remap_dict)
     unique_unmerged_regions = np.delete(np.unique(unmerged_regions), 0)
     # print(
     #     "All closeby maxima are in unmerged regions",
     #     np.all(np.isin(valid_maxima_ids, unique_unmerged_regions)),
     # )
-# Assign indices to valid maxima
-    new_index = len(merged_maxima) + 1
+    # NOTE: Assign indices to valid maxima
+    # new_index = len(merged_maxima) + 1
+    next_index = max(used_indices) + 1 if used_indices else 1
     for vid in valid_maxima_ids:
         if vid not in remap_dict:
-            remap_dict[vid] = new_index
-            new_index += 1
-# Assign indices to remaining unique regions in unmerged_regions
-    len(unique_unmerged_regions)
+            remap_dict[vid] =next_index
+            used_indices.add(next_index)
+            next_index += 1
+    # print('stage 2 valid_maxima', remap_dict)
+
+    # NOTE: Assign indices to remaining unique regions in unmerged_regions
+    next_index = max(used_indices) + 1 if used_indices else 1
     for r in unique_unmerged_regions:
         if r not in remap_dict:
-            remap_dict[r] = new_index
-            new_index += 1
+            remap_dict[r] =next_index
+            used_indices.add(next_index)
+            next_index += 1
+    # print('stage 3 unique_regions', remap_dict)
+
+    # NOTE: Assign indices to remaining unique regions in unmerged_regions
     unique_unmerged_padded_regions = np.delete(
         np.unique(unmerged_padded_regions), 0)
-    new_index = len(unique_unmerged_regions) + 1
+    # new_index = len(unique_unmerged_regions) + 1
+    next_index = max(used_indices) + 1 if used_indices else 1
+
+    # we need to reindex the padded regions after computing connections
+    padding_indices_start_here = next_index
     for r in unique_unmerged_padded_regions:
         if r not in list(remap_dict.keys()):
-            remap_dict[r] = new_index
-            new_index += 1
+            remap_dict[r] =next_index
+            used_indices.add(next_index)
+            next_index += 1
+    # print('stage 4 unique_unmerged_padded_regions', remap_dict)
+
+    # print('remap_dict constructed')
     maxima_info_copy = copy.deepcopy(maxima_info)
+
 # great! now we have a complet map. time to remap the maxima_info, unmerged_regions, and unmerged_padded_regions
     regions = copy.deepcopy(unmerged_regions)
-    regions_padded = copy.deepcopy(unmerged_padded_regions)
+    regions_padded= copy.deepcopy(unmerged_padded_regions)
     for k, v in remap_dict.items():
         # print(f"replace label {k} with {v}")
         maxima_info_copy[k - 1][0] = v
@@ -7653,17 +7718,15 @@ def detect_periodic_maxima_direct(
 # sort maxima based on first column
     maxima_info_copy = maxima_info_copy[maxima_info_copy[:, 0].argsort()]
 # maxima_info[:10, :], maxima_info_copy[:10, :]
-    print("Done with reindexing-1/2\n")
+    print('TIME(s):', np.round(time() - start_time, decimals=2),"Done with reindexing-1/2\n")
+    # print('remap_dict is ', remap_dict)
 
-    print('Computing PBC groups\n')
     pbc_groups = [v for k, v in get_pbc_groups(regions, maxima_info_copy).items()]
     len(pbc_groups[0])
 # find touching pairs in the regions padded
     pairs = find_touching_region_pairs(regions_padded)
     # print(pairs, pairs.shape)
-# %% # NOTE: Let's filter some of these pairs since we don't really need them, we'll only keep the ones with at least one valid maxima id in em.
-# %% #* NOTE: we need this part for the valid maxima ids for plotting
-    wall_region_thicknesses = compute_wall_cells(mat_atoms, spacing)
+    wall_region_thicknesses = compute_wall_cells(mat_atoms, spacing, wall_thickness=wall_thickness)
 # let's start by keeping only those maxima that are there in the regions array
     maxima_indices = maxima_info_copy[:, 1:4] + maxima_info_copy[:, 4:7] * np.array(
         dgrid.shape
@@ -7681,7 +7744,7 @@ def detect_periodic_maxima_direct(
     # print("Computed maxima close to the cell")
     pairs_filtered = [p for p in pairs if np.any(np.isin(p, valid_maxima_ids))]
 
-    print('Computing connections--this might take a while! \n')
+    print('TIME(s):', np.round(time() - start_time, decimals=2),'Computing connections--this might take a while! \n')
 
     def compute_boundary(reg):
         return reg, sparse.COO(
@@ -7692,16 +7755,14 @@ def detect_periodic_maxima_direct(
 # find uniques and remove background use the reindexed regions here
     regions_to_check = np.delete(np.unique(regions_padded), 0)
     with ThreadPoolExecutor() as executor:
-    # with ProcessPoolExecutor() as executor:
         results = list(executor.map(compute_boundary, regions_to_check))
     outer = dict(results)
 # don't screw this line up
     A_unit = complete_cell(mat_atoms.cell).T
-    minimum_window_separation = 1.0
-    padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing)
+    minimum_window_separation = minimum_window_separation
+    # padding_thickness = mgr.calculate_padding_thickness(dgrid, mat_atoms, spacing)
     padded_grid = np.pad(dgrid, padding_thickness, mode="wrap")
     dinterp = interpolate_labels(dgrid)
-
 
     def check_connected_sparse(regs):
         import numpy as np
@@ -7719,7 +7780,9 @@ def detect_periodic_maxima_direct(
         mask_j = sparse.COO((regions_padded == j).astype(int))
         check_flag_sparse = mask_i * outer.get(j) + mask_j * outer.get(i)
         if check_flag_sparse.sum() > 0:
+            # print('for regions ', i, j)
             # print("Points found in shared boundary:", check_flag_sparse.sum())
+
             # WARN: this is on the padded grid
             windices = np.vstack(np.where(check_flag_sparse)).T  # * (N,3)
             window_points = np.dot(
@@ -7744,6 +7807,11 @@ def detect_periodic_maxima_direct(
             # print('These are window centers', window_centers)
             window_centers = []
             # print('unique cluster labels are ', np.unique(ag.labels_))
+            # if len(np.unique(ag.labels_)) > 1:
+            #print the sizes of each cluster
+                # for uwi in np.unique(ag.labels_):
+                    # print('cluster label ', uwi, 'size is ', np.sum(ag.labels_ == uwi))
+            # set_trace()
             for uwi in np.unique(ag.labels_):
                 # for each cluster that is nota noise, do this
                 if uwi != -1:
@@ -7761,19 +7829,17 @@ def detect_periodic_maxima_direct(
                     # print(uwi_r1_indices.shape)
                     uwi_r1_dvals = uwi_dvals[uwi_r1_indices]
                     uwi_r1_points = uwi_points[uwi_r1_indices]
-                    uwi_r1_max_indices = np.argmax(
-                        uwi_r1_dvals
-                    )  # np.where(uwi_r1_dvals == np.max(uwi_r1_dvals))[0] # indices of the maximum distance values in the cluster with label uwi
+                    uwi_r1_max_indices = np.argmax( uwi_r1_dvals)  # np.where(uwi_r1_dvals == np.max(uwi_r1_dvals))[0] # indices of the maximum distance values in the cluster with label uwi
                     # print(uwi_r1_max_indices)
                     uwi_r1_max_points = uwi_r1_points[uwi_r1_max_indices]
                     # for points in second region
                     uwi_r2_indices = (np.where)(uwi_r == regs[1])[0]
                     uwi_r2_dvals = uwi_dvals[uwi_r2_indices]
                     uwi_r2_points = uwi_points[uwi_r2_indices]
-                    # use argmax to find maximum window point in region 2 
-                    uwi_r2_max_indices  = np.argmax(uwi_r2_dvals )
                     # uwi_r2_max_indices = np.where( uwi_r2_dvals == np.max(uwi_r2_dvals))[ 0 ]  # indices of the maximum distance values in the cluster with label uwi
+                    uwi_r2_max_indices = np.argmax( uwi_r2_dvals)  # np.where(uwi_r1_dvals == np.max(uwi_r1_dvals))[0] # indices of the maximum distance values in the cluster with label uwi
                     uwi_r2_max_points = uwi_r2_points[uwi_r2_max_indices]
+                    # print(uwi_r2_max_indices)
                     # take the centroid of the two maxima of each region close to the window
                     uwi_center = (uwi_r1_max_points + uwi_r2_max_points) / 2
                     # uwi_center = np.mean(uwi_max_points, axis=0) # mean of the points where the distance is at maximum if ther are multiple a.k.a the window is symmetric on each side
@@ -7800,10 +7866,9 @@ def detect_periodic_maxima_direct(
     def process_pair(p):
         return check_connected_sparse(p)
 
-    print('Adjusting for periodic connections\n')
+    print('TIME(s):', np.round(time() - start_time, decimals=2),'Adjusting for periodic connections\n')
 # * actual connections compute.
     with ThreadPoolExecutor() as executor:
-    # with ProcessPoolExecutor() as executor:
         connections_list = list(
             tqdm(executor.map(process_pair, pairs_filtered), total=len(pairs_filtered))
         )
@@ -7812,28 +7877,29 @@ def detect_periodic_maxima_direct(
         if np.any(~np.isin(c[0], valid_maxima_ids)):
             # print(f"This connection is {c[0]}")
             c[2] = "periodic"
-    print('Done with computing connections\n')
-    print('Reindexing part 2/2-- Connected nodes getting priority\n')
+    print('TIME(s):', np.round(time() - start_time, decimals=2),'Done with computing connections\n')
+    print('TIME(s):', np.round(time() - start_time, decimals=2),'Reindexing part 2/2-- Connected nodes getting priority\n')
 
 # NOTE: if padded regions are in the connections list, we need to prioritize those in the indexing over other regions in regions padded
 # make a remap dictionary
     remap_dict2 = {}
     unique_regions_padded = np.delete(np.unique(regions_padded), 0)
-    unique_connected_indices = np.unique(
-        np.vstack([conn[0] for conn in connections_list]))
 # here we removed 0 for clarity
     unique_regions = np.delete(np.unique(regions), 0)
-    new_index = len(unique_regions) + 1  # can also do regions.max() + 1
+    # new_index = len(unique_regions) + 1  # can also do regions.max() + 1
+    next_index = padding_indices_start_here
+    unique_connected_indices = np.unique( np.vstack([conn[0] for conn in connections_list]))
     for c in unique_connected_indices:
-        if c not in unique_regions:  # this is node that needs priority
-            remap_dict2[c] = new_index
-            new_index += 1
+        # if c not in unique_regions:  # this is node that needs priority
+        if c >= padding_indices_start_here:  # this is node that needs priority
+            remap_dict2[c] =next_index
+            next_index+= 1
     for r in unique_regions_padded:
-        if np.logical_and(r not in remap_dict2, r not in unique_regions):
-            remap_dict2[r] = new_index
-            new_index += 1
-
-# reindex the connections list and regions padded array, an maxima_info_copy
+        if np.logical_and(r not in remap_dict2, r >= padding_indices_start_here):
+            remap_dict2[r] = next_index
+            next_index+= 1
+    # print('remap dict 2 is', remap_dict2)
+    # set_trace()
     regions_padded_copy = copy.deepcopy(regions_padded)
     for k, v in remap_dict2.items():
         # print(f"replace label {k} with {v}")
@@ -7851,9 +7917,10 @@ def detect_periodic_maxima_direct(
     maxima_info_copy_copy = maxima_info_copy_copy[maxima_info_copy_copy[:, 0].argsort(
     )]
 
+    # outputs=dict(maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,conections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions)
     all_maxima = maxima_info_copy_copy[:, 1:4] + maxima_info_copy_copy[:, 4:7] * np.array(dgrid.shape)
-    outputs=dict(maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,connections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions,maxima_pbc_dict=merged_maxima_indices, all_maxima=all_maxima)
+    outputs=dict(maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,connections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions, maxima_pbc_dict=merged_maxima_indices, all_maxima=all_maxima, maxima_relative_locations=np.array(inside_close_outside), )
     if return_padded_regions:
-        outputs['regions_padded'] = regions_padded_copy
+        outputs['regions_padded'] = regions_padded
         
     return outputs
