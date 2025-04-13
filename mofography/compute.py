@@ -7077,7 +7077,7 @@ def calculate_padding_thickness(
     # Calculate required padding thickness
     # Add 1 and use ceil to ensure we have enough padding
     # just added some tolerance just to be safe
-    padding_thickness = int(np.ceil(dgrid.max() / min_perp_length_voxel) + 2)
+    padding_thickness = int(np.ceil(dgrid.max() / min_perp_length_voxel)) + np.ceil(5/spacing).astype(int)
 
     return padding_thickness
 
