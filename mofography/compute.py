@@ -7297,6 +7297,137 @@ def detect_periodic_maxima_enhanced(
 
     return dt_central, merged_maxima, all_maxima
 
+def detect_periodic_maxima_direct(
+
+    distance_grid: np.ndarray,
+    ase_atoms: ase.Atoms,
+    spacing: float,
+    maxima_mask: float = 0,
+    h: float = None,
+    threshold_abs: float = None,
+    min_distance: float = 1.0,
+    padding_thickness: int = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Periodic maxima detection using the original distance grid directly.
+
+    Parameters:
+    - distance_grid: The input grid to detect maxima.
+    - ase_atoms: ASE Atoms object for periodic boundary conditions.
+    - spacing: Grid spacing.
+    - maxima_mask: Threshold for binary mask creation.
+    - h: Height threshold for h-maxima.
+    - threshold_abs: Absolute threshold for maxima filtering.
+    - min_distance: Minimum distance for merging maxima.
+    - padding_thickness: Padding thickness for periodic boundary handling.
+
+    Returns:
+    - distance_grid: The original grid.
+    - merged_maxima: Final merged maxima indices.
+    - all_maxima: All detected maxima indices before merging.
+    """
+    import numpy as np
+    import itertools
+    from skimage.morphology import h_maxima
+    from scipy.cluster.hierarchy import linkage, fcluster
+    from .helper import estimate_h_from_percolation_history
+
+    from ase.geometry import complete_cell
+
+    # If h is not provided, compute it from percolation history
+    if h is None:
+        h = estimate_h_from_percolation_history(distance_grid)
+        print("h guess from percolation history is ", h)
+    else:
+        print("h is provided and is ", h)
+
+    # Detect maxima using h-maxima
+    maxima = h_maxima(distance_grid, h)
+    maxima_indices = np.array(np.where(maxima)).T
+    # print("maxima indices", maxima_indices, "for h", h)
+
+    # Apply absolute threshold
+    if threshold_abs is not None:
+        threshold_mask = distance_grid[tuple(maxima_indices.T)] >= threshold_abs
+        maxima_indices = maxima_indices[threshold_mask]
+        if len(maxima_indices) == 0:
+            return distance_grid, maxima_indices
+
+    # Check for missing symmetric maxima and boundary-split cases
+    cell = complete_cell(ase_atoms.get_cell())
+    new_maxima = []
+    boundary_tol = max(1, int(0.1 * min(distance_grid.shape)))  # 10% of smallest dimension or at least 1
+
+    for max_idx in maxima_indices:
+        near_boundary = any(
+            coord < boundary_tol or coord > (size - boundary_tol)
+            for coord, size in zip(max_idx, distance_grid.shape)
+        )
+        max_value = distance_grid[tuple(max_idx)]
+
+        for i, j, k in itertools.product([-1, 0, 1], repeat=3):
+            if i == j == k == 0:
+                continue
+
+            periodic_pos = max_idx + np.array([i, j, k]) * np.array(distance_grid.shape)
+            periodic_idx = periodic_pos % distance_grid.shape
+
+            frac_orig = max_idx / distance_grid.shape
+            frac_periodic = periodic_pos / distance_grid.shape
+
+            cart_orig = np.dot(cell, frac_orig)
+            cart_periodic = np.dot(cell, frac_periodic)
+
+            periodic_value = distance_grid[tuple(periodic_idx)]
+
+            if (
+                near_boundary
+                and abs(max_value - periodic_value) < 0.1 * max_value
+            ):
+                continue
+
+            if (
+                np.linalg.norm(cart_orig - cart_periodic) < min_distance
+                and abs(max_value - periodic_value) < h
+                and not maxima[tuple(periodic_idx)]
+            ):
+                new_maxima.append(periodic_idx)
+
+    all_maxima = (
+        np.vstack([maxima_indices, new_maxima]) if new_maxima else maxima_indices
+    )
+
+    frac_coords = all_maxima / distance_grid.shape
+    cart_coords = np.dot(cell, frac_coords.T).T
+    values = distance_grid[tuple(all_maxima.T)]
+
+    if len(all_maxima) > 1:
+        from scipy.spatial.distance import pdist, squareform
+
+        def periodic_distance(x1, x2):
+            dr = x1 - x2
+            dr = dr - np.round(dr)
+            dr_cart = np.dot(cell, dr)
+            return np.linalg.norm(dr_cart)
+
+        distances = pdist(frac_coords, metric=periodic_distance)
+        Z = linkage(distances, method="single")
+        clusters = fcluster(Z, min_distance / spacing, criterion="distance")
+
+        merged_maxima = []
+        for cluster_id in range(1, clusters.max() + 1):
+            cluster_mask = clusters == cluster_id
+            cluster_values = values[cluster_mask]
+            cluster_points = all_maxima[cluster_mask]
+            best_idx = np.argmax(cluster_values)
+            merged_maxima.append(cluster_points[best_idx])
+
+        merged_maxima = np.array(merged_maxima)
+    else:
+        merged_maxima = all_maxima
+
+    return distance_grid, merged_maxima, all_maxima
+
     import numpy as np
     from skimage.segmentation import watershed
     import copy
