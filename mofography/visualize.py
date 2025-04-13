@@ -3583,7 +3583,7 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
             disconnected_y.append(pos[1])
             disconnected_z.append(pos[2])
             disconnected_colors.append(node)  # Use node index for consistent coloring
-            disconnected_hover.append(f"Index: {node}<br>Type: Disconnected")
+            disconnected_hover.append(f"Index: {node}<br>Type:Not listed in connections")
 
         # Add a trace for disconnected nodes
         traces.append(
