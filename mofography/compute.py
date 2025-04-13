@@ -7154,7 +7154,7 @@ def detect_periodic_maxima_enhanced(
     # First compute periodic EDT with larger padding
     if padding_thickness is None:
         padding_thickness = calculate_padding_thickness(
-            distance_grid, ase_atoms, spacing)
+            distance_grid, ase_atoms = ase_atoms, spacing =spacing)
 
     print("padding thickness in maxima detection is ", padding_thickness)
 
@@ -7297,7 +7297,6 @@ def detect_periodic_maxima_enhanced(
 
     return dt_central, merged_maxima, all_maxima
 
-def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None):
     import numpy as np
     from skimage.segmentation import watershed
     import copy
