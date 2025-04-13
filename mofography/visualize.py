@@ -3358,7 +3358,7 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
         ):  # Check if connection exists and is periodic
             # Add both nodes in the connection
             periodic_connected_nodes.update(conn[0])
-    print("periodic connected nodes are ", periodic_connected_nodes)
+    # print("periodic connected nodes are ", periodic_connected_nodes)
     # Extract indices of nodes in internal connections
     internal_connected_nodes = set()
 
@@ -3369,10 +3369,10 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
             # Add both nodes in the connection
             internal_connected_nodes.update(conn[0])
 
-    print("internal connected nodes are ", internal_connected_nodes)
+    # print("internal connected nodes are ", internal_connected_nodes)
     # Find nodes that only appear in periodic connections
     exclusive_periodic_nodes = periodic_connected_nodes - internal_connected_nodes
-    print("Nodes exclusive to periodic connections:", exclusive_periodic_nodes)
+    # print("Nodes exclusive to periodic connections:", exclusive_periodic_nodes)
 
 
     # find nodes that are not inside the box, but also are not connected internally or perioically
