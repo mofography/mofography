@@ -1359,8 +1359,118 @@ def get_isosurface_mesh(data, isoval,ase_atoms, spacing=(1,1,1), stepsize=1 ):
     mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
     return mesh
 
+def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
+                            steps=(1, 1, 1), stepsize=1, colorscale=None):
+    """Get submeshes of isosurface based on region labels.
+    
+    Args:
+        dgrid: Distance grid
+        region_labels: Region labels array
+        ase_atoms: ASE atoms object
+        isoval: Isovalue for surface
+        steps: Tuple of steps in x,y,z (default: (1,1,1))
+        stepsize: Step size for interpolation (default: 1)
+    
+    Returns:
+        List of submeshes corresponding to each region
+    """
+    
+    from .helper import get_fractional_coordinates, interpolate_labels
+    import numpy as np
+    import plotly.express as px
+    dist_iso_surf = get_isosurface_mesh(dgrid, isoval, ase_atoms)
+    vertices = dist_iso_surf.vertices
+    faces = dist_iso_surf.faces
+    
+    # Find fractional coordinates of vertices
+    frac_vertices = get_fractional_coordinates(vertices, ase_atoms)
+    
+    # Make interpolator for regions with PBC
+    rpbc_interp = interpolate_labels(region_labels)
+    
+    # Assign region labels to vertices
+    rl_verts = rpbc_interp(frac_vertices % 1)
+    
+    # Get faces with same region label for all vertices
+    flags_submeshes = np.vstack([
+        np.all(rl_verts[faces] == r, axis=1) 
+        for r in np.unique(region_labels)
+    ])
+    
+    # Create submeshes for each region (excluding background r=0)
+    dist_iso_submeshes = [
+        dist_iso_surf.submesh([np.where(f)[0]], append=True) 
+        for f in flags_submeshes[1:]
+    ]
+    # let's add some vertex colors before sendingthis over
+    if colorscale is None:
+        colorscale = px.colors.qualitative.Pastel
+    def parse_rgb(rgb_str):
+        # Extract RGB values from 'rgb(r, g, b)' string
+        rgb = rgb_str.strip("rgb()").split(",")
+        return [int(x) for x in rgb] + [255]
+    sampled_colors = px.sample_colorscale(colorscale, np.unique(region_labels)[1:]/region_labels.max())
+    mesh_colors = [parse_rgb(s) for s in sampled_colors]
+    for i,m in enumerate(dist_iso_submeshes):
+        m.visual_vertex_colors = mesh_colors[i] 
+    return dist_iso_submeshes
 
-
+def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
+                            steps=(1, 1, 1), stepsize=1, colorscale=None):
+    """Get submeshes of isosurface based on region labels.
+    
+    Args:
+        dgrid: Distance grid
+        region_labels: Region labels array
+        ase_atoms: ASE atoms object
+        isoval: Isovalue for surface
+        steps: Tuple of steps in x,y,z (default: (1,1,1))
+        stepsize: Step size for interpolation (default: 1)
+    
+    Returns:
+        List of submeshes corresponding to each region
+    """
+    
+    from .helper import get_fractional_coordinates, interpolate_labels
+    import numpy as np
+    import plotly.express as px
+    dist_iso_surf = get_isosurface_mesh(dgrid, isoval, ase_atoms)
+    vertices = dist_iso_surf.vertices
+    faces = dist_iso_surf.faces
+    
+    # Find fractional coordinates of vertices
+    frac_vertices = get_fractional_coordinates(vertices, ase_atoms)
+    
+    # Make interpolator for regions with PBC
+    rpbc_interp = interpolate_labels(region_labels)
+    
+    # Assign region labels to vertices
+    rl_verts = rpbc_interp(frac_vertices % 1)
+    
+    # Get faces with same region label for all vertices
+    flags_submeshes = np.vstack([
+        np.all(rl_verts[faces] == r, axis=1) 
+        for r in np.unique(region_labels)
+    ])
+    
+    # Create submeshes for each region (excluding background r=0)
+    dist_iso_submeshes = [
+        dist_iso_surf.submesh([np.where(f)[0]], append=True) 
+        for f in flags_submeshes[1:]
+    ]
+    # let's add some vertex colors before sendingthis over
+    if colorscale is None:
+        colorscale = px.colors.qualitative.Pastel
+    def parse_rgb(rgb_str):
+        # Extract RGB values from 'rgb(r, g, b)' string
+        rgb = rgb_str.strip("rgb()").split(",")
+        return [int(x) for x in rgb] + [255]
+    sampled_colors = px.colors.sample_colorscale(colorscale, np.unique(region_labels)/region_labels.max())
+    mesh_colors = [parse_rgb(s) for s in sampled_colors]
+    print('mesh colors', mesh_colors)
+    for i,m in enumerate(dist_iso_submeshes):
+        m.visual.vertex_colors = mesh_colors[i] 
+    return dist_iso_submeshes
 def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={}):
     """
     It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
