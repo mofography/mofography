@@ -7440,7 +7440,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     from time import time
     from tqdm import tqdm
     start_time = time()
-    from .helper import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs
+    from .helper import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs, find_end_channel_pairs
     print(f"TIMER STARTED")
     # h = 0.11
     # NOTE: uncomment these imports when refactoring
@@ -7619,6 +7619,11 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     ]
     print('TIME(s):', np.round(time() - start_time,decimals=2) ,"Computed regions without PBC\n")
 
+    endchannel_pairs = find_end_channel_pairs(regions_pbc, unmerged_regions, size_ratio=0.3)
+    for p in endchannel_pairs:
+        print(f"replacing {p[0]} with {p[1]}")
+        unmerged_regions[unmerged_regions == p[0]] = p[1]
+    
 
     # set_trace()
     print('TIME(s):', np.round(time() - start_time, decimals=2) ,'Reindexng\n')
