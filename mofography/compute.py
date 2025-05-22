@@ -7528,7 +7528,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         padded_markers,
         mask=padded_void,
         compactness=compactness,
-        connectivity=3,  # 26-connectivity for full 3D
+        connectivity=2,  # 26-connectivity for full 3D
     )
     # Extract central (unpadded) region to obtain regions_pbc.
     regions_pbc = padded_regions[
@@ -7609,7 +7609,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         unmerged_markers,
         mask=padded_void,
         compactness=compactness,
-        connectivity=3,
+        connectivity=2,
     )
 # grab the central block
     unmerged_regions = unmerged_padded_regions[
