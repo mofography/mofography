@@ -7429,7 +7429,7 @@ def detect_periodic_maxima_direct(
     return distance_grid, merged_maxima, all_maxima
 
 
-def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5):
+def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0):
     import numpy as np
     from skimage.segmentation import watershed
     import copy
@@ -7509,7 +7509,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     )
 
     print('TIME(s):', np.round(time() - start_time, decimals=2),"Computing regions with PBC \n")
-    compactness = 0
+    # compactness = 0
     # compute markers for padded, periodic segmentation
     markers = np.zeros_like(dgrid, dtype=int)
     if len(merged_maxima) > 0:
