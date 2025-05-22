@@ -7481,6 +7481,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     #Computed merged maxima nad regions_pbc!
     # padding_thickness=5
     padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing) + np.ceil(extra_padding/spacing).astype(int)
+    print('padding thickness is', padding_thickness)
     wall_cells = compute_wall_cells(mat_atoms, spacing, wall_thickness)
     wall_maxima_to_remove = process_wall_maxima(
         merged_maxima,
