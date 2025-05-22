@@ -904,3 +904,45 @@ def periodic_gaussian_filter(arr, sigma):
         smoothed += weight * rolled
 
     return smoothed
+
+def find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3):
+    import numpy as np
+    from scipy.ndimage import binary_dilation
+    box_shape = regions_nonpbc.shape
+    wall_mask = np.zeros_like(regions_nonpbc, dtype=bool)
+    wall_mask[0, :, :] = wall_mask[-1, :, :] = True
+    wall_mask[:, 0, :] = wall_mask[:, -1, :] = True
+    wall_mask[:, :, 0] = wall_mask[:, :, -1] = True
+
+    wall_labels = np.unique(regions_nonpbc[wall_mask])
+    wall_labels = wall_labels[wall_labels != 0]  # Exclude background
+
+    pairs = []
+
+    for label_id in wall_labels:
+        mask = (regions_nonpbc == label_id)
+        pbc_label = np.unique(regions_pbc[mask])
+        pbc_label = pbc_label[pbc_label != 0]
+        if len(pbc_label) != 1:
+            continue  # ambiguous, skip
+
+        # Find all other regions on the same wall with the same pbc label
+        same_wall_mask = (regions_pbc == pbc_label[0]) & wall_mask
+        other_labels = np.unique(regions_nonpbc[same_wall_mask])
+        other_labels = [l for l in other_labels if l != label_id and l != 0]
+
+        if not other_labels:
+            continue  # No other regions of this PBC group on the wall, skip
+
+        for neighbor_label in other_labels:
+            neighbor_mask = (regions_nonpbc == neighbor_label) & wall_mask
+            # Check adjacency on the wall
+            if np.any(binary_dilation(mask) & neighbor_mask):
+                size_current = np.sum(mask)
+                size_neighbor = np.sum(regions_nonpbc == neighbor_label)
+                print(f"label {label_id} is adjacent to {neighbor_label} with size current {size_current} and size neighbor {size_neighbor}")
+                if size_current < size_ratio * size_neighbor:
+                    pairs.append((label_id, neighbor_label))
+                break  # Only consider the first touching neighbor
+
+    return pairs
