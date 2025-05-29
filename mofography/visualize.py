@@ -3364,12 +3364,19 @@ def make_fig_orthographic(fig):
     fig.update_layout(scene_camera_projection_type="orthographic")
     return fig
 def make_fig_orthographic_all_subplots(fig):
+    # Update lighting for each mesh
     for subplot in fig.data:
         if subplot.type == "mesh3d":
             subplot.update(lighting=default_mesh_lighting)
             subplot.update(lightposition=dict(x=None, y=None, z=None))
-    fig.update_layout(scene_camera=dict(projection=dict(type="orthographic")))
+
+    # Loop through all layout keys to find all 3D scenes
+    for scene_key in fig.layout:
+        if scene_key.startswith("scene"):
+            fig.layout[scene_key].update(camera=dict(projection=dict(type="orthographic")))
+
     return fig
+
 def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, **kwargs):
     """Plot connections graph including periodic boundary connections.
 
