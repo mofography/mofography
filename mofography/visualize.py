@@ -2417,11 +2417,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
     edges_master = np.vstack(edges_master)
     # print(bond_color)
     # try:
-    trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
-                                line=dict(width=15, color=bond_color, colorscale=bond_colorscale,
-                                            colorbar=dict(thickness=20, len=0.6, title='bond order')),
-                                opacity=bond_opacity, mode='lines',
-                                name='framework bonds')
+    trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2], line=dict(width=15, color=bond_color, colorscale=bond_colorscale, showscale=False, colorbar=dict(thickness=20, len=0.6, title='bond order', )), opacity=bond_opacity, mode='lines', name='Bonds', legendgroup='framework', )
     # except:
     #     trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
     #                                line=dict(width=15, color='rgba(150,150,150,0.35)', colorscale='aggrnyl'),
@@ -2435,9 +2431,11 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
         # G = sgraph_from_atoms(ase_atoms_updated)
 
         ring_traces = plot_aromatic_rings(ase_atoms=ase_atoms_updated)
-                                      #   isomorphic_aromatic_cycles=isomorphic_aromatic_cycles)
+
         traces = traces + list(ring_traces)
 
+    for t in ring_traces:                             #   isomorphic_aromatic_cycles=isomorphic_aromatic_cycles)
+        t['legendgroup'] = traces[0]['legendgroup']
     if bool(bond_data):
         print('4. Creating traces for additional bond data provided')
         # for key in bond_data.keys():
