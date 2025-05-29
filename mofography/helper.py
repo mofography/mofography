@@ -1051,3 +1051,20 @@ def merge_small_regions(labels, min_size):
 
     return labels
 
+def get_perpendicular_voxel_lengths(ase_atoms, spacing, grid_shape):
+    import numpy as np
+    voxel_volume = ase_atoms.get_volume() / np.prod(grid_shape)
+    la, lb, lc, alpha, beta, gamma = ase_atoms.cell.cellpar()
+    alpha, beta, gamma = np.radians(alpha), np.radians(beta), np.radians(gamma)
+    eA = [spacing, 0, 0]
+    eB = [spacing * np.cos(gamma), spacing * np.sin(gamma), 0]
+    eC = [
+        spacing * np.cos(beta),
+        spacing * (np.cos(alpha) - np.cos(beta) * np.cos(gamma)) / np.sin(gamma),
+        voxel_volume / (spacing * spacing * np.sin(gamma)),
+    ]
+    lx_voxel = voxel_volume / np.linalg.norm(np.cross(eB, eC))
+    ly_voxel = voxel_volume / np.linalg.norm(np.cross(eC, eA))
+    lz_voxel = voxel_volume / np.linalg.norm(np.cross(eA, eB))
+    return lx_voxel, ly_voxel, lz_voxel
+
