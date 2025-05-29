@@ -7339,10 +7339,33 @@ def detect_periodic_maxima_direct(
         h = estimate_h_from_percolation_history(distance_grid)
         print("h guess from percolation history is ", h)
     else:
-        print("h is provided and is ", h)
+
+    # compute footprint
+
+    # Example voxel lengths
+    vx, vy, vz = get_perpendicular_voxel_lengths(ase_atoms, spacing,distance_grid.shape)
+    # Desired radius in Å
+    radius = 0.5
+    # Compute halfwidths
+    hw_i = int(np.ceil(radius / vx))
+    hw_j = int(np.ceil(radius / vy))
+    hw_k = int(np.ceil(radius / vz))
+
+    # # Build index grids
+    # i_range = np.arange(-hw_i, hw_i + 1)
+    # j_range = np.arange(-hw_j, hw_j + 1)
+    # k_range = np.arange(-hw_k, hw_k + 1)
+    # I, J, K = np.meshgrid(i_range, j_range, k_range, indexing='ij')
+    # # Build index grids
+    # distances = np.sqrt((I * vx)**2 + (J * vy)**2 + (K * vz)**2)
+    # # Build footprint
+    # footprint = distances <= radius
+    
+    footprint = np.ones((2*hw_i+1, 2*hw_j+1, 2*hw_k+1), dtype=bool)  # Use a simple rectangular footprint
 
     # Detect maxima using h-maxima
-    maxima = h_maxima(distance_grid, h)
+    maxima = h_maxima(distance_grid, h, footprint=footprint)
+    # maxima = h_maxima(distance_grid, h)
     maxima_indices = np.array(np.where(maxima)).T
     # print("maxima indices", maxima_indices, "for h", h)
 
