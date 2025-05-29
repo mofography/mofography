@@ -7645,7 +7645,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
 
     endchannel_pairs = find_end_channel_pairs(regions_pbc, unmerged_regions, size_ratio=0.3)
     for p in endchannel_pairs:
-        print(f"replacing {p[0]} with {p[1]}")
+        # print(f"replacing {p[0]} with {p[1]}")
         unmerged_regions[unmerged_regions == p[0]] = p[1]
     
 

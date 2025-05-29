@@ -946,3 +946,108 @@ def find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3):
                 break  # Only consider the first touching neighbor
 
     return pairs
+def merge_small_regions_pbc(labels, min_size):
+    """
+    Merge small labeled regions (< min_size voxels) into neighboring larger regions,
+    accounting for periodic boundary conditions (PBC).
+
+    Parameters:
+        labels (ndarray): 3D numpy array of labeled regions.
+        min_size (int): Minimum voxel count; regions smaller than this will be merged.
+
+    Returns:
+        ndarray: Modified labels array with small regions merged.
+    """
+
+    import numpy as np
+    from scipy.ndimage import binary_dilation
+    from skimage.measure import regionprops
+
+    labels = labels.copy()
+    shape = labels.shape
+    props = regionprops(labels)
+
+    # Identify small label IDs
+    small_labels = [p.label for p in props if p.area < min_size]
+
+    logger.info(f"Found {len(small_labels)} small regions to merge.")
+
+    # Pad with wrap to handle periodicity
+    padded_labels = np.pad(labels, 1, mode='wrap')
+
+    for small_lbl in small_labels:
+        # Create small region mask (inside padded array)
+        small_mask = (padded_labels[1:-1, 1:-1, 1:-1] == small_lbl)
+        small_mask = np.pad(small_mask, 1, mode='wrap')
+
+        # Dilate to find neighbors
+        dilated = binary_dilation(small_mask)
+        neighbor_mask = dilated & (~small_mask)
+
+        neighbor_labels = np.unique(padded_labels[neighbor_mask])
+        neighbor_labels = neighbor_labels[neighbor_labels != small_lbl]
+        neighbor_labels = neighbor_labels[neighbor_labels != 0]  # exclude background if 0
+
+        if len(neighbor_labels) == 0:
+            continue  # no neighbors found
+
+        # Find neighbor with largest shared boundary
+        neighbor_counts = [(lbl, np.sum(padded_labels[neighbor_mask] == lbl)) for lbl in neighbor_labels]
+        neighbor_counts.sort(key=lambda x: -x[1])
+        largest_neighbor = neighbor_counts[0][0]
+
+        # Reassign small region voxels
+        reassignment_mask = (padded_labels == small_lbl)
+        padded_labels[reassignment_mask] = largest_neighbor
+
+    # Remove padding
+    merged_labels = padded_labels[1:-1, 1:-1, 1:-1]
+    return merged_labels
+
+def merge_small_regions(labels, min_size):
+    """
+    Merge small labeled regions (< min_size voxels) into neighboring larger regions.
+
+    Parameters:
+        labels (ndarray): 3D numpy array of labeled regions.
+        min_size (int): Minimum voxel count; regions smaller than this will be merged.
+
+    Returns:
+        ndarray: Modified labels array with small regions merged.
+    """
+
+    import numpy as np
+    from scipy.ndimage import binary_dilation
+    from skimage.measure import regionprops
+
+    labels = labels.copy()
+
+    props = regionprops(labels)
+
+    # Identify small label IDs
+    small_labels = [p.label for p in props if p.area < min_size]
+
+    logger.info(f"Found {len(small_labels)} small regions to merge.")
+
+    for small_lbl in small_labels:
+        small_mask = (labels == small_lbl)
+
+        # Dilate to find neighbors
+        dilated = binary_dilation(small_mask)
+        neighbor_labels = np.unique(labels[dilated & (labels != small_lbl)])
+        neighbor_labels = neighbor_labels[neighbor_labels != 0]  # exclude background
+
+        if len(neighbor_labels) == 0:
+            # No neighbor found — skip or optionally assign to background
+            continue
+
+        # Find the neighbor sharing the largest boundary
+        neighbor_counts = [(lbl, np.sum(labels[dilated & (labels == lbl)])) for lbl in neighbor_labels]
+        neighbor_counts.sort(key=lambda x: -x[1])
+        largest_neighbor = neighbor_counts[0][0]
+
+        # Reassign small region voxels to neighbor
+        labels[small_mask] = largest_neighbor
+
+    return labels
+
