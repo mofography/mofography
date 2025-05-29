@@ -14,6 +14,8 @@
 
 import numpy as np 
 import ase
+import logging
+logger = logging.getLogger(__name__)
 
 def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
     """This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
@@ -7330,15 +7332,17 @@ def detect_periodic_maxima_direct(
     import itertools
     from skimage.morphology import h_maxima
     from scipy.cluster.hierarchy import linkage, fcluster
-    from .helper import estimate_h_from_percolation_history
+    from .helper import estimate_h_from_percolation_history, get_perpendicular_voxel_lengths
 
     from ase.geometry import complete_cell
 
     # If h is not provided, compute it from percolation history
     if h is None:
         h = estimate_h_from_percolation_history(distance_grid)
-        print("h guess from percolation history is ", h)
+        logger.info(f"h guess from percolation history is {h}")
+
     else:
+        logger.info(f"h is provided and is {h}")
 
     # compute footprint
 
@@ -7445,14 +7449,14 @@ def detect_periodic_maxima_direct(
             best_idx = np.argmax(cluster_values)
             merged_maxima.append(cluster_points[best_idx])
 
-        merged_maxima = np.array(merged_maxima)
+        merged_maxima = np.array(merged_maxima) 
     else:
         merged_maxima = all_maxima
-
+ 
     return distance_grid, merged_maxima, all_maxima
 
 
-def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0):
+def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0,min_region_size=100, disable_tqdm=False):
     import numpy as np
     from skimage.segmentation import watershed
     import copy
@@ -7463,25 +7467,27 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     from time import time
     from tqdm import tqdm
     start_time = time()
-    from .helper import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs, find_end_channel_pairs
-    print(f"TIMER STARTED")
+    from .helper import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs, find_end_channel_pairs, merge_small_regions, merge_small_regions_pbc
+    # print(f"TIMER STARTED")
+    logger.info(f"TIMER STARTED")
     # h = 0.11
     # NOTE: uncomment these imports when refactoring
     # from .helper import find_touching_region_pairs,compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels
     # smooth = False
     if spacing is None:
-        print('WARNING: Provided the spacing you used for dgrid, for more accurate calculation!\n')
+        logger.warning('WARNING: No spacing provided. Estimating. Provide the dgrid spacing, for more accurate calculation!\n')
         spacing = np.min(mat_atoms.get_cell_lengths_and_angles()[:3]/ (np.array(dgrid.shape)-1))
-        print('Spacing estimated from dgrid and ase_atoms is ', spacing)
+        logger.info(f"Spacing estimated from dgrid and ase_atoms is {spacing}")
 
     if minimum_window_separation is None:
         minimum_window_separation = spacing * 3
 
-    print("h is", h)
+    logger.info(f"h is {h}")
     plr = find_pore_limiting_radius(dgrid)
-    print('TIME(s):',np.round( time() - start_time, decimals=2),'Pore limiting radius is', np.round(plr, decimals=2), '\n')
+
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Pore limiting radius is {np.round(plr, decimals=2)}\n")
     if (plr-0.25) < mask_thickness:
-        print('WARNING: Mask thickness is too high, resetting to pore limiting radius - 0.25\n')
+        logger.warning('WARNING: Mask thickness is too high, resetting to pore limiting radius - 0.25\n')
 
     mask_thickness = np.min([plr - 0.25, mask_thickness])
     # min_distance = 1.1
@@ -7500,11 +7506,11 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
 
     temp = np.ceil(merged_maxima)
     # compute wall cells
-    print('TIME(s):', np.round( time() - start_time, decimals=2), 'Computing maxima with PBC\n')
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Computing maxima with PBC\n")
     #Computed merged maxima nad regions_pbc!
     # padding_thickness=5
     padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing) + np.ceil(extra_padding/spacing).astype(int)
-    print('padding thickness is', padding_thickness)
+    logger.info(f"padding thickness is {padding_thickness}")
     wall_cells = compute_wall_cells(mat_atoms, spacing, wall_thickness)
     wall_maxima_to_remove = process_wall_maxima(
         merged_maxima,
@@ -7514,7 +7520,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         ase_atoms=mat_atoms,
     )
     wall_maxima_to_remove = []
-    # print("maxima to remove are", wall_maxima_to_remove)
+    #logger.info("maxima to remove are", wall_maxima_to_remove)
     optimized_positions = []
     optimized_values = []
     original_indices = []
@@ -7532,7 +7538,8 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         [m for i, m in enumerate(merged_maxima) if i not in all_removals]
     )
 
-    print('TIME(s):', np.round(time() - start_time, decimals=2),"Computing regions with PBC \n")
+
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Computing regions with PBC \n")
     # compactness = 0
     # compute markers for padded, periodic segmentation
     markers = np.zeros_like(dgrid, dtype=int)
@@ -7540,7 +7547,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         maxima_coords = tuple(merged_maxima.T)
         markers[maxima_coords] = np.arange(1, len(merged_maxima) + 1)
     else:
-        print("PROBLEM: No valid maxima detected after merging.")
+        logger.info("PROBLEM: No valid maxima detected after merging.")
     # void mask for segmentation to use the mask_thickness
     void_mask = dgrid > mask_thickness
     padded_grid = np.pad(dt, padding_thickness, mode="wrap")
@@ -7554,6 +7561,21 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         compactness=compactness,
         connectivity=2,  # 26-connectivity for full 3D
     )
+
+    # clean up the regions_pbc from small regions, remove less than 0.01% of the total size
+    padded_regions_cleaned = merge_small_regions(padded_regions, min_size=min_region_size)
+    unique_padded_regions= np.unique(padded_regions)
+    unique_padded_regions_cleaned = np.unique(padded_regions_cleaned)
+    removed_labels_pbc =unique_padded_regions[~np.isin(unique_padded_regions,unique_padded_regions_cleaned)]
+    # Only keep removed labels that correspond to original maxima
+    max_label = len(merged_maxima)
+    removed_maxima_labels = removed_labels_pbc[(removed_labels_pbc >= 1) & (removed_labels_pbc <= max_label)]
+    logger.info(f"Removing these small maxima labels{removed_maxima_labels}")
+    # Remove those rows from merged_maxima
+    merged_maxima = np.delete(merged_maxima, removed_maxima_labels - 1, axis=0)
+    # replace regions_pbc with regions_pbc_cleaned
+    padded_regions=padded_regions_cleaned
+
     # Extract central (unpadded) region to obtain regions_pbc.
     regions_pbc = padded_regions[
         padding_thickness:-padding_thickness,
@@ -7561,8 +7583,10 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         padding_thickness:-padding_thickness,
     ]
     # print("Computed merged maxima nad regions_pbc!!")
+    logger.info('Removing the small regions, with counts < 0.001 * regions_pbc.size')
 
-    print('TIME(s):', np.round(time() - start_time, decimals=2) ,'Computing maxima and regions without PBC\n')
+    #
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Computing maxima and regions without PBC\n")
 
 # Step 2: Get unmerged maxima info using valid maxima
     original_shape = np.array(dgrid.shape)
@@ -7641,16 +7665,27 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
         padding_thickness:-padding_thickness,
         padding_thickness:-padding_thickness,
     ]
-    print('TIME(s):', np.round(time() - start_time,decimals=2) ,"Computed regions without PBC\n")
 
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Computed regions without PBC\n")
     endchannel_pairs = find_end_channel_pairs(regions_pbc, unmerged_regions, size_ratio=0.3)
     for p in endchannel_pairs:
         # print(f"replacing {p[0]} with {p[1]}")
         unmerged_regions[unmerged_regions == p[0]] = p[1]
     
 
+    # print('Looking for noisy regions, counts < 0.001 * regions.size')
+    # unmerged_regions_cleaned =  merge_small_regions(unmerged_regions, min_size=unmerged_regions.size * 0.001)
+    # unique_regions = np.unique(unmerged_regions)
+    # unique_regions_cleaned = np.unique(unmerged_regions_cleaned)
+    # # find the labels that were removed, if any.
+    # removed_labels = unique_regions[~np.isin(unique_regions, unique_regions_cleaned)]
+    # # remove the corresponding maxima from maxima_info array
+    # maxima_info = np.delete(maxima_info, removed_labels - 1, axis=0)
+    # # finally replace unmerged regions with the cleaned version
+    # unmerged_regions = unmerged_regions_cleaned
+    #
     # set_trace()
-    print('TIME(s):', np.round(time() - start_time, decimals=2) ,'Reindexng\n')
+    logger.info(f"TIME(s):', {np.round(time() - start_time, decimals=2)} ,'Reindexng\n")
 
 # NOTE: We need to reindex here,
 # index mapping for the merged_maxima in unmerged parts
@@ -7673,7 +7708,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     valid_maxima_indices = maxima_indices[valid_maxima_mask]
 # Reindexing logic
     merged_maxima_indices = {tuple(m): i + 1 for i, m in enumerate(merged_maxima)}
-    print('constructing remap dict\n')
+    logger.info('constructing remap dict\n')
     used_indices = set()
     remap_dict = {}
 
@@ -7686,7 +7721,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
             target_index = merged_maxima_indices[original_maxima]
             # Check if the target index is already used
             if target_index in used_indices:
-                print(f"Conflict: Maxima {info[0]} maps to already-used index {target_index}")
+                logger.info(f"Conflict: Maxima {info[0]} maps to already-used index {target_index}")
             else:
                 remap_dict[info[0]] = target_index
                 used_indices.add(target_index)
@@ -7747,7 +7782,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
 # sort maxima based on first column
     maxima_info_copy = maxima_info_copy[maxima_info_copy[:, 0].argsort()]
 # maxima_info[:10, :], maxima_info_copy[:10, :]
-    print('TIME(s):', np.round(time() - start_time, decimals=2),"Done with reindexing-1/2\n")
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)}.  Done with reindexing-1/2\n")
     # print('remap_dict is ', remap_dict)
 
     pbc_groups = [v for k, v in get_pbc_groups(regions, maxima_info_copy).items()]
@@ -7773,7 +7808,7 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     # print("Computed maxima close to the cell")
     pairs_filtered = [p for p in pairs if np.any(np.isin(p, valid_maxima_ids))]
 
-    print('TIME(s):', np.round(time() - start_time, decimals=2),'Computing connections--this might take a while! \n')
+    logger.info(f"TIME(s): { np.round(time() - start_time, decimals=2)} Computing connections--this might take a while! \n")
 
     def compute_boundary(reg):
         return reg, sparse.COO(
@@ -7895,19 +7930,23 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
     def process_pair(p):
         return check_connected_sparse(p)
 
-    print('TIME(s):', np.round(time() - start_time, decimals=2),'Adjusting for periodic connections\n')
+    # logger.info('TIME(s):', np.round(time() - start_time, decimals=2),'Adjusting for periodic connections\n')
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Adjusting for periodic connections\n")
+
 # * actual connections compute.
+
     with ThreadPoolExecutor() as executor:
         connections_list = list(
-            tqdm(executor.map(process_pair, pairs_filtered), total=len(pairs_filtered))
+            tqdm(executor.map(process_pair, pairs_filtered), total=len(pairs_filtered), disable=disable_tqdm)
         )
+    
 # let's mark a connection as periodic if any maxima is far from the box, no reindexing just yet.
     for c in connections_list:
         if np.any(~np.isin(c[0], valid_maxima_ids)):
             # print(f"This connection is {c[0]}")
             c[2] = "periodic"
-    print('TIME(s):', np.round(time() - start_time, decimals=2),'Done with computing connections\n')
-    print('TIME(s):', np.round(time() - start_time, decimals=2),'Reindexing part 2/2-- Connected nodes getting priority\n')
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Done with computing connections\n")
+    logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Reindexing part 2/2-- Connected nodes getting priority\n")
 
 # NOTE: if padded regions are in the connections list, we need to prioritize those in the indexing over other regions in regions padded
 # make a remap dictionary
