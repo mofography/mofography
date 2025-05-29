@@ -2370,11 +2370,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
     traces = []
     print("1. Creating atoms trace\n")
 
-    trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext,
-                                 marker=dict(opacity=atoms_opacity, size=scatter_size,
-                                             color=atom_colors[ase_atoms.get_atomic_numbers() - 1],
-                                             sizemode='diameter', colorscale=cscale), name='framework atoms',
-                                 text=names, textfont=dict(color=colorlist, size=20), surfaceaxis=-1)
+    trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext, marker=dict(opacity=atoms_opacity, size=scatter_size, color=atom_colors[ase_atoms.get_atomic_numbers() - 1], sizemode='diameter', colorscale=cscale), name='Atoms', text=names, textfont=dict(color=colorlist, size=20), surfaceaxis=-1, legendgroup='framework', legendgrouptitle_text = 'Framework',)
     traces.append(trace_scatter)
 
     if 'covalent_bonds' not in ase_atoms.info.keys():
