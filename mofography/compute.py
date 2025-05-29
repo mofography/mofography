@@ -7948,7 +7948,21 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
 
     # outputs=dict(maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,conections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions)
     all_maxima = maxima_info_copy_copy[:, 1:4] + maxima_info_copy_copy[:, 4:7] * np.array(dgrid.shape)
-    outputs=dict(maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,connections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions, maxima_pbc_dict=merged_maxima_indices, all_maxima=all_maxima, maxima_relative_locations=np.array(inside_close_outside), )
+    outputs=dict(dgrid=dgrid, maxima_pbc=merged_maxima, regions_pbc=regions_pbc, maxima_info=maxima_info_copy_copy, regions=regions,connections=connections_list_copy, pbc_groups=pbc_groups, close_or_inside_maxima=valid_maxima_indices, close_or_inside_regions= valid_maxima_ids, unique_regions = unique_regions, maxima_pbc_dict=merged_maxima_indices, all_maxima=all_maxima, maxima_relative_locations=np.array(inside_close_outside), )
+    # we need to save the input params to the results, for future reference.
+    outputs['input_params'] = {
+        'mask_thickness': mask_thickness,
+        'h': h,
+        'min_distance': min_distance,
+        'threshold_abs': threshold_abs,
+        'spacing': spacing,
+        'minimum_window_separation': minimum_window_separation,
+        'compactness': compactness,
+        'wall_thickness': wall_thickness,
+        'extra_padding': extra_padding,
+        'padding_thickness': padding_thickness,
+        'min_region_size': min_region_size,
+    }
     if return_padded_regions:
         outputs['regions_padded'] = regions_padded
         
