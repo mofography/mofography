@@ -12,6 +12,9 @@
 
 # """                         
 import numpy as np
+import logging
+logger = logging.getLogger(__name__)
+
 def find_coord_from_indices(indices, shape, ase_atoms):
     """Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object.
 
@@ -776,7 +779,7 @@ def process_wall_maxima(
     # unit cell matrix
     cell = complete_cell(ase_atoms.cell).T
 
-    print("\nDEBUG: Moving maxima to peaks")
+    logger.info("\nDEBUG: Moving maxima to peaks")
     for i, pos in enumerate(all_maxima):
         is_wall = any(
             coord < wall_cells[dim] or coord > (
@@ -829,11 +832,11 @@ def process_wall_maxima(
                 # Keep the one with larger value
                 if val1 < val2:
                     maxima_to_remove.append(idx1)
-                    print(f"Removing maximum #{idx1} (smaller radius)")
+                    logger.info(f"Removing maximum #{idx1} (smaller radius)")
                     break
                 else:
                     maxima_to_remove.append(idx2)
-                    print(f"Removing maximum #{idx2} (smaller radius)")
+                    logger.info(f"Removing maximum #{idx2} (smaller radius)")
 
     return maxima_to_remove
 def get_min_distance(pos1, pos2, cell, original_shape):
@@ -940,12 +943,13 @@ def find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3):
             if np.any(binary_dilation(mask) & neighbor_mask):
                 size_current = np.sum(mask)
                 size_neighbor = np.sum(regions_nonpbc == neighbor_label)
-                print(f"label {label_id} is adjacent to {neighbor_label} with size current {size_current} and size neighbor {size_neighbor}")
+                # print(f"label {label_id} is adjacent to {neighbor_label} with size current {size_current} and size neighbor {size_neighbor}")
                 if size_current < size_ratio * size_neighbor:
                     pairs.append((label_id, neighbor_label))
                 break  # Only consider the first touching neighbor
 
     return pairs
+
 def merge_small_regions_pbc(labels, min_size):
     """
     Merge small labeled regions (< min_size voxels) into neighboring larger regions,
