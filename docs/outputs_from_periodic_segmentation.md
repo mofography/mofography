@@ -11,7 +11,7 @@ Let's quickly review the outputs from the periodic segmentation and provide a qu
 - `pbc_groups`
 - `all_maxima`
 - `close_or_inside_maxima`
-- `unique_maxima`
+- `unique_regions`
 - `regions_padded`
 
 ## Core concept in nutshell
@@ -73,7 +73,7 @@ Note that although a `maxima_pbc` is inside the unit cell, its periodic image co
 Also, we don't often need all the maxima from the padded grid; pockets and connections fully inside or just close outside the unit cell are enough for most applications. So it would be useful to trim them down quickly. Hence, this information is provided among the outputs:
 
 - `close_or_inside_maxima`: 1D numpy array that lists the indices of all the maxima that are fully inside the unit cell or close to the wall on the outside.
-- `unique_maxima`: 1D numpy array that lists the indices of all the maxima that have at least one voxel assigned to it inside the unit cell. Now this could just be noise from the segmentation, or it could be a real physical influence where there is a pocket segment in the unit cell, but its maxima is slightly outside the unit boundary (hard to visualize, I know! But imagine segments along large smooth channels, for example).
+- `unique_regions`: 1D numpy array that lists the indices of all the maxima that have at least one voxel assigned to it inside the unit cell. Now this could include maxima outside the box, often due to noise from the segmentation, or it due to real physical influence where there is a pocket segment in the unit cell, but its maxima is slightly outside the unit boundary (hard to visualize, I know! But imagine cross sectional segments along large zig zag channels, for example).
 
 #### Clever indexing scheme
 There is a clever indexing scheme put in place to make the selection of these maxima easier. Maxima are reindexed in the order of decreasing importance:
@@ -139,6 +139,6 @@ This document explains the periodic segmentation approach for analyzing porous m
 - `regions_pbc` and `regions`: Segmented regions with and without periodic wrapping
 - `maxima_info`: Detailed mapping between all maxima and their representatives
 - `pbc_groups`: Groups of periodic image maxima
-- Various filtering arrays (`close_or_inside_maxima`, `unique_maxima`) for different analysis needs
+- Various filtering arrays (`close_or_inside_maxima`, `unique_regions`) for different analysis needs
 
 **Benefits**: This approach enables proper averaging of properties across periodic boundaries and provides a solid foundation for pore network analysis in crystalline porous materials.
