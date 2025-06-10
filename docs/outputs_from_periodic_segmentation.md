@@ -106,55 +106,6 @@ Not going to say much about this here, since it's pretty much the same as in the
 - You can also ignore the connections from the periodic segmentation workflow and instead just compute them fresh using the unpadded `regions` array and the distance field, like in the old workflow.
 - Both of these should give the same results.
 
-## Periodic Segmentation Workflow Diagram
-
-The following diagram illustrates the complete workflow of the periodic segmentation algorithm, showing how the different steps connect to produce the final outputs:
-
-```mermaid
-graph TD
-    subgraph Input
-        A[Distance Grid] --> C[Padding]
-        B[ASE Atoms] --> C
-    end
-
-    subgraph Maxima Processing
-        C --> D[Padded Distance Grid]
-        D --> E[Find Local Maxima]
-        E --> F[Identify Periodic Images]
-        F --> G[Group into pbc_groups]
-        G --> H[Select maxima_pbc Representatives]
-        H --> I[Create maxima_info Array]
-    end
-
-    subgraph Classification & Indexing
-        I --> J[Classify Maxima Location]
-        J --> K[Reindex by Importance]
-        K --> L1[close_or_inside_maxima]
-        K --> L2[unique_maxima]
-        K --> L3[all_maxima]
-    end
-
-    subgraph Segmentation
-        L1 --> M1[Segmentation with maxima_pbc]
-        L2 --> M1
-        L3 --> M2[Segmentation with all_maxima]
-        M1 --> N1[regions_pbc]
-        M2 --> N2[regions]
-    end
-
-    subgraph Final Processing
-        N1 --> O[Compute Connections]
-        N2 --> O
-        O --> P[Final Outputs]
-    end
-
-    style Input fill:#f9f,stroke:#333,stroke-width:2px
-    style Maxima Processing fill:#bbf,stroke:#333,stroke-width:2px
-    style Classification & Indexing fill:#bfb,stroke:#333,stroke-width:2px
-    style Segmentation fill:#fbb,stroke:#333,stroke-width:2px
-    style Final Processing fill:#fbf,stroke:#333,stroke-width:2px
-```
-
 ### Key Workflow Steps:
 
 1. **Input Preparation**: Start with distance grid and ASE atoms object
@@ -164,11 +115,11 @@ graph TD
 5. **Grouping**: Group periodic images into `pbc_groups`
 6. **Representative Selection**: Choose one representative per group (`maxima_pbc`)
 7. **Information Array**: Create `maxima_info` with offsets and labels
-8. **Classification**: Classify maxima by their location relative to unit cell
-9. **Reindexing**: Smart reindexing by importance priority
-10. **Dual Segmentation**: Perform two segmentations with different marker strategies
-11. **Extraction**: Extract central regions from padded grids
-12. **Connections**: Compute connections between regions
+8.**Dual Segmentation**: Perform two segmentations with different marker strategies
+9. **Extraction**: Extract central regions from padded grids
+10. **Location importance**: Classify maxima by their location relative to unit cell
+11. **Reindexing**: Smart reindexing by importance priority
+12. **Connections**: Compute connections between regions using padded regions.
 13. **Final Output**: Generate all output arrays and data structures
 
 ## Summary
