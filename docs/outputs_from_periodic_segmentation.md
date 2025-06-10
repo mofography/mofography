@@ -37,7 +37,7 @@ Periodic segmentation ensures this by doing the following:
 #### Padding the distance grid
 - Pad the distance grid by a sufficient amount in all three dimensions
 - How much padding should you use? I am using enough to complete the largest pocket and then a few more angstroms for security. You can optionally add `extra_padding`
-- Values in the padded region: Calculated using *wrap* mode. This means the values at x=0 are wrapped around to the values at x>1. So x=1.1 would be the same as x=0.1, and so on for all three dimensions. Note that we are talking in fractional coordinates; the actual unit cell may be non-orthogonal, so that is taken care of accordingly.
+- Values in the padded region: Calculated using *wrap* mode. This means the values at x>0 are wrapped around to the values at x>1. So value at x=1.1 would be the same as that x=0.1, and so on for all three dimensions. Note that we are talking in fractional coordinates; the actual unit cell may be non-orthogonal, so that is taken care of accordingly.
 - Now the distance field can see across periodic boundaries, just a little bit using the padded region. Great!
 
 #### Finding and labeling local maxima
