@@ -3726,3 +3726,73 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
         )
 
     return traces
+
+def plot_dgrid_as_volume(
+        dgrid,
+        mat_atoms,
+        original_shape=None,           # (ox, oy, oz) of the un-padded grid
+        num_isosurfaces=5, cscale='viridis', opacity=0.1):
+    """
+    Visualise a distance grid (optionally padded in ‘wrap’ mode).
+
+    Parameters
+    ----------
+    dgrid : np.ndarray
+        3-D array holding the (possibly padded) distance grid.
+    mat_atoms : ASE Atoms object
+        Provides the unit-cell vectors.
+    original_shape : tuple[int,int,int] or None
+        Shape of the un-padded grid.  If None, the grid is assumed NOT padded.
+    num_isosurfaces : int
+        How many iso-value surfaces to draw.
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    from ase.geometry import complete_cell, cellpar_to_cell
+
+    nx, ny, nz = dgrid.shape
+
+    # ---- 1.  Fractional coordinate axes -----------------------------------
+    if original_shape is None:
+        # old behaviour: grid fills the unit cell exactly
+        x_frac = np.linspace(0, 1, nx)
+        y_frac = np.linspace(0, 1, ny)
+        z_frac = np.linspace(0, 1, nz)
+    else:
+        ox, oy, oz = original_shape
+        pad_x = (nx - ox) // 2   # # layers added on each face
+        pad_y = (ny - oy) // 2
+        pad_z = (nz - oz) // 2
+
+        # index-based formulation keeps spacing identical to the original grid
+        x_frac = (np.arange(nx) - pad_x) / ox      # −p/ox … 1+p/ox
+        y_frac = (np.arange(ny) - pad_y) / oy
+        z_frac = (np.arange(nz) - pad_z) / oz
+
+    x, y, z = np.meshgrid(x_frac, y_frac, z_frac, indexing='ij')
+
+    # ---- 2.  Convert to Cartesian -----------------------------------------
+    cell = complete_cell(cellpar_to_cell(mat_atoms.cell.cellpar())).T
+    cart_coords = np.dot(np.column_stack((x.ravel(), y.ravel(), z.ravel())), cell)
+    x_cart, y_cart, z_cart = (c.reshape(x.shape) for c in np.split(cart_coords, 3, axis=1))
+
+    # ---- 3.  Plotly Volume trace ------------------------------------------
+    volume_trace = go.Volume(
+        x=x_cart.flatten(),
+        y=y_cart.flatten(),
+        z=z_cart.flatten(),
+        value=dgrid.flatten(),
+        isomin=0,
+        isomax=dgrid.max(),
+        opacity=opacity,
+        surface_count=num_isosurfaces,
+        colorscale=cscale,
+        reversescale=True,
+        colorbar=dict(title="Distance (Å)"),
+        hoverinfo='all',
+        hoverlabel=dict(bgcolor='white'),
+        caps=dict(x_show=False, y_show=False, z_show=False),
+        name='Distance Grid',
+        showlegend=True,
+    )
+    return volume_trace
