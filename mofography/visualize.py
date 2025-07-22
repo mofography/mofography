@@ -2270,21 +2270,22 @@ def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
     :return: A plotly mesh3D trace that can be added to a plotly figure
     """
 
-    from .analyze import sgraph_from_atoms, update_with_covalent_bonds
+    from .analyze import sgraph_from_atoms, update_with_covalent_bonds, get_subset_atoms
 
+
+    # construct structure graph and subgraph
     import networkx as nx
+    import numpy as np
     mat_graph = sgraph_from_atoms(ase_atoms)
     sg = mat_graph.subgraph(subset)
-    cell = ase_atoms.get_cell()
-    from ase import Atoms
-    #make atoms object from the subgraph
-    atoms = Atoms(symbols=list(nx.get_node_attributes(sg, 'element').values()), positions = list(nx.get_node_attributes(sg, 'position').values()), cell=cell)
-    atoms_ = update_with_covalent_bonds(atoms)
-    atoms_.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
-    # bonds = [list(e) for e in sg.edges()]
-    # atoms.info['covalent_bonds'] = bonds
+    sg = nx.convert_node_labels_to_integers(sg, first_label=0)
+    subatoms =get_subset_atoms(ase_atoms, subset=subset) 
+    subatoms.info['covalent_bonds'] = np.vstack(list(sg.edges()))
+    subatoms.info['covalent_bond_orders'] = np.ones((len(subatoms.info['covalent_bonds']),), dtype=float)  # assuming all bonds are single bonds
+    subatoms.info['atom ids'] = list(nx.get_node_attributes(sg, 'element').keys())
 
-    # lets put some defualt values in for the kwargs
+
+    # plotting arguments
     stylize = kwargs.get('stylize', True)
     show_rings = kwargs.get('show_rings', True)
     # trace_name = kwargs.get('name', 'subset')
@@ -2292,11 +2293,11 @@ def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
     kwargs_frame_mesh = kwargs.get('kwargs_frame_mesh', dict(showlegend=True, showscale=False, name=name, legendgroup='subset', legendgrouptitle_text='Subset'))
     kwargs.pop('stylize', None)
     kwargs.pop('show_rings', None)
-    
     # kwargs.pop('name', None)
-
-    atoms_trace = plot_framework_as_mesh(atoms_, show_rings=show_rings, stylize =stylize, **kwargs)    
-
+    spheres= spheres_for_atoms(subatoms)
+    cylinders= cylinders_for_bonds(subatoms.info['covalent_bonds'], subatoms, show_rings=show_rings, stylize=stylize, **kwargs)
+    atoms_trace = plot_mesh(spheres+cylinders, stylize=stylize)
+    # atoms_trace = plot_framework_as_mesh(subatoms, show_rings=show_rings, stylize =stylize, **kwargs)    
     return atoms_trace
 
 def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_labels=False,
