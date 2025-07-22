@@ -6357,7 +6357,7 @@ def find_pore_limiting_radius(distance_grid):
     
     # The pore limiting diameter is the last threshold that allowed percolation
     return unique_radii[right] if right >= 0 else None
-def compute_pld(path_to_cif, kwargs={}):
+def compute_pld(path_to_cif, dgrid=None,kwargs={}):
     """
     Compute the pore limiting diameter (PLD) from a CIF file.
 
@@ -6381,9 +6381,12 @@ def compute_pld(path_to_cif, kwargs={}):
     spacing = kwargs.get('spacing', 0.5)
     block_size = kwargs.get('block_size', 50000)
     mat_atoms = read(path_to_cif)
-    distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    if dgrid is None:
+        distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    else:
+        distance_grid = dgrid
     return find_pore_limiting_radius(distance_grid)*2
-def get_pore_dia_mgr(mat_atoms, kwargs={}):
+def get_pore_dia_mgr(mat_atoms, dgrid= None, kwargs={}):
     """
     Compute the pore diameters (LCD, PLD, DFSD) from a CIF file.
 
@@ -6410,7 +6413,10 @@ def get_pore_dia_mgr(mat_atoms, kwargs={}):
     block_size = kwargs.get('block_size', 50000)
     
     # mat_atoms = read(path_to_cif)
-    distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    if dgrid is None:
+        distance_grid = dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=block_size)
+    else:
+        distance_grid = dgrid
     
     lcd = distance_grid.max() * 2
     pld = find_pore_limiting_radius(distance_grid) * 2
