@@ -9,6 +9,11 @@
                                                          
  
 # """
+
+from rdkit import Chem
+from typing import Iterable, Dict, List
+
+
 def find_functional_groups(ase_atoms, functional_groups):
     from rdkit import Chem
     from networkx.algorithms import isomorphism
@@ -823,3 +828,49 @@ def find_unique_sgraphs(sgraphs):
         return np.delete(list(range(len(sgraphs))), to_delete.astype(int))
     else:
         raise Exception(" No cycles of given lengths found!")
+
+# --------------------------------------------------------------------------- #
+def ase_to_rdkit(atoms) -> Chem.Mol:
+
+    """ASE → RDKit with bond deduplication (no sanitisation needed)."""
+    rw = Chem.RWMol()
+
+    # atoms
+    for at in atoms:
+        rw.AddAtom(Chem.Atom(int(at.number)))          # cast NumPy → int
+
+    # bonds (canonical order, unique)
+    seen = set()
+    for i, j in atoms.info["covalent_bonds"]:
+        i, j = int(i), int(j)
+        if i == j:
+            continue
+        key = (min(i, j), max(i, j))
+        if key in seen:
+            continue
+        rw.AddBond(i, j, Chem.BondType.SINGLE)
+        seen.add(key)
+
+    return rw.GetMol()
+# --------------------------------------------------------------------------- #
+
+def rings_by_size_rdkit(
+    atoms,
+    ring_lengths: Iterable[int],
+) -> Dict[int, List[List[int]]]:
+
+    """Return {ring_size: [rings]} using RDKit’s C++ ring perception."""
+    wanted = set(int(x) for x in ring_lengths)
+    out: Dict[int, List[List[int]]] = {k: [] for k in wanted}
+
+    mol = ase_to_rdkit(atoms)
+
+    # GetSymmSSSR() triggers ring perception and yields each SSSR ring
+    for ring in Chem.GetSymmSSSR(mol):      # ring is an IntVect of atom idxs
+        size = len(ring)
+        if size in wanted:
+            out[size].append(list(ring))
+
+    for k in out:                           # deterministic ordering (optional)
+        out[k].sort()
+    return out
