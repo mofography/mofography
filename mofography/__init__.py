@@ -8,7 +8,7 @@ from .helper import *
 from .data import *
 from .workflow import *
 from .raspa_helper import *
-
+from .rust_fun import *
 
 # Handle versioneer
 from ._version import get_versions
