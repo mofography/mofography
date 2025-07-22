@@ -384,8 +384,9 @@ def plot_cell(ase_atoms, color='purple', name='cell'):
 
     import plotly.graph_objects as go
     from ase.io import read
-
-    A_unit = ase_atoms.get_cell().T
+    from ase.geometry import cellpar_to_cell
+    A_unit = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    # A_unit = ase_atoms.get_cell().T
     cell_lines = draw_cell(A_unit)
     data_cell = go.Scatter3d(z=cell_lines[:, 2], y=cell_lines[:, 1], x=cell_lines[:, 0], mode='lines',
                              line=dict(color=color, width=8), name=name)
