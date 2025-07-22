@@ -1959,7 +1959,7 @@ def plot_maxima(
     from .helper import find_coord_from_indices
     maxima_coords = find_coord_from_indices(maxima, dgrid.shape, ase_atoms)
     # np.mod(maxima_indices, dgrid.shape)
-    cage_radii = dgrid[tuple((np.mod(maxima, dgrid.shape)).T)]
+    cage_radii = dgrid[tuple((np.mod(maxima, dgrid.shape)).astype(int).T)]
 
     cage_labels = [("{} A").format(c)
                    for c in np.round(cage_radii, decimals=2)]
