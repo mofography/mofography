@@ -254,8 +254,8 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
     # mesh.submesh()
 
     np.random.seed(random_seed)
-    if np.any(regions_copy) != None:  # if region labels are provided
 
+    if isinstance(regions_copy, np.ndarray) and regions_copy.ndim == 3:
         # *  Make a colorscale using random colors if no colorscale is provided
         if cscale is None:
             max_region = int(regions_copy.max())
