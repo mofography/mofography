@@ -9,6 +9,7 @@ use ordered_float::NotNan;
 use parking_lot::Mutex;
 use std::sync::Arc;
 
+
 /// Compute a distance grid (minimum atom surface distance at each grid point) for a periodic
 /// structure.
 ///
@@ -871,6 +872,726 @@ fn heap_watershed_impl(
     Ok(PyArray3::from_owned_array(py, out_arr).to_owned())
 }
 
+#[pyfunction]
+#[pyo3(signature = (grid, spacing, h, threshold_abs=None, min_distance=0.0, cell=None, refine_peaks=false, max_steps=100))]
+fn detect_maxima_h_morph(
+    py: Python<'_>,
+    grid: PyReadonlyArray3<'_, f32>,
+    spacing: f32,
+    h: f32,
+    threshold_abs: Option<f32>,
+    min_distance: f32,                       // Å
+    cell: Option<PyReadonlyArray2<'_, f64>>, // 3×3 matrix with unit vectors as columns
+    refine_peaks: bool,                      // Whether to refine peak locations using gradient ascent
+    max_steps: usize,                        // Max steps for gradient ascent
+) -> PyResult<(
+    Py<PyArray2<usize>>,
+    Py<PyArray2<usize>>,
+    Py<PyArray2<usize>>,
+)> {
+    use ndarray::{Array2, Array3};
+    use rayon::prelude::*;
+
+    // Start with original grid
+    let mut img: Array3<f32> = grid.as_array().to_owned();
+    let (nx, ny, nz) = img.dim();
+
+    // Apply absolute threshold if provided
+    if let Some(tabs) = threshold_abs {
+        img.mapv_inplace(|v| if v < tabs { -1e6 } else { v });
+    }
+
+    let total_voxels = nx * ny * nz;
+
+    // Early return for tiny grids
+    if total_voxels < 27 {
+        let empty = Array2::<usize>::zeros((0, 3));
+        return Ok((
+            PyArray2::from_owned_array(py, empty.clone()).to_owned(),
+            PyArray2::from_owned_array(py, empty.clone()).to_owned(),
+            PyArray2::from_owned_array(py, empty).to_owned(),
+        ));
+    }
+
+    // ----------- Robust morphological reconstruction by dilation (iterative) ---------------------
+
+    // Create marker image (f - h) - this is the seed for reconstruction
+    let marker = img.mapv(|v| v - h);
+    let mut recon = marker.clone();
+
+    // 26-connectivity neighbors for reconstruction (no periodic wrapping)
+    let neighbors: &[(isize, isize, isize)] = &[
+        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
+        (0, -1, -1), (0, -1, 0), (0, -1, 1),
+        (0, 0, -1),                 (0, 0, 1),
+        (0, 1, -1), (0, 1, 0), (0, 1, 1),
+        (1, -1, -1), (1, -1, 0), (1, -1, 1),
+        (1, 0, -1), (1, 0, 0), (1, 0, 1),
+        (1, 1, -1), (1, 1, 0), (1, 1, 1),
+    ];
+
+    // Iterative geodesic reconstruction until convergence
+    // This is more robust than queue-based for numerical precision
+    let mut changed = true;
+    let mut iteration = 0;
+    const MAX_ITERATIONS: usize = 1000;
+    
+    while changed && iteration < MAX_ITERATIONS {
+        changed = false;
+        iteration += 1;
+        
+        // Forward pass
+        for i in 0..nx {
+            for j in 0..ny {
+                for k in 0..nz {
+                    let current_mask = img[[i, j, k]];
+                    
+                    // Skip thresholded-out regions
+                    if current_mask <= -1e5 {
+                        continue;
+                    }
+                    
+                    let mut max_neighbor = recon[[i, j, k]];
+                    
+                    // Check all 26 neighbors
+                    for &(di, dj, dk) in neighbors {
+                        let ni = i as isize + di;
+                        let nj = j as isize + dj;
+                        let nk = k as isize + dk;
+
+                        // Check bounds (no wrapping)
+                        if ni < 0 || nj < 0 || nk < 0 {
+                            continue;
+                        }
+                        let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                        if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                            continue;
+                        }
+                        
+                        let neighbor_recon = recon[[ni_u, nj_u, nk_u]];
+                        if neighbor_recon > max_neighbor {
+                            max_neighbor = neighbor_recon;
+                        }
+                    }
+                    
+                    // Geodesic reconstruction: constrain by mask
+                    let new_val = max_neighbor.min(current_mask);
+                    
+                    // Use a small epsilon for floating point comparison
+                    if (new_val - recon[[i, j, k]]).abs() > 1e-6 {
+                        recon[[i, j, k]] = new_val;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        
+        // Backward pass for better convergence
+        for i in (0..nx).rev() {
+            for j in (0..ny).rev() {
+                for k in (0..nz).rev() {
+                    let current_mask = img[[i, j, k]];
+                    
+                    // Skip thresholded-out regions
+                    if current_mask <= -1e5 {
+                        continue;
+                    }
+                    
+                    let mut max_neighbor = recon[[i, j, k]];
+                    
+                    // Check all 26 neighbors
+                    for &(di, dj, dk) in neighbors {
+                        let ni = i as isize + di;
+                        let nj = j as isize + dj;
+                        let nk = k as isize + dk;
+
+                        // Check bounds (no wrapping)
+                        if ni < 0 || nj < 0 || nk < 0 {
+                            continue;
+                        }
+                        let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                        if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                            continue;
+                        }
+                        
+                        let neighbor_recon = recon[[ni_u, nj_u, nk_u]];
+                        if neighbor_recon > max_neighbor {
+                            max_neighbor = neighbor_recon;
+                        }
+                    }
+                    
+                    // Geodesic reconstruction: constrain by mask
+                    let new_val = max_neighbor.min(current_mask);
+                    
+                    // Use a small epsilon for floating point comparison
+                    if (new_val - recon[[i, j, k]]).abs() > 1e-6 {
+                        recon[[i, j, k]] = new_val;
+                        changed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // ----------- Compute h-dome and create regional maxima mask (correct skimage behavior) -------------
+
+    // Compute h-dome: this is the correct h-maxima transform
+    let mut h_dome = Array3::<f32>::zeros((nx, ny, nz));
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                h_dome[[i, j, k]] = img[[i, j, k]] - recon[[i, j, k]];
+            }
+        }
+    }
+
+    // Create binary mask of h-maxima regions (like skimage does)
+    // These are regions where h_dome > small threshold
+    let threshold = h - 1e-6; // Use h minus a small epsilon for floating point stability
+    let mut h_maxima_mask = Array3::<bool>::from_elem((nx, ny, nz), false);
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                if img[[i, j, k]] > -1e5 && h_dome[[i, j, k]] >= threshold {
+                    h_maxima_mask[[i, j, k]] = true;
+                }
+            }
+        }
+    }
+
+    // Find peak coordinates within each h-maxima region
+    // Use parallel processing with pre-allocated vectors for better performance
+    let coord_vals: Vec<(Vec<[usize; 3]>, Vec<f32>)> = (0..nx)
+        .into_par_iter()
+        .map(|i| {
+            let mut coords = Vec::new();
+            let mut vals = Vec::new();
+
+            for j in 0..ny {
+                for k in 0..nz {
+                    // Only process points in h-maxima regions
+                    if !h_maxima_mask[[i, j, k]] {
+                        continue;
+                    }
+
+                    // Check if this is a local maximum in the ORIGINAL image within h-maxima region
+                    let current_val = img[[i, j, k]];
+                    let mut is_local_maximum = true;
+                    
+                    // Check all 26 neighbors
+                    'neighbor_loop: for di in -1_isize..=1_isize {
+                        for dj in -1_isize..=1_isize {
+                            for dk in -1_isize..=1_isize {
+                                if di == 0 && dj == 0 && dk == 0 {
+                                    continue; // Skip center pixel
+                                }
+                                
+                                let ni = i as isize + di;
+                                let nj = j as isize + dj;
+                                let nk = k as isize + dk;
+
+                                // Check bounds (no periodic wrapping for maxima detection)
+                                if ni < 0 || nj < 0 || nk < 0 {
+                                    continue;
+                                }
+                                let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                                if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                                    continue;
+                                }
+
+                                // Compare ORIGINAL image values (not h-dome values)
+                                // Only compare within h-maxima region OR with similar values
+                                let neighbor_val = img[[ni_u, nj_u, nk_u]];
+                                if neighbor_val >= current_val {
+                                    is_local_maximum = false;
+                                    break 'neighbor_loop;
+                                }
+                            }
+                        }
+                    }
+
+                    if is_local_maximum {
+                        coords.push([i, j, k]);
+                        vals.push(current_val);
+                    }
+                }
+            }
+            (coords, vals)
+        })
+        .collect();
+
+    // Combine results from all chunks with pre-allocated capacity
+    let total_capacity: usize = coord_vals.iter().map(|(coords, _)| coords.len()).sum();
+    let mut maxima_coords: Vec<[usize; 3]> = Vec::with_capacity(total_capacity);
+    let mut maxima_vals: Vec<f32> = Vec::with_capacity(total_capacity);
+
+    for (coords, vals) in coord_vals {
+        maxima_coords.extend(coords);
+        maxima_vals.extend(vals);
+    }
+
+    // Early return if no maxima found
+    let n_raw = maxima_coords.len();
+    if n_raw == 0 {
+        let empty = Array2::<usize>::zeros((0, 3));
+        return Ok((
+            PyArray2::from_owned_array(py, empty.clone()).to_owned(),
+            PyArray2::from_owned_array(py, empty.clone()).to_owned(),
+            PyArray2::from_owned_array(py, empty).to_owned(),
+        ));
+    }
+
+    // ----------- Optional peak refinement using gradient ascent -------------------
+    
+    if refine_peaks {
+        // 27-connectivity neighbors (including center)
+        let neigh_offsets: [(isize, isize, isize); 27] = [
+            (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+            (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+            (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
+            (0, -1, -1), (0, -1, 0), (0, -1, 1),
+            (0, 0, -1), (0, 0, 0), (0, 0, 1),
+            (0, 1, -1), (0, 1, 0), (0, 1, 1),
+            (1, -1, -1), (1, -1, 0), (1, -1, 1),
+            (1, 0, -1), (1, 0, 0), (1, 0, 1),
+            (1, 1, -1), (1, 1, 0), (1, 1, 1),
+        ];
+
+        // Refine each maximum using gradient ascent
+        let refined: Vec<([usize; 3], f32)> = maxima_coords
+            .into_par_iter()
+            .zip(maxima_vals.into_par_iter())
+            .map(|(coord, _original_val)| {
+                let mut pos = coord;
+                let mut val = img[[pos[0], pos[1], pos[2]]];
+                
+                for _ in 0..max_steps {
+                    let mut best = pos;
+                    let mut best_val = val;
+                    
+                    // Check all 27 neighbors (including center for plateau detection)
+                    for &(dx, dy, dz) in &neigh_offsets {
+                        // Use periodic wrapping for gradient ascent
+                        let ni = ((pos[0] as isize + dx).rem_euclid(nx as isize)) as usize;
+                        let nj = ((pos[1] as isize + dy).rem_euclid(ny as isize)) as usize;
+                        let nk = ((pos[2] as isize + dz).rem_euclid(nz as isize)) as usize;
+                        let v = img[[ni, nj, nk]];
+                        
+                        if v > best_val {
+                            best_val = v;
+                            best = [ni, nj, nk];
+                        }
+                    }
+                    
+                    // Stop if we've reached a plateau or local maximum
+                    if best_val <= val {
+                        break;
+                    }
+                    pos = best;
+                    val = best_val;
+                }
+                (pos, val)
+            })
+            .collect();
+
+        // Update coordinates and values with refined results
+        maxima_coords = refined.iter().map(|(coord, _)| *coord).collect();
+        maxima_vals = refined.iter().map(|(_, val)| *val).collect();
+    }
+
+    // ----------- Merging with spatial indexing (periodic and non-periodic) -------------------
+
+    let dims = (nx, ny, nz);
+    let cell_ref = cell.as_ref().map(|c| c.as_array());
+
+    let merged_pbc_coords = merge_maxima_optimized(
+        &maxima_coords,
+        &maxima_vals,
+        spacing,
+        min_distance,
+        cell_ref.as_ref(),
+        dims,
+        true, // periodic wrapping for merging
+    );
+
+    let merged_cart_coords = merge_maxima_optimized(
+        &maxima_coords,
+        &maxima_vals,
+        spacing,
+        min_distance,
+        cell_ref.as_ref(),
+        dims,
+        false, // no wrapping for merging
+    );
+
+    // Convert to NumPy arrays with pre-calculated sizes
+    let raw_arr =
+        Array2::<usize>::from_shape_vec((n_raw, 3), maxima_coords.into_iter().flatten().collect())
+            .unwrap();
+    let merged_pbc_arr = Array2::<usize>::from_shape_vec(
+        (merged_pbc_coords.len(), 3),
+        merged_pbc_coords.into_iter().flatten().collect(),
+    )
+    .unwrap();
+    let merged_cart_arr = Array2::<usize>::from_shape_vec(
+        (merged_cart_coords.len(), 3),
+        merged_cart_coords.into_iter().flatten().collect(),
+    )
+    .unwrap();
+
+    Ok((
+        PyArray2::from_owned_array(py, merged_pbc_arr).to_owned(),
+        PyArray2::from_owned_array(py, merged_cart_arr).to_owned(),
+        PyArray2::from_owned_array(py, raw_arr).to_owned(),
+    ))
+}
+
+// -----------------------------------------------------------------------------
+// Helper: merge maxima with/without periodic wrapping
+// -----------------------------------------------------------------------------
+fn merge_maxima(
+    coords: &[[usize; 3]],
+    values: &[f32],
+    _spacing: f32, // Unused but kept for API compatibility
+    min_distance: f32,
+    cell: Option<&ndarray::ArrayView2<'_, f64>>, // full cell (Å)
+    dims: (usize, usize, usize),
+    periodic: bool,
+) -> Vec<[usize; 3]> {
+    let (nx, ny, nz) = dims;
+    let n = coords.len();
+    if n == 0 {
+        return Vec::new();
+    }
+
+    // If min_distance is 0.0, skip merging entirely
+    if min_distance <= 0.0 {
+        return coords.to_vec();
+    }
+    let merge_radius = min_distance;
+
+    let mut uf = UnionFind::new(n);
+
+    for a in 0..n {
+        for b in (a + 1)..n {
+            let [ia, ja, ka] = coords[a];
+            let [ib, jb, kb] = coords[b];
+
+            // Convert voxel coordinates to fractional coordinates (-0.5 to 0.5)
+            // This matches the coordinate system used in dgrid_from_atoms (linspace convention)
+            let frac_a = [
+                -0.5 + (ia as f64) / ((nx - 1) as f64),
+                -0.5 + (ja as f64) / ((ny - 1) as f64),
+                -0.5 + (ka as f64) / ((nz - 1) as f64),
+            ];
+            let frac_b = [
+                -0.5 + (ib as f64) / ((nx - 1) as f64),
+                -0.5 + (jb as f64) / ((ny - 1) as f64),
+                -0.5 + (kb as f64) / ((nz - 1) as f64),
+            ];
+
+            // Calculate fractional difference
+            let mut dfrac = [
+                frac_a[0] - frac_b[0],
+                frac_a[1] - frac_b[1],
+                frac_a[2] - frac_b[2],
+            ];
+
+            // Apply minimum image convention in fractional space if periodic
+            if periodic {
+                dfrac[0] -= dfrac[0].round();
+                dfrac[1] -= dfrac[1].round();
+                dfrac[2] -= dfrac[2].round();
+            }
+
+            // Cartesian distance (Å) using cell matrix
+            // This works for both orthogonal and non-orthogonal cells
+            let dist = if let Some(cmat) = cell {
+                // Transform fractional difference to Cartesian using cell matrix
+                // cell matrix has lattice vectors as columns: r = cell * frac_coords
+                let cart_x =
+                    cmat[[0, 0]] * dfrac[0] + cmat[[0, 1]] * dfrac[1] + cmat[[0, 2]] * dfrac[2];
+                let cart_y =
+                    cmat[[1, 0]] * dfrac[0] + cmat[[1, 1]] * dfrac[1] + cmat[[1, 2]] * dfrac[2];
+                let cart_z =
+                    cmat[[2, 0]] * dfrac[0] + cmat[[2, 1]] * dfrac[1] + cmat[[2, 2]] * dfrac[2];
+                ((cart_x.powi(2) + cart_y.powi(2) + cart_z.powi(2)).sqrt()) as f32
+            } else {
+                // No cell matrix provided - cannot compute proper distances
+                // This should not happen for crystallographic systems
+                return Vec::new();
+            };
+
+            if dist < merge_radius {
+                uf.union(a, b);
+            }
+        }
+    }
+
+    // pick the member with the highest value within each cluster
+    let mut merged: Vec<[usize; 3]> = Vec::new();
+    let clusters = uf.get_clusters();
+    for indices in clusters.values() {
+        // Pick the member with highest value (no boundary preference for PBC)
+        let mut best = indices[0];
+        for &idx in indices {
+            if values[idx] > values[best] {
+                best = idx;
+            }
+        }
+        merged.push(coords[best]);
+    }
+    merged
+}
+
+// -----------------------------------------------------------------------------
+// Optimized merging with spatial indexing for better performance on large datasets
+// -----------------------------------------------------------------------------
+fn merge_maxima_optimized(
+    coords: &[[usize; 3]],
+    values: &[f32],
+    spacing: f32, // Still used for bin_size calculation
+    min_distance: f32,
+    cell: Option<&ndarray::ArrayView2<'_, f64>>,
+    dims: (usize, usize, usize),
+    periodic: bool,
+) -> Vec<[usize; 3]> {
+    let (nx, ny, nz) = dims;
+    let n = coords.len();
+    if n == 0 {
+        return Vec::new();
+    }
+
+    // If min_distance is 0.0, skip merging entirely
+    if min_distance <= 0.0 {
+        return coords.to_vec();
+    }
+    let merge_radius = min_distance;
+
+    // For small datasets, use the simple O(n²) approach
+    if n < 1000 {
+        return merge_maxima(coords, values, spacing, min_distance, cell, dims, periodic);
+    }
+
+    // For larger datasets, use spatial binning to reduce comparisons
+    let mut uf = UnionFind::new(n);
+
+    // Create spatial bins to reduce pairwise comparisons
+    let bin_size = (merge_radius / spacing).max(1.0) as usize;
+    let bin_nx = (nx + bin_size - 1) / bin_size;
+    let bin_ny = (ny + bin_size - 1) / bin_size;
+    let bin_nz = (nz + bin_size - 1) / bin_size;
+
+    // Map each coordinate to its spatial bin
+    let mut bins: HashMap<(usize, usize, usize), Vec<usize>> = HashMap::new();
+
+    for (idx, &[i, j, k]) in coords.iter().enumerate() {
+        let bin_i = i / bin_size;
+        let bin_j = j / bin_size;
+        let bin_k = k / bin_size;
+        bins.entry((bin_i, bin_j, bin_k)).or_default().push(idx);
+    }
+
+    // Only compare points within neighboring bins
+    for (&(bi, bj, bk), indices) in &bins {
+        // Check current bin and neighboring bins (proper 3x3x3 neighborhood)
+        for di in -1_isize..=1_isize {
+            for dj in -1_isize..=1_isize {
+                for dk in -1_isize..=1_isize {
+                    let ni = bi as isize + di;
+                    let nj = bj as isize + dj;
+                    let nk = bk as isize + dk;
+
+                    // Handle periodic wrapping of bins if needed
+                    let (actual_ni, actual_nj, actual_nk) = if periodic {
+                        (
+                            ni.rem_euclid(bin_nx as isize) as usize,
+                            nj.rem_euclid(bin_ny as isize) as usize,
+                            nk.rem_euclid(bin_nz as isize) as usize,
+                        )
+                    } else {
+                        if ni < 0 || nj < 0 || nk < 0 || ni >= bin_nx as isize || nj >= bin_ny as isize || nk >= bin_nz as isize {
+                            continue;
+                        }
+                        (ni as usize, nj as usize, nk as usize)
+                    };
+
+                    if let Some(neighbor_indices) = bins.get(&(actual_ni, actual_nj, actual_nk)) {
+                        // Compare all pairs between current bin and neighbor bin
+                        for &a in indices {
+                            for &b in neighbor_indices {
+                                if a >= b {
+                                    continue;
+                                } // Avoid duplicate comparisons
+
+                                let [ia, ja, ka] = coords[a];
+                                let [ib, jb, kb] = coords[b];
+
+                                // Convert voxel coordinates to fractional coordinates (-0.5 to 0.5)
+                                // This matches the coordinate system used in dgrid_from_atoms (linspace convention)
+                                let frac_a = [
+                                    -0.5 + (ia as f64) / ((nx - 1) as f64),
+                                    -0.5 + (ja as f64) / ((ny - 1) as f64),
+                                    -0.5 + (ka as f64) / ((nz - 1) as f64),
+                                ];
+                                let frac_b = [
+                                    -0.5 + (ib as f64) / ((nx - 1) as f64),
+                                    -0.5 + (jb as f64) / ((ny - 1) as f64),
+                                    -0.5 + (kb as f64) / ((nz - 1) as f64),
+                                ];
+
+                                // Calculate fractional difference
+                                let mut dfrac = [
+                                    frac_a[0] - frac_b[0],
+                                    frac_a[1] - frac_b[1],
+                                    frac_a[2] - frac_b[2],
+                                ];
+
+                                // Apply minimum image convention in fractional space if periodic
+                                if periodic {
+                                    dfrac[0] -= dfrac[0].round();
+                                    dfrac[1] -= dfrac[1].round();
+                                    dfrac[2] -= dfrac[2].round();
+                                }
+
+                                // Cartesian distance using cell matrix
+                                // This works for both orthogonal and non-orthogonal cells
+                                let dist = if let Some(cmat) = cell {
+                                    // Transform fractional difference to Cartesian using cell matrix
+                                    // cell matrix has lattice vectors as columns: r = cell * frac_coords
+                                    let cart_x = cmat[[0, 0]] * dfrac[0]
+                                        + cmat[[0, 1]] * dfrac[1]
+                                        + cmat[[0, 2]] * dfrac[2];
+                                    let cart_y = cmat[[1, 0]] * dfrac[0]
+                                        + cmat[[1, 1]] * dfrac[1]
+                                        + cmat[[1, 2]] * dfrac[2];
+                                    let cart_z = cmat[[2, 0]] * dfrac[0]
+                                        + cmat[[2, 1]] * dfrac[1]
+                                        + cmat[[2, 2]] * dfrac[2];
+                                    ((cart_x.powi(2) + cart_y.powi(2) + cart_z.powi(2)).sqrt())
+                                        as f32
+                                } else {
+                                    // No cell matrix provided - cannot compute proper distances
+                                    // Skip this comparison
+                                    continue;
+                                };
+
+                                if dist < merge_radius {
+                                    uf.union(a, b);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Extract clusters and pick best representative from each
+    let mut merged: Vec<[usize; 3]> = Vec::new();
+    let clusters = uf.get_clusters();
+    for indices in clusters.values() {
+        // Pick the member with highest value (no boundary preference for PBC)
+        let mut best = indices[0];
+        for &idx in indices {
+            if values[idx] > values[best] {
+                best = idx;
+            }
+        }
+        merged.push(coords[best]);
+    }
+    merged
+}
+
+/// Move maxima to exact peak locations using gradient ascent
+/// This refines the peak locations found by h-maxima detection
+#[pyfunction]
+#[pyo3(signature = (grid, starts, max_steps=100))]
+fn move_maxima_to_peaks(
+    py: Python<'_>,
+    grid: PyReadonlyArray3<'_, f32>,
+    starts: PyReadonlyArray2<'_, usize>, // (n,3)
+    max_steps: Option<usize>,
+) -> PyResult<(Py<PyArray2<usize>>, Py<PyArray1<f32>>)> {
+    use ndarray::{Array1, Array2};
+    use rayon::prelude::*;
+    
+    // Clone into owned ndarrays so the underlying data is independent of the
+    // PyArray and therefore `Sync`/`Send`.
+    let g = grid.as_array().to_owned();
+    let starts_owned = starts.as_array().to_owned();
+
+    let (nx, ny, nz) = g.dim();
+    let n = starts_owned.dim().0;
+    let ms = max_steps.unwrap_or(100);
+
+    // 27-connectivity neighbors (including center)
+    let neigh_offsets: [(isize, isize, isize); 27] = [
+        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
+        (0, -1, -1), (0, -1, 0), (0, -1, 1),
+        (0, 0, -1), (0, 0, 0), (0, 0, 1),
+        (0, 1, -1), (0, 1, 0), (0, 1, 1),
+        (1, -1, -1), (1, -1, 0), (1, -1, 1),
+        (1, 0, -1), (1, 0, 0), (1, 0, 1),
+        (1, 1, -1), (1, 1, 0), (1, 1, 1),
+    ];
+
+    let peaks: Vec<([usize; 3], f32)> = (0..n)
+        .into_par_iter()
+        .map(|idx| {
+            let s_row = starts_owned.row(idx);
+            let mut pos = [s_row[0], s_row[1], s_row[2]];
+            let mut val = g[[pos[0], pos[1], pos[2]]];
+            
+            for _ in 0..ms {
+                let mut best = pos;
+                let mut best_val = val;
+                
+                // Check all 27 neighbors (including center for plateau detection)
+                for &(dx, dy, dz) in &neigh_offsets {
+                    // Use periodic wrapping for gradient ascent
+                    let ni = ((pos[0] as isize + dx).rem_euclid(nx as isize)) as usize;
+                    let nj = ((pos[1] as isize + dy).rem_euclid(ny as isize)) as usize;
+                    let nk = ((pos[2] as isize + dz).rem_euclid(nz as isize)) as usize;
+                    let v = g[[ni, nj, nk]];
+                    
+                    if v > best_val {
+                        best_val = v;
+                        best = [ni, nj, nk];
+                    }
+                }
+                
+                // Stop if we've reached a plateau or local maximum
+                if best_val <= val {
+                    break;
+                }
+                pos = best;
+                val = best_val;
+            }
+            (pos, val)
+        })
+        .collect();
+
+    // Split into separate arrays
+    let mut coords_vec: Vec<usize> = Vec::with_capacity(n * 3);
+    let mut vals_vec: Vec<f32> = Vec::with_capacity(n);
+    for (p, v) in peaks {
+        coords_vec.extend_from_slice(&p);
+        vals_vec.push(v);
+    }
+    let coords_arr = Array2::from_shape_vec((n, 3), coords_vec).expect("shape error");
+    let vals_arr = Array1::from_vec(vals_vec);
+    
+    Ok((
+        PyArray2::from_owned_array(py, coords_arr).to_owned(),
+        PyArray1::from_owned_array(py, vals_arr).to_owned(),
+    ))
+}
+
 #[pymodule]
 fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Enable better error reporting when the module is imported from Python.
@@ -883,7 +1604,9 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(seeded_watershed_bucket, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked"])?;
+    m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
+    m.add_function(wrap_pyfunction!(move_maxima_to_peaks, m)?)?;
+    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "move_maxima_to_peaks"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
