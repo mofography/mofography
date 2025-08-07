@@ -3178,6 +3178,260 @@ fn detect_maxima_selective_smoothing_parallel(
     ))
 }
 
+/// Selective smoothing with nested parallelization (Strategy 2)
+/// Parallelizes both grid points AND individual Gaussian kernel computations
+#[pyfunction]
+#[pyo3(signature = (grid, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, h=0.2, cell=None, min_distance=1.5, mask_thickness=None, threshold_abs=None))]
+fn detect_maxima_selective_smoothing_parallel2(
+    py: Python<'_>,
+    grid: PyReadonlyArray3<'_, f32>,
+    preserve_threshold: f32,   // Preserve features smaller than this (default 3.0 Å)
+    smooth_threshold: f32,     // Smooth features larger than this (default 6.0 Å)
+    max_smooth_radius: f32,    // Maximum smoothing radius in grid units (default 2.0)
+    h: f32,                    // Single h parameter after smoothing (default 0.2)
+    cell: Option<PyReadonlyArray2<'_, f64>>,
+    min_distance: f32,         // Distance merging threshold (default 1.5 Å)
+    mask_thickness: Option<f32>,
+    threshold_abs: Option<f32>, // Absolute threshold (default 1.5 Å)
+) -> PyResult<(
+    Py<PyArray2<usize>>,
+    Py<PyArray2<usize>>,
+    Py<PyArray2<usize>>,
+)> {
+    use ndarray::{Array3, Array2};
+    
+    let dgrid = grid.as_array();
+    let (nx, ny, nz) = dgrid.dim();
+    let total_points = nx * ny * nz;
+    
+    // Step 1: Create smoothing radius field (parallelized)
+    let smooth_radii_data: Vec<f32> = (0..total_points)
+        .into_par_iter()
+        .map(|flat_idx| {
+            // Unravel flat index into 3D coordinates
+            let i = flat_idx / (ny * nz);
+            let j = (flat_idx / nz) % ny;
+            let k = flat_idx % nz;
+            
+            let local_pore_size = dgrid[[i, j, k]];
+            
+            if local_pore_size < preserve_threshold {
+                // Small pockets - minimal smoothing (preserve features)
+                0.0
+            } else if local_pore_size > smooth_threshold {
+                // Large channels - maximum smoothing (remove roughness)
+                max_smooth_radius
+            } else {
+                // Intermediate - linear interpolation
+                let fraction = (local_pore_size - preserve_threshold) / (smooth_threshold - preserve_threshold);
+                fraction * max_smooth_radius
+            }
+        })
+        .collect();
+    
+    let smooth_radii = Array3::from_shape_vec((nx, ny, nz), smooth_radii_data)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Shape error: {}", e)))?;
+    
+    // Step 2: Apply spatially-varying Gaussian smoothing with NESTED PARALLELIZATION
+    let smoothed_data: Vec<f32> = (0..total_points)
+        .into_par_iter()
+        .map(|flat_idx| {
+            // Unravel flat index into 3D coordinates
+            let i = flat_idx / (ny * nz);
+            let j = (flat_idx / nz) % ny;
+            let k = flat_idx % nz;
+            
+            let smooth_radius = smooth_radii[[i, j, k]];
+            
+            if smooth_radius > 0.1 { // Only smooth if radius is significant
+                let kernel_size = (smooth_radius * 3.0).ceil() as i32; // 3-sigma kernel
+                
+                // STRATEGY 2: Parallelize the Gaussian kernel computation more conservatively
+                let sigma_sq = smooth_radius * smooth_radius;
+                
+                let weighted_sum: f64 = (-kernel_size..=kernel_size)
+                    .into_par_iter()
+                    .map(|di| {
+                        (-kernel_size..=kernel_size)
+                            .map(|dj| {
+                                (-kernel_size..=kernel_size)
+                                    .map(|dk| {
+                                        let ni = (i as i32 + di).rem_euclid(nx as i32) as usize;
+                                        let nj = (j as i32 + dj).rem_euclid(ny as i32) as usize;
+                                        let nk = (k as i32 + dk).rem_euclid(nz as i32) as usize;
+                                        
+                                        let dist_sq = (di * di + dj * dj + dk * dk) as f64;
+                                        let weight = (-0.5 * dist_sq / (sigma_sq as f64)).exp();
+                                        
+                                        weight * dgrid[[ni, nj, nk]] as f64
+                                    })
+                                    .sum::<f64>()
+                            })
+                            .sum::<f64>()
+                    })
+                    .sum::<f64>();
+                
+                let total_weight: f64 = (-kernel_size..=kernel_size)
+                    .into_par_iter()
+                    .map(|di| {
+                        (-kernel_size..=kernel_size)
+                            .map(|dj| {
+                                (-kernel_size..=kernel_size)
+                                    .map(|dk| {
+                                        let dist_sq = (di * di + dj * dj + dk * dk) as f64;
+                                        (-0.5 * dist_sq / (sigma_sq as f64)).exp()
+                                    })
+                                    .sum::<f64>()
+                            })
+                            .sum::<f64>()
+                    })
+                    .sum::<f64>();
+                
+                if total_weight > 0.0 {
+                    (weighted_sum / total_weight) as f32
+                } else {
+                    dgrid[[i, j, k]]
+                }
+            } else {
+                dgrid[[i, j, k]] // No smoothing
+            }
+        })
+        .collect();
+    
+    let smoothed_grid = Array3::from_shape_vec((nx, ny, nz), smoothed_data)
+        .map_err(|e| pyo3::exceptions::PyValueError::new_err(format!("Shape error: {}", e)))?;
+    
+    // Step 3: Apply h-maxima detection (same as original)
+    let mut img = smoothed_grid.clone();
+    
+    // Apply mask_thickness if provided
+    if let Some(mt) = mask_thickness {
+        for ((i, j, k), val) in img.indexed_iter_mut() {
+            if dgrid[[i, j, k]] <= mt {
+                *val = -1e6; // Large negative value to exclude
+            }
+        }
+    }
+    
+    // Morphological reconstruction for h-maxima
+    let mut marker = img.clone();
+    for val in marker.iter_mut() {
+        *val -= h;
+    }
+    
+    // Simple iterative reconstruction
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for i in 0..nx {
+            for j in 0..ny {
+                for k in 0..nz {
+                    let old_val = marker[[i, j, k]];
+                    let img_val = img[[i, j, k]];
+                    marker[[i, j, k]] = marker[[i, j, k]].min(img_val);
+                    
+                    // Check 6-connected neighbors with periodic boundaries
+                    let neighbors = [
+                        ((i + nx - 1) % nx, j, k),
+                        ((i + 1) % nx, j, k),
+                        (i, (j + ny - 1) % ny, k),
+                        (i, (j + 1) % ny, k),
+                        (i, j, (k + nz - 1) % nz),
+                        (i, j, (k + 1) % nz),
+                    ];
+                    
+                    for (ni, nj, nk) in neighbors {
+                        let neighbor_val = marker[[ni, nj, nk]];
+                        let new_val = neighbor_val.min(img_val);
+                        if new_val > marker[[i, j, k]] {
+                            marker[[i, j, k]] = new_val;
+                            if marker[[i, j, k]] != old_val {
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Compute h-dome
+    let mut h_dome = Array3::<f32>::zeros((nx, ny, nz));
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                h_dome[[i, j, k]] = img[[i, j, k]] - marker[[i, j, k]];
+            }
+        }
+    }
+    
+    let threshold = h * 0.9; // Slightly looser threshold
+    let mut maxima_coords = Vec::new();
+    
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                if img[[i, j, k]] > -1e5 && h_dome[[i, j, k]] >= threshold {
+                    maxima_coords.push([i, j, k]);
+                }
+            }
+        }
+    }
+    
+    // Apply absolute threshold filter
+    let mut maxima_coords_filtered = Vec::new();
+    for coord in &maxima_coords {
+        let val = dgrid[[coord[0], coord[1], coord[2]]]; // Use original dgrid value
+        if let Some(tabs) = threshold_abs {
+            if val < tabs { continue; }
+        }
+        maxima_coords_filtered.push(*coord);
+    }
+    
+    // Merge with distance-based clustering
+    let cell_ref = cell.as_ref().map(|c| c.as_array());
+    let maxima_vals: Vec<f32> = maxima_coords_filtered.iter().map(|c| dgrid[[c[0], c[1], c[2]]]).collect();
+    
+    // Apply merging only if min_distance > 0
+    let merged_pbc_coords = if min_distance > 0.0 {
+        merge_maxima_simple(
+            &maxima_coords_filtered,
+            &maxima_vals,
+            min_distance,
+            cell_ref.as_ref(),
+            (nx, ny, nz),
+            true, // periodic
+        )
+    } else {
+        maxima_coords_filtered.clone() // No merging
+    };
+    
+    let merged_cart_coords = if min_distance > 0.0 {
+        merge_maxima_simple(
+            &maxima_coords_filtered,
+            &maxima_vals,
+            min_distance,
+            cell_ref.as_ref(),
+            (nx, ny, nz),
+            false, // non-periodic
+        )
+    } else {
+        maxima_coords_filtered.clone() // No merging  
+    };
+    
+    // Convert to NumPy arrays
+    let n_raw = maxima_coords_filtered.len();
+    let raw_arr = Array2::<usize>::from_shape_vec((n_raw, 3), maxima_coords_filtered.iter().flat_map(|c| c.iter()).cloned().collect()).unwrap();
+    let merged_pbc_arr = Array2::<usize>::from_shape_vec((merged_pbc_coords.len(), 3), merged_pbc_coords.iter().flat_map(|c| c.iter()).cloned().collect()).unwrap();
+    let merged_cart_arr = Array2::<usize>::from_shape_vec((merged_cart_coords.len(), 3), merged_cart_coords.iter().flat_map(|c| c.iter()).cloned().collect()).unwrap();
+    
+    Ok((
+        PyArray2::from_owned_array(py, merged_pbc_arr).to_owned(),
+        PyArray2::from_owned_array(py, merged_cart_arr).to_owned(),
+        PyArray2::from_owned_array(py, raw_arr).to_owned(),
+    ))
+}
+
 /// Percolation-guided maxima detection with geometric intelligence.
 /// Uses connectivity analysis at multiple scales to understand local pore geometry,
 /// then applies geometry-aware processing:
@@ -4797,6 +5051,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_maxima_adaptive_geometry, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_selective_smoothing, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_selective_smoothing_parallel, m)?)?;
+    m.add_function(wrap_pyfunction!(detect_maxima_selective_smoothing_parallel2, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_percolation_guided, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_voronoi_based, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_multiscale_log, m)?)?;
@@ -4804,8 +5059,325 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_test_py, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_local_maxima_pbc", "find_local_maxima_cart", "detect_maxima_test_py"])?;
+    m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
+    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_local_maxima_pbc", "find_local_maxima_cart", "detect_maxima_test_py", "find_pore_limiting_radius"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
-} 
+}
+
+// ============================================================================
+// Pore Limiting Radius (PLD) calculation functions
+// ============================================================================
+
+/// Pad array with periodic boundaries (wrap mode)
+fn pad_periodic_3d(arr: &Array3<f32>) -> Array3<f32> {
+    let (nx, ny, nz) = arr.dim();
+    let mut padded = Array3::<f32>::zeros((nx + 2, ny + 2, nz + 2));
+    
+    // Copy central region
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                padded[[i + 1, j + 1, k + 1]] = arr[[i, j, k]];
+            }
+        }
+    }
+    
+    // Wrap edges, faces, and corners
+    // X-direction wrapping
+    for j in 0..ny {
+        for k in 0..nz {
+            padded[[0, j + 1, k + 1]] = arr[[nx - 1, j, k]];
+            padded[[nx + 1, j + 1, k + 1]] = arr[[0, j, k]];
+        }
+    }
+    
+    // Y-direction wrapping
+    for i in 0..nx {
+        for k in 0..nz {
+            padded[[i + 1, 0, k + 1]] = arr[[i, ny - 1, k]];
+            padded[[i + 1, ny + 1, k + 1]] = arr[[i, 0, k]];
+        }
+    }
+    
+    // Z-direction wrapping
+    for i in 0..nx {
+        for j in 0..ny {
+            padded[[i + 1, j + 1, 0]] = arr[[i, j, nz - 1]];
+            padded[[i + 1, j + 1, nz + 1]] = arr[[i, j, 0]];
+        }
+    }
+    
+    // Corner wrapping (8 corners)
+    // X-Y edges
+    for k in 0..nz {
+        padded[[0, 0, k + 1]] = arr[[nx - 1, ny - 1, k]];
+        padded[[0, ny + 1, k + 1]] = arr[[nx - 1, 0, k]];
+        padded[[nx + 1, 0, k + 1]] = arr[[0, ny - 1, k]];
+        padded[[nx + 1, ny + 1, k + 1]] = arr[[0, 0, k]];
+    }
+    
+    // X-Z edges  
+    for j in 0..ny {
+        padded[[0, j + 1, 0]] = arr[[nx - 1, j, nz - 1]];
+        padded[[0, j + 1, nz + 1]] = arr[[nx - 1, j, 0]];
+        padded[[nx + 1, j + 1, 0]] = arr[[0, j, nz - 1]];
+        padded[[nx + 1, j + 1, nz + 1]] = arr[[0, j, 0]];
+    }
+    
+    // Y-Z edges
+    for i in 0..nx {
+        padded[[i + 1, 0, 0]] = arr[[i, ny - 1, nz - 1]];
+        padded[[i + 1, 0, nz + 1]] = arr[[i, ny - 1, 0]];
+        padded[[i + 1, ny + 1, 0]] = arr[[i, 0, nz - 1]];
+        padded[[i + 1, ny + 1, nz + 1]] = arr[[i, 0, 0]];
+    }
+    
+    // 8 corner vertices
+    padded[[0, 0, 0]] = arr[[nx - 1, ny - 1, nz - 1]];
+    padded[[0, 0, nz + 1]] = arr[[nx - 1, ny - 1, 0]];
+    padded[[0, ny + 1, 0]] = arr[[nx - 1, 0, nz - 1]];
+    padded[[0, ny + 1, nz + 1]] = arr[[nx - 1, 0, 0]];
+    padded[[nx + 1, 0, 0]] = arr[[0, ny - 1, nz - 1]];
+    padded[[nx + 1, 0, nz + 1]] = arr[[0, ny - 1, 0]];
+    padded[[nx + 1, ny + 1, 0]] = arr[[0, 0, nz - 1]];
+    padded[[nx + 1, ny + 1, nz + 1]] = arr[[0, 0, 0]];
+    
+    padded
+}
+
+/// Check if percolation exists at a given threshold with periodic boundary conditions
+fn check_percolation_periodic(distance_grid: &Array3<f32>, threshold: f32) -> bool {
+    // Create binary grid where true represents void space
+    let binary_grid = distance_grid.mapv(|v| if v > threshold { 1u8 } else { 0u8 });
+    
+    // Pad with periodic boundaries
+    let padded_grid = {
+        let (nx, ny, nz) = binary_grid.dim();
+        let mut padded = Array3::<u8>::zeros((nx + 2, ny + 2, nz + 2));
+        
+        // Copy central region
+        for i in 0..nx {
+            for j in 0..ny {
+                for k in 0..nz {
+                    padded[[i + 1, j + 1, k + 1]] = binary_grid[[i, j, k]];
+                }
+            }
+        }
+        
+        // Wrap edges, faces, and corners (similar to pad_periodic_3d but for u8)
+        // X-direction wrapping
+        for j in 0..ny {
+            for k in 0..nz {
+                padded[[0, j + 1, k + 1]] = binary_grid[[nx - 1, j, k]];
+                padded[[nx + 1, j + 1, k + 1]] = binary_grid[[0, j, k]];
+            }
+        }
+        
+        // Y-direction wrapping
+        for i in 0..nx {
+            for k in 0..nz {
+                padded[[i + 1, 0, k + 1]] = binary_grid[[i, ny - 1, k]];
+                padded[[i + 1, ny + 1, k + 1]] = binary_grid[[i, 0, k]];
+            }
+        }
+        
+        // Z-direction wrapping
+        for i in 0..nx {
+            for j in 0..ny {
+                padded[[i + 1, j + 1, 0]] = binary_grid[[i, j, nz - 1]];
+                padded[[i + 1, j + 1, nz + 1]] = binary_grid[[i, j, 0]];
+            }
+        }
+        
+        // Corner wrapping
+        for k in 0..nz {
+            padded[[0, 0, k + 1]] = binary_grid[[nx - 1, ny - 1, k]];
+            padded[[0, ny + 1, k + 1]] = binary_grid[[nx - 1, 0, k]];
+            padded[[nx + 1, 0, k + 1]] = binary_grid[[0, ny - 1, k]];
+            padded[[nx + 1, ny + 1, k + 1]] = binary_grid[[0, 0, k]];
+        }
+        
+        for j in 0..ny {
+            padded[[0, j + 1, 0]] = binary_grid[[nx - 1, j, nz - 1]];
+            padded[[0, j + 1, nz + 1]] = binary_grid[[nx - 1, j, 0]];
+            padded[[nx + 1, j + 1, 0]] = binary_grid[[0, j, nz - 1]];
+            padded[[nx + 1, j + 1, nz + 1]] = binary_grid[[0, j, 0]];
+        }
+        
+        for i in 0..nx {
+            padded[[i + 1, 0, 0]] = binary_grid[[i, ny - 1, nz - 1]];
+            padded[[i + 1, 0, nz + 1]] = binary_grid[[i, ny - 1, 0]];
+            padded[[i + 1, ny + 1, 0]] = binary_grid[[i, 0, nz - 1]];
+            padded[[i + 1, ny + 1, nz + 1]] = binary_grid[[i, 0, 0]];
+        }
+        
+        padded[[0, 0, 0]] = binary_grid[[nx - 1, ny - 1, nz - 1]];
+        padded[[0, 0, nz + 1]] = binary_grid[[nx - 1, ny - 1, 0]];
+        padded[[0, ny + 1, 0]] = binary_grid[[nx - 1, 0, nz - 1]];
+        padded[[0, ny + 1, nz + 1]] = binary_grid[[nx - 1, 0, 0]];
+        padded[[nx + 1, 0, 0]] = binary_grid[[0, ny - 1, nz - 1]];
+        padded[[nx + 1, 0, nz + 1]] = binary_grid[[0, ny - 1, 0]];
+        padded[[nx + 1, ny + 1, 0]] = binary_grid[[0, 0, nz - 1]];
+        padded[[nx + 1, ny + 1, nz + 1]] = binary_grid[[0, 0, 0]];
+        
+        padded
+    };
+    
+    // Label connected components using 6-connectivity (face neighbors)
+    let (padded_nx, padded_ny, padded_nz) = padded_grid.dim();
+    let mut labeled = Array3::<u32>::zeros((padded_nx, padded_ny, padded_nz));
+    let mut current_label = 1u32;
+    
+    // Simple flood fill labeling
+    for i in 0..padded_nx {
+        for j in 0..padded_ny {
+            for k in 0..padded_nz {
+                if padded_grid[[i, j, k]] == 1 && labeled[[i, j, k]] == 0 {
+                    // Start flood fill
+                    flood_fill_label(&mut labeled, &padded_grid, i, j, k, current_label);
+                    current_label += 1;
+                }
+            }
+        }
+    }
+    
+    // Remove padding to get original dimensions
+    let (nx, ny, nz) = distance_grid.dim();
+    let mut unpadded_labeled = Array3::<u32>::zeros((nx, ny, nz));
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                unpadded_labeled[[i, j, k]] = labeled[[i + 1, j + 1, k + 1]];
+            }
+        }
+    }
+    
+    // Check percolation in all three directions
+    for axis in 0..3 {
+        let mut face1_labels = HashSet::new();
+        let mut face2_labels = HashSet::new();
+        
+        match axis {
+            0 => {
+                // X-direction: check i=0 vs i=nx-1
+                for j in 0..ny {
+                    for k in 0..nz {
+                        let label1 = unpadded_labeled[[0, j, k]];
+                        let label2 = unpadded_labeled[[nx - 1, j, k]];
+                        if label1 != 0 { face1_labels.insert(label1); }
+                        if label2 != 0 { face2_labels.insert(label2); }
+                    }
+                }
+            },
+            1 => {
+                // Y-direction: check j=0 vs j=ny-1
+                for i in 0..nx {
+                    for k in 0..nz {
+                        let label1 = unpadded_labeled[[i, 0, k]];
+                        let label2 = unpadded_labeled[[i, ny - 1, k]];
+                        if label1 != 0 { face1_labels.insert(label1); }
+                        if label2 != 0 { face2_labels.insert(label2); }
+                    }
+                }
+            },
+            2 => {
+                // Z-direction: check k=0 vs k=nz-1
+                for i in 0..nx {
+                    for j in 0..ny {
+                        let label1 = unpadded_labeled[[i, j, 0]];
+                        let label2 = unpadded_labeled[[i, j, nz - 1]];
+                        if label1 != 0 { face1_labels.insert(label1); }
+                        if label2 != 0 { face2_labels.insert(label2); }
+                    }
+                }
+            },
+            _ => unreachable!(),
+        }
+        
+        // Check if any label appears on both faces (percolation)
+        if !face1_labels.intersection(&face2_labels).collect::<Vec<_>>().is_empty() {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Flood fill helper function for connected component labeling
+fn flood_fill_label(
+    labeled: &mut Array3<u32>,
+    binary: &Array3<u8>, 
+    start_i: usize, 
+    start_j: usize, 
+    start_k: usize,
+    label: u32
+) {
+    let (nx, ny, nz) = labeled.dim();
+    let mut stack = vec![(start_i, start_j, start_k)];
+    
+    while let Some((i, j, k)) = stack.pop() {
+        if i >= nx || j >= ny || k >= nz || 
+           binary[[i, j, k]] == 0 || labeled[[i, j, k]] != 0 {
+            continue;
+        }
+        
+        labeled[[i, j, k]] = label;
+        
+        // Add 6-connected neighbors to stack
+        if i > 0 { stack.push((i - 1, j, k)); }
+        if i + 1 < nx { stack.push((i + 1, j, k)); }
+        if j > 0 { stack.push((i, j - 1, k)); }
+        if j + 1 < ny { stack.push((i, j + 1, k)); }
+        if k > 0 { stack.push((i, j, k - 1)); }
+        if k + 1 < nz { stack.push((i, j, k + 1)); }
+    }
+}
+
+/// Find the pore limiting radius using binary search and percolation analysis
+#[pyfunction]
+#[pyo3(text_signature = "(distance_grid)")]
+fn find_pore_limiting_radius(
+    distance_grid: PyReadonlyArray3<'_, f32>
+) -> PyResult<Option<f32>> {
+    let dgrid = distance_grid.as_array().to_owned();
+    
+    // Get unique values and sort them
+    let mut unique_values: Vec<f32> = dgrid
+        .iter()
+        .filter(|&&v| v > 0.0)
+        .cloned()
+        .collect();
+    
+    if unique_values.is_empty() {
+        return Ok(None);
+    }
+    
+    // Sort and deduplicate
+    unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    unique_values.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    
+    // Binary search for the pore limiting radius
+    let mut left = 0;
+    let mut right = unique_values.len() - 1;
+    
+    while left <= right {
+        let mid = (left + right) / 2;
+        let threshold = unique_values[mid];
+        
+        if check_percolation_periodic(&dgrid, threshold) {
+            left = mid + 1; // Percolation exists, try a larger threshold
+        } else {
+            if mid == 0 { break; }
+            right = mid - 1; // No percolation, try a smaller threshold
+        }
+    }
+    
+    // The pore limiting radius is the last threshold that allowed percolation
+    if right < unique_values.len() {
+        Ok(Some(unique_values[right]))
+    } else {
+        Ok(None)
+    }
+}
