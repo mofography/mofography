@@ -28,17 +28,17 @@ def egrid_from_atoms_rust(ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5
     egrid = mgr_rust.egrid_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff = cutoff)
     return egrid
 
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid = False, ):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid = False, ):
     import numpy as np
-    from skimage.segmentation import watershed
+    # from skimage.segmentation import watershed
     from ase.geometry import cellpar_to_cell
     import copy
-    from ase.geometry import complete_cell
-    import sparse
-    from skimage.segmentation import find_boundaries
-    from concurrent.futures import ThreadPoolExecutor
+    # from ase.geometry import complete_cell
+    # import sparse
+    # from skimage.segmentation import find_boundaries
+    # from concurrent.futures import ThreadPoolExecutor
     from time import time
-    from tqdm import tqdm
+    # from tqdm import tqdm
     import mgr_rust
     start_time = time()
     from mofography import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs, find_end_channel_pairs, merge_small_regions, merge_small_regions_pbc, find_pore_limiting_radius, calculate_padding_thickness, detect_periodic_maxima_direct, get_pbc_groups
@@ -80,9 +80,9 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.11,
     # )
 
     cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
-    merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_h_morph(dgrid, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
+    # merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_h_morph(dgrid, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
+    merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_selective_smoothing(dgrid, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, h=h, threshold_abs=threshold_abs, min_distance=min_distance, cell=cell)
     dt = dgrid.copy()
-
     temp = np.ceil(merged_maxima)
     # compute wall cells
     logger.info(f"time(s): {np.round(time() - start_time, decimals=2)} computing maxima with pbc\n")
