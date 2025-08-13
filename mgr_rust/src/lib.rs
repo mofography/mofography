@@ -10,21 +10,6 @@ use ordered_float::NotNan;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::collections::{HashSet};
-mod maxima_test;
-use maxima_test::detect_maxima_test;
-
-#[pyfunction]
-#[pyo3(signature = (grid, spacing, h))]
-pub fn detect_maxima_test_py(
-    py: pyo3::Python<'_>,
-    grid: numpy::PyReadonlyArray3<'_, f32>,
-    spacing: f32,
-    h: f32,
-) -> pyo3::PyResult<Py<numpy::PyArray2<usize>>> {
-    let arr = grid.as_array().to_owned();
-    let res = detect_maxima_test(&arr, spacing, h);
-    Ok(numpy::PyArray2::from_owned_array(py, res).to_owned())
-}
 
 #[pyfunction]
 #[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
@@ -5058,9 +5043,8 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_maxima_adaptive_h, m)?)?;
     m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
-    m.add_function(wrap_pyfunction!(detect_maxima_test_py, m)?)?;
     m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_local_maxima_pbc", "find_local_maxima_cart", "detect_maxima_test_py", "find_pore_limiting_radius"])?;
+    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_local_maxima_pbc", "find_local_maxima_cart", "find_pore_limiting_radius"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
