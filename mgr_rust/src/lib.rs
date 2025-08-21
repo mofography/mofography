@@ -10,54 +10,56 @@ use ordered_float::NotNan;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::collections::{HashSet};
+use rand::{Rng, SeedableRng};
+use rand_pcg::Pcg64;
 
-#[pyfunction]
-#[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
-fn find_local_maxima_pbc(
-    py: Python<'_>,
-    dgrid: PyReadonlyArray3<'_, f32>,
-    cell: PyReadonlyArray2<'_, f64>,
-    threshold_abs: f32,
-    min_distance: f32,
-) -> PyResult<Py<PyArray2<usize>>> {
-    let h = 0.5; // Default h for maxima detection
-    let result = detect_maxima_h_morph(
-        py,
-        dgrid,
-        1.0, // spacing (unused)
-        h,
-        Some(threshold_abs),
-        min_distance,
-        Some(cell),
-        false,
-        100,
-    )?;
-    Ok(result.0)
-}
+// #[pyfunction]
+// #[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
+// // fn find_local_maxima_pbc(
+//     py: Python<'_>,
+//     dgrid: PyReadonlyArray3<'_, f32>,
+//     cell: PyReadonlyArray2<'_, f64>,
+//     threshold_abs: f32,
+//     min_distance: f32,
+// ) -> PyResult<Py<PyArray2<usize>>> {
+//     let h = 0.5; // Default h for maxima detection
+//     let result = detect_maxima_h_morph(
+//         py,
+//         dgrid,
+//         1.0, // spacing (unused)
+//         h,
+//         Some(threshold_abs),
+//         min_distance,
+//         Some(cell),
+//         false,
+//         100,
+//     )?;
+//     Ok(result.0)
+// }
 
-#[pyfunction]
-#[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
-fn find_local_maxima_cart(
-    py: Python<'_>,
-    dgrid: PyReadonlyArray3<'_, f32>,
-    cell: PyReadonlyArray2<'_, f64>,
-    threshold_abs: f32,
-    min_distance: f32,
-) -> PyResult<Py<PyArray2<usize>>> {
-    let h = 0.5; // Default h for maxima detection
-    let result = detect_maxima_h_morph(
-        py,
-        dgrid,
-        1.0, // spacing (unused)
-        h,
-        Some(threshold_abs),
-        min_distance,
-        Some(cell),
-        false,
-        100,
-    )?;
-    Ok(result.1)
-}
+// #[pyfunction]
+// #[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
+// fn find_local_maxima_cart(
+//     py: Python<'_>,
+//     dgrid: PyReadonlyArray3<'_, f32>,
+//     cell: PyReadonlyArray2<'_, f64>,
+//     threshold_abs: f32,
+//     min_distance: f32,
+// ) -> PyResult<Py<PyArray2<usize>>> {
+//     let h = 0.5; // Default h for maxima detection
+//     let result = detect_maxima_h_morph(
+//         py,
+//         dgrid,
+//         1.0, // spacing (unused)
+//         h,
+//         Some(threshold_abs),
+//         min_distance,
+//         Some(cell),
+//         false,
+//         100,
+//     )?;
+//     Ok(result.1)
+// }
 
 #[pyfunction]
 
@@ -5015,6 +5017,218 @@ fn detect_maxima_adaptive_h(
     ))
 }
 
+/// Sample points within each watershed region and compute pore sizes for pocket level psd
+#[pyfunction]
+#[pyo3(text_signature = "(dgrid, regions_pbc, cell, samples_per_region=5000)")]
+fn compute_pore_sizes_for_psd_pocketwise(
+    py: Python<'_>,
+    dgrid: PyReadonlyArray3<'_, f32>,
+    regions_pbc: PyReadonlyArray3<'_, u32>,
+    cell: PyReadonlyArray2<'_, f64>,
+    samples_per_region: Option<usize>,
+) -> PyResult<PyObject> {
+    use ndarray::{Array1, Array2};
+    use std::collections::HashMap;
+    use rand::prelude::*;
+
+    let dgrid_arr = dgrid.as_array();
+    let regions_arr = regions_pbc.as_array();
+    let cell_arr = cell.as_array();
+    let (nx, ny, nz) = dgrid_arr.dim();
+
+    let n_samples_per_region = samples_per_region.unwrap_or(5000);
+
+    // Initialize RNG for reproducible sampling
+    let mut rng = Pcg64::from_entropy();
+
+    // Pre-compute cell components for fast PBC calculations
+    let c00 = cell_arr[[0, 0]];
+    let c01 = cell_arr[[0, 1]];
+    let c02 = cell_arr[[0, 2]];
+    let c10 = cell_arr[[1, 0]];
+    let c11 = cell_arr[[1, 1]];
+    let c12 = cell_arr[[1, 2]];
+    let c20 = cell_arr[[2, 0]];
+    let c21 = cell_arr[[2, 1]];
+    let c22 = cell_arr[[2, 2]];
+
+    // Find unique regions (excluding 0)
+    let mut unique_regions = std::collections::HashSet::new();
+    for &region_id in regions_arr.iter() {
+        if region_id > 0 {
+            unique_regions.insert(region_id);
+        }
+    }
+    let unique_regions: Vec<u32> = unique_regions.into_iter().collect();
+
+    // Pre-compute voxel lists for each region for fast sampling
+    let mut region_voxels: HashMap<u32, Vec<[usize; 3]>> = HashMap::new();
+    // Pre-sort voxels by dgrid value (descending) for efficient sphere finding
+    let mut sorted_voxels_by_region: HashMap<u32, Vec<(f32, [usize; 3])>> = HashMap::new();
+
+    for i in 0..nx {
+        for j in 0..ny {
+            for k in 0..nz {
+                let region_id = regions_arr[[i, j, k]];
+                if region_id > 0 {
+                    let dgrid_val = dgrid_arr[[i, j, k]];
+                    region_voxels.entry(region_id)
+                        .or_insert_with(Vec::new)
+                        .push([i, j, k]);
+                    sorted_voxels_by_region.entry(region_id)
+                        .or_insert_with(Vec::new)
+                        .push((dgrid_val, [i, j, k]));
+                }
+            }
+        }
+    }
+
+    // Sort voxels by dgrid value in descending order for each region
+    for voxels in sorted_voxels_by_region.values_mut() {
+        voxels.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    }
+
+    // Calculate total number of samples
+    let total_samples = unique_regions.len() * n_samples_per_region;
+
+    // Pre-allocate result vectors
+    let mut sample_points_cart = Vec::with_capacity(total_samples);
+    let mut pore_sizes = Vec::with_capacity(total_samples);
+    let mut region_labels = Vec::with_capacity(total_samples);
+
+    // Process each region in parallel
+    let region_results: Vec<_> = unique_regions
+        .into_par_iter()
+        .map(|region_id| {
+            let voxels = &region_voxels[&region_id];
+            let mut local_sample_points = Vec::new();
+            let mut local_pore_sizes = Vec::new();
+            let mut local_region_labels = Vec::new();
+
+            // Create thread-local RNG for safe parallel sampling
+            let mut local_rng = Pcg64::from_entropy();
+
+            // Sample points within this region
+            for _ in 0..n_samples_per_region {
+                // Randomly select a voxel from this region
+                let voxel_idx = local_rng.gen_range(0..voxels.len());
+                let [i, j, k] = voxels[voxel_idx];
+
+                // Only sample if this voxel is in pore space (dgrid > 0)
+                if dgrid_arr[[i, j, k]] > 0.0 {
+                    // Convert to fractional coordinates (0 to 1)
+                    let frac_coords = [
+                        i as f64 / (nx - 1) as f64,
+                        j as f64 / (ny - 1) as f64,
+                        k as f64 / (nz - 1) as f64,
+                    ];
+
+                    // Compute pore size at this point using sorted search
+                    let pore_size = find_largest_including_sphere(
+                        &dgrid_arr,
+                        &cell_arr,
+                        &frac_coords,
+                        region_id,
+                        &sorted_voxels_by_region,
+                    );
+
+                    // Convert fractional to Cartesian coordinates
+                    let cart_x = c00 * frac_coords[0] + c01 * frac_coords[1] + c02 * frac_coords[2];
+                    let cart_y = c10 * frac_coords[0] + c11 * frac_coords[1] + c12 * frac_coords[2];
+                    let cart_z = c20 * frac_coords[0] + c21 * frac_coords[1] + c22 * frac_coords[2];
+
+                    local_sample_points.push([cart_x, cart_y, cart_z]);
+                    local_pore_sizes.push(pore_size);
+                    local_region_labels.push(region_id);
+                }
+            }
+
+            (local_sample_points, local_pore_sizes, local_region_labels)
+        })
+        .collect();
+
+    // Collect results from all regions
+    for (points, sizes, labels) in region_results {
+        sample_points_cart.extend(points);
+        pore_sizes.extend(sizes);
+        region_labels.extend(labels);
+    }
+
+    // Convert to numpy arrays
+    let n_samples = sample_points_cart.len();
+    let py_sample_points = PyArray2::from_owned_array(py,
+        Array2::from_shape_vec((n_samples, 3),
+            sample_points_cart.into_iter().flatten().collect()).unwrap());
+
+    let py_pore_sizes = PyArray1::from_vec(py, pore_sizes);
+    let py_region_labels = PyArray1::from_vec(py, region_labels);
+
+    // Create Python tuple manually to avoid type inference issues
+    let result_tuple = (py_sample_points, py_pore_sizes, py_region_labels);
+    Ok(result_tuple.into_py(py))
+}
+
+/// Find the largest sphere (by dgrid value) that includes the sample point
+/// Searches through pre-sorted dgrid values in the same region to find the maximum
+/// dgrid[C] where PBC-aware distance from sample_point to C <= dgrid[C]
+fn find_largest_including_sphere(
+    dgrid: &ndarray::ArrayView3<'_, f32>,
+    cell: &ndarray::ArrayView2<'_, f64>,
+    sample_point: &[f64; 3],
+    region_id: u32,
+    sorted_voxels_by_region: &std::collections::HashMap<u32, Vec<(f32, [usize; 3])>>,
+) -> f32 {
+    // Get pre-sorted voxels for this region (sorted by decreasing dgrid value)
+    if let Some(sorted_voxels) = sorted_voxels_by_region.get(&region_id) {
+        // Pre-compute cell components for fast PBC calculations
+        let c00 = cell[[0, 0]];
+        let c01 = cell[[0, 1]];
+        let c02 = cell[[0, 2]];
+        let c10 = cell[[1, 0]];
+        let c11 = cell[[1, 1]];
+        let c12 = cell[[1, 2]];
+        let c20 = cell[[2, 0]];
+        let c21 = cell[[2, 1]];
+        let c22 = cell[[2, 2]];
+
+        // Search through sorted voxels (highest dgrid first)
+        for (dgrid_val, grid_coords) in sorted_voxels {
+            // Convert grid coordinates to fractional coordinates
+            let c_frac = [
+                grid_coords[0] as f64 / (dgrid.dim().0 - 1) as f64,
+                grid_coords[1] as f64 / (dgrid.dim().1 - 1) as f64,
+                grid_coords[2] as f64 / (dgrid.dim().2 - 1) as f64,
+            ];
+
+            // Calculate PBC-aware fractional distance
+            let mut dx = sample_point[0] - c_frac[0];
+            let mut dy = sample_point[1] - c_frac[1];
+            let mut dz = sample_point[2] - c_frac[2];
+
+            // Apply minimum image convention
+            dx -= dx.round();
+            dy -= dy.round();
+            dz -= dz.round();
+
+            // Convert to Cartesian distance
+            let cart_x = c00 * dx + c01 * dy + c02 * dz;
+            let cart_y = c10 * dx + c11 * dy + c12 * dz;
+            let cart_z = c20 * dx + c21 * dy + c22 * dz;
+
+            let distance = (cart_x * cart_x + cart_y * cart_y + cart_z * cart_z).sqrt() as f32;
+
+            // Check if sample point is inside the sphere centered at C with radius dgrid[C]
+            if distance <= *dgrid_val {
+                return *dgrid_val;
+            }
+        }
+    }
+
+    // If no sphere includes the point, return 0
+    0.0
+}
+
+
 #[pymodule]
 fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Enable better error reporting when the module is imported from Python.
@@ -5040,11 +5254,12 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(detect_maxima_percolation_guided, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_voronoi_based, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_multiscale_log, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_pore_sizes_for_psd_pocketwise, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_adaptive_h, m)?)?;
-    m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
-    m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
+    // m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
+    // m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
     m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_local_maxima_pbc", "find_local_maxima_cart", "find_pore_limiting_radius"])?;
+    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "compute_pore_sizes_for_psd_pocketwise", "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
