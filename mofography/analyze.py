@@ -325,7 +325,7 @@ def voronoi_on_atoms(ase_atoms, points=None):
     import ase
     if points is None:
         points = ase_atoms.get_positions()  
-    cell = ase.geometry.complete_cell(ase_atoms.get_cell()) # TODO: should there be a T here? cell vectors should be columns
+    cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T # TODO: should there be a T here? cell vectors should be columns
     box = Box.from_matrix(cell, dimensions =3)
 
     from freud.locality import Voronoi
