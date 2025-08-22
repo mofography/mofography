@@ -33,11 +33,11 @@ print('The selected CIF is:\n', path_to_cif.name)
 import mofography as mgr  # For MOF analysis tools
 import plotly.graph_objects as go  # For interactive plotting
 #
-def test_compute_pore_sizes():
+def test_compute_pore_sizes_pocketwise():
     """Test the compute_pore_sizes_for_psd function with synthetic data."""
 
     # Create a simple test case
-    print("Testing compute_pore_sizes_for_psd function...")
+    print("Testing compute_pore_sizes_for_psd_pocketwise function...")
 
     # Read the atomic structure from the randomly selected CIF file
     mat_atoms = read(path_to_cif)
@@ -63,7 +63,7 @@ def test_compute_pore_sizes():
 
     try:
         # Call the new function
-        result =mgr_rust.compute_pore_sizes_for_psd_pocketwise(
+        result = mgr_rust.compute_pore_sizes_for_psd_pocketwise(
             dgrid,
             regions_pbc,
             cell,
@@ -92,7 +92,7 @@ def test_compute_pore_sizes():
         # Create region-wise PSD plot
         print("\nCreating region-wise PSD plots...")
         bins = np.linspace(0, 50, 200)  # histogram bins
-        pocket_psds = compute_pocket_level_psd(region_labels, pore_sizes*2, bins=bins)
+        pocket_psds =compute_pocketwise_psd(region_labels, pore_sizes*2, bins=bins)
 
         # Plot the results
         if pocket_psds:
@@ -125,6 +125,94 @@ def test_compute_pore_sizes():
         traceback.print_exc()
         return False
 
+def test_compute_pore_sizes_uniform():
+    """Test the compute_pore_sizes_uniform function with the same data."""
+
+    print("\nTesting compute_pore_sizes_uniform function...")
+
+    try:
+        # Read the atomic structure from the CIF file
+        start = time.time()
+        mat_atoms = read(path_to_cif)
+
+
+        # Set grid spacing for distance grid computation
+        spacing = 0.25
+
+        # Compute distance grid from atoms
+        dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=spacing)
+
+        # cell matrix for the atoms with cell vectors as columns
+        cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
+
+        print(f"Grid shape: {dgrid.shape}")
+        print(f"Cell matrix:\n{cell}")
+
+        # Call the uniform sampling function
+        result = mgr_rust.compute_pore_sizes_uniform(
+            dgrid,
+            cell,
+            num_samples_total=10000  # Total samples across entire unit cell
+        )
+
+        sample_points, pore_sizes = result
+        print(f"pore size done at {time.time() - start:.2f} seconds!")
+        print(f"✓ Uniform PSD executed successfully at {time.time() - start:.2f} seconds!")
+        print(f"Sample points shape: {sample_points.shape}")
+        print(f"Pore sizes shape: {pore_sizes.shape}")
+
+        print(f"Sample points (first 5):\n{sample_points[:5]}")
+        print(f"Pore sizes (first 5): {pore_sizes[:5]}")
+
+        # Basic validation
+        assert sample_points.shape[0] == pore_sizes.shape[0]
+        assert sample_points.shape[1] == 3  # 3D coordinates
+        assert pore_sizes.min() >= 0.0  # Pore sizes should be non-negative
+
+        print("✓ All basic validations passed!")
+    
+        bins = np.linspace(0, 50, 200)  # Same bins as region-based test
+        histogram_trace = get_pore_size_distribution_trace(pore_sizes*2, normalize=False, cumulative=False, bins=bins)
+        dgrid_interpolator = mgr.interpolate_dgrid(dgrid)
+        # sample_min = np.min(dgrid_interpolator(sample_points))
+        # print(f"Sample minimum: {sample_min:.3f}")
+        # Create histogram for uniform sampling
+        #
+
+        # hist, bin_edges = np.histogram(pore_sizes * 2, bins=bins, density=False)
+        # bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+        #
+        # Print summary statistics for uniform sampling
+        print("UNIFORM SAMPLING STATISTICS:")
+        print(f"  Number of samples: {len(pore_sizes)}")
+        print(f"  Mean pore size: {np.mean(pore_sizes * 2):.2f} ± {np.std(pore_sizes * 2):.2f} Å")
+        # print(f"  Max probability density: {np.max(hist):.4f}")
+        fig = go.Figure()
+        fig.add_trace(histogram_trace)
+        fig.update_layout(
+            title=f"Pore Size Distribution: Overall vs Individual Pockets for {material}",
+            xaxis_title='Pore Diameter (Å)',
+            yaxis_title='Counts',
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01
+            ),
+            width=1000,
+            height=600
+        )
+        fig.show(renderer='chrome')
+
+        return True
+
+    except Exception as e:
+        print(f"✗ Error in compute_pore_sizes_uniform: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def test_dgrid_from_atoms():
     """Test the existing dgrid_from_atoms function to ensure library works."""
     print("\nTesting dgrid_from_atoms function...")
@@ -137,7 +225,7 @@ def test_dgrid_from_atoms():
 
         nx, ny, nz = 5, 5, 5
 
-        result =mgr_rust.dgrid_from_atoms(fpoints, cell, radii, nx, ny, nz)
+        result = mgr_rust.dgrid_from_atoms(fpoints, cell, radii, nx, ny, nz)
 
         print(f"✓ dgrid_from_atoms executed successfully!")
         print(f"Result shape: {result.shape}")
@@ -152,7 +240,7 @@ def test_dgrid_from_atoms():
         traceback.print_exc()
         return False
 
-def compute_pocket_level_psd(sample_points_labels, pore_sizes, bins=np.linspace(0, 50, 200)):
+def compute_pocketwise_psd(sample_points_labels, pore_sizes, bins=np.linspace(0, 50, 200)):
     """
     Compute pore size distributions for each unique region/pocket instead of the whole unit cell.
 
@@ -290,11 +378,17 @@ if __name__ == "__main__":
     # Test basic library functionality
     test1_passed = test_dgrid_from_atoms()
 
-    # Test new PSD function
-    test2_passed = test_compute_pore_sizes()
+    # Test new PSD pocketwise function
+    test2_passed = test_compute_pore_sizes_pocketwise()
+    # test2_passed = True
+
+
+    # Test new PSD uniform function
+    test3_passed = test_compute_pore_sizes_uniform()
+
 
     print("\n" + "=" * 50)
-    if test1_passed and test2_passed:
+    if test1_passed and test2_passed and test3_passed:
         print("✓ All tests passed! Library is working correctly.")
         print("Check your browser for the interactive PSD plots!")
         print("The plotly figures should have opened in Chrome.")
