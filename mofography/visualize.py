@@ -45,7 +45,7 @@ default_mesh_lighting= dict(
         roughness=0.5,
     )
 
-
+import numpy as np
 # def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
 #                        color='blue', stepsize=1, stylize=False, random_seed=0):
 #     """
@@ -3796,3 +3796,71 @@ def plot_dgrid_as_volume(
         showlegend=True,
     )
     return volume_trace
+
+def get_pore_size_distribution_trace(distances, bins=np.linspace(0, 50, 50), normalize=False, cumulative=False):
+    """Create a plotly trace for pore size distribution."""
+    import plotly.graph_objects as go
+    if normalize:
+        distances = distances / np.max(distances)
+
+    # Create histogram data
+    hist, bin_edges = np.histogram(distances, bins=bins, density=normalize)
+
+    if cumulative:
+        hist = np.cumsum(hist)
+    binC = (bin_edges[1:] + bin_edges[:-1])/2
+    # Create the histogram trace
+    trace = go.Scatter(
+        x=binC,
+        y=hist,
+        mode='lines',
+        name='Overall Pore Size Distribution',
+        line=dict(width=2)
+    )
+
+    return trace
+
+def plot_pocket_psds(pore_sizes, sample_points_labels, pocket_psds, bins, material_name="Test Material"):
+    """Create and display plotly figure comparing overall PSD with individual pocket PSDs."""
+
+    # Get the histogram trace for overall PSD
+    import plotly.graph_objects as go
+    histogram_trace = get_pore_size_distribution_trace(pore_sizes, normalize=False, cumulative=False, bins=bins)
+
+    # Create the figure
+    fig = go.Figure()
+    fig.add_trace(histogram_trace)
+
+    # Add individual pocket PSDs
+    colors = ['red', 'blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']
+    for i, (label, psd_data) in enumerate(pocket_psds.items()):
+        # Create trace for this pocket's PSD
+        pocket_trace = go.Scatter(
+            x=psd_data['bin_centers'],
+            y=psd_data['hist'],
+            mode='lines',
+            name=f'Pocket {label} ({psd_data["num_samples"]} samples)',
+            line=dict(width=2, color=colors[i % len(colors)], dash='dot')
+        )
+        fig.add_trace(pocket_trace)
+
+    # Update plot layout
+    fig.update_layout(
+        title=f"Pore Size Distribution: Overall vs Individual Pockets for {material_name}",
+        xaxis_title='Pore Diameter (Å)',
+        yaxis_title='Counts',
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.8
+        ),
+        width=1000,
+        height=600
+    )
+
+    # Display the plot
+    # fig.show(renderer='chrome')
+    return fig
+
+
