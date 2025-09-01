@@ -5,6 +5,21 @@ logger = logging.getLogger(__name__)
 
 
 def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
+    """Compute a distance grid from atomic positions using the Rust backend.
+
+    This function calculates the distance field (dgrid) for a given atomic structure,
+    where each grid point represents the minimum distance to the nearest atom surface,
+    accounting for van der Waals radii.
+
+    :param ase_atoms: ASE Atoms object containing the atomic structure
+    :type ase_atoms: ase.Atoms
+    :param spacing: Grid spacing in Angstroms
+    :type spacing: float
+    :param radii: Van der Waals radii for each atom. If None, uses ASE's vdw_radii
+    :type radii: numpy.ndarray or None
+    :return: 3D distance grid where values represent distances to atom surfaces
+    :rtype: numpy.ndarray
+    """
     import mgr_rust
     from ase.geometry import cellpar_to_cell
     from ase.data import vdw_radii
@@ -16,6 +31,25 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     dgrid = mgr_rust.dgrid_from_atoms(fpoints, cell, radii, int(nx), int(ny), int(nz))
     return dgrid
 def egrid_from_atoms_rust(ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5,probe_symbol='He'):
+    """Compute an energy grid from atomic positions using the Rust backend.
+
+    This function calculates the energy field (egrid) for a given atomic structure,
+    where each grid point represents the Lennard-Jones interaction energy with
+    the framework atoms, using a probe molecule.
+
+    :param ase_atoms: ASE Atoms object containing the atomic structure
+    :type ase_atoms: ase.Atoms
+    :param spacing: Grid spacing in Angstroms
+    :type spacing: float
+    :param forcefield_mixed: Mixed forcefield parameters. If None, computed using Lorentz-Berthelot mixing
+    :type forcefield_mixed: numpy.ndarray or None
+    :param cutoff: Cutoff distance for energy calculations in Angstroms
+    :type cutoff: float
+    :param probe_symbol: Chemical symbol of the probe molecule
+    :type probe_symbol: str
+    :return: 3D energy grid where values represent interaction energies
+    :rtype: numpy.ndarray
+    """
     import mgr_rust
     if forcefield_mixed is None:
         forcefield_mixed = mgr.mix_lorentz_berthelot(ase_atoms, probe_symbol=probe_symbol)
@@ -29,6 +63,50 @@ def egrid_from_atoms_rust(ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5
     return egrid
 
 def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid = False, ):
+    """Perform periodic segmentation on a distance grid to identify pore regions.
+
+    This function implements a comprehensive pore segmentation algorithm that:
+    1. Detects local maxima in the distance field
+    2. Applies periodic boundary conditions
+    3. Performs watershed segmentation
+    4. Identifies connections between regions
+    5. Returns detailed segmentation results
+
+    :param dgrid: 3D distance grid from dgrid_from_atoms_rust
+    :type dgrid: numpy.ndarray
+    :param mat_atoms: ASE Atoms object of the material
+    :type mat_atoms: ase.Atoms
+    :param mask_thickness: Threshold for void space identification
+    :type mask_thickness: float
+    :param h: Persistence parameter for maxima detection
+    :type h: float
+    :param min_distance: Minimum distance of separationg required between distinct local maxima
+    :type min_distance: float
+    :param threshold_abs: Absolute threshold for maxima detection
+    :type threshold_abs: float
+    :param return_padded_regions: Whether to return padded region arrays
+    :type return_padded_regions: bool
+    :param spacing: Grid spacing. If None, estimated from dgrid size and cell lengths. Specify for better accuracy.
+    :type spacing: float or None
+    :param minimum_window_separation: Minimum separation for window connections
+    :type minimum_window_separation: float or None
+    :param wall_thickness: Thickness of wall regions to exclude
+    :type wall_thickness: float
+    :param extra_padding: Additional padding for periodic calculations in angstroms. This over and above the standard_padding + 5 A cushion.
+    :type extra_padding: float
+    :param compactness: Watershed compactness parameter
+    :type compactness: float
+    :param min_region_size: Minimum region size as fraction of total volume, regions smaller than this in comparison with the *padded_grid* are removed
+    :type min_region_size: float
+    :param disable_tqdm: Whether to disable progress bars
+    :type disable_tqdm: bool
+    :param compute_connections: Whether to compute inter-region connections
+    :type compute_connections: bool
+    :param return_dgrid: Whether to include dgrid in output
+    :type return_dgrid: bool
+    :return: Dictionary containing segmentation results including maxima, regions, connections, etc.
+    :rtype: dict
+    """
     import numpy as np
     # from skimage.segmentation import watershed
     from ase.geometry import cellpar_to_cell
@@ -66,8 +144,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     mask_thickness = np.min([plr - 0.25, mask_thickness])
     # min_distance = 1.1
 #     threshold_abs = 1
-# # merged_maxima, all_maxima = detect_periodic_maxima_dgrid(dgrid, ase_atoms=mat_atoms, spacing=spacing, h=h)
-
+# # merged_maxima, all_maxima = detect_periodic_maxima_dgrid(dgrid, ase_atoms=mat_atoms, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
     # dt, merged_maxima, all_maxima =detect_periodic_maxima_direct(
     #     dgrid,
     #     mat_atoms,
@@ -537,6 +614,20 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     return outputs
 
 def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
+    """Compute pore sizes using uniform sampling across the material.
+
+    This function samples points uniformly throughout the material and calculates
+    the pore size (distance to nearest atom surface) at each sample point.
+
+    :param dgrid: 3D distance grid from dgrid_from_atoms_rust
+    :type dgrid: numpy.ndarray
+    :param ase_atoms: ASE Atoms object of the material
+    :type ase_atoms: ase.Atoms
+    :param num_samples_total: Total number of sample points to generate
+    :type num_samples_total: int
+    :return: Tuple of (sample_points, pore_sizes) where sample_points are the sampled coordinates and pore_sizes are the corresponding pore diameters
+    :rtype: tuple[numpy.ndarray, numpy.ndarray]
+    """
     import mgr_rust
     from ase.geometry import cellpar_to_cell
     import numpy as np
@@ -545,6 +636,28 @@ def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
     return sample_points, pore_sizes
 
 def compute_psd_uniform_rust(dgrid, ase_atoms, num_samples_total=10000, bins=None, density=False, return_fig=False, material='Material'):
+    """Compute pore size distribution using uniform sampling.
+
+    This function calculates the pore size distribution by sampling points uniformly
+    throughout the material and optionally creates a plotly figure for visualization.
+
+    :param dgrid: 3D distance grid from dgrid_from_atoms_rust
+    :type dgrid: numpy.ndarray
+    :param ase_atoms: ASE Atoms object of the material
+    :type ase_atoms: ase.Atoms
+    :param num_samples_total: Total number of sample points to generate
+    :type num_samples_total: int
+    :param bins: Bin edges for histogram. If None, uses np.linspace(0, 50, 200)
+    :type bins: numpy.ndarray or None
+    :param density: Whether to normalize the histogram
+    :type density: bool
+    :param return_fig: Whether to return a plotly figure along with the histogram
+    :type return_fig: bool
+    :param material: Name of the material for plot title
+    :type material: str
+    :return: If return_fig is False, returns histogram values. If True, returns (histogram, figure)
+    :rtype: numpy.ndarray or tuple[numpy.ndarray, plotly.graph_objects.Figure]
+    """
     # Create region-wise PSD plot
     import numpy as np
     import plotly.graph_objects as go
@@ -583,6 +696,22 @@ def compute_psd_uniform_rust(dgrid, ase_atoms, num_samples_total=10000, bins=Non
         return psd_hist
 
 def compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, ase_atoms, samples_per_region=1000):
+    """Compute pore sizes for each pocket/region separately.
+
+    This function samples points within each identified pore region and calculates
+    the pore size distribution for each region individually.
+
+    :param dgrid: 3D distance grid from dgrid_from_atoms_rust
+    :type dgrid: numpy.ndarray
+    :param regions_pbc: 3D array of region labels from periodic segmentation
+    :type regions_pbc: numpy.ndarray
+    :param ase_atoms: ASE Atoms object of the material
+    :type ase_atoms: ase.Atoms
+    :param samples_per_region: Number of sample points per region label
+    :type samples_per_region: int
+    :return: Tuple of (sample_points, pore_sizes, region_labels)
+    :rtype: tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
+    """
     import mgr_rust
     from ase.geometry import cellpar_to_cell
     import numpy as np
@@ -596,6 +725,28 @@ def compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, ase_atoms, samples_pe
     return sample_points, pore_sizes, region_labels
 
 def compute_psds_pocketwise_rust(dgrid, regions_pbc, ase_atoms, num_samples_per_region=1000, bins=None, return_fig=False, material='Material'):
+    """Compute pore size distributions for each pocket/region.
+
+    This function creates separate pore size distributions for each identified
+    pore region and optionally generates a visualization plot.
+
+    :param dgrid: 3D distance grid from dgrid_from_atoms_rust
+    :type dgrid: numpy.ndarray
+    :param regions_pbc: 3D array of region labels from periodic segmentation
+    :type regions_pbc: numpy.ndarray
+    :param ase_atoms: ASE Atoms object of the material
+    :type ase_atoms: ase.Atoms
+    :param num_samples_per_region: Number of sample points per region
+    :type num_samples_per_region: int
+    :param bins: Bin edges for histogram. If None, uses np.linspace(0, 50, 200)
+    :type bins: numpy.ndarray or None
+    :param return_fig: Whether to return a plotly figure along with the PSDs
+    :type return_fig: bool
+    :param material: Name of the material for plot title
+    :type material: str
+    :return: If return_fig is False, returns pocket PSDs dictionary. If True, returns (pocket_psds, figure)
+    :rtype: dict or tuple[dict, plotly.graph_objects.Figure]
+    """
     # Create region-wise PSD plot
     import numpy as np
     from .helper import compute_psds_from_points_pocketwise
