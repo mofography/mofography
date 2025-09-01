@@ -536,4 +536,79 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
         outputs['dgrid'] = dgrid
     return outputs
 
+def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
+    import mgr_rust
+    from ase.geometry import cellpar_to_cell
+    import numpy as np
+    cell = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    sample_points, pore_sizes = mgr_rust.compute_pore_sizes_uniform(dgrid, cell, num_samples_total=num_samples_total)
+    return sample_points, pore_sizes
+
+def compute_psd_uniform_rust(dgrid, ase_atoms, num_samples_total=10000, bins=None, density=False, return_fig=False, material='Material'):
+    # Create region-wise PSD plot
+    import numpy as np
+    import plotly.graph_objects as go
+    from .visualize import get_pore_size_distribution_trace
+    from .compute import interpolate_dgrid
+    sample_points, pore_sizes = compute_pore_sizes_uniform_rust(dgrid, ase_atoms,num_samples_total= num_samples_total)
+    if bins is None:
+        bins = np.linspace(0, 50, 200)  # histogram bins
+    print("\nCreating region-wise PSD plots...")
+    
+    psd_hist, _ = np.histogram(pore_sizes * 2, bins=bins, density=density)
+    if return_fig:
+        histogram_trace = get_pore_size_distribution_trace(pore_sizes*2, normalize=False, cumulative=False, bins=bins)
+        dgrid_interpolator = interpolate_dgrid(dgrid)
+        print("UNIFORM SAMPLING STATISTICS:")
+        print(f"  Number of samples: {len(pore_sizes)}")
+        print(f"  Mean pore size: {np.mean(pore_sizes * 2):.2f} ± {np.std(pore_sizes * 2):.2f} Å")
+        # print(f"  Max probability density: {np.max(hist):.4f}")
+        fig = go.Figure()
+        fig.add_trace(histogram_trace)
+        fig.update_layout(
+            title=f"Pore Size Distribution with uniform sampling across box {material}",
+            xaxis_title='Pore Diameter (Å)',
+            yaxis_title='Counts',
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01
+            ),
+            width=1000,
+            height=600
+        )
+        return psd_hist, fig
+    else:
+        return psd_hist
+
+def compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, ase_atoms, samples_per_region=1000):
+    import mgr_rust
+    from ase.geometry import cellpar_to_cell
+    import numpy as np
+    cell = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    sample_points, pore_sizes, region_labels = mgr_rust.compute_pore_sizes_for_psd_pocketwise(
+                dgrid,
+                regions_pbc,
+                cell,
+                samples_per_region= samples_per_region# Small number for testing
+            )
+    return sample_points, pore_sizes, region_labels
+
+def compute_psds_pocketwise_rust(dgrid, regions_pbc, ase_atoms, num_samples_per_region=1000, bins=None, return_fig=False, material='Material'):
+    # Create region-wise PSD plot
+    import numpy as np
+    from .helper import compute_psds_from_points_pocketwise
+    from .visualize import plot_pocket_psds
+    sample_points, pore_sizes, region_labels = compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, ase_atoms, samples_per_region=num_samples_per_region)
+    if bins is None:
+        bins = np.linspace(0, 50, 200)  # histogram bins
+    print("\nCreating region-wise PSD plots...")
+    pocket_psds = compute_psds_from_points_pocketwise(region_labels, pore_sizes*2, bins=bins)
+    if return_fig:
+        fig = plot_pocket_psds(pore_sizes*2, region_labels, pocket_psds, bins, material_name=material)
+        return pocket_psds, fig
+    else:
+        return pocket_psds
+
 
