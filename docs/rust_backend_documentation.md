@@ -1,12 +1,23 @@
-# MOFography Rust Backend Documentation
+# 🚀 MOFography Rust Backend Documentation
+
+```
+███╗░░░███╗░██████╗░██████╗░░░░░░░██████╗░██╗░░░██╗░██████╗████████╗
+████╗░████║██╔════╝░██╔══██╗░░░░░░██╔══██╗██║░░░██║██╔════╝╚══██╔══╝
+██╔████╔██║██║░░██╗░██████╔╝█████╗██████╔╝██║░░░██║╚█████╗░░░░██║░░░
+██║╚██╔╝██║██║░░╚██╗██╔══██╗╚════╝██╔══██╗██║░░░██║░╚═══██╗░░░██║░░░
+██║░╚═╝░██║╚██████╔╝██║░░██║░░░░░░██║░░██║╚██████╔╝██████╔╝░░░██║░░░
+╚═╝░░░░░╚═╝░╚═════╝░╚═╝░░╚═╝░░░░░░╚═╝░░╚═╝░╚═════╝░╚═════╝░░░░╚═╝░░░
+```
 
 ## Overview
 
 MOFography includes a high-performance Rust backend that provides optimized implementations for computationally intensive tasks in porous material analysis. The Rust functions are exposed to Python through PyO3 bindings, offering significant performance improvements over pure Python implementations while maintaining the same API.
 
+> **💡 Pro Tip**: If you're analyzing large MOF structures or need faster computations, the Rust backend can provide 5-20x speed improvements!
+
 ## Installation and Setup
 
-### Installing Rust (Cargo)
+### Installing Rust (Cargo) 🛠️
 
 The Rust backend requires Rust and Cargo to be installed on your system. Follow the platform-specific instructions below:
 
@@ -98,9 +109,9 @@ then reinstall it from the cloned repo to get the new Rust wrapping functions, t
 ```bash
 python setup.py install
 ```
-## Key Rust Functions
+## Key Rust Functions ⚡
 
-### Distance Grid Generation (`dgrid_from_atoms`)
+### Distance Grid Generation (`dgrid_from_atoms`) 📏
 
 **Python Wrapper**: `dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)`
 
@@ -111,7 +122,7 @@ python setup.py install
 - **Memory Efficient**: Optimized memory usage for large grids
 - **Parallel Processing**: Utilizes multiple CPU cores automatically
 
-### Energy Grid Generation (`egrid_from_atoms`)
+### Van der Waals Energy Grid Generation (`egrid_from_atoms`) 🔋
 
 **Python Wrapper**: `egrid_from_atoms_rust(ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5, probe_symbol='He')`
 
@@ -122,7 +133,7 @@ python setup.py install
 - **Accurate Cutoff Handling**: Efficient neighbor list construction with cutoff
 - **Scalable**: Handles large systems with many atoms efficiently
 
-### Periodic Segmentation Workflow (`do_periodic_segmentation_rust`)
+### Periodic Segmentation Workflow (`do_periodic_segmentation_rust`) 🔄
 
 **Python Wrapper**: `do_periodic_segmentation_rust(dgrid, mat_atoms, **kwargs)`
 
@@ -164,11 +175,11 @@ python setup.py install
 - **Accuracy**: Better handling of periodic boundary conditions
 - **Scalability**: Efficient processing of large MOF structures
 
-### Pore Size Analysis Functions
+### Pore Size Analysis Functions 📊
 
 The pore size distribution (PSD) calculations use the **Gelb and Gubbins method** for accurate pore size determination.
 
-#### `compute_pore_sizes_uniform`
+#### `compute_pore_sizes_uniform` 🎯
 **Python Wrapper**: `compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000)`
 
 **Purpose**: Computes pore size distributions using uniform sampling across the entire unit cell.
@@ -178,7 +189,7 @@ The pore size distribution (PSD) calculations use the **Gelb and Gubbins method*
 - **Parallel Computation**: Multi-threaded pore size calculations
 - **Memory Efficient**: Optimized data structures
 
-#### `compute_pore_sizes_for_psd_pocketwise`
+#### `compute_pore_sizes_for_psd_pocketwise` 🎯
 **Python Wrapper**: `compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, ase_atoms, samples_per_region=1000)`
 
 **Purpose**: Computes pore sizes for individual pockets/regions using region-specific sampling.
@@ -334,6 +345,9 @@ fig.update_layout(legend_groupclick="toggleitem")
 # Display the figure
 fig.show(renderer="browser")
 ```
+![Periodic Seg Rust NU-1000](periodic_seg_rust_nu1000.jpg)
+*Example output: periodic seg. traces for NU-1000 using Rust backend*
+
 
 ### Pore Size Distribution Analysis
 
@@ -360,6 +374,12 @@ psd, fig_psd = mgr.compute_psd_uniform_rust(
 # Display the figure
 fig_psd.show(renderer='chrome')
 
+```
+
+![Uniform Pore Size Distribution](psd_uniform.jpg)
+*Example output: Uniform pore size distribution for NU-1000*
+
+```python
 # Bonus: Get raw sample points and pore sizes for custom analysis
 sample_points, pore_sizes = mgr.compute_pore_sizes_uniform_rust(
     dgrid, 
@@ -391,7 +411,12 @@ pocket_psds, fig_pocket_psds = mgr.compute_psds_pocketwise_rust(
 
 # Display pocket-wise PSDs
 fig_pocket_psds.show()
+```
 
+![Pocket-wise Pore Size Distribution](psds_pocketwise.jpg)
+*Example output: Pocket-wise pore size distributions for NU-1000*
+
+```python
 # Bonus: Get raw data for custom pocket-wise analysis
 sample_points, pore_sizes, sample_point_labels = mgr.compute_pore_sizes_pocketwise_rust(
     dgrid, 
@@ -403,25 +428,25 @@ sample_points, pore_sizes, sample_point_labels = mgr.compute_pore_sizes_pocketwi
 
 > **Note**: For more comprehensive example of pore size distribution calculations, see [`test_psd_rust.py`](./test_psd_rust.py).
 
-## Performance Benefits
+## Performance Benefits 📈
 
-### Speed Improvements
+### Speed Improvements ⚡
 - **Distance Grid Generation**: 10-15x faster than Python implementations
 - **Periodic Segmentation**: 5-20x faster, especially for large systems
 - **Pore Size Calculations**: 8-12x faster with parallel processing
 - **Memory Usage**: 30-50% reduction in memory footprint
 
-### Scalability
+### Scalability 🌍
 - **Large Systems**: Efficiently handles MOFs with thousands of atoms
 - **High Resolution**: Scales well with finer grid spacings
 - **Multi-threading**: Automatic utilization of multiple CPU cores
 
-### Accuracy and Reliability
+### Accuracy and Reliability ✅
 - **Periodic Boundaries**: Correct handling of PBC in all calculations
 - **Numerical Stability**: Optimized algorithms for better convergence
 - **Memory Safety**: Rust's memory safety prevents crashes and bugs
 
-## Troubleshooting
+## Troubleshooting 🔧
 
 ### Common Issues
 
@@ -442,14 +467,14 @@ sample_points, pore_sizes, sample_point_labels = mgr.compute_pore_sizes_pocketwi
    maturin build --release  # Not just maturin build
    ```
 
-### Performance Optimization Tips
+### Performance Optimization Tips 💡
 
 1. Use appropriate grid spacing (0.3-0.5 Å recommended)
 2. Adjust `extra_padding` based on system size, you can safely use 0.0. This extra_padding is over and above standard padding + a safety cushion of 5 A. 
 3. Use `return_padded_regions=False` and `compute_connections=False` if they are not needed
 4. Consider system resources when setting `num_samples_total`
 
-## Future Developments
+## Future Developments 🚀
 
 - A cli tool for quick use without Jupyter
 - Standalone mgr executable without needing a Python env.
