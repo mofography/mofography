@@ -81,7 +81,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
 
     cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
     # merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_h_morph(dgrid, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
-    merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_selective_smoothing(dgrid, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, h=h, threshold_abs=threshold_abs, min_distance=min_distance, cell=cell)
+    merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_selective_smoothing_parallel(dgrid, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, h=h, threshold_abs=threshold_abs, min_distance=min_distance, cell=cell)
     dt = dgrid.copy()
     temp = np.ceil(merged_maxima)
     # compute wall cells
