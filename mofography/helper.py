@@ -1072,3 +1072,68 @@ def get_perpendicular_voxel_lengths(ase_atoms, spacing, grid_shape):
     lz_voxel = voxel_volume / np.linalg.norm(np.cross(eA, eB))
     return lx_voxel, ly_voxel, lz_voxel
 
+def compute_psds_from_points_pocketwise(sample_points_labels, pore_sizes, bins=np.linspace(0, 50, 200)):
+    """
+    Compute pore size distributions for each unique region/pocket instead of the whole unit cell.
+
+    This function:
+    1. Identifies unique region labels from the sample points
+    2. Groups sample points by their region labels
+    3. Computes separate pore size distributions for each region
+    4. Returns a dictionary mapping region labels to their PSDs
+
+    Parameters:
+    - sample_points_labels (ndarray): Array of region labels for each sample point
+    - pore_sizes (ndarray): Array of pore sizes corresponding to each sample point
+    - bins (ndarray): Bin edges for histogram computation
+
+    Returns:
+    - pocket_psds (dict): Dictionary where keys are region labels and values are dictionaries
+                         containing 'hist' (histogram values) and 'bin_centers' (bin centers)
+    """
+    # Find all unique region labels (excluding background and invalid regions)
+    unique_labels = np.unique(sample_points_labels)
+    print(f"Unique region labels found: {unique_labels}")
+    unique_labels = unique_labels[unique_labels > 0]  # Remove background (0) and any negative labels
+
+    # Initialize dictionary to store PSDs for each pocket/region
+    pocket_psds = {}
+
+    print(f"Found {len(unique_labels)} unique regions/pockets")
+
+    # Compute PSD for each unique region
+    for label in unique_labels:
+        # Find all sample points that belong to this region
+        mask = sample_points_labels == label
+        region_pore_sizes = pore_sizes[mask]
+
+        # Skip regions with too few sample points for reliable statistics
+        if len(region_pore_sizes) < 10:
+            print(f"Skipping region {label} - insufficient sample points ({len(region_pore_sizes)})")
+            continue
+
+        # Filter out infinite or invalid pore sizes
+        region_pore_sizes = region_pore_sizes[np.isfinite(region_pore_sizes)]
+
+        if len(region_pore_sizes) == 0:
+            print(f"Skipping region {label} - no valid pore sizes")
+            continue
+
+        # Compute histogram for this region's pore sizes
+        hist, bin_edges = np.histogram(region_pore_sizes, bins=bins, density=False)
+        bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+        # Store the PSD data for this region
+        pocket_psds[label] = {
+            'hist': hist,
+            'bin_centers': bin_centers,
+            'num_samples': len(region_pore_sizes),
+            'mean_pore_size': np.mean(region_pore_sizes),
+            'std_pore_size': np.std(region_pore_sizes)
+        }
+
+        print(f"Region {label}: {len(region_pore_sizes)} samples, "
+              f"mean pore size: {np.mean(region_pore_sizes):.2f} Å, "
+              f"std: {np.std(region_pore_sizes):.2f} Å")
+
+    return pocket_psds
