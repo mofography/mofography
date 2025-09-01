@@ -24,6 +24,8 @@ logger.setLevel(logging.INFO)
 # # Find all CIF files in the examples directory and randomly select one for analysis
 # list_of_cifs = list((Path('..').resolve()/ 'examples' / 'TestCIFs' ).rglob('*.cif'))
 # path_to_cif = np.random.choice(np.array(list_of_cifs))  # Convert to numpy array for choice
+logging.basicConfig(level=logging.INFO)
+
 import time
 start = time.time()
 
