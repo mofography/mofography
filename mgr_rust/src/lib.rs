@@ -5181,6 +5181,14 @@ fn find_largest_including_sphere_uniform(
     0.0
 }
 
+#[pyfunction]
+#[pyo3(text_signature = "()")]
+fn rayon_num_threads() -> PyResult<usize> {
+    let n = rayon::current_num_threads();
+    eprintln!("[RAYON] current_num_threads = {}", n);
+    Ok(n)
+}
+
 
 /// Sample points within each watershed region and compute pore sizes for pocket level psd
 #[pyfunction]
@@ -5422,10 +5430,12 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_pore_sizes_for_psd_pocketwise, m)?)?;
     m.add_function(wrap_pyfunction!(compute_pore_sizes_uniform, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_adaptive_h, m)?)?;
+    // Helper to inspect Rayon thread pool
+    m.add_function(wrap_pyfunction!(rayon_num_threads, m)?)?;
     // m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     // m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
     m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "compute_pore_sizes_for_psd_pocketwise","compute_pore_sizes_uniform",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius"])?;
+    m.add("__all__", ["dgrid_from_atoms", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "compute_pore_sizes_for_psd_pocketwise","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
