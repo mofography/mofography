@@ -21,6 +21,7 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     :rtype: numpy.ndarray
     """
     import mgr_rust
+    logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
     from ase.geometry import cellpar_to_cell
     from ase.data import vdw_radii
     if radii is None:
@@ -51,6 +52,7 @@ def egrid_from_atoms_rust(ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5
     :rtype: numpy.ndarray
     """
     import mgr_rust
+    logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
     if forcefield_mixed is None:
         forcefield_mixed = mgr.mix_lorentz_berthelot(ase_atoms, probe_symbol=probe_symbol)
     mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff)
@@ -118,6 +120,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     from time import time
     # from tqdm import tqdm
     import mgr_rust
+    logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
     start_time = time()
     from mofography import compute_wall_cells, move_maximum_to_peak, process_wall_maxima, is_inside_or_close_to_boundary, get_fractional_coordinates, interpolate_labels, find_touching_region_pairs, find_end_channel_pairs, merge_small_regions, merge_small_regions_pbc, find_pore_limiting_radius, calculate_padding_thickness, detect_periodic_maxima_direct, get_pbc_groups
     # print(f"timer started")
