@@ -118,6 +118,7 @@ These can be completed in any order after finishing the basic tutorials:
 - [Compute pore diameters](docs/compute_pore_diameters.ipynb): Compare MOFography vs MOFDB (zeo++) in high-throughput computations
 - [MOFDB example](docs/mofdb_example.ipynb): Grab a dataset from MOFDB and perform workflow on random materials
 - [High-throughput characterization](docs/hts_using_mofography.ipynb): Construct pore graphs for IZA dataset using Mofography and Dask
+- [Bencharmark Periodic Segmentation Rust vs Python in High-Throughput](docs/hts_periodic_seg_benchmark.ipynb): Compare the periodic segmentation workflow speeds in Rust vs Python, in high-throughput, 1 core per material.
 - [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb): Identify functional groups/moieties in datasets like CoREMOF
 - [Graph Convolutional Neural Network (GCN)](docs/graph_convolution_on_rags_ccr.ipynb): Train a GCN on RAGs to predict hydrogen adsorption
 
