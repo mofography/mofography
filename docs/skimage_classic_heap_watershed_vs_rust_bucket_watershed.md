@@ -15,6 +15,66 @@ We'll detail both algorithms, walk through the labeling process from initial sta
 
 ---
 
+## Classic Heap-Based Watershed (scikit-image/Python)
+
+### Overview
+The Classic Heap-Based Watershed algorithm uses a priority queue (min-heap) to manage the order in which pixels (or voxels) are processed. This method is akin to filling a landscape with water, where the water flows from the lowest points (valleys) to the highest points (peaks).
+
+### Detailed Explanation
+1. **Initial Setup:**
+   - **Input:** A 2D or 3D grid representing an image or distance field, a marker array where each known feature is assigned a unique label, and a mask to differentiate between foreground and background.
+   - **Markers:** These are the starting points for the flooding process, like seeds from which regions will grow.
+
+2. **Building the Min-Heap:**
+   - Only the marker voxels are inserted into the heap initially. Each element in the heap contains the voxel's value, its position, and its label.
+   - The heap ensures that the voxel with the smallest value (lowest point) is processed first.
+
+3. **Flooding Process:**
+   - The algorithm repeatedly pops the voxel with the lowest value from the heap.
+   - For each voxel, its neighbors are examined. If a neighbor is within the mask and unlabeled, it is assigned the same label as the current voxel and added to the heap.
+   - This process continues until the heap is empty, meaning all reachable voxels have been labeled.
+
+4. **Boundary Formation:**
+   - As the flooding progresses, boundaries naturally form where different regions meet. These boundaries are determined by the order in which voxels are processed.
+
+### Analogy
+Imagine a landscape where water flows from the lowest valleys to the highest peaks. The heap ensures that water always flows from the lowest point available, gradually filling up the landscape.
+
+## Rust Bucket-Based Watershed
+
+### Overview
+The Rust Bucket-Based Watershed algorithm uses a bucket-based approach to process voxels in parallel. This method is like filling a landscape with water in layers, where each layer represents a range of values.
+
+### Detailed Explanation
+1. **Initial Setup:**
+   - **Input:** Similar to the heap-based method, with a grid, markers, and a mask.
+   - **Markers:** Serve as the starting points for the flooding process.
+
+2. **Bucket Creation:**
+   - The grid values are discretized into buckets, where each bucket represents a specific value or a small range of values.
+   - Voxels are grouped into these buckets based on their values.
+
+3. **Flooding Process:**
+   - The algorithm processes buckets from the deepest (lowest value) to the shallowest (highest value).
+   - Within each bucket, active voxels attempt to claim their unlabeled neighbors. Newly claimed neighbors are enqueued into the appropriate (shallower) bucket.
+   - This process is highly parallelizable, as multiple voxels within the same bucket can be processed simultaneously.
+
+4. **Atomic Claims:**
+   - When multiple regions attempt to claim the same voxel, atomic operations ensure that only one label is assigned. This prevents conflicts and ensures consistency.
+
+5. **Boundary Formation:**
+   - Boundaries form as regions expand and meet. The use of atomic operations ensures that the process is deterministic and reproducible.
+
+### Analogy
+Imagine filling a landscape with water in layers, where each layer represents a specific elevation. All points at the same elevation are filled simultaneously, allowing for efficient and parallel processing.
+
+## Key Differences and Implications
+- **Flooding Order:** The heap-based method uses a global priority queue, while the bucket-based method processes voxels level-by-level.
+- **Parallelization:** The heap-based method is challenging to parallelize due to the heap bottleneck, whereas the bucket-based method is highly parallelizable.
+- **Memory Behavior:** The heap can grow large at boundaries, while buckets are more cache-friendly and predictable.
+
+By explaining these algorithms in simple terms and using clear analogies, students can better understand the differences and advantages of each method. If you have any specific areas you'd like to focus on or further clarify, feel free to let me know!
+
 ## 1. Classic Heap-Based Watershed (scikit-image/Python)
 
 ### Initial State
