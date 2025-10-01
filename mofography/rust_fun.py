@@ -74,32 +74,24 @@ def egrid_from_atoms_rust(
     frac = mat_atoms_repeat.get_scaled_positions() - 0.5  # centre to [-0.5,0.5]
     cell = cellpar_to_cell(mat_atoms_repeat.cell.cellpar()).T
     # cell = mat_atoms_repeat.get_cell().complete().T        # 3×3 column-vector matrix
-    nx, ny, nz = (mat_atoms_repeat.cell.cellpar()[:3] / spacing).astype(int) + 1
-    egrid = mgr_rust.egrid_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff=cutoff)
+    # nx, ny, nz = (mat_atoms_repeat.cell.cellpar()[:3] / spacing).astype(int) + 1
+    
+    # NOTE: define grid over just one unit cell, exactly like python version, and then repeat exactly
+    nx_unit, ny_unit, nz_unit = (ase_atoms.cell.cellpar()[:3]/spacing).astype(int) + 1
+    nx_cells, ny_cells, nz_cells = get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    nx, ny, nz = nx_unit * nx_cells, ny_unit * ny_cells, nz_unit * nz_cells # grid points for supercell
+    # compute supercell egrid using rust. this is easier for parallelization in rust since we don
+    # 't have a cell list
+    egrid_super = mgr_rust.egrid_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff=cutoff)
+    egrid = egrid_super[:nx_unit, :ny_unit, :nz_unit] # grab just one unit cell that's all we need
+
     if return_ncells:
         return egrid, get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
     else:
         return egrid
 
 
-def do_periodic_segmentation_rust(
-    dgrid,
-    mat_atoms,
-    mask_thickness=0.5,
-    h=0.2,
-    min_distance=1.5,
-    threshold_abs=1.5,
-    return_padded_regions=False,
-    spacing=None,
-    minimum_window_separation=None,
-    wall_thickness=0.05,
-    extra_padding=5,
-    compactness=0,
-    min_region_size=0.001,
-    disable_tqdm=False,
-    compute_connections=True,
-    return_dgrid=False,
-):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False,):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -591,10 +583,11 @@ def do_periodic_segmentation_rust(
     # new_index = len(merged_maxima) + 1
     next_index = max(used_indices) + 1 if used_indices else 1
     for vid in valid_maxima_ids:
-        if vid not in remap_dict:
-            remap_dict[vid] = next_index
-            used_indices.add(next_index)
-            next_index += 1
+        if np.sum(unmerged_regions==vid) > 0: # give priority only if the label exists in the box, even if the maxima is closely outside the box for example. you'll see this issue only in finer grid.
+            if vid not in remap_dict:
+                remap_dict[vid] = next_index
+                used_indices.add(next_index)
+                next_index += 1
     # print('stage 2 valid_maxima', remap_dict)
 
     # note: assign indices to remaining unique regions in unmerged_regions
@@ -680,6 +673,38 @@ def do_periodic_segmentation_rust(
                 np.round(time() - start_time, decimals=2)
             } compute_connections is set to False. No connections computed. Calculations Ending! :) \n"
         )
+        logger.info(
+            f"TIME(s): {
+                np.round(time() - start_time, decimals=2)
+            } Checking indexing consistency,"
+        )
+        logger.info(
+            f"regions w pbc: {
+                np.unique(regions_pbc, return_counts=False).shape[0] - 1
+                == regions_pbc.max()
+            }"
+        )
+        logger.info(
+            f"regions w/o pbc: {
+                np.unique(regions, return_counts=False).shape[0] - 1 == regions.max()
+            }"
+        )
+        logger.info(
+            f"regions w/ padding: {
+                np.unique(regions_padded, return_counts=False).shape[0] - 1
+                == regions_padded.max()
+            }"
+        )
+        missing_regions = set(range(0, regions.max())) - set(np.unique(regions))
+        missing_regions_pbc = set(range(0, regions_pbc.max())) - set(
+            np.unique(regions_pbc)
+        )
+
+        if len(missing_regions) > 0:
+            logger.warning(f"Potential inconsistency in indexing!:")
+            logger.info(f"mising seq indices in regions: {missing_regions}")
+            logger.info(f"mising seq indices in regions_pbc: {missing_regions_pbc}")
+ 
         outputs = dict(
             # dgrid=dgrid,
             all_maxima=all_maxima,
