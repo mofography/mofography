@@ -6194,8 +6194,9 @@ def optimize_molecule_at_node(
     rag,
     ref_coords,
     energy_interpolator=None,
-    n_trials=50,
+    n_trials=100,
     n_jobs=-1,
+    random_seed=42,
     **kwargs_egrid,
 ):
     import optuna
@@ -6241,6 +6242,7 @@ def optimize_molecule_at_node(
         study_name="energy_reduce_{}".format(node),
         pruner=optuna.pruners.HyperbandPruner(),
         direction="minimize",
+        sampler=optuna.samplers.TPESampler(seed=random_seed)
     )  # , pruner=optuna.pruners.MedianPruner(n_warmup_steps=10), sampler=optuna.samplers.TPESampler(seed=123))
     study.optimize(objective, n_trials=n_trials, n_jobs=n_jobs)
     return study.best_trial
@@ -6255,6 +6257,7 @@ def add_best_optuna_trial_to_rag(
     one_per_cluster=True,
     n_trials=50,
     n_jobs=-1,
+    random_seed = 42
 ):
     import dask.bag as db
     import networkx as nx
@@ -6277,6 +6280,7 @@ def add_best_optuna_trial_to_rag(
                 energy_interpolator=energy_interpolator,
                 n_trials=n_trials,
                 n_jobs=n_jobs,
+                random_seed = random_seed,
             )
             .compute()
         )
@@ -6294,8 +6298,9 @@ def add_best_optuna_trial_to_rag(
                 ref_coords=ref_coords,
                 rag=rag,
                 energy_interpolator=energy_interpolator,
-                n_trials=50,
-                n_jobs=-1,
+                n_trials=n_trials,
+                n_jobs=n_jobs,
+                random_seed=random_seed,
             )
             .compute()
         )
