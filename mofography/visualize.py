@@ -1105,7 +1105,7 @@ def trimesh_from_pyvista(pv_mesh):
     :return: A trimesh object.
     """
     import trimesh
-    faces_array = pv_mesh.faces.reshape((pv_mesh.n_faces, 4))[:, 1:]
+    faces_array = pv_mesh.faces.reshape((pv_mesh.n_faces_strict, 4))[:, 1:]
     tmesh = trimesh.Trimesh(pv_mesh.points, faces_array)
     return tmesh
 
