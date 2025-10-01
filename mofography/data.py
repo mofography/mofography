@@ -205,62 +205,87 @@ def get_num_graphs(db_path):
     return num_graphs
 
 
-def get_data_from_mofdb(
+async def get_data_from_mofdb(
     url="https://mof.tech.northwestern.edu/mofs/#.json",
     params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
     headers={"loading": "cm3(STP)/cm3", "pressure": "bar"},
     npages=None,
     limit=1000,
 ):
-    """
-    This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api
-    It takes in a url, parameters, headers, number of pages and a path to the mofography repository and
-    returns a pandas dataframe of the data.
-
-    The function is asynchronous and uses the aiohttp library to make multiple requests to the MOFDB
-    API.
-
-
-
-    :param url: The url of the MOF database, defaults to https://mof.tech.northwestern.edu/mofs/#.json
-    (optional)
-    :param params: a dictionary of parameters to be passed to the url. The default parameters are: {'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1}
-    :param headers: This is the headers that you want to pass to the MOFDB API. The default is to get
-    the loading and pressure data
-    :param npages: number of pages to be scraped. If None, then the number of pages is determined by the
-    function to return all the pages
-    :param limit: maximum number of pages allowed in the query (no need to change this one unless overflow )
-    :return: A dataframe with the results of the query.
-    """
-
-    from aiohttp import ClientSession
-    import asyncio
-    import numpy as np
-    import nest_asyncio
-
-    nest_asyncio.apply()
+    import aiohttp
     import pandas as pd
+    import numpy as np
 
     # just put page:1 in the params it doesn't matter, only the npages parameter is used
     params["page"] = 1
 
-    if npages == None:
+    if npages is None:
         npages = get_number_of_pages(url, headers, params)
 
-    # This shouldn't be called in a function (similar to initiating a Dask cluster)
-    loop = asyncio.get_event_loop()
-    # with ClientSession(headers= headers) as session:
-    session = ClientSession(headers=headers)
-    fut = asyncio.ensure_future(
-        get_mofdb_data(
+    async with aiohttp.ClientSession(headers=headers) as session:
+        results = await get_mofdb_data(
             session, url=url, params=params, headers=headers, npages=npages, limit=limit
         )
-    )
-    loop.run_until_complete(fut)
-    session.close()
-    data_df = pd.DataFrame(list(np.hstack(([f["results"] for f in fut.result()]))))
-
+    data_df = pd.DataFrame(list(np.hstack(([f["results"] for f in results]))))
     return data_df
+
+
+# def get_data_from_mofdb(
+#     url="https://mof.tech.northwestern.edu/mofs/#.json",
+#     params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
+#     headers={"loading": "cm3(STP)/cm3", "pressure": "bar"},
+#     npages=None,
+#     limit=1000,
+# ):
+#     """
+#     This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api
+#     It takes in a url, parameters, headers, number of pages and a path to the mofography repository and
+#     returns a pandas dataframe of the data.
+#
+#     The function is asynchronous and uses the aiohttp library to make multiple requests to the MOFDB
+#     API.
+#
+#
+#
+#     :param url: The url of the MOF database, defaults to https://mof.tech.northwestern.edu/mofs/#.json
+#     (optional)
+#     :param params: a dictionary of parameters to be passed to the url. The default parameters are: {'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1}
+#     :param headers: This is the headers that you want to pass to the MOFDB API. The default is to get
+#     the loading and pressure data
+#     :param npages: number of pages to be scraped. If None, then the number of pages is determined by the
+#     function to return all the pages
+#     :param limit: maximum number of pages allowed in the query (no need to change this one unless overflow )
+#     :return: A dataframe with the results of the query.
+#     """
+#
+#     from aiohttp import ClientSession
+#     import asyncio
+#     import numpy as np
+#     import nest_asyncio
+#
+#     nest_asyncio.apply()
+#     import pandas as pd
+#
+#     # just put page:1 in the params it doesn't matter, only the npages parameter is used
+#     params["page"] = 1
+#
+#     if npages == None:
+#         npages = get_number_of_pages(url, headers, params)
+#
+#     # This shouldn't be called in a function (similar to initiating a Dask cluster)
+#     loop = asyncio.get_event_loop()
+#     # with ClientSession(headers= headers) as session:
+#     session = ClientSession(headers=headers)
+#     fut = asyncio.ensure_future(
+#         get_mofdb_data(
+#             session, url=url, params=params, headers=headers, npages=npages, limit=limit
+#         )
+#     )
+#     loop.run_until_complete(fut)
+#     session.close()
+#     data_df = pd.DataFrame(list(np.hstack(([f["results"] for f in fut.result()]))))
+#
+#     return data_df
 
 
 def read_cif_string(cif):
@@ -332,7 +357,7 @@ def read_raspa_pdb(path_to_file, symbol_map=None):
     ends = np.where(["ENDMDL" in line for line in f])[0]  # End for config
     cryst = np.where(["CRYST" in line for line in f])[0]  # box shape for the config
 
-    data = [f[start[i]: ends[i]] for i in range(len(start))]
+    data = [f[start[i] : ends[i]] for i in range(len(start))]
 
     # Initialize lists to hold coordinates and symbols
     coords = []
@@ -350,14 +375,22 @@ def read_raspa_pdb(path_to_file, symbol_map=None):
                     # Use symbol_map if provided, otherwise use the original symbol
                     symbol = parts[2]
                     if symbol_map and symbol in symbol_map:
-                        symbol = symbol_map[symbol]  # Replace with mapped symbol if exists
-                    config_symbols.append(symbol)  # Append the standardized symbol to the current config
+                        symbol = symbol_map[
+                            symbol
+                        ]  # Replace with mapped symbol if exists
+                    config_symbols.append(
+                        symbol
+                    )  # Append the standardized symbol to the current config
                 except ValueError:
-                    skipped_lines.append(line.strip())  # Add the skipped line to the list
+                    skipped_lines.append(
+                        line.strip()
+                    )  # Add the skipped line to the list
                     continue  # Skip lines that cannot be converted to float
 
         coords.append(np.array(coord))
-        symbols.append(config_symbols)  # Change: Append the list of symbols for the current config
+        symbols.append(
+            config_symbols
+        )  # Change: Append the list of symbols for the current config
 
     cell_dims = np.array(
         [np.array(line.split())[1:].astype(float) for line in f if "CRYST" in line]
@@ -365,8 +398,10 @@ def read_raspa_pdb(path_to_file, symbol_map=None):
 
     output = {
         "cells": cell_dims,
-        "coords": np.array(coords, dtype=object),  # Use dtype=object to handle varying lengths
-        "symbols": np.array(symbols, dtype=object)  # Use dtype=object for symbols
+        "coords": np.array(
+            coords, dtype=object
+        ),  # Use dtype=object to handle varying lengths
+        "symbols": np.array(symbols, dtype=object),  # Use dtype=object for symbols
     }
 
     # Print warning if any lines were skipped
@@ -487,6 +522,7 @@ forcefields = dict(
         "CH4_sp3": [148.0, 3.73],
         "CH3_sp3": [98.0, 3.75],
         "CH2_sp3": [46.0, 3.95],
+        "CH_sp2": [50.0, 3.695],
         "CH_sp3": [10, 4.68],
         "C_sp3": [0.5, 6.4],
         "H_h2": [0.0, 0.0],
