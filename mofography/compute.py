@@ -8628,4 +8628,238 @@ def do_periodic_segmentation_basic(
         outputs['dgrid'] = dgrid
     return outputs
 
+def compute_surface_area_from_results(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False
+):
+    """
+    Compute surface area analysis from pre-computed results dictionary.
+
+    This function takes results from do_periodic_segmentation and compute_percolation_history
+    to provide comprehensive surface area analysis at multiple granularity levels.
+
+    Parameters
+    ----------
+    results_dict : dict
+        Results dictionary containing at minimum:
+        - 'distance_grid': Distance grid array
+        - 'pbc_groups': PBC groups dictionary
+        - 'regions_pbc': Periodic regions array
+        - Optional: 'percolation_history' from compute_percolation_history
+    mat_atoms : ase.Atoms
+        Atomic structure for mass calculation and coordinate transformations.
+    probe_radius : float, optional
+        Probe radius for surface area calculation. If None, uses helium radius.
+    return_details : bool, optional
+        If True, returns detailed intermediate results. Default False.
+
+    Returns
+    -------
+    dict
+        Dictionary containing:
+        - 'total_surface_area': Total surface area of entire structure (m²/g)
+        - 'accessible_surface_area': Total accessible surface area (percolated) (m²/g)
+        - 'by_region': Accessible surface area per individual region (dict)
+        - 'by_pocket': Accessible surface area per complete pocket (dict)
+        - 'by_percolated_cluster': Accessible surface area per percolated cluster (dict)
+        - 'accessible_fraction': Fraction of total surface area that is accessible
+        - 'probe_radius': Probe radius used
+        If return_details=True, also includes intermediate results.
+    """
+    import numpy as np
+    from ase.data import vdw_radii
+    from ase.units import _amu
+    from .visualize import get_isosurface_mesh, get_isosurface_submeshes
+
+    # Extract required data from results
+    distance_grid = results_dict['distance_grid']
+    pbc_groups = results_dict['pbc_groups']
+    regions_pbc = results_dict['regions_pbc']
+
+    # Convert pbc_groups to dictionary format if it's a list (from Rust backend)
+    if isinstance(pbc_groups, list):
+        pbc_groups = {f"pocket_{i}": group_set for i, group_set in enumerate(pbc_groups)}
+
+    # Set probe radius
+    if probe_radius is None:
+        probe_radius = vdw_radii[2]  # helium radius
+
+    # Calculate mass for normalization
+    mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # grams
+
+    # Step 1: Compute total surface area of entire structure
+    total_mesh = get_isosurface_mesh(distance_grid, probe_radius, mat_atoms)
+    total_surface_area = total_mesh.area * 1e-20 / mass_g
+
+    # Step 2: Get percolating regions if percolation history is available
+    percolating_regions = set()
+    if 'percolation_history' in results_dict:
+        percolation_history = results_dict['percolation_history']
+        for threshold, components in percolation_history:
+            if threshold >= probe_radius:
+                for axis, comp_list in components.items():
+                    for comp in comp_list:
+                        percolating_regions.update(comp)
+                break  # Use the first threshold >= probe_radius
+    else:
+        # If no percolation history, assume all regions are accessible
+        percolating_regions = set(np.unique(regions_pbc)[1:])  # Exclude background
+
+    # Step 3: Get surface area meshes for each region
+    submeshes = get_isosurface_submeshes(
+        distance_grid, probe_radius, mat_atoms, regions_pbc
+    )
+
+    # Step 4: Calculate surface area by individual region
+    region_areas = {}
+    accessible_region_areas = {}
+    region_ids = np.unique(regions_pbc)[1:]  # Skip background (0)
+
+    for i, region_id in enumerate(region_ids):
+        if i < len(submeshes):
+            area = submeshes[i].area * 1e-20 / mass_g
+            region_areas[region_id] = area
+            if region_id in percolating_regions:
+                accessible_region_areas[region_id] = area
+
+    # Step 5: Calculate surface area by complete pocket
+    pocket_areas = {}
+    accessible_pocket_areas = {}
+
+    for pocket_id, region_set in pbc_groups.items():
+        total_pocket_area = sum(region_areas.get(region_id, 0) for region_id in region_set)
+        accessible_pocket_area = sum(accessible_region_areas.get(region_id, 0) for region_id in region_set)
+
+        pocket_areas[pocket_id] = total_pocket_area
+        if accessible_pocket_area > 0:
+            accessible_pocket_areas[pocket_id] = accessible_pocket_area
+
+    # Step 6: Group percolating regions into percolated clusters
+    # Regions that percolate together in the same direction form a cluster
+    percolated_clusters = {}
+    if 'percolation_history' in results_dict:
+        percolation_history = results_dict['percolation_history']
+        for threshold, components in percolation_history:
+            if threshold >= probe_radius:
+                cluster_id = 0
+                for axis, comp_list in components.items():
+                    for comp in comp_list:
+                        # Each component in each direction is a separate percolated cluster
+                        cluster_regions = set(comp).intersection(percolating_regions)
+                        if cluster_regions:
+                            percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
+                            cluster_id += 1
+                break  # Use the first threshold >= probe_radius
+
+    logger.info(f"Found {len(percolated_clusters)} percolated clusters at probe radius {probe_radius:.3f} Å")
+
+    # Calculate surface area by percolated cluster
+    percolated_cluster_areas = {}
+    for cluster_id, region_set in percolated_clusters.items():
+        cluster_area = sum(accessible_region_areas.get(region_id, 0) for region_id in region_set)
+        if cluster_area > 0:
+            percolated_cluster_areas[cluster_id] = cluster_area
+
+    # Step 6b: Check completeness of PBC groups and identify incomplete pockets
+    complete_pockets = {}
+    incomplete_pockets = {}
+
+    # Collect all percolated regions across all clusters
+    all_percolated_regions = set()
+    for cluster_regions in percolated_clusters.values():
+        all_percolated_regions.update(cluster_regions)
+
+    logger.info(f"Analyzing {len(pbc_groups)} PBC groups for completeness at probe radius {probe_radius:.3f} Å")
+
+    for pocket_id, region_set in pbc_groups.items():
+        # Check if all regions in this PBC group are percolated
+        if region_set.issubset(all_percolated_regions):
+            complete_pockets[pocket_id] = region_set
+            logger.debug(f"PBC group {pocket_id} is COMPLETE - all {len(region_set)} regions are percolated")
+        else:
+            # Find which regions are missing from percolation
+            missing_regions = region_set - all_percolated_regions
+            accessible_regions = region_set.intersection(all_percolated_regions)
+
+            incomplete_pockets[pocket_id] = {
+                'all_regions': region_set,
+                'accessible_regions': accessible_regions,
+                'missing_regions': missing_regions,
+                'completeness_fraction': len(accessible_regions) / len(region_set) if region_set else 0
+            }
+
+            logger.warning(f"PBC group {pocket_id} is INCOMPLETE - {len(missing_regions)}/{len(region_set)} regions not percolated "
+                          f"(completeness: {incomplete_pockets[pocket_id]['completeness_fraction']:.2%})")
+
+    logger.info(f"Found {len(complete_pockets)} complete pockets and {len(incomplete_pockets)} incomplete pockets")
+
+    # Recalculate accessible pocket areas with completeness information
+    accessible_pocket_areas = {}
+    flagged_pocket_areas = {}
+
+    # Add complete pockets
+    for pocket_id, region_set in complete_pockets.items():
+        accessible_area = sum(accessible_region_areas.get(region_id, 0) for region_id in region_set)
+        if accessible_area > 0:
+            accessible_pocket_areas[pocket_id] = accessible_area
+            logger.debug(f"Complete pocket {pocket_id}: accessible SA = {accessible_area:.4f} m²/g")
+
+    # Add incomplete pockets (flagged)
+    for pocket_id, pocket_info in incomplete_pockets.items():
+        accessible_area = sum(accessible_region_areas.get(region_id, 0)
+                            for region_id in pocket_info['accessible_regions'])
+        if accessible_area > 0:
+            flagged_pocket_areas[pocket_id] = {
+                'accessible_surface_area': accessible_area,
+                'completeness_fraction': pocket_info['completeness_fraction'],
+                'missing_regions': list(pocket_info['missing_regions']),
+                'accessible_regions': list(pocket_info['accessible_regions'])
+            }
+            logger.info(f"Flagged incomplete pocket {pocket_id}: accessible SA = {accessible_area:.4f} m²/g "
+                       f"(completeness: {pocket_info['completeness_fraction']:.2%})")
+
+    # Step 7: Calculate total accessible surface area
+    accessible_surface_area = sum(accessible_region_areas.values())
+
+    # Prepare results
+    results = {
+        'total_surface_area': total_surface_area,
+        'accessible_surface_area': accessible_surface_area,
+        'by_region': accessible_region_areas,
+        'by_pocket': accessible_pocket_areas,
+        'by_percolated_cluster': percolated_cluster_areas,
+        'accessible_fraction': accessible_surface_area / total_surface_area if total_surface_area > 0 else 0,
+        'probe_radius': probe_radius,
+        'num_regions': len(region_ids),
+        'num_accessible_regions': len(accessible_region_areas),
+        'num_pockets': len(pbc_groups),
+        'num_accessible_pockets': len(accessible_pocket_areas),
+        'num_percolated_clusters': len(percolated_cluster_areas),
+        # New completeness information
+        'complete_pockets': len(complete_pockets),
+        'incomplete_pockets': len(incomplete_pockets),
+        'flagged_incomplete_pockets': flagged_pocket_areas,
+        'pocket_completeness_stats': {
+            'total_pockets': len(pbc_groups),
+            'complete_pockets': len(complete_pockets),
+            'incomplete_pockets': len(incomplete_pockets),
+            'completeness_rate': len(complete_pockets) / len(pbc_groups) if pbc_groups else 0
+        }
+    }
+
+    # Add detailed results if requested
+    if return_details:
+        results.update({
+            'percolating_regions': percolating_regions,
+            'percolated_clusters': percolated_clusters,
+            'region_areas': region_areas,
+            'pocket_areas': pocket_areas,
+            'total_mesh': total_mesh,
+            'submeshes': submeshes
+        })
+
+    return results
+
 
