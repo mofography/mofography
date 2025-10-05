@@ -6732,7 +6732,7 @@ def solve_poisson_spectral_gpu(atoms, grid_spacing=0.2, epsilon_r=1.0):
     print(f"  Mean: {cp.mean(phi):.2e}")
     
     return phi, grid_shape, cell
-def compute_accessible_volume(dgrid, probe_radius=None, mat_atoms=None):
+def compute_void_volume(dgrid, probe_radius=None, mat_atoms=None):
     """
     Compute the accessible volume based on the distance grid and probe radius.
 
