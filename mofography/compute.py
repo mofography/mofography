@@ -6443,6 +6443,18 @@ def get_pore_dia_mgr(mat_atoms, dgrid= None, kwargs={}):
     
     return lcd, pld, dfsd, distance_grid
 
+def compute_percolation_history_from_results(results):
+    dgrid = results['dgrid']
+    regions = results['regions']
+    # maxima_info = results['maxima_info']
+    all_maxima = results['all_maxima']
+    maxima = all_maxima[:regions.max()]
+    percolation_history, pld_locations, _, _,_ = compute_percolation_history(dgrid, regions, maxima)
+    results['percolation_history'] = percolation_history
+    results['pld_locations'] = pld_locations
+    # results['']
+    return results
+    
 def compute_percolation_history(distance_grid=None, regions=None, maxima=None, path_to_cif=None, kwargs={}):
     """
     Compute the percolation history with region and maxima information.
