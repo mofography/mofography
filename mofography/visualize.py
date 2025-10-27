@@ -1353,12 +1353,30 @@ def get_isosurface_mesh(data, isoval,ase_atoms, spacing=(1,1,1), stepsize=1 ):
     import numpy as np
     from skimage.measure import marching_cubes
     from ase.geometry import complete_cell 
-    cell = complete_cell(ase_atoms.get_cell()).T
-    verts, faces, vertex_normals, _ = marching_cubes(data, isoval,spacing=spacing, step_size=stepsize)
-    verts = np.dot(cell, (verts/data.shape).T).T # * transform to cartesian coordinates
-    import trimesh 
-    mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
-    return mesh
+    import trimesh
+    
+    # Check if isovalue is within data range
+    if isoval > data.max():
+        # Return empty mesh with zero area when isovalue exceeds data range
+        empty_verts = np.array([[0.0, 0.0, 0.0]])  # Single vertex
+        empty_faces = np.array([])  # No faces
+        empty_normals = np.array([[0.0, 0.0, 1.0]])  # Default normal
+        mesh = trimesh.Trimesh(empty_verts, empty_faces, vertex_normals=empty_normals)
+        return mesh
+    
+    try:
+        cell = complete_cell(ase_atoms.get_cell()).T
+        verts, faces, vertex_normals, _ = marching_cubes(data, isoval,spacing=spacing, step_size=stepsize)
+        verts = np.dot(cell, (verts/data.shape).T).T # * transform to cartesian coordinates
+        mesh = trimesh.Trimesh(verts, faces, vertex_normals=vertex_normals)
+        return mesh
+    except Exception as e:
+        # Handle marching cubes errors by returning empty mesh
+        empty_verts = np.array([[0.0, 0.0, 0.0]])  # Single vertex
+        empty_faces = np.array([])  # No faces
+        empty_normals = np.array([[0.0, 0.0, 1.0]])  # Default normal
+        mesh = trimesh.Trimesh(empty_verts, empty_faces, vertex_normals=empty_normals)
+        return mesh
 
 def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
                             steps=(1, 1, 1), stepsize=1, colorscale=None):
@@ -1382,6 +1400,20 @@ def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
     dist_iso_surf = get_isosurface_mesh(dgrid, isoval, ase_atoms)
     vertices = dist_iso_surf.vertices
     faces = dist_iso_surf.faces
+    
+    # Check if mesh has no faces (empty mesh)
+    if len(faces) == 0:
+        # Return empty submeshes for each region
+        region_count = len(np.unique(region_labels)) - 1  # Exclude background (0)
+        import trimesh
+        empty_meshes = []
+        for i in range(region_count):
+            empty_verts = np.array([[0.0, 0.0, 0.0]])
+            empty_faces = np.array([])
+            empty_normals = np.array([[0.0, 0.0, 1.0]])
+            empty_mesh = trimesh.Trimesh(empty_verts, empty_faces, vertex_normals=empty_normals)
+            empty_meshes.append(empty_mesh)
+        return empty_meshes
     
     # Find fractional coordinates of vertices
     frac_vertices = get_fractional_coordinates(vertices, ase_atoms)
@@ -1413,7 +1445,9 @@ def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
     sampled_colors = px.sample_colorscale(colorscale, np.unique(region_labels)[1:]/region_labels.max())
     mesh_colors = [parse_rgb(s) for s in sampled_colors]
     for i,m in enumerate(dist_iso_submeshes):
-        m.visual_vertex_colors = mesh_colors[i] 
+        # Check if mesh has the visual attribute (empty meshes may not)
+        if hasattr(m, 'visual'):
+            m.visual.vertex_colors = mesh_colors[i] 
     return dist_iso_submeshes
 
 def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
@@ -1438,6 +1472,20 @@ def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
     dist_iso_surf = get_isosurface_mesh(dgrid, isoval, ase_atoms)
     vertices = dist_iso_surf.vertices
     faces = dist_iso_surf.faces
+    
+    # Check if mesh has no faces (empty mesh)
+    if len(faces) == 0:
+        # Return empty submeshes for each region
+        region_count = len(np.unique(region_labels)) - 1  # Exclude background (0)
+        import trimesh
+        empty_meshes = []
+        for i in range(region_count):
+            empty_verts = np.array([[0.0, 0.0, 0.0]])
+            empty_faces = np.array([])
+            empty_normals = np.array([[0.0, 0.0, 1.0]])
+            empty_mesh = trimesh.Trimesh(empty_verts, empty_faces, vertex_normals=empty_normals)
+            empty_meshes.append(empty_mesh)
+        return empty_meshes
     
     # Find fractional coordinates of vertices
     frac_vertices = get_fractional_coordinates(vertices, ase_atoms)
@@ -1470,7 +1518,9 @@ def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
     mesh_colors = [parse_rgb(s) for s in sampled_colors]
     print('mesh colors', mesh_colors)
     for i,m in enumerate(dist_iso_submeshes):
-        m.visual.vertex_colors = mesh_colors[i] 
+        # Check if mesh has the visual attribute (empty meshes may not)
+        if hasattr(m, 'visual'):
+            m.visual.vertex_colors = mesh_colors[i] 
     return dist_iso_submeshes
 def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={}):
     """
