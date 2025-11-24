@@ -3461,7 +3461,7 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
     for conn in connections:
         nodes.update(conn[0])  # conn[0] contains both node indices
     nodes = sorted(list(nodes))
-    print('these are all the nodes from connections', nodes)
+    # print('these are all the nodes from connections', nodes)
 
     # Get cell matrix with vectors as columns
     cell = complete_cell(ase_atoms.get_cell()).T
@@ -3513,7 +3513,7 @@ def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_perio
         # }
         #
     node_colors = [node_to_color[node] for node in nodes]
-    print('node to color: ', node_to_color)
+    # print('node to color: ', node_to_color)
     # Create node positions and hover text for internal nodes
     node_x, node_y, node_z = [], [], []
     node_hover = []
