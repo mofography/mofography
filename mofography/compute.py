@@ -18,6 +18,7 @@ import logging
 from scipy.ndimage import label, generate_binary_structure
 from dask import delayed, compute
 from dask.diagnostics import ProgressBar
+from types import CellType
 
 logger = logging.getLogger(__name__)
 
@@ -9297,22 +9298,48 @@ def compute_void_volume_from_results(
 #**********************************************************
 # This is the updated functions for percolation with correct pbc, for testing
 #********************************************************
-
 class UnionFind:
     def __init__(self, n):
-        self.parent = np.arange(n, dtype=np.int32)
+        self.parent = np.arange(n)
+
     def find(self, x):
+        # Path compression
         root = x
         while self.parent[root] != root:
             root = self.parent[root]
-        # Path compression
         while self.parent[x] != x:
             x, self.parent[x] = self.parent[x], root
         return root
-    def union(self, a, b):
-        ra = self.find(a); rb = self.find(b)
-        if ra != rb:
-            self.parent[rb] = ra
+
+    def union(self, x, y):
+        xr, yr = self.find(x), self.find(y)
+        if xr != yr:
+            self.parent[yr] = xr
+
+    def union_pairs(self, a, b):
+        """Union matching ids from arrays `a` and `b`."""
+        for x, y in zip(a, b):
+            self.union(int(x), int(y))
+def _merge_periodic_faces(labeled, axis, uf):
+    """Merge labels that touch across periodic faces of `axis`."""
+    if labeled.shape[axis] < 2:
+        return
+    slicer_lo = [slice(None)] * 3
+    slicer_hi = [slice(None)] * 3
+    slicer_lo[axis] = 0
+    slicer_hi[axis] = labeled.shape[axis] - 1
+    face_lo = labeled[tuple(slicer_lo)]
+    face_hi = labeled[tuple(slicer_hi)]
+    mask = (face_lo != 0) & (face_hi != 0)
+    if not np.any(mask):
+        return
+    idx_lo = face_lo[mask]
+    idx_hi = face_hi[mask]
+    if idx_lo.size == 0:
+        return
+    pairs = np.stack((idx_lo, idx_hi), axis=1)
+    unique_pairs = np.unique(pairs, axis=0)
+    uf.union_pairs(unique_pairs[:, 0], unique_pairs[:, 1])
 def percolation_all_axes_periodic(binary):
     """
     Check percolation in x/y/z with periodic BCs in transverse directions.
@@ -9326,57 +9353,40 @@ def percolation_all_axes_periodic(binary):
     --------
     dict with keys "x", "y", "z":
         each is a set of component labels that percolate in that axis.
-    unioned_labels: np.ndarray
-        label grid after periodic boundary merging.
+    unioned_labels_dict: dict
+        For each axis, the label grid after periodic boundary merging.
     """
-
-    # --- 1. base labeling (fast, C-accelerated)
     struct = generate_binary_structure(3, 1)
     labeled, nlab = label(binary, structure=struct)
-
     if nlab == 0:
-        return {"x": set(), "y": set(), "z": set()}, labeled
+        return {"x": set(), "y": set(), "z": set()}, {}
 
-    uf = UnionFind(nlab+1)
-
-    Nx, Ny, Nz = labeled.shape
-
-    # --- 2. merge periodic BCs in y-direction
-    # (x,0,z) ↔ (x,Ny-1,z)
-    left = labeled[:,0,:]
-    right = labeled[:,Ny-1,:]
-    mask = (left != 0) & (right != 0)
-    idx_left = left[mask].ravel()
-    idx_right = right[mask].ravel()
-    for a,b in zip(idx_left, idx_right):
-        uf.union(a,b)
-
-    # --- 3. merge periodic BCs in z-direction
-    # (x,y,0) ↔ (x,y,Nz-1)
-    front = labeled[:,:,0]
-    back  = labeled[:,:,Nz-1]
-    mask = (front != 0) & (back != 0)
-    idx_front = front[mask].ravel()
-    idx_back  = back[mask].ravel()
-    for a,b in zip(idx_front, idx_back):
-        uf.union(a,b)
-
-    # --- 4. Produce unified label map
-    # vectorized find() would be ideal → we apply find per unique label then remap
-    ulab = np.unique(labeled)
-    remap = {l: uf.find(l) for l in ulab}
-    unioned_labels = np.vectorize(lambda x: remap[x])(labeled)
-
-    # --- 5. Percolation check in x,y,z
+    axes = {"x": 0, "y": 1, "z": 2}
     results = {}
-    # axes = {"x":0, "y":1, "z":2}
-    axes = {"x":2, "y":1, "z":0} # this needs be consistent with how numpy orders axes
-    for name,axis in axes.items():
+    unioned_labels_dict = {}
+
+    for name, axis in axes.items():
+        uf = UnionFind(nlab + 1)
+
+        # Merge only the transverse periodic boundaries
+        for other_axis in range(3):
+            if other_axis == axis:
+                continue
+            _merge_periodic_faces(labeled, other_axis, uf)
+
+        # Remap labels using union-find parents
+        remap = np.arange(nlab + 1)
+        for lbl in range(1, nlab + 1):
+            remap[lbl] = uf.find(lbl)
+        unioned_labels = remap[labeled]
+        unioned_labels_dict[name] = unioned_labels
+
+        # Percolation check along this axis
         faceA = set(np.unique(np.take(unioned_labels, 0, axis=axis))) - {0}
-        faceB = set(np.unique(np.take(unioned_labels,-1, axis=axis))) - {0}
+        faceB = set(np.unique(np.take(unioned_labels, -1, axis=axis))) - {0}
         results[name] = faceA.intersection(faceB)
 
-    return results, unioned_labels
+    return results, unioned_labels_dict
 def check_percolation_periodic2(dgrid, threshold):
     binary = dgrid > threshold
     results, _ = percolation_all_axes_periodic(binary)
@@ -9400,7 +9410,6 @@ def find_pore_limiting_radius2(distance_grid):
 
     # The pore limiting diameter is the last threshold that allowed percolation
     return unique_radii[right] if right >= 0 else None
-
 def compute_percolation_history2(
         distance_grid=None,
         regions=None,
@@ -9452,82 +9461,15 @@ def compute_percolation_history2(
             percolating_components = {"x":[], "y":[], "z":[]}
 
             for axis, labset in results.items():
+                axis_labels = unioned.get(axis, None)
+                if axis_labels is None:
+                    continue
                 for lab in labset:
-                    mask = (unioned == lab)
+                    mask = (axis_labels == lab)
                     region_list = np.unique(regions[mask])
                     region_list = region_list[region_list != 0]
                     percolating_components[axis].append(region_list.tolist())
 
             percolation_history.append((threshold, percolating_components))
-
-    return percolation_history, pld_locations, distance_grid, regions, maxima
-
-def percolation_for_block(threshold_block, distance_grid, regions):
-    results = []
-    for threshold in threshold_block:
-        binary = distance_grid > threshold
-        results_dict, unioned = percolation_all_axes_periodic(binary)
-        percolating_components = {"x": [], "y": [], "z": []}
-        for axis, labset in results_dict.items():
-            for lab in labset:
-                mask = (unioned == lab)
-                region_list = np.unique(regions[mask])
-                region_list = region_list[region_list != 0]
-                percolating_components[axis].append(region_list.tolist())
-        results.append((threshold, percolating_components))
-    return results
-
-def compute_percolation_history2_parallel(
-    distance_grid=None,
-    regions=None,
-    maxima=None,
-    path_to_cif=None,
-    kwargs={}
-):
-    spacing       = kwargs.get('spacing', 0.5)
-    mask_thickness = kwargs.get('mask_thickness', 1.5)
-    step          = kwargs.get('step', 0.05)
-    blocksize     = kwargs.get('blocksize', None)
-    num_workers   = kwargs.get('num_workers', 4)
-
-    # --- Load or generate distance grid
-    if distance_grid is None:
-        if path_to_cif is None:
-            raise ValueError("Either distance_grid or path_to_cif must be provided.")
-        _, _, _, distance_grid = get_pore_dia_mgr(path_to_cif, kwargs)
-
-    # --- Regions and maxima
-    if regions is None or maxima is None:
-        regions, maxima = regions_from_dgrid(distance_grid, mask_thickness=mask_thickness)
-
-    # --- PLD
-    pld = find_pore_limiting_radius2(distance_grid) * 2
-    pld_locations = np.argwhere(np.isclose(distance_grid, pld/2, atol=1e-10))
-
-    thresholds = np.arange(0, pld/2 + step, step)
-    n_thresholds = len(thresholds)
-
-    # --- Blocksize logic
-    if blocksize is None:
-        blocksize = max(1, n_thresholds // num_workers)
-    n_blocks = int(np.ceil(n_thresholds / blocksize))
-
-    # --- Warn if too many blocks for a large grid
-    grid_size = np.prod(distance_grid.shape)
-    if n_blocks > 16 and grid_size > 1e7:
-        print(f"[WARNING] Large grid ({grid_size} points) and {n_blocks} blocks: this may use a lot of memory! Consider increasing blocksize.")
-
-    # --- Split thresholds into blocks
-    blocks = [thresholds[i:i+blocksize] for i in range(0, n_thresholds, blocksize)]
-
-    # --- Dask delayed mapping
-    tasks = [delayed(percolation_for_block)(block, distance_grid, regions) for block in blocks]
-
-    # --- Dask compute with progress bar
-    with ProgressBar():
-        block_results = compute(*tasks, scheduler='processes', num_workers=num_workers)
-
-    # --- Flatten results
-    percolation_history = [item for sublist in block_results for item in sublist]
 
     return percolation_history, pld_locations, distance_grid, regions, maxima
