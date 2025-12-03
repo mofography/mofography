@@ -9473,3 +9473,79 @@ def compute_percolation_history2(
             percolation_history.append((threshold, percolating_components))
 
     return percolation_history, pld_locations, distance_grid, regions, maxima
+# * compute pore diameters using the new periodic percolation algorithm
+def get_pore_dia_mgr2(mat_atoms, dgrid=None, kwargs=None):
+    """
+    Compute pore diameters (LCD/PLD/DFSD) using the periodic-aware percolation solver.
+
+    Parameters
+    ----------
+    mat_atoms : ase.Atoms
+        Atomic structure used to generate the distance grid when `dgrid` is None.
+    dgrid : np.ndarray, optional
+        Precomputed distance grid. When provided, grid generation is skipped.
+    kwargs : dict, optional
+        Additional options:
+            - spacing (float): grid spacing in Å (default 0.5)
+            - block_size (int): dgrid chunk size (default 50000)
+
+    Returns
+    -------
+    tuple
+        (lcd, pld, dfsd, distance_grid)
+    """
+    if kwargs is None:
+        kwargs = {}
+
+    spacing = kwargs.get("spacing", 0.5)
+    block_size = kwargs.get("block_size", 50000)
+
+    if dgrid is None:
+        distance_grid = mgr.dgrid_from_atoms_cpu(
+            mat_atoms, spacing=spacing, block_size=block_size
+        )
+    else:
+        distance_grid = dgrid
+
+    distance_grid = np.asarray(distance_grid)
+
+    lcd = float(distance_grid.max() * 2)
+
+    plr = find_pore_limiting_radius2(distance_grid)
+    if plr is None:
+        pld = 0.0
+    else:
+        pld = float(plr * 2)
+
+    dfsd = 0.0
+    if pld > 0:
+        threshold = pld / 2.0
+        binary_grid = distance_grid > threshold
+        results, unioned_labels = percolation_all_axes_periodic(binary_grid)
+
+        if any(len(v) > 0 for v in results.values()):
+            percolating_mask = np.zeros(distance_grid.shape, dtype=bool)
+            for axis_name, labels in results.items():
+                axis_labels = unioned_labels.get(axis_name)
+                if axis_labels is None:
+                    continue
+                for lab in labels:
+                    percolating_mask |= axis_labels == lab
+
+            if percolating_mask.any():
+                dfsd = float(distance_grid[percolating_mask].max() * 2)
+
+    return lcd, pld, dfsd, distance_grid
+#* compute the percolation history from results dict using the new percolation algorithm
+def compute_percolation_history_from_results2(results):
+    dgrid = results['dgrid']
+    regions = results['regions']
+    # maxima_info = results['maxima_info']
+    all_maxima = results['all_maxima']
+    maxima = all_maxima[:regions.max()]
+    percolation_history, pld_locations, _, _,_ = compute_percolation_history2(dgrid, regions, maxima)
+    results['percolation_history'] = percolation_history
+    results['pld_locations'] = pld_locations
+    # results['']
+    return results
+
