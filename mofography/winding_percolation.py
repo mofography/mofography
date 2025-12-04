@@ -1,0 +1,653 @@
+"""
+Periodic winding-number percolation helpers for directed pore graphs.
+
+This module targets the deduplicated NetworkX ``MultiDiGraph`` produced by the
+PBC-aware segmentation pipeline described in ``winding_percolation_gpt5.1.md``:
+
+* Nodes correspond to unique ``maxima_pbc`` representatives and carry at least
+  ``pocket_radius`` (Å) and fractional coordinates ``frac_pos``.
+* Edges are stored only once with the canonical ordering ``i <= j`` and provide
+  ``relative_offset`` – an integer tuple telling how much node ``j`` must be
+  shifted (in box lengths) to reach the connected periodic image from ``i``.
+  Self-loops with non-zero offsets represent pores directly connected to their
+  own periodic images and therefore can encode valid winding loops.
+* The transpose edge (``j -> i`` with ``-relative_offset``) is intentionally
+  absent to match CGD/topology file conventions, so any traversal routine must
+  treat edges as *undirected* while respecting the stored orientation when
+  accumulating winding numbers.
+
+The functions below keep the BFS/DFS logic entirely in graph space – no voxel
+replication is required.  They accumulate integer offsets per node, detect when
+back-edges close non-contractible cycles, and report per-axis percolation along
+with the actual winding clusters.  When testing percolation along one axis we
+implicitly allow periodic connectivity in the other two axes, ensuring that
+clusters such as the large NU-1000 corner pocket (which has multiple XY images
+but a single Z loop) are reported as one physical cluster instead of duplicate
+self-loops.
+"""
+
+from __future__ import annotations
+
+from collections import deque
+from dataclasses import dataclass
+from turtle import update
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+
+import networkx as nx
+import numpy as np
+import mofography as mgr
+
+Offset = Tuple[int, int, int]
+
+
+@dataclass(frozen=True)
+class CanonicalEdgeID:
+    """Reference to an edge independent of traversal direction."""
+
+    u: int
+    v: int
+    key: int
+
+    @classmethod
+    def from_nodes(cls, a: int, b: int, key: int) -> "CanonicalEdgeID":
+        if a <= b:
+            return cls(a, b, key)
+        return cls(b, a, key)
+
+
+def _normalize_offset(value: Sequence[int]) -> Offset:
+    """Return an integer tuple regardless of numpy scalar types."""
+    return tuple(int(x) for x in value)
+
+
+def _iter_neighbor_edges(
+    G: nx.MultiDiGraph, node: int
+) -> Iterator[Tuple[int, int, Offset, Offset, bool]]:
+    """
+    Yield (neighbor, key, canonical_offset, delta, forward) for edges touching ``node``.
+
+    ``forward=True`` means ``node`` matches the stored direction (edge data is
+    ``node -> neighbor``).  ``forward=False`` means we are traversing the edge
+    in reverse (``neighbor -> node`` in the stored graph) and therefore the
+    offset must be negated.
+    """
+
+    # Outgoing edges: orientation matches storage.
+    for nbr, keyed in G.succ[node].items():
+        for key, attrs in keyed.items():
+            rel = _normalize_offset(attrs.get("relative_offset", (0, 0, 0)))
+            yield nbr, key, rel, rel, True
+
+    # Incoming edges: orientation reversed.
+    for nbr, keyed in G.pred[node].items():
+        for key, attrs in keyed.items():
+            rel = _normalize_offset(attrs.get("relative_offset", (0, 0, 0)))
+            if nbr == node:
+                # Self-loops already handled by the outgoing iteration above.
+                continue
+            delta = tuple(-x for x in rel)
+            yield nbr, key, rel, delta, False
+
+
+def _tree_path(u: int, v: int, parent: Dict[int, Optional[int]]) -> List[int]:
+    """Return the list of nodes along the unique tree path connecting u and v."""
+    path_u = []
+    cur = u
+    while cur is not None:
+        path_u.append(cur)
+        cur = parent[cur]
+
+    path_v = []
+    cur = v
+    while cur is not None:
+        path_v.append(cur)
+        cur = parent[cur]
+
+    ancestors_u = set(path_u)
+    lca = next(node for node in path_v if node in ancestors_u)
+
+    pu = path_u[: path_u.index(lca) + 1]
+    pv = path_v[: path_v.index(lca) + 1]
+
+    return pu + pv[::-1][1:]
+
+
+def percolation_winding_multidigraph(
+    G: nx.MultiDiGraph,
+) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
+    """
+    Evaluate percolation using winding numbers on a deduplicated MultiDiGraph.
+
+    Returns
+    -------
+    percolates : dict
+        Keys ``'x'``, ``'y'``, ``'z'`` map to booleans indicating whether at
+        least one non-contractible loop exists along that axis.
+    loops : list of dict
+        Each loop dictionary contains ``winding`` (Offset), ``nodes`` (list of
+        node IDs along the tree path that closes the loop), ``edge`` (canonical
+        ``(u, v, key)``), ``edge_offset`` (stored offset on that edge) and
+        ``delta`` (the traversal offset that triggered detection).
+    acc_offsets : dict
+        Maps node ID to its accumulated integer offset relative to the BFS root
+        of its connected component.
+    """
+
+    percolates = {"x": False, "y": False, "z": False}
+    loops: List[Dict[str, object]] = []
+    acc_offsets: Dict[int, Offset] = {}
+    parent: Dict[int, Optional[int]] = {}
+    visited = set()
+
+    undirected = nx.Graph(G.to_undirected(as_view=True))
+
+    for comp_nodes in nx.connected_components(undirected):
+        comp_nodes = set(comp_nodes)
+        root = next(iter(comp_nodes))
+        if root in visited:
+            continue
+        visited.add(root)
+        parent[root] = None
+        acc_offsets[root] = (0, 0, 0)
+        queue = deque([root])
+
+        while queue:
+            u = queue.popleft()
+            u_acc = np.array(acc_offsets[u], dtype=int)
+
+            for nbr, key, canonical_offset, delta, forward in _iter_neighbor_edges(G, u):
+                ced = CanonicalEdgeID.from_nodes(u, nbr, key)
+
+                # Ensure traversal stays within the current component
+                if nbr not in comp_nodes:
+                    continue
+
+                implied = tuple((u_acc + np.array(delta, dtype=int)).tolist())
+
+                if nbr not in visited:
+                    visited.add(nbr)
+                    parent[nbr] = u
+                    acc_offsets[nbr] = implied
+                    queue.append(nbr)
+                    continue
+
+                current = acc_offsets[nbr]
+                if implied == current:
+                    continue
+
+                winding_array = np.array(implied, dtype=int) - np.array(current, dtype=int)
+                winding = tuple(int(x) for x in winding_array)
+                if winding == (0, 0, 0):
+                    continue
+
+                cycle_nodes = _tree_path(u, nbr, parent)
+                loop_info = {
+                    "winding": winding,
+                    "nodes": cycle_nodes,
+                    "edge": (ced.u, ced.v, ced.key),
+                    "edge_offset": canonical_offset,
+                    "delta": delta,
+                }
+                loops.append(loop_info)
+                if winding[0] != 0:
+                    percolates["x"] = True
+                if winding[1] != 0:
+                    percolates["y"] = True
+                if winding[2] != 0:
+                    percolates["z"] = True
+
+    unique_loops = []
+    seen = set()
+    for loop in loops:
+        key = (loop["winding"], tuple(loop["nodes"]), loop["edge"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_loops.append(loop)
+
+    return percolates, unique_loops, acc_offsets
+
+
+def detect_percolation_with_threshold(
+    G: nx.MultiDiGraph,
+    threshold: float,
+    node_radius_attr: str = "pocket_radius",
+    edge_radius_attr: str = "window_radius",
+) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
+    """
+    Convenience wrapper that filters nodes/edges below ``threshold`` before
+    running :func:`percolation_winding_multidigraph`.
+
+    Parameters
+    ----------
+    G : nx.MultiDiGraph
+        Pore graph following the deduplicated conventions.
+    threshold : float
+        Minimum radius (Å) for both nodes and edges to participate.
+    node_radius_attr, edge_radius_attr : str
+        Attribute names storing radii on nodes/edges respectively.
+    """
+
+    eligible_nodes = {
+        n
+        for n, data in G.nodes(data=True)
+        if float(data.get(node_radius_attr, 0.0)) >= threshold
+    }
+
+    if not eligible_nodes:
+        return {"x": False, "y": False, "z": False}, [], {}
+
+    H = nx.MultiDiGraph()
+    for n in eligible_nodes:
+        H.add_node(n, **G.nodes[n])
+
+    for u, v, key, data in G.edges(keys=True, data=True):
+        if u not in eligible_nodes or v not in eligible_nodes:
+            continue
+        if float(data.get(edge_radius_attr, 0.0)) < threshold:
+            continue
+        H.add_edge(u, v, key=key, **data)
+
+    if H.number_of_edges() == 0:
+        return {"x": False, "y": False, "z": False}, [], {}
+
+    return percolation_winding_multidigraph(H)
+
+
+def _maxima_pbc_data(maxima_info: np.ndarray):
+    zero_mask = np.all(maxima_info[:, 4:7] == 0, axis=1)
+    zero_rows = maxima_info[zero_mask]
+    coords = zero_rows[:, 1:4].astype(int)
+    maxima_pbc_dict = {tuple(coord): int(row[0]) for coord, row in zip(coords, zero_rows)}
+    orig_map = np.array(
+        [maxima_pbc_dict[tuple(map(int, row[1:4]))] for row in maxima_info], dtype=int
+    )
+    return maxima_pbc_dict, orig_map, zero_rows
+
+
+def make_directed_graph_from_segmentation_results(
+    results: Dict[str, object],
+    connections: Optional[Sequence[object]] = None,
+) -> nx.MultiDiGraph:
+    """
+    Build the deduplicated directed pore graph from segmentation ``results``.
+
+    Parameters
+    ----------
+    results : dict
+        Output from ``mgr.do_periodic_segmentation_*`` or equivalent, containing
+        ``dgrid``, ``maxima_info``, and ``connections``.
+    connections : sequence, optional
+        Override the default connections stored in ``results``.
+    """
+
+    dgrid = np.asarray(results["dgrid"])
+    maxima_info = np.asarray(results["maxima_info"])
+    if connections is None:
+        connections = results["connections"]
+
+    label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
+    maxima_pbc_dict, orig_map, zero_rows = _maxima_pbc_data(maxima_info)
+
+    node_attrs: Dict[int, Dict[str, object]] = {}
+    grid_shape = np.array(dgrid.shape, dtype=float)
+    for row in zero_rows:
+        label = int(row[0])
+        coords = tuple(int(c) for c in row[1:4])
+        frac = row[1:4] / grid_shape
+        pocket_radius = float(dgrid[coords])
+        node_attrs[label] = {
+            "frac_pos": frac,
+            "pocket_radius": pocket_radius,
+        }
+
+    edge_data: Dict[Tuple[int, int, Tuple[int, int, int]], float] = {}
+
+    for conn in connections:
+        labels_pair = conn[0]
+        if labels_pair is None or len(labels_pair) != 2:
+            continue
+        if not bool(conn[1]):
+            continue
+        i_label, j_label = map(int, labels_pair)
+        idx_i = label_to_idx.get(i_label)
+        idx_j = label_to_idx.get(j_label)
+        if idx_i is None or idx_j is None:
+            continue
+
+        base_i = int(orig_map[idx_i])
+        base_j = int(orig_map[idx_j])
+        offset_i = maxima_info[idx_i, 4:7]
+        offset_j = maxima_info[idx_j, 4:7]
+        window_radius = float(np.mean(conn[4]))
+
+        if base_i < base_j:
+            rel = tuple((offset_j - offset_i).astype(int))
+            key = (base_i, base_j, rel)
+        elif base_j < base_i:
+            rel = tuple((offset_i - offset_j).astype(int))
+            key = (base_j, base_i, rel)
+        else:
+            rel = tuple((offset_j - offset_i).astype(int))
+            key = (base_i, base_j, rel)
+
+        prev = edge_data.get(key)
+        if prev is None or window_radius > prev:
+            edge_data[key] = window_radius
+
+    G = nx.MultiDiGraph()
+    for node, attrs in node_attrs.items():
+        G.add_node(node, **attrs)
+
+    for (u, v, rel), radius in edge_data.items():
+        G.add_edge(u, v, relative_offset=rel, window_radius=radius)
+
+    return G
+
+
+def build_base_region_labels(maxima_info: np.ndarray, region_labels: set, maxima_pbc_dict: Dict[Tuple[int, int, int], int]):
+    base_region_labels: Dict[int, set] = {}
+    for row in maxima_info:
+        label = int(row[0])
+        if label not in region_labels:
+            continue
+        base_idx = tuple(map(int, row[1:4]))
+        base_label = maxima_pbc_dict.get(base_idx)
+        if base_label is None:
+            continue
+        base_region_labels.setdefault(base_label, set()).add(label)
+    return base_region_labels
+
+
+def build_base_region_labels_from_results(results: Dict[str, object]) -> Dict[int, set]:
+    maxima_info = np.asarray(results["maxima_info"])
+    maxima_pbc_dict, _, _ = _maxima_pbc_data(maxima_info)
+    regions = np.asarray(results["regions"])
+    region_labels = set(int(x) for x in np.unique(regions) if int(x) != 0)
+    return build_base_region_labels(maxima_info, region_labels, maxima_pbc_dict)
+
+
+def _prepare_graph_and_labels(
+    results: Dict[str, object],
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+) -> Tuple[nx.MultiDiGraph, Dict[int, set]]:
+    if graph is None:
+        graph = make_directed_graph_from_segmentation_results(results)
+    if base_region_labels is None:
+        base_region_labels = build_base_region_labels_from_results(results)
+    return graph, base_region_labels
+
+
+def _axes_from_winding(winding: Tuple[int, int, int]) -> List[str]:
+    axes = []
+    if winding[0] != 0:
+        axes.append("x")
+    if winding[1] != 0:
+        axes.append("y")
+    if winding[2] != 0:
+        axes.append("z")
+    return axes
+
+
+def annotate_clusters(loop_list: List[Dict[str, object]]) -> Dict[Tuple[frozenset, Tuple[int, int, int]], int]:
+    cluster_ids: Dict[Tuple[frozenset, Tuple[int, int, int]], int] = {}
+    next_id = 1
+    for loop in loop_list:
+        key = (
+            frozenset(loop["nodes"]),
+            tuple(abs(int(w)) for w in loop["winding"]),
+        )
+        if key not in cluster_ids:
+            cluster_ids[key] = next_id
+            next_id += 1
+        loop["cluster_id"] = cluster_ids[key]
+    return cluster_ids
+
+
+def percolation_all_axes_winding(
+    results: Dict[str, object],
+    threshold: float,
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+    node_radius_attr: str = "pocket_radius",
+    edge_radius_attr: str = "window_radius",
+) -> Tuple[Dict[str, List[List[int]]], Dict[int, List[int]]]:
+    graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+    percolates, loops, acc_offsets = detect_percolation_with_threshold(
+        graph, threshold, node_radius_attr=node_radius_attr, edge_radius_attr=edge_radius_attr
+    )
+    annotate_clusters(loops)
+    axis_clusters: Dict[str, List[List[int]]] = {"x": [], "y": [], "z": []}
+    cluster_details: Dict[int, List[int]] = {}
+    cluster_axes: Dict[int, set] = {}
+    cluster_region_sets: Dict[int, set] = {}
+
+    for loop in loops:
+        cid = loop["cluster_id"]
+        cluster_axes.setdefault(cid, set()).update(_axes_from_winding(tuple(loop["winding"])))
+        region_set = cluster_region_sets.setdefault(cid, set())
+        for base in loop["nodes"]:
+            region_set.update(base_region_labels.get(base, ()))
+
+    for cid, region_set in cluster_region_sets.items():
+        region_list = sorted(region_set)
+        cluster_details[cid] = region_list
+        for axis in cluster_axes.get(cid, ()):
+            axis_clusters[axis].append(region_list)
+
+    return axis_clusters, cluster_details
+
+
+def check_percolation_winding(
+    results: Dict[str, object],
+    threshold: float,
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+) -> bool:
+    axis_clusters, _ = percolation_all_axes_winding(
+        results, threshold, graph=graph, base_region_labels=base_region_labels
+    )
+    return any(axis_clusters[axis] for axis in axis_clusters)
+
+
+def _gather_threshold_candidates(graph: nx.MultiDiGraph) -> List[float]:
+    node_vals = {float(data.get("pocket_radius", 0.0)) for _, data in graph.nodes(data=True)}
+    edge_vals = {float(data.get("window_radius", 0.0)) for _, _, data in graph.edges(data=True)}
+    return sorted({val for val in node_vals.union(edge_vals) if val > 0})
+
+
+def _default_mask_thickness(results: Dict[str, object]) -> float:
+    if "mask_thickness" in results:
+        return float(results["mask_thickness"])
+    kwargs = results.get("kwargs", {})
+    if isinstance(kwargs, dict) and "mask_thickness" in kwargs:
+        return float(kwargs["mask_thickness"])
+    return 0.0
+
+
+def find_pore_limiting_radius_winding(
+    results: Dict[str, object],
+    min_threshold: Optional[float] = None,
+    max_threshold: Optional[float] = None,
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+) -> Optional[float]:
+    graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+    candidates = _gather_threshold_candidates(graph)
+    if not candidates:
+        return None
+
+    min_default = _default_mask_thickness(results)
+    if min_threshold is None:
+        min_threshold = min_default
+    min_threshold = max(min_threshold, min_default)
+    if max_threshold is None:
+        max_threshold = candidates[-1]
+
+    filtered = [val for val in candidates if min_threshold <= val <= max_threshold]
+    if not filtered:
+        return None
+
+    left, right = 0, len(filtered) - 1
+    last_good = None
+    while left <= right:
+        mid = (left + right) // 2
+        threshold = filtered[mid]
+        axis_clusters, _ = percolation_all_axes_winding(
+            results, threshold, graph=graph, base_region_labels=base_region_labels
+        )
+        if any(axis_clusters[axis] for axis in axis_clusters):
+            last_good = threshold
+            left = mid + 1
+        else:
+            right = mid - 1
+    return last_good
+
+
+# def compute_percolation_history_from_results_winding(
+#     results: Dict[str, object],
+#     thresholds: Optional[Sequence[float]] = None,
+#     step: float = 0.05,
+#     min_threshold: Optional[float] = None,
+#     max_threshold: Optional[float] = None,
+#     graph: Optional[nx.MultiDiGraph] = None,
+#     base_region_labels: Optional[Dict[int, set]] = None,
+# ) -> List[Tuple[float, Dict[str, List[List[int]]]]]:
+#     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+#     if thresholds is None:
+#         min_default = _default_mask_thickness(results)
+#         if min_threshold is None:
+#             min_threshold = min_default
+#         min_threshold = max(min_threshold, min_default)
+#         if max_threshold is None:
+#             plr = find_pore_limiting_radius_winding(
+#                 results,
+#                 min_threshold=min_threshold,
+#                 max_threshold=None,
+#                 graph=graph,
+#                 base_region_labels=base_region_labels,
+#             )
+#             if plr is None:
+#                 return []
+#             max_threshold = plr
+#         thresholds = np.arange(min_threshold, max_threshold + 1e-9, step)
+
+#     history: List[Tuple[float, Dict[str, List[List[int]]]]] = []
+#     for threshold in thresholds:
+#         axis_clusters, _ = percolation_all_axes_winding(
+#             results, float(threshold), graph=graph, base_region_labels=base_region_labels
+#         )
+#         if any(axis_clusters[axis] for axis in axis_clusters):
+#             history.append((float(threshold), axis_clusters))
+#     return history
+
+def update_results_with_percolation_history_winding(
+    results: Dict[str, object],
+    thresholds: Optional[Sequence[float]] = None,
+    step: float = 0.05,
+    min_threshold: Optional[float] = None,
+    max_threshold: Optional[float] = None,
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+) -> List[Tuple[float, Dict[str, List[List[int]]]]]:
+    graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+    if thresholds is None:
+        min_default = _default_mask_thickness(results)
+        if min_threshold is None:
+            min_threshold = min_default
+        min_threshold = max(min_threshold, min_default)
+        if max_threshold is None:
+            plr = find_pore_limiting_radius_winding(
+                results,
+                min_threshold=min_threshold,
+                max_threshold=None,
+                graph=graph,
+                base_region_labels=base_region_labels,
+            )
+            if plr is None:
+                return []
+            max_threshold = plr
+        thresholds = np.arange(min_threshold, max_threshold + 1e-9, step)
+
+    history: List[Tuple[float, Dict[str, List[List[int]]]]] = []
+    for threshold in thresholds:
+        axis_clusters, _ = percolation_all_axes_winding(
+            results, float(threshold), graph=graph, base_region_labels=base_region_labels
+        )
+        if any(axis_clusters[axis] for axis in axis_clusters):
+            history.append((float(threshold), axis_clusters))
+    results['percolation_history'] = history
+    pld_locations = np.argwhere(np.isclose(results['dgrid'], plr, atol=1e-10))
+    results['pld_locations'] = pld_locations
+    return results
+
+
+
+def compute_percolation_history_winding(
+    results: Dict[str, object],
+    **kwargs,
+) -> List[Tuple[float, Dict[str, List[List[int]]]]]:
+    """Wrapper matching ``compute_percolation_history2`` signature."""
+    results = update_results_with_percolation_history_winding(results, **kwargs)
+    percolation_history = results['percolation_history']
+    pld_locations = results['pld_locations']
+    return percolation_history, pld_locations
+
+
+def get_pore_dia_mgr_winding(
+    mat_atoms=None,
+    dgrid: Optional[np.ndarray] = None,
+    kwargs: Optional[Dict[str, object]] = None,
+    results: Optional[Dict[str, object]] = None,
+) -> Tuple[float, float, float, np.ndarray]:
+    if kwargs is None:
+        kwargs = {}
+
+    spacing = kwargs.get("spacing", 0.5)
+    if results is None:
+        if dgrid is None:
+            if mat_atoms is None:
+                raise ValueError("mat_atoms or results must be provided.")
+            dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        results = mgr.do_periodic_segmentation_rust(
+            dgrid,
+            mat_atoms,
+            mask_thickness=kwargs.get("mask_thickness", 1.5),
+            h=kwargs.get("h", 0.2),
+            spacing=spacing,
+            return_dgrid=True,
+            threshold_abs=kwargs.get("threshold_abs", 1.5),
+            min_distance=kwargs.get("min_distance", 1.5),
+            return_padded_regions=True,
+            extra_padding=kwargs.get("extra_padding", 2),
+        )
+    else:
+        dgrid = np.asarray(results["dgrid"])
+
+    graph = make_directed_graph_from_segmentation_results(results)
+    base_region_labels = build_base_region_labels_from_results(results)
+
+    lcd = float(dgrid.max() * 2)
+    plr = find_pore_limiting_radius_winding(results, graph=graph, base_region_labels=base_region_labels)
+    if plr is None:
+        return lcd, 0.0, 0.0, dgrid
+
+    pld = float(plr * 2)
+    axis_clusters, _ = percolation_all_axes_winding(
+        results, plr, graph=graph, base_region_labels=base_region_labels
+    )
+    percolating_labels = set()
+    for groups in axis_clusters.values():
+        for labels in groups:
+            percolating_labels.update(labels)
+
+    dfsd = 0.0
+    if percolating_labels:
+        regions = np.asarray(results["regions"])
+        mask = np.isin(regions, list(percolating_labels))
+        if mask.any():
+            dfsd = float(dgrid[mask].max() * 2)
+
+    return lcd, pld, dfsd, dgrid
+
