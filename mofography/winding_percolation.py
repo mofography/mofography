@@ -30,7 +30,6 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from turtle import update
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import networkx as nx
@@ -650,4 +649,139 @@ def get_pore_dia_mgr_winding(
             dfsd = float(dgrid[mask].max() * 2)
 
     return lcd, pld, dfsd, dgrid
+
+
+CORNER_LOOP_GRID = np.array(
+    [
+        [0, 1, 0, 0, 1, 0],
+        [1, 1, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 0],
+        [1, 1, 0, 0, 1, 1],
+        [0, 1, 0, 0, 1, 0],
+    ],
+    dtype=int,
+)
+
+
+STRIPED_WRAP_GRID = np.array(
+    [
+        [0, 1, 0, 1, 0,  0, 1, 0, 0],
+        [0, 1, 1, 1, 0,  0, 1, 0, 0],
+        [0, 0, 0, 0, 0,  0, 1, 0, 0],
+        [1, 1, 1, 1, 0,  0, 1, 1, 1],
+        [0, 0, 0, 1, 0,  0, 0, 0, 0],
+        [1, 1, 0, 1, 0,  0, 1, 1, 1],
+        [0, 1, 0, 1, 0,  0, 1, 0, 0],
+        [0, 1, 0, 1, 0,  0, 1, 0, 0],
+        [0, 1, 0, 1, 0,  0, 1, 0, 0],
+    ],
+    dtype=int,
+)
+
+
+def make_periodic_graph_from_binary_grid(
+    grid: np.ndarray,
+    allow_diagonals: bool = False,
+    node_radius: float = 1.0,
+    edge_radius: float = 1.0,
+) -> nx.MultiDiGraph:
+    """
+    Convert a binary 2D lattice into the directed periodic graph expected by the
+    winding-number percolation routines.
+
+    Parameters
+    ----------
+    grid : np.ndarray
+        2D array where ``1`` (or truthy) entries represent pore voxels.  The
+        lattice is treated as periodic along both axes.
+    allow_diagonals : bool
+        Include diagonal neighbors (8-connectivity) when ``True``.  Otherwise,
+        only orthogonal neighbors (4-connectivity) are considered.
+    node_radius, edge_radius : float
+        Values stored on each node/edge so that downstream helpers expecting
+        radii attributes continue to work.
+    """
+
+    grid = np.asarray(grid, dtype=int)
+    if grid.ndim != 2:
+        raise ValueError("Binary grid must be a 2D array.")
+
+    rows, cols = grid.shape
+    node_ids: Dict[Tuple[int, int], int] = {}
+    G = nx.MultiDiGraph()
+
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r, c] != 1:
+                continue
+            node_id = len(node_ids)
+            node_ids[(r, c)] = node_id
+            G.add_node(
+                node_id,
+                frac_pos=(r / rows, c / cols, 0.0),
+                pocket_radius=node_radius,
+            )
+
+    base_dirs = [(0, 1), (1, 0)]
+    if allow_diagonals:
+        base_dirs.extend([(1, 1), (1, -1)])
+
+    for (r, c), node_id in node_ids.items():
+        for dr, dc in base_dirs:
+            raw_r = r + dr
+            raw_c = c + dc
+            wrap_r = -1 if raw_r < 0 else (1 if raw_r >= rows else 0)
+            wrap_c = -1 if raw_c < 0 else (1 if raw_c >= cols else 0)
+            nbr_r = raw_r % rows
+            nbr_c = raw_c % cols
+            nbr_id = node_ids.get((nbr_r, nbr_c))
+            if nbr_id is None:
+                continue
+
+            rel = (wrap_r, wrap_c, 0)
+            u, v = node_id, nbr_id
+            if u <= v:
+                final_rel = rel
+            else:
+                u, v = v, u
+                final_rel = tuple(-x for x in rel)
+            G.add_edge(u, v, relative_offset=final_rel, window_radius=edge_radius)
+
+    return G
+
+
+def percolation_winding_on_binary_grid(
+    grid: np.ndarray,
+    allow_diagonals: bool = False,
+    verbose: bool = False,
+) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
+    """
+    Apply :func:`percolation_winding_multidigraph` to a binary periodic lattice.
+
+    Parameters
+    ----------
+    grid : np.ndarray
+        Binary 2D lattice treated as periodic in x/y.
+    allow_diagonals : bool
+        When ``True`` includes diagonal neighbors as valid connections.
+    verbose : bool
+        Print a human-readable summary when enabled.
+    """
+
+    G = make_periodic_graph_from_binary_grid(grid, allow_diagonals=allow_diagonals)
+    percolates, loops, acc_offsets = percolation_winding_multidigraph(G)
+
+    if verbose:
+        print("Binary grid (1 = pore, 0 = empty):")
+        print(np.asarray(grid, dtype=int))
+        if loops:
+            print("Detected winding loops:")
+            for loop in loops:
+                print(f"  winding={loop['winding']} nodes={loop['nodes']} edge={loop['edge']}")
+        else:
+            print("Detected winding loops: none (all cycles are contractible).")
+        print("Per-axis percolation flags:", percolates)
+
+    return percolates, loops, acc_offsets
+
 
