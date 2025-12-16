@@ -243,7 +243,12 @@ def detect_percolation_with_threshold(
     for u, v, key, data in G.edges(keys=True, data=True):
         if u not in eligible_nodes or v not in eligible_nodes:
             continue
-        if float(data.get(edge_radius_attr, 0.0)) < threshold:
+        edge_radii = data.get("window_radii")
+        if edge_radii:
+            max_radius = max(float(val) for val in edge_radii)
+        else:
+            max_radius = float(data.get(edge_radius_attr, 0.0))
+        if max_radius < threshold:
             continue
         H.add_edge(u, v, key=key, **data)
 
@@ -263,83 +268,210 @@ def _maxima_pbc_data(maxima_info: np.ndarray):
     )
     return maxima_pbc_dict, orig_map, zero_rows
 
-
-def make_directed_graph_from_segmentation_results(
-    results: Dict[str, object],
-    connections: Optional[Sequence[object]] = None,
-) -> nx.MultiDiGraph:
-    """
-    Build the deduplicated directed pore graph from segmentation ``results``.
-
-    Parameters
-    ----------
-    results : dict
-        Output from ``mgr.do_periodic_segmentation_*`` or equivalent, containing
-        ``dgrid``, ``maxima_info``, and ``connections``.
-    connections : sequence, optional
-        Override the default connections stored in ``results``.
-    """
-
-    dgrid = np.asarray(results["dgrid"])
-    maxima_info = np.asarray(results["maxima_info"])
-    if connections is None:
-        connections = results["connections"]
+def collect_periodic_edges(connections, maxima_info):
+    import numpy as np
 
     label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
-    maxima_pbc_dict, orig_map, zero_rows = _maxima_pbc_data(maxima_info)
+    maxima_pbc = np.vstack([m[1:4] for m in maxima_info if np.all(m[4:7] == 0)])
+    maxima_pbc_dict = {tuple(m): i + 1 for i, m in enumerate(maxima_pbc)}
 
-    node_attrs: Dict[int, Dict[str, object]] = {}
-    grid_shape = np.array(dgrid.shape, dtype=float)
-    for row in zero_rows:
-        label = int(row[0])
-        coords = tuple(int(c) for c in row[1:4])
-        frac = row[1:4] / grid_shape
-        pocket_radius = float(dgrid[coords])
-        node_attrs[label] = {
-            "frac_pos": frac,
-            "pocket_radius": pocket_radius,
-        }
+    is_asymmetric = np.all(maxima_info[:, 4:7] == 0, axis=1)
+    asymmetric_labels = set(int(maxima_info[i, 0]) for i in np.where(is_asymmetric)[0])
+    origina_maxima_mapping = np.array(
+        [maxima_pbc_dict[tuple(m[1:4])] for m in maxima_info], dtype=int
+    )
 
-    edge_data: Dict[Tuple[int, int, Tuple[int, int, int]], float] = {}
+    edge_map: dict[
+        tuple[int, int, tuple[int, int, int]], dict[str, float | int | list[float]]
+    ] = {}
+    edges_debug = []
 
-    for conn in connections:
-        labels_pair = conn[0]
-        if labels_pair is None or len(labels_pair) != 2:
+    for c in connections:
+        if not c[1]:
             continue
-        if not bool(conn[1]):
+        i_label, j_label = c[0]
+        if not (i_label in asymmetric_labels or j_label in asymmetric_labels):
             continue
-        i_label, j_label = map(int, labels_pair)
+
         idx_i = label_to_idx.get(i_label)
         idx_j = label_to_idx.get(j_label)
         if idx_i is None or idx_j is None:
             continue
 
-        base_i = int(orig_map[idx_i])
-        base_j = int(orig_map[idx_j])
-        offset_i = maxima_info[idx_i, 4:7]
-        offset_j = maxima_info[idx_j, 4:7]
-        window_radius = float(np.mean(conn[4]))
+        base_i = int(origina_maxima_mapping[idx_i])
+        base_j = int(origina_maxima_mapping[idx_j])
+        offset_i = maxima_info[idx_i, 4:7].astype(int)
+        offset_j = maxima_info[idx_j, 4:7].astype(int)
+        window_radius = float(np.mean(c[4]))
 
-        if base_i < base_j:
-            rel = tuple((offset_j - offset_i).astype(int))
-            key = (base_i, base_j, rel)
-        elif base_j < base_i:
-            rel = tuple((offset_i - offset_j).astype(int))
-            key = (base_j, base_i, rel)
-        else:
-            rel = tuple((offset_j - offset_i).astype(int))
-            key = (base_i, base_j, rel)
+        start_base = base_i
+        end_base = base_j
+        start_offset = offset_i
+        end_offset = offset_j
+        if base_j < base_i:
+            start_base, end_base = base_j, base_i
+            start_offset, end_offset = offset_j, offset_i
 
-        prev = edge_data.get(key)
-        if prev is None or window_radius > prev:
-            edge_data[key] = window_radius
+        relative_offset = tuple(int(x) for x in (end_offset - start_offset))
+        if start_base == end_base and relative_offset == (0, 0, 0):
+            continue
 
+        key = (start_base, end_base, relative_offset)
+        entry = edge_map.setdefault(
+            key,
+            {
+                "window_radii": [],
+                "window_radius_min": window_radius,
+                "window_radius_max": window_radius,
+                "multiplicity": 0,
+            },
+        )
+        entry["window_radii"].append(window_radius)
+        entry["window_radius_min"] = min(entry["window_radius_min"], window_radius)
+        entry["window_radius_max"] = max(entry["window_radius_max"], window_radius)
+        entry["multiplicity"] = int(entry["multiplicity"]) + 1
+        edges_debug.append(
+            [
+                i_label,
+                j_label,
+                start_base,
+                end_base,
+                *start_offset,
+                *end_offset,
+                *relative_offset,
+                window_radius,
+            ]
+        )
+
+    return edge_map, np.array(edges_debug) if edges_debug else None
+
+# def collect_periodic_edges(connections, maxima_info):
+#     import numpy as np
+
+#     label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
+#     maxima_pbc = np.vstack([m[1:4] for m in maxima_info if np.all(m[4:7] == 0)])
+#     maxima_pbc_dict = {tuple(m): i + 1 for i, m in enumerate(maxima_pbc)}
+
+#     is_asymmetric = np.all(maxima_info[:, 4:7] == 0, axis=1)
+#     asymmetric_labels = set(int(maxima_info[i, 0]) for i in np.where(is_asymmetric)[0])
+#     origina_maxima_mapping = np.array(
+#         [maxima_pbc_dict[tuple(m[1:4])] for m in maxima_info], dtype=int
+#     )
+
+#     edge_map: dict[tuple[int, int, tuple[int, int, int]], float] = {}
+#     edges_debug = []
+
+#     for c in connections:
+#         if not c[1]:
+#             continue
+#         i_label, j_label = c[0]
+#         if not (i_label in asymmetric_labels or j_label in asymmetric_labels):
+#             continue
+
+#         idx_i = label_to_idx[i_label]
+#         idx_j = label_to_idx[j_label]
+#         base_i = int(origina_maxima_mapping[idx_i])
+#         base_j = int(origina_maxima_mapping[idx_j])
+#         offset_i = maxima_info[idx_i, 4:7].astype(int)
+#         offset_j = maxima_info[idx_j, 4:7].astype(int)
+#         window_radius = float(np.mean(c[4]))
+
+#         start_base = base_i
+#         end_base = base_j
+#         start_offset = offset_i
+#         end_offset = offset_j
+#         if base_j < base_i:
+#             start_base, end_base = base_j, base_i
+#             start_offset, end_offset = offset_j, offset_i
+
+#         relative_offset = tuple(int(x) for x in (end_offset - start_offset))
+#         if start_base == end_base and relative_offset == (0, 0, 0):
+#             continue
+
+#         key = (start_base, end_base, relative_offset)
+#         if key not in edge_map:
+#             edge_map[key] = window_radius
+#             edges_debug.append(
+#                 [
+#                     i_label,
+#                     j_label,
+#                     start_base,
+#                     end_base,
+#                     *start_offset,
+#                     *end_offset,
+#                     *relative_offset,
+#                     window_radius,
+#                 ]
+#             )
+#         else:
+#             edge_map[key] = min(edge_map[key], window_radius)
+
+    return edge_map, np.array(edges_debug) if edges_debug else None
+# def make_directed_graph_from_segmentation_results(results, dgrid=None):
+#     """
+#     Convenience helper to build a MultiDiGraph directly from the deduplicated
+#     edge map returned by *make_edges_set_from_connections*.
+#     """
+
+#     import networkx as nx
+#     import numpy as np
+#     maxima_info = results["maxima_info"]
+#     connections = results["connections"]
+#     edge_map, edges_debug = collect_periodic_edges(connections, maxima_info)
+#     if dgrid is None:
+#         dgrid = results['dgrid']
+#     dgrid_shape = dgrid.shape
+#     frac_coords = (maxima_info[:, 1:4] / dgrid_shape) + maxima_info[:, 4:7]
+#     G = nx.MultiDiGraph()
+#     for (i, j, rel_offset), window_radius in edge_map.items():
+#         G.add_edge(i, j, relative_offset=rel_offset, window_radius=window_radius)
+
+#     for node in G.nodes():
+#         G.nodes[node]["frac_pos"] = np.round(frac_coords[node - 1], 2)
+#         voxel_idx = tuple(maxima_info[node - 1, 1:4].astype(int))
+#         G.nodes[node]["pocket_radius"] = float(dgrid[voxel_idx])
+
+#     return G
+
+def make_directed_graph_from_segmentation_results(results, dgrid=None):
+    """
+    Convenience helper to build a MultiDiGraph directly from the deduplicated
+    edge map returned by *make_edges_set_from_connections*.
+    """
+
+    import networkx as nx
+    import numpy as np
+    maxima_info = results["maxima_info"]
+    connections = results["connections"]
+    edge_map, edges_debug = collect_periodic_edges(connections, maxima_info)
+    if dgrid is None:
+        dgrid = results['dgrid']
+    dgrid_shape = dgrid.shape
+    frac_coords = (maxima_info[:, 1:4] / dgrid_shape) + maxima_info[:, 4:7]
     G = nx.MultiDiGraph()
-    for node, attrs in node_attrs.items():
-        G.add_node(node, **attrs)
+    for (i, j, rel_offset), data in edge_map.items():
+        window_radii = tuple(float(r) for r in data.get("window_radii", ()))
+        if window_radii:
+            window_radius_max = max(window_radii)
+            window_radius_min = min(window_radii)
+        else:
+            window_radius_max = float(data.get("window_radius_max", 0.0))
+            window_radius_min = float(data.get("window_radius_min", window_radius_max))
+        G.add_edge(
+            i,
+            j,
+            relative_offset=rel_offset,
+            window_radius=window_radius_max,
+            window_radius_max=window_radius_max,
+            window_radius_min=window_radius_min,
+            window_radii=window_radii,
+            multiplicity=int(data.get("multiplicity", 1)),
+        )
 
-    for (u, v, rel), radius in edge_data.items():
-        G.add_edge(u, v, relative_offset=rel, window_radius=radius)
+    for node in G.nodes():
+        G.nodes[node]["frac_pos"] = np.round(frac_coords[node - 1], 2)
+        voxel_idx = tuple(maxima_info[node - 1, 1:4].astype(int))
+        G.nodes[node]["pocket_radius"] = float(dgrid[voxel_idx])
 
     return G
 
@@ -411,7 +543,11 @@ def percolation_all_axes_winding(
     base_region_labels: Optional[Dict[int, set]] = None,
     node_radius_attr: str = "pocket_radius",
     edge_radius_attr: str = "window_radius",
-) -> Tuple[Dict[str, List[List[int]]], Dict[int, List[int]]]:
+) -> Tuple[
+    Dict[str, List[List[int]]],
+    Dict[int, List[int]],
+    Dict[int, Dict[str, object]],
+]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     percolates, loops, acc_offsets = detect_percolation_with_threshold(
         graph, threshold, node_radius_attr=node_radius_attr, edge_radius_attr=edge_radius_attr
@@ -421,6 +557,8 @@ def percolation_all_axes_winding(
     cluster_details: Dict[int, List[int]] = {}
     cluster_axes: Dict[int, set] = {}
     cluster_region_sets: Dict[int, set] = {}
+    cluster_node_sets: Dict[int, set] = {}
+    cluster_edge_sets: Dict[int, set] = {}
 
     for loop in loops:
         cid = loop["cluster_id"]
@@ -428,14 +566,27 @@ def percolation_all_axes_winding(
         region_set = cluster_region_sets.setdefault(cid, set())
         for base in loop["nodes"]:
             region_set.update(base_region_labels.get(base, ()))
+        cluster_node_sets.setdefault(cid, set()).update(loop["nodes"])
+        if loop.get("edge") is not None:
+            cluster_edge_sets.setdefault(cid, set()).add(tuple(loop["edge"]))
 
+    cluster_metadata: Dict[int, Dict[str, object]] = {}
     for cid, region_set in cluster_region_sets.items():
         region_list = sorted(region_set)
         cluster_details[cid] = region_list
+        metadata: Dict[str, object] = {
+            "regions": region_list,
+            "nodes": sorted(cluster_node_sets.get(cid, ())),
+            "edges": sorted(cluster_edge_sets.get(cid, ())),
+            "axes": sorted(cluster_axes.get(cid, ())),
+        }
+        cluster_metadata[cid] = metadata
         for axis in cluster_axes.get(cid, ()):
             axis_clusters[axis].append(region_list)
 
-    return axis_clusters, cluster_details
+    return axis_clusters, cluster_details, cluster_metadata
+
+
 
 
 def check_percolation_winding(
@@ -444,7 +595,7 @@ def check_percolation_winding(
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
 ) -> bool:
-    axis_clusters, _ = percolation_all_axes_winding(
+    axis_clusters, _, _ = percolation_all_axes_winding(
         results, threshold, graph=graph, base_region_labels=base_region_labels
     )
     return any(axis_clusters[axis] for axis in axis_clusters)
@@ -452,7 +603,13 @@ def check_percolation_winding(
 
 def _gather_threshold_candidates(graph: nx.MultiDiGraph) -> List[float]:
     node_vals = {float(data.get("pocket_radius", 0.0)) for _, data in graph.nodes(data=True)}
-    edge_vals = {float(data.get("window_radius", 0.0)) for _, _, data in graph.edges(data=True)}
+    edge_vals: set[float] = set()
+    for _, _, data in graph.edges(data=True):
+        radii = data.get("window_radii")
+        if radii:
+            edge_vals.update(float(val) for val in radii)
+        else:
+            edge_vals.add(float(data.get("window_radius", 0.0)))
     return sorted({val for val in node_vals.union(edge_vals) if val > 0})
 
 
@@ -493,7 +650,7 @@ def find_pore_limiting_radius_winding(
     while left <= right:
         mid = (left + right) // 2
         threshold = filtered[mid]
-        axis_clusters, _ = percolation_all_axes_winding(
+        axis_clusters, _, _ = percolation_all_axes_winding(
             results, threshold, graph=graph, base_region_labels=base_region_labels
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
@@ -501,7 +658,24 @@ def find_pore_limiting_radius_winding(
             left = mid + 1
         else:
             right = mid - 1
-    return last_good
+    final_radius = last_good
+    if last_good is not None:
+        (
+            _,
+            _,
+            cluster_metadata,
+        ) = percolation_all_axes_winding(
+            results, last_good, graph=graph, base_region_labels=base_region_labels
+        )
+        percolating_clusters = {
+            cid: data
+            for cid, data in cluster_metadata.items()
+            if data.get("axes")
+        }
+        results["plr_clusters_winding"] = percolating_clusters
+        results["plr_threshold_candidate_winding"] = last_good
+        results["plr_radius_winding"] = last_good
+    return final_radius
 
 
 # def compute_percolation_history_from_results_winding(
@@ -549,36 +723,44 @@ def update_results_with_percolation_history_winding(
     max_threshold: Optional[float] = None,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
-) -> List[Tuple[float, Dict[str, List[List[int]]]]]:
+) -> Dict[str, object]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+    min_default = _default_mask_thickness(results)
+    if min_threshold is None:
+        min_threshold = min_default
+    min_threshold = max(min_threshold, min_default)
+    plr = find_pore_limiting_radius_winding(
+        results,
+        min_threshold=min_threshold,
+        max_threshold=max_threshold,
+        graph=graph,
+        base_region_labels=base_region_labels,
+    )
+    if plr is None:
+        results["percolation_history"] = []
+        results["pld_locations"] = np.empty((0, 3), dtype=int)
+        results.setdefault("plr_clusters_winding", {})
+        return results
+
     if thresholds is None:
-        min_default = _default_mask_thickness(results)
-        if min_threshold is None:
-            min_threshold = min_default
-        min_threshold = max(min_threshold, min_default)
         if max_threshold is None:
-            plr = find_pore_limiting_radius_winding(
-                results,
-                min_threshold=min_threshold,
-                max_threshold=None,
-                graph=graph,
-                base_region_labels=base_region_labels,
-            )
-            if plr is None:
-                return []
             max_threshold = plr
         thresholds = np.arange(min_threshold, max_threshold + 1e-9, step)
 
     history: List[Tuple[float, Dict[str, List[List[int]]]]] = []
     for threshold in thresholds:
-        axis_clusters, _ = percolation_all_axes_winding(
+        axis_clusters, _, _ = percolation_all_axes_winding(
             results, float(threshold), graph=graph, base_region_labels=base_region_labels
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             history.append((float(threshold), axis_clusters))
-    results['percolation_history'] = history
-    pld_locations = np.argwhere(np.isclose(results['dgrid'], plr, atol=1e-10))
-    results['pld_locations'] = pld_locations
+    results["percolation_history"] = history
+    if results.get("dgrid") is not None:
+        dgrid = np.asarray(results["dgrid"])
+        pld_locations = np.argwhere(np.isclose(dgrid, plr, atol=1e-10))
+    else:
+        pld_locations = np.empty((0, 3), dtype=int)
+    results["pld_locations"] = pld_locations
     return results
 
 
@@ -586,12 +768,13 @@ def update_results_with_percolation_history_winding(
 def compute_percolation_history_winding(
     results: Dict[str, object],
     **kwargs,
-) -> List[Tuple[float, Dict[str, List[List[int]]]]]:
-    """Wrapper matching ``compute_percolation_history2`` signature."""
+) -> Tuple[List[Tuple[float, Dict[str, List[List[int]]]]], np.ndarray, Dict[int, Dict[str, object]]]:
+    """Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata."""
     results = update_results_with_percolation_history_winding(results, **kwargs)
-    percolation_history = results['percolation_history']
-    pld_locations = results['pld_locations']
-    return percolation_history, pld_locations
+    percolation_history = results["percolation_history"]
+    pld_locations = results["pld_locations"]
+    final_clusters = results.get("plr_clusters_winding", {})
+    return percolation_history, pld_locations, final_clusters
 
 
 def get_pore_dia_mgr_winding(
@@ -633,7 +816,7 @@ def get_pore_dia_mgr_winding(
         return lcd, 0.0, 0.0, dgrid
 
     pld = float(plr * 2)
-    axis_clusters, _ = percolation_all_axes_winding(
+    axis_clusters, _, _ = percolation_all_axes_winding(
         results, plr, graph=graph, base_region_labels=base_region_labels
     )
     percolating_labels = set()
