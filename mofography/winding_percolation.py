@@ -302,7 +302,9 @@ def collect_periodic_edges(connections, maxima_info):
         base_j = int(origina_maxima_mapping[idx_j])
         offset_i = maxima_info[idx_i, 4:7].astype(int)
         offset_j = maxima_info[idx_j, 4:7].astype(int)
-        window_radius = float(np.mean(c[4]))
+        # Use the largest window observed for this connection so threshold filtering
+        # later uses the true maximum rather than an average.
+        window_radius = float(np.max(c[4]))
 
         start_base = base_i
         end_base = base_j
