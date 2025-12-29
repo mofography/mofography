@@ -12,7 +12,7 @@ dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=0.25)
 # some default options are repeated here for clarity
 psd, fig_psd = mgr.compute_psd_uniform_rust(dgrid, mat_atoms, num_samples_total=10000, bins=np.linspace(0,50,200), density=False, material='NU-1000', return_fig=True)
 # to show the figure use, 
-fig_psd.show( renderer='chrome') # for the chrome browser
+fig_psd.show( renderer='firefox') # for the chrome browser
 fig_psd.write_image('psd_uniform.jpg')
 # fig.show() # to show in a notebook
 
