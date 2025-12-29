@@ -1,0 +1,133 @@
+# Mofography Core Workflow Flowchart
+# Publication-quality D2 diagram showing the core analysis pipeline
+
+direction: right
+layout: elk
+
+# Main workflow elements
+material_step: "Material Structure" {
+  shape: rectangle
+  style.fill: "#f8f9fa"
+  style.stroke: "#2c3e50"
+  style.stroke-width: 2
+  style.font-size: 14
+  }
+
+dgrid_step: "Distance Grid" {
+  shape: rectangle
+  style.fill: "#f8f9fa"
+  style.stroke: "#2c3e50"
+  style.stroke-width: 2
+  style.font-size: 14
+  }
+
+segmentation_step: "Regions Segmentation" {
+  shape: rectangle
+  style.fill: "#f8f9fa"
+  style.stroke: "#2c3e50"
+  style.stroke-width: 2
+  style.font-size: 14
+  }
+
+analysis_step: "Network Analysis" {
+  shape: rectangle
+  style.fill: "#f8f9fa"
+  style.stroke: "#2c3e50"
+  style.stroke-width: 2
+  style.font-size: 14
+  }
+
+# Connect workflow steps
+material_step -> dgrid_step
+dgrid_step -> segmentation_step
+segmentation_step -> analysis_step
+
+# Subfigure containers with images
+figure_a: {
+  shape: image
+  icon: "figure_A_framework.svg"
+  width: 160
+  height: 160
+}
+
+figure_b: {
+  shape: image
+  icon: "figure_B_regions.svg"
+  width: 160
+  height: 160
+}
+
+figure_c: {
+  shape: image
+  icon: "figure_C_network.svg"
+  width: 160
+  height: 160
+}
+
+# Subfigure labels
+label_a: "A" {
+  shape: text
+  style.font-size: 12
+    style.fill: "#e74c3c"
+  near: figure_a
+  placement: top-left
+}
+
+label_b: "B" {
+  shape: text
+  style.font-size: 12
+    style.fill: "#e74c3c"
+  near: figure_b
+  placement: top-left
+}
+
+label_c: "C" {
+  shape: text
+  style.font-size: 12
+    style.fill: "#e74c3c"
+  near: figure_c
+  placement: top-left
+}
+
+# Subfigure captions
+caption_a: "Unit cell and framework" {
+  shape: text
+  style.font-size: 11
+  style.fill: "#555555"
+  near: figure_a
+  placement: bottom
+}
+
+caption_b: "Surface colored by regions" {
+  shape: text
+  style.font-size: 11
+  style.fill: "#555555"
+  near: figure_b
+  placement: bottom
+}
+
+caption_c: "Regions with connections and windows" {
+  shape: text
+  style.font-size: 11
+  style.fill: "#555555"
+  near: figure_c
+  placement: bottom
+}
+
+# Create connections between workflow steps and figures
+material_step -> figure_a
+segmentation_step -> figure_b
+analysis_step -> figure_c
+
+# Add title
+title: "Mofography Core Workflow" {
+  shape: text
+  style.font-size: 16
+  }
+
+# Add description
+description: "Automated pore network analysis for crystalline materials" {
+  shape: text
+  style.font-size: 12
+  style.fill: "#666666"
+}
