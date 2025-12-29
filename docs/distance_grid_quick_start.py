@@ -109,14 +109,14 @@ print("-" * 70)
 
 start_time = time.time()
 
+# Compute distance grid using CPU backend
+# Note: precompute=True by default, returns NumPy array directly
 dgrid_cpu = mgr.dgrid_from_atoms_cpu(
     mat_atoms,
     spacing=spacing,
-    block_size=50000
+    block_size=50000,
+    precompute=True  # Returns NumPy array directly (default)
 )
-
-# Convert from Dask array to NumPy
-dgrid_cpu = dgrid_cpu.compute()
 
 cpu_time = time.time() - start_time
 

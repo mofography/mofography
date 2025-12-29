@@ -167,19 +167,20 @@ The CPU method uses **Dask** for parallelization and the **AABB cell list algori
 spacing = 0.5  # Angstroms
 
 # Compute distance grid using CPU backend
+# Note: precompute=True by default, returns NumPy array directly
 dgrid = mgr.dgrid_from_atoms_cpu(
     mat_atoms,
     spacing=spacing,
-    block_size=50000  # Adjust based on your RAM
+    block_size=50000,    # Adjust based on your RAM
+    precompute=True      # Returns NumPy array directly (default)
 )
-
-# Convert from Dask array to NumPy array
-dgrid = dgrid.compute()
 
 print(f"Distance grid shape: {dgrid.shape}")
 print(f"Distance grid range: {dgrid.min():.2f} to {dgrid.max():.2f} Angstroms")
 print(f"Memory: {dgrid.nbytes / 1024**2:.1f} MB")
 ```
+
+**Note:** By default, `precompute=True`, which means the function returns a NumPy array directly. If you set `precompute=False`, you'll get a Dask array that you can compute later with `.compute()`.
 
 ### Key Parameters
 
