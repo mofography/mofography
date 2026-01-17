@@ -555,12 +555,18 @@ def percolation_all_axes_winding(
         graph, threshold, node_radius_attr=node_radius_attr, edge_radius_attr=edge_radius_attr
     )
     annotate_clusters(loops)
+    graph_undirected = nx.Graph(graph.to_undirected(as_view=True))
+    component_lookup: Dict[int, set] = {}
+    for comp in nx.connected_components(graph_undirected):
+        comp_set = set(comp)
+        for node in comp_set:
+            component_lookup[node] = comp_set
+
     axis_clusters: Dict[str, List[List[int]]] = {"x": [], "y": [], "z": []}
     cluster_details: Dict[int, List[int]] = {}
     cluster_axes: Dict[int, set] = {}
     cluster_region_sets: Dict[int, set] = {}
     cluster_node_sets: Dict[int, set] = {}
-    cluster_edge_sets: Dict[int, set] = {}
 
     for loop in loops:
         cid = loop["cluster_id"]
@@ -569,17 +575,44 @@ def percolation_all_axes_winding(
         for base in loop["nodes"]:
             region_set.update(base_region_labels.get(base, ()))
         cluster_node_sets.setdefault(cid, set()).update(loop["nodes"])
-        if loop.get("edge") is not None:
-            cluster_edge_sets.setdefault(cid, set()).add(tuple(loop["edge"]))
 
     cluster_metadata: Dict[int, Dict[str, object]] = {}
-    for cid, region_set in cluster_region_sets.items():
-        region_list = sorted(region_set)
+    for cid in cluster_region_sets:
+        comp_nodes: set = set()
+        for node in cluster_node_sets.get(cid, ()):
+            comp_nodes.update(component_lookup.get(node, ()))
+        comp_nodes = {n for n in comp_nodes if n in graph}
+        if not comp_nodes:
+            continue
+
+        comp_subgraph = graph_undirected.subgraph(comp_nodes)
+        subgraph_no_loops = comp_subgraph.copy()
+        subgraph_no_loops.remove_edges_from(nx.selfloop_edges(subgraph_no_loops))
+        try:
+            core_nodes = set(nx.k_core(subgraph_no_loops, k=2).nodes())
+        except nx.NetworkXError:
+            core_nodes = set(subgraph_no_loops.nodes())
+        if not core_nodes:
+            core_nodes = comp_nodes
+
+        edge_set: set = set()
+        for u, v, key in graph.edges(keys=True):
+            if u in core_nodes and v in core_nodes:
+                if u <= v:
+                    edge_set.add((u, v, key))
+                else:
+                    edge_set.add((v, u, key))
+
+        pruned_region_set = set()
+        for node in core_nodes:
+            pruned_region_set.update(base_region_labels.get(node, ()))
+
+        region_list = sorted(pruned_region_set)
         cluster_details[cid] = region_list
         metadata: Dict[str, object] = {
             "regions": region_list,
-            "nodes": sorted(cluster_node_sets.get(cid, ())),
-            "edges": sorted(cluster_edge_sets.get(cid, ())),
+            "nodes": sorted(core_nodes),
+            "edges": sorted(edge_set),
             "axes": sorted(cluster_axes.get(cid, ())),
         }
         cluster_metadata[cid] = metadata
