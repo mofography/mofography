@@ -530,7 +530,7 @@ def egrid_from_atoms_rust(
         return egrid
 
 
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False,):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False,):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -552,6 +552,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     :type min_distance: float
     :param threshold_abs: Absolute threshold for maxima detection
     :type threshold_abs: float
+    :param preserve_threshold: Distance cutoff (Å) below which maxima are untouched during smoothing
+    :type preserve_threshold: float
+    :param smooth_threshold: Distance threshold (Å) above which maxima are always smoothed
+    :type smooth_threshold: float
+    :param max_smooth_radius: Maximum radius (Å) used when smoothing maxima
+    :type max_smooth_radius: float
     :param return_padded_regions: Whether to return padded region arrays
     :type return_padded_regions: bool
     :param spacing: Grid spacing. If None, estimated from dgrid size and cell lengths. Specify for better accuracy.
@@ -660,9 +666,9 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     merged_maxima, unmerged_maxima, raw_maxima = (
         mgr_rust.detect_maxima_selective_smoothing_parallel(
             dgrid,
-            preserve_threshold=3.0,
-            smooth_threshold=6.0,
-            max_smooth_radius=2.0,
+            preserve_threshold=preserve_threshold,
+            smooth_threshold=smooth_threshold,
+            max_smooth_radius=max_smooth_radius,
             h=h,
             threshold_abs=threshold_abs,
             min_distance=min_distance,
