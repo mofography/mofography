@@ -545,6 +545,7 @@ def percolation_all_axes_winding(
     base_region_labels: Optional[Dict[int, set]] = None,
     node_radius_attr: str = "pocket_radius",
     edge_radius_attr: str = "window_radius",
+    include_dangling: bool = False,
 ) -> Tuple[
     Dict[str, List[List[int]]],
     Dict[int, List[int]],
@@ -594,6 +595,8 @@ def percolation_all_axes_winding(
             core_nodes = set(subgraph_no_loops.nodes())
         if not core_nodes:
             core_nodes = comp_nodes
+        full_nodes = comp_nodes
+        dangling_nodes = full_nodes - core_nodes
 
         edge_set: set = set()
         for u, v, key in graph.edges(keys=True):
@@ -602,22 +605,46 @@ def percolation_all_axes_winding(
                     edge_set.add((u, v, key))
                 else:
                     edge_set.add((v, u, key))
+        edge_set_full: set = set()
+        for u, v, key in graph.edges(keys=True):
+            if u in full_nodes and v in full_nodes:
+                if u <= v:
+                    edge_set_full.add((u, v, key))
+                else:
+                    edge_set_full.add((v, u, key))
 
         pruned_region_set = set()
         for node in core_nodes:
             pruned_region_set.update(base_region_labels.get(node, ()))
+        full_region_set = set()
+        for node in full_nodes:
+            full_region_set.update(base_region_labels.get(node, ()))
 
         region_list = sorted(pruned_region_set)
+        region_list_full = sorted(full_region_set)
+        dangling_nodes_sorted = sorted(dangling_nodes)
+        if include_dangling:
+            nodes_out = sorted(full_nodes)
+            edges_out = sorted(edge_set_full)
+            regions_out = region_list_full
+        else:
+            nodes_out = sorted(core_nodes)
+            edges_out = sorted(edge_set)
+            regions_out = region_list
         cluster_details[cid] = region_list
         metadata: Dict[str, object] = {
-            "regions": region_list,
-            "nodes": sorted(core_nodes),
-            "edges": sorted(edge_set),
+            "regions": regions_out,
+            "nodes": nodes_out,
+            "edges": edges_out,
             "axes": sorted(cluster_axes.get(cid, ())),
+            "regions_full": region_list_full,
+            "nodes_full": sorted(full_nodes),
+            "edges_full": sorted(edge_set_full),
+            "dangling_nodes": dangling_nodes_sorted,
         }
         cluster_metadata[cid] = metadata
         for axis in cluster_axes.get(cid, ()):
-            axis_clusters[axis].append(region_list)
+            axis_clusters[axis].append(regions_out)
 
     return axis_clusters, cluster_details, cluster_metadata
 
@@ -629,9 +656,14 @@ def check_percolation_winding(
     threshold: float,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
+    include_dangling: bool = False,
 ) -> bool:
     axis_clusters, _, _ = percolation_all_axes_winding(
-        results, threshold, graph=graph, base_region_labels=base_region_labels
+        results,
+        threshold,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
     )
     return any(axis_clusters[axis] for axis in axis_clusters)
 
@@ -663,6 +695,7 @@ def find_pore_limiting_radius_winding(
     max_threshold: Optional[float] = None,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
+    include_dangling: bool = False,
 ) -> Optional[float]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     candidates = _gather_threshold_candidates(graph)
@@ -686,7 +719,11 @@ def find_pore_limiting_radius_winding(
         mid = (left + right) // 2
         threshold = filtered[mid]
         axis_clusters, _, _ = percolation_all_axes_winding(
-            results, threshold, graph=graph, base_region_labels=base_region_labels
+            results,
+            threshold,
+            graph=graph,
+            base_region_labels=base_region_labels,
+            include_dangling=include_dangling,
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             last_good = threshold
@@ -700,7 +737,11 @@ def find_pore_limiting_radius_winding(
             _,
             cluster_metadata,
         ) = percolation_all_axes_winding(
-            results, last_good, graph=graph, base_region_labels=base_region_labels
+            results,
+            last_good,
+            graph=graph,
+            base_region_labels=base_region_labels,
+            include_dangling=include_dangling,
         )
         percolating_clusters = {
             cid: data
@@ -758,6 +799,7 @@ def update_results_with_percolation_history_winding(
     max_threshold: Optional[float] = None,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
+    include_dangling: bool = False,
 ) -> Dict[str, object]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     min_default = _default_mask_thickness(results)
@@ -770,6 +812,7 @@ def update_results_with_percolation_history_winding(
         max_threshold=max_threshold,
         graph=graph,
         base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
     )
     if plr is None:
         results["percolation_history"] = []
@@ -785,7 +828,11 @@ def update_results_with_percolation_history_winding(
     history: List[Tuple[float, Dict[str, List[List[int]]]]] = []
     for threshold in thresholds:
         axis_clusters, _, _ = percolation_all_axes_winding(
-            results, float(threshold), graph=graph, base_region_labels=base_region_labels
+            results,
+            float(threshold),
+            graph=graph,
+            base_region_labels=base_region_labels,
+            include_dangling=include_dangling,
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             history.append((float(threshold), axis_clusters))
