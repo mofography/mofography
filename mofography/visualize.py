@@ -2671,6 +2671,74 @@ def plot_pld_locations(dgrid, pld_locations, ase_atoms, show_spheres=False, sphe
         return scatter, mesh
     else:
         return scatter
+def _shade_from_base(rgb, factor):
+    r, g, b = rgb
+    return (
+        min(255, int(r * factor)),
+        min(255, int(g * factor)),
+        min(255, int(b * factor)),
+    )
+
+
+def _nudge_hue(rgb, delta_deg):
+    import colorsys
+    r, g, b = [x / 255.0 for x in rgb]
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    h = (h + delta_deg / 360.0) % 1.0
+    r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+    return (int(r2 * 255), int(g2 * 255), int(b2 * 255))
+
+
+def _adjust_hls(rgb, light_factor, sat_factor, hue_deg):
+    import colorsys
+    r, g, b = [x / 255.0 for x in rgb]
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    h = (h + hue_deg / 360.0) % 1.0
+    l = max(0.0, min(1.0, l * light_factor))
+    s = max(0.0, min(1.0, s * sat_factor))
+    r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+    return (int(r2 * 255), int(g2 * 255), int(b2 * 255))
+
+
+def _with_opacity(color_str, opacity):
+    if isinstance(color_str, str) and color_str.startswith("#") and len(color_str) == 7:
+        r = int(color_str[1:3], 16)
+        g = int(color_str[3:5], 16)
+        b = int(color_str[5:7], 16)
+        return f"rgba({r},{g},{b},{opacity})"
+    if isinstance(color_str, str) and color_str.startswith("rgb"):
+        nums = color_str.strip("rgba()").split(",")
+        nums = [int(float(x)) for x in nums[:3]]
+        return f"rgba({nums[0]},{nums[1]},{nums[2]},{opacity})"
+    return color_str
+
+
+def _parse_color_to_rgb(color, fallback=(99, 110, 250)):
+    if isinstance(color, str):
+        s = color.strip()
+        if s.startswith("#") and len(s) >= 7:
+            try:
+                return tuple(int(s[i : i + 2], 16) for i in (1, 3, 5))
+            except Exception:
+                pass
+        if s.lower().startswith("rgb"):
+            try:
+                import re
+
+                nums = re.findall(r"\d+", s)
+                if len(nums) >= 3:
+                    vals = [int(min(255, max(0, float(x)))) for x in nums[:3]]
+                    return tuple(vals)
+            except Exception:
+                pass
+    elif isinstance(color, (list, tuple)):
+        if len(color) >= 3 and all(isinstance(x, (int, float)) for x in color[:3]):
+            return tuple(int(min(255, max(0, x))) for x in color[:3])
+        if len(color) >= 1 and isinstance(color[0], str):
+            return _parse_color_to_rgb(color[0], fallback)
+    return fallback
+
+
 def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, ase_atoms, probe_radius=None, isovalue=1.6, **kwargs):
     """
     Generate mesh traces for percolated clusters at a given probe radius.
@@ -2717,13 +2785,92 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                 unique_components[comp_key] = [axis]
 
     mesh_traces = []
+    opacity = kwargs.get("opacity", 1.0)
+    user_cscale = kwargs.pop("cscale", None)
+    try:
+        import plotly.express as px
+        default_palette = px.colors.qualitative.Plotly
+    except Exception:
+        default_palette = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
 
     # Generate mesh for each unique component
     for i, (comp, axes) in enumerate(unique_components.items(), 1):
         # Get direction labels
         dir_labels = ['x' if 0 in axes else '', 'y' if 1 in axes else '', 'z' if 2 in axes else '']
         dir_str = ''.join(dir_labels)
-        
+
+        # Build a per-cluster colorscale: same base color, distinct shades per region
+        max_region = int(regions.max()) if hasattr(regions, "max") else 0
+        # Choose a palette: user-provided if present, otherwise default
+        palette = None
+        if user_cscale is not None:
+            if isinstance(user_cscale, (list, tuple)) and len(user_cscale) > 0:
+                palette = list(user_cscale)
+            elif isinstance(user_cscale, str):
+                try:
+                    import plotly.express as px
+                    palette = list(getattr(px.colors.qualitative, user_cscale))
+                except Exception:
+                    try:
+                        import plotly.express as px
+                        palette = list(getattr(px.colors.sequential, user_cscale))
+                    except Exception:
+                        palette = None
+        if not palette:
+            palette = default_palette
+
+        base_color_raw = palette[(i - 1) % len(palette)]
+        base_rgb = _parse_color_to_rgb(base_color_raw, (99, 110, 250))
+        if not (isinstance(base_rgb, tuple) and len(base_rgb) == 3):
+            base_rgb = (99, 110, 250)
+        comp_sorted = list(sorted(comp))
+
+        # Shade variations (lightness/saturation/hue) without remapping labels
+        comp_sorted = list(sorted(comp))
+        shades = {}
+        if comp_sorted:
+            if len(comp_sorted) == 1:
+                shades[comp_sorted[0]] = base_rgb
+            else:
+                n_regions = len(comp_sorted)
+                # Scale variation based on how many regions are in the cluster.
+                if n_regions <= 3:
+                    light_low, light_high = 0.65, 1.0
+                    sat_low, sat_high = 0.8, 1.2
+                    hue_span = 40.0  # smaller hue swing to avoid brownish shifts on yellows
+                elif n_regions <= 5:
+                    light_low, light_high = 0.6, 1.0
+                    sat_low, sat_high = 0.85, 1.15
+                    hue_span = 50.0
+                else:
+                    light_low, light_high = 0.6, 1.0
+                    sat_low, sat_high = 0.85, 1.15
+                    hue_span = 60.0
+
+                light_factors = np.linspace(light_low, light_high, n_regions)
+                sat_factors = np.linspace(sat_low, sat_high, n_regions)
+                hue_offsets = np.linspace(-hue_span / 2.0, hue_span / 2.0, n_regions)
+                hue_offsets = np.linspace(-hue_span / 2.0, hue_span / 2.0, len(comp_sorted))
+                for idx, label in enumerate(comp_sorted):
+                    shaded = _adjust_hls(
+                        base_rgb,
+                        light_factor=light_factors[idx],
+                        sat_factor=sat_factors[idx],
+                        hue_deg=hue_offsets[idx],
+                    )
+                    shades[label] = shaded
+
+        cvals = np.linspace(0, 1, max_region) if max_region > 0 else []
+        cscale = []
+        for reg_idx in range(1, max_region + 1):
+            rgb = shades.get(reg_idx, base_rgb)
+            cscale.append(
+                [
+                    cvals[reg_idx - 1] if len(cvals) > 0 else 0,
+                    f"rgba({rgb[0]},{rgb[1]},{rgb[2]},{opacity})",
+                ]
+            )
+
         # Generate the mesh
         mesh = plot_surface_dgrid(
             distance_grid, 
@@ -2732,8 +2879,18 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             region_labels=regions,
             select=comp,
             name=f'Component {i}_{dir_str}',
+            cscale=cscale if cscale else None,
             **kwargs
         )
+        mesh_name = mesh.name if getattr(mesh, "name", None) else f"Component {i}_{dir_str}"
+        if getattr(mesh, "hovertext", None) is not None:
+            try:
+                mesh.hovertext = [f"{ht}<br>{mesh_name}" for ht in mesh.hovertext]
+                mesh.hovertemplate = "%{hovertext}<br>x:%{x:.2f} y:%{y:.2f} z:%{z:.2f}<extra></extra>"
+            except Exception:
+                mesh.hovertemplate = f"{mesh_name}<br>x:%{{x:.2f}} y:%{{y:.2f}} z:%{{z:.2f}}<extra></extra>"
+        else:
+            mesh.hovertemplate = f"{mesh_name}<br>x:%{{x:.2f}} y:%{{y:.2f}} z:%{{z:.2f}}<extra></extra>"
         mesh.legendgroup = 'percolated'
         mesh.legendgrouptitle = dict(text='Percolated Clusters')
         mesh_traces.append(mesh)
