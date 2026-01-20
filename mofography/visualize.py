@@ -2835,9 +2835,9 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                 n_regions = len(comp_sorted)
                 # Scale variation based on how many regions are in the cluster.
                 if n_regions <= 3:
-                    light_low, light_high = 0.65, 1.0
-                    sat_low, sat_high = 0.8, 1.2
-                    hue_span = 40.0  # smaller hue swing to avoid brownish shifts on yellows
+                    light_low, light_high = 0.8, 1.05
+                    sat_low, sat_high = 0.9, 1.05
+                    hue_span = 20.0  # small hue swing to avoid brown shifts
                 elif n_regions <= 5:
                     light_low, light_high = 0.6, 1.0
                     sat_low, sat_high = 0.85, 1.15
