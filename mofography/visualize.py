@@ -2793,6 +2793,10 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
     except Exception:
         default_palette = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
 
+    # Optional: boundary styling
+    boundary_line_width = kwargs.pop("boundary_line_width", 1)
+    boundary_line_color = kwargs.pop("boundary_line_color", "black")
+
     # Generate mesh for each unique component
     for i, (comp, axes) in enumerate(unique_components.items(), 1):
         # Get direction labels
@@ -2832,6 +2836,7 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             if len(comp_sorted) == 1:
                 shades[comp_sorted[0]] = base_rgb
             else:
+                import numpy as np
                 n_regions = len(comp_sorted)
                 # Scale variation based on how many regions are in the cluster.
                 if n_regions <= 3:
@@ -2894,6 +2899,72 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
         mesh.legendgroup = 'percolated'
         mesh.legendgrouptitle = dict(text='Percolated Clusters')
         mesh_traces.append(mesh)
+
+        # Boundary lines per region pair: highlight seams between different region labels
+        try:
+            from skimage.measure import marching_cubes as mc
+            import numpy as np
+            import plotly.graph_objects as go
+
+            # Re-run marching cubes on the selection to get verts/faces/labels
+            # Build a mask selecting only the desired regions
+            if comp != "all":
+                mask = np.isin(regions, comp)
+            else:
+                mask = np.ones_like(regions, dtype=bool)
+            verts, faces, normals, values = mc(distance_grid, isovalue, step_size=1, mask=mask)
+
+            # Interpolate region labels at verts (nearest)
+            xx = np.linspace(0, regions.shape[0] - 1, regions.shape[0])
+            yy = np.linspace(0, regions.shape[1] - 1, regions.shape[1])
+            zz = np.linspace(0, regions.shape[2] - 1, regions.shape[2])
+            from scipy.interpolate import RegularGridInterpolator as RGI
+            rl = RGI((xx, yy, zz), regions, method="nearest", bounds_error=False, fill_value=0)
+            colours = rl(verts)
+
+            # Find boundary edges keyed by region pair
+            boundary_edges = {}
+            for f in faces:
+                vids = [int(v) for v in f]
+                labels = [int(colours[v]) for v in vids]
+                # For each edge of the triangle
+                edges = [(vids[0], vids[1]), (vids[1], vids[2]), (vids[2], vids[0])]
+                edge_labels = [(labels[0], labels[1]), (labels[1], labels[2]), (labels[2], labels[0])]
+                for (u, v), (lu, lv) in zip(edges, edge_labels):
+                    if lu == lv:
+                        continue
+                    key = tuple(sorted((lu, lv)))
+                    ekey = tuple(sorted((u, v)))
+                    boundary_edges.setdefault(key, set()).add(ekey)
+
+            if boundary_edges:
+                cell = ase_atoms.cell.T
+                verts_scaled = verts / np.array(regions.shape)
+                true_verts = np.dot(cell, verts_scaled.T).T
+                for (r1, r2), edgeset in boundary_edges.items():
+                    xs = []
+                    ys = []
+                    zs = []
+                    for (u, v) in edgeset:
+                        xs.extend([true_verts[u, 0], true_verts[v, 0], None])
+                        ys.extend([true_verts[u, 1], true_verts[v, 1], None])
+                        zs.extend([true_verts[u, 2], true_verts[v, 2], None])
+                    if xs:
+                        boundary_trace = go.Scatter3d(
+                            x=xs,
+                            y=ys,
+                            z=zs,
+                            mode="lines",
+                            line=dict(color=boundary_line_color, width=boundary_line_width),
+                            name=f"{mesh_name} boundary {r1}-{r2}",
+                            legendgroup="percolated",
+                            showlegend=False,
+                            hoverinfo="skip",
+                        )
+                        mesh_traces.append(boundary_trace)
+        except Exception:
+            # If boundary extraction fails, skip silently
+            pass
 
     return mesh_traces
 def plot_electrostatic_volume(potential_V, cell, atoms):
