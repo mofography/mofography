@@ -212,7 +212,7 @@ def detect_percolation_with_threshold(
     threshold: float,
     node_radius_attr: str = "pocket_radius",
     edge_radius_attr: str = "window_radius",
-) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
+) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset], nx.MultiDiGraph]:
     """
     Convenience wrapper that filters nodes/edges below ``threshold`` before
     running :func:`percolation_winding_multidigraph`.
@@ -233,10 +233,10 @@ def detect_percolation_with_threshold(
         if float(data.get(node_radius_attr, 0.0)) >= threshold
     }
 
-    if not eligible_nodes:
-        return {"x": False, "y": False, "z": False}, [], {}
-
     H = nx.MultiDiGraph()
+    if not eligible_nodes:
+        return {"x": False, "y": False, "z": False}, [], {}, H
+
     for n in eligible_nodes:
         H.add_node(n, **G.nodes[n])
 
@@ -253,9 +253,10 @@ def detect_percolation_with_threshold(
         H.add_edge(u, v, key=key, **data)
 
     if H.number_of_edges() == 0:
-        return {"x": False, "y": False, "z": False}, [], {}
+        return {"x": False, "y": False, "z": False}, [], {}, H
 
-    return percolation_winding_multidigraph(H)
+    percolates, loops, acc_offsets = percolation_winding_multidigraph(H)
+    return percolates, loops, acc_offsets, H
 
 
 def _maxima_pbc_data(maxima_info: np.ndarray):
@@ -546,22 +547,24 @@ def percolation_all_axes_winding(
     node_radius_attr: str = "pocket_radius",
     edge_radius_attr: str = "window_radius",
     include_dangling: bool = False,
+    expand_components: bool = True,
 ) -> Tuple[
     Dict[str, List[List[int]]],
     Dict[int, List[int]],
     Dict[int, Dict[str, object]],
 ]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
-    percolates, loops, acc_offsets = detect_percolation_with_threshold(
+    percolates, loops, acc_offsets, filtered_graph = detect_percolation_with_threshold(
         graph, threshold, node_radius_attr=node_radius_attr, edge_radius_attr=edge_radius_attr
     )
     annotate_clusters(loops)
-    graph_undirected = nx.Graph(graph.to_undirected(as_view=True))
+    graph_undirected = nx.Graph(filtered_graph.to_undirected(as_view=True))
     component_lookup: Dict[int, set] = {}
-    for comp in nx.connected_components(graph_undirected):
-        comp_set = set(comp)
-        for node in comp_set:
-            component_lookup[node] = comp_set
+    if expand_components:
+        for comp in nx.connected_components(graph_undirected):
+            comp_set = set(comp)
+            for node in comp_set:
+                component_lookup[node] = comp_set
 
     axis_clusters: Dict[str, List[List[int]]] = {"x": [], "y": [], "z": []}
     cluster_details: Dict[int, List[int]] = {}
@@ -579,34 +582,42 @@ def percolation_all_axes_winding(
 
     cluster_metadata: Dict[int, Dict[str, object]] = {}
     for cid in cluster_region_sets:
-        comp_nodes: set = set()
-        for node in cluster_node_sets.get(cid, ()):
-            comp_nodes.update(component_lookup.get(node, ()))
-        comp_nodes = {n for n in comp_nodes if n in graph}
+        if expand_components:
+            comp_nodes: set = set()
+            for node in cluster_node_sets.get(cid, ()):
+                comp_nodes.update(component_lookup.get(node, ()))
+            comp_nodes = {n for n in comp_nodes if n in filtered_graph}
+        else:
+            comp_nodes = set(cluster_node_sets.get(cid, ()))
         if not comp_nodes:
             continue
 
-        comp_subgraph = graph_undirected.subgraph(comp_nodes)
-        subgraph_no_loops = comp_subgraph.copy()
-        subgraph_no_loops.remove_edges_from(nx.selfloop_edges(subgraph_no_loops))
-        try:
-            core_nodes = set(nx.k_core(subgraph_no_loops, k=2).nodes())
-        except nx.NetworkXError:
-            core_nodes = set(subgraph_no_loops.nodes())
-        if not core_nodes:
+        if expand_components:
+            comp_subgraph = graph_undirected.subgraph(comp_nodes)
+            subgraph_no_loops = comp_subgraph.copy()
+            subgraph_no_loops.remove_edges_from(nx.selfloop_edges(subgraph_no_loops))
+            try:
+                core_nodes = set(nx.k_core(subgraph_no_loops, k=2).nodes())
+            except nx.NetworkXError:
+                core_nodes = set(subgraph_no_loops.nodes())
+            if not core_nodes:
+                core_nodes = comp_nodes
+            full_nodes = comp_nodes
+            dangling_nodes = full_nodes - core_nodes
+        else:
             core_nodes = comp_nodes
-        full_nodes = comp_nodes
-        dangling_nodes = full_nodes - core_nodes
+            full_nodes = comp_nodes
+            dangling_nodes = set()
 
         edge_set: set = set()
-        for u, v, key in graph.edges(keys=True):
+        for u, v, key in filtered_graph.edges(keys=True):
             if u in core_nodes and v in core_nodes:
                 if u <= v:
                     edge_set.add((u, v, key))
                 else:
                     edge_set.add((v, u, key))
         edge_set_full: set = set()
-        for u, v, key in graph.edges(keys=True):
+        for u, v, key in filtered_graph.edges(keys=True):
             if u in full_nodes and v in full_nodes:
                 if u <= v:
                     edge_set_full.add((u, v, key))
@@ -657,6 +668,7 @@ def check_percolation_winding(
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
     include_dangling: bool = False,
+    expand_components: bool = True,
 ) -> bool:
     axis_clusters, _, _ = percolation_all_axes_winding(
         results,
@@ -664,6 +676,7 @@ def check_percolation_winding(
         graph=graph,
         base_region_labels=base_region_labels,
         include_dangling=include_dangling,
+        expand_components=expand_components,
     )
     return any(axis_clusters[axis] for axis in axis_clusters)
 
@@ -696,6 +709,7 @@ def find_pore_limiting_radius_winding(
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
     include_dangling: bool = False,
+    expand_components: bool = True,
 ) -> Optional[float]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     candidates = _gather_threshold_candidates(graph)
@@ -724,6 +738,7 @@ def find_pore_limiting_radius_winding(
             graph=graph,
             base_region_labels=base_region_labels,
             include_dangling=include_dangling,
+            expand_components=expand_components,
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             last_good = threshold
@@ -742,6 +757,7 @@ def find_pore_limiting_radius_winding(
             graph=graph,
             base_region_labels=base_region_labels,
             include_dangling=include_dangling,
+            expand_components=expand_components,
         )
         percolating_clusters = {
             cid: data
@@ -800,6 +816,7 @@ def update_results_with_percolation_history_winding(
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
     include_dangling: bool = False,
+    expand_components: bool = True,
 ) -> Dict[str, object]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     min_default = _default_mask_thickness(results)
@@ -813,6 +830,7 @@ def update_results_with_percolation_history_winding(
         graph=graph,
         base_region_labels=base_region_labels,
         include_dangling=include_dangling,
+        expand_components=expand_components,
     )
     if plr is None:
         results["percolation_history"] = []
@@ -833,6 +851,7 @@ def update_results_with_percolation_history_winding(
             graph=graph,
             base_region_labels=base_region_labels,
             include_dangling=include_dangling,
+            expand_components=expand_components,
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             history.append((float(threshold), axis_clusters))
@@ -849,10 +868,17 @@ def update_results_with_percolation_history_winding(
 
 def compute_percolation_history_winding(
     results: Dict[str, object],
+    include_dangling: bool = False,
+    expand_components: bool = True,
     **kwargs,
 ) -> Tuple[List[Tuple[float, Dict[str, List[List[int]]]]], np.ndarray, Dict[int, Dict[str, object]]]:
     """Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata."""
-    results = update_results_with_percolation_history_winding(results, **kwargs)
+    results = update_results_with_percolation_history_winding(
+        results,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+        **kwargs,
+    )
     percolation_history = results["percolation_history"]
     pld_locations = results["pld_locations"]
     final_clusters = results.get("plr_clusters_winding", {})
@@ -864,6 +890,8 @@ def get_pore_dia_mgr_winding(
     dgrid: Optional[np.ndarray] = None,
     kwargs: Optional[Dict[str, object]] = None,
     results: Optional[Dict[str, object]] = None,
+    include_dangling: bool = False,
+    expand_components: bool = True,
 ) -> Tuple[float, float, float, np.ndarray]:
     if kwargs is None:
         kwargs = {}
@@ -893,13 +921,24 @@ def get_pore_dia_mgr_winding(
     base_region_labels = build_base_region_labels_from_results(results)
 
     lcd = float(dgrid.max() * 2)
-    plr = find_pore_limiting_radius_winding(results, graph=graph, base_region_labels=base_region_labels)
+    plr = find_pore_limiting_radius_winding(
+        results,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
     if plr is None:
         return lcd, 0.0, 0.0, dgrid
 
     pld = float(plr * 2)
     axis_clusters, _, _ = percolation_all_axes_winding(
-        results, plr, graph=graph, base_region_labels=base_region_labels
+        results,
+        plr,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
     )
     percolating_labels = set()
     for groups in axis_clusters.values():
