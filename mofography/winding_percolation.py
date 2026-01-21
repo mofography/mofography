@@ -546,7 +546,7 @@ def percolation_all_axes_winding(
     base_region_labels: Optional[Dict[int, set]] = None,
     node_radius_attr: str = "pocket_radius",
     edge_radius_attr: str = "window_radius",
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Tuple[
     Dict[str, List[List[int]]],
@@ -667,7 +667,7 @@ def check_percolation_winding(
     threshold: float,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
 ) -> bool:
     axis_clusters, _, _ = percolation_all_axes_winding(
@@ -708,7 +708,7 @@ def find_pore_limiting_radius_winding(
     max_threshold: Optional[float] = None,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Optional[float]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
@@ -815,7 +815,7 @@ def update_results_with_percolation_history_winding(
     max_threshold: Optional[float] = None,
     graph: Optional[nx.MultiDiGraph] = None,
     base_region_labels: Optional[Dict[int, set]] = None,
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Dict[str, object]:
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
@@ -868,7 +868,7 @@ def update_results_with_percolation_history_winding(
 
 def compute_percolation_history_winding(
     results: Dict[str, object],
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
     **kwargs,
 ) -> Tuple[List[Tuple[float, Dict[str, List[List[int]]]]], np.ndarray, Dict[int, Dict[str, object]]]:
@@ -890,7 +890,7 @@ def get_pore_dia_mgr_winding(
     dgrid: Optional[np.ndarray] = None,
     kwargs: Optional[Dict[str, object]] = None,
     results: Optional[Dict[str, object]] = None,
-    include_dangling: bool = False,
+    include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Tuple[float, float, float, np.ndarray]:
     if kwargs is None:
