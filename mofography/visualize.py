@@ -2838,24 +2838,14 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             else:
                 import numpy as np
                 n_regions = len(comp_sorted)
-                # Scale variation based on how many regions are in the cluster.
-                if n_regions <= 3:
-                    light_low, light_high = 0.8, 1.05
-                    sat_low, sat_high = 0.9, 1.05
-                    hue_span = 20.0  # small hue swing to avoid brown shifts
-                elif n_regions <= 5:
-                    light_low, light_high = 0.6, 1.0
-                    sat_low, sat_high = 0.85, 1.15
-                    hue_span = 50.0
-                else:
-                    light_low, light_high = 0.6, 1.0
-                    sat_low, sat_high = 0.85, 1.15
-                    hue_span = 60.0
+                # Subtle, primarily lightness-based variation to keep regions similar.
+                light_low, light_high = 0.92, 1.06
+                sat_low, sat_high = 0.95, 1.05
+                hue_span = 10.0
 
                 light_factors = np.linspace(light_low, light_high, n_regions)
                 sat_factors = np.linspace(sat_low, sat_high, n_regions)
                 hue_offsets = np.linspace(-hue_span / 2.0, hue_span / 2.0, n_regions)
-                hue_offsets = np.linspace(-hue_span / 2.0, hue_span / 2.0, len(comp_sorted))
                 for idx, label in enumerate(comp_sorted):
                     shaded = _adjust_hls(
                         base_rgb,
@@ -2888,6 +2878,7 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             **kwargs
         )
         mesh_name = mesh.name if getattr(mesh, "name", None) else f"Component {i}_{dir_str}"
+        legend_group_name = f"percolated_{i}"
         if getattr(mesh, "hovertext", None) is not None:
             try:
                 mesh.hovertext = [f"{ht}<br>{mesh_name}" for ht in mesh.hovertext]
@@ -2896,8 +2887,9 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                 mesh.hovertemplate = f"{mesh_name}<br>x:%{{x:.2f}} y:%{{y:.2f}} z:%{{z:.2f}}<extra></extra>"
         else:
             mesh.hovertemplate = f"{mesh_name}<br>x:%{{x:.2f}} y:%{{y:.2f}} z:%{{z:.2f}}<extra></extra>"
-        mesh.legendgroup = 'percolated'
-        mesh.legendgrouptitle = dict(text='Percolated Clusters')
+        mesh.legendgroup = legend_group_name
+        if i == 1:
+            mesh.legendgrouptitle = dict(text='Percolated Clusters')
         mesh_traces.append(mesh)
 
         # Boundary lines per region pair: highlight seams between different region labels
@@ -2910,8 +2902,10 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             # Build a mask selecting only the desired regions
             if comp != "all":
                 mask = np.isin(regions, comp)
+                comp_set = set(int(x) for x in comp)
             else:
                 mask = np.ones_like(regions, dtype=bool)
+                comp_set = None
             verts, faces, normals, values = mc(distance_grid, isovalue, step_size=1, mask=mask)
 
             # Interpolate region labels at verts (nearest)
@@ -2919,6 +2913,7 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             yy = np.linspace(0, regions.shape[1] - 1, regions.shape[1])
             zz = np.linspace(0, regions.shape[2] - 1, regions.shape[2])
             from scipy.interpolate import RegularGridInterpolator as RGI
+            # Interpolate over full regions; we filter out-of-cluster edges below
             rl = RGI((xx, yy, zz), regions, method="nearest", bounds_error=False, fill_value=0)
             colours = rl(verts)
 
@@ -2933,12 +2928,17 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                 for (u, v), (lu, lv) in zip(edges, edge_labels):
                     if lu == lv:
                         continue
+                    if lu <= 0 or lv <= 0:
+                        continue
+                    if comp_set is not None and ((lu not in comp_set) or (lv not in comp_set)):
+                        continue
                     key = tuple(sorted((lu, lv)))
                     ekey = tuple(sorted((u, v)))
                     boundary_edges.setdefault(key, set()).add(ekey)
 
             if boundary_edges:
-                cell = ase_atoms.cell.T
+                import ase
+                cell = ase.geometry.complete_cell(ase_atoms.get_cell()).T
                 verts_scaled = verts / np.array(regions.shape)
                 true_verts = np.dot(cell, verts_scaled.T).T
                 for (r1, r2), edgeset in boundary_edges.items():
@@ -2949,17 +2949,30 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                         xs.extend([true_verts[u, 0], true_verts[v, 0], None])
                         ys.extend([true_verts[u, 1], true_verts[v, 1], None])
                         zs.extend([true_verts[u, 2], true_verts[v, 2], None])
+                    
                     if xs:
+                        # Ensure legendgrouptitle is a dict or None, not a Legendgrouptitle object
+                        legend_title = None
+                        if getattr(mesh, "legendgrouptitle", None):
+                            # Extract text from Legendgrouptitle object if available
+                            if hasattr(mesh.legendgrouptitle, "text"):
+                                legend_title = dict(text=mesh.legendgrouptitle.text)
+                            elif isinstance(mesh.legendgrouptitle, dict):
+                                legend_title = mesh.legendgrouptitle
+
                         boundary_trace = go.Scatter3d(
                             x=xs,
                             y=ys,
                             z=zs,
                             mode="lines",
                             line=dict(color=boundary_line_color, width=boundary_line_width),
-                            name=f"{mesh_name} boundary {r1}-{r2}",
-                            legendgroup="percolated",
+                            name=f"Boundary {r1}-{r2}",
+                            legendgroup=legend_group_name,
+                            legendgrouptitle=legend_title,
+                            visible=True,  # Initially visible
                             showlegend=False,
                             hoverinfo="skip",
+                            legendrank=1001,
                         )
                         mesh_traces.append(boundary_trace)
         except Exception:
