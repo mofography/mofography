@@ -2878,7 +2878,7 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
             **kwargs
         )
         mesh_name = mesh.name if getattr(mesh, "name", None) else f"Component {i}_{dir_str}"
-        legend_group_name = f"percolated_{i}"
+        legend_group_name = f"cluster_{i}_{dir_str}"
         if getattr(mesh, "hovertext", None) is not None:
             try:
                 mesh.hovertext = [f"{ht}<br>{mesh_name}" for ht in mesh.hovertext]
@@ -2888,8 +2888,7 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
         else:
             mesh.hovertemplate = f"{mesh_name}<br>x:%{{x:.2f}} y:%{{y:.2f}} z:%{{z:.2f}}<extra></extra>"
         mesh.legendgroup = legend_group_name
-        if i == 1:
-            mesh.legendgrouptitle = dict(text='Percolated Clusters')
+        mesh.legendgrouptitle = dict(text=f'Cluster {i}_{dir_str}')
         mesh_traces.append(mesh)
 
         # Boundary lines per region pair: highlight seams between different region labels
@@ -2969,7 +2968,6 @@ def plot_percolated_cluster_meshes(percolation_history, distance_grid, regions, 
                             name=f"Boundary {r1}-{r2}",
                             legendgroup=legend_group_name,
                             legendgrouptitle=legend_title,
-                            visible=True,  # Initially visible
                             showlegend=False,
                             hoverinfo="skip",
                             legendrank=1001,
