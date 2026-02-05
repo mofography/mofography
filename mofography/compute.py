@@ -3640,7 +3640,7 @@ def add_clustering_to_rag_geometry_js(
         # for t in iterlist:
         #     js_dist.append(delayed(get_js_dist_geom)(t[0], t[1]))
         # js_dist = dask.compute(js_dist)
-        print(js_dist)
+        # print(js_dist)
         # js_dist = db.from_sequence(iterlist).map(get_js_dist_geom).compute()
         # * print the the JS distances between regions
         # print(js_dist)
