@@ -1716,3 +1716,217 @@ def compute_accessible_psd_from_results(
         "cum_pb": cum_pb,
         "psd_pb": psd_pb,
     }
+
+
+def compute_psd_global_accessible(
+    results,
+    mat_atoms,
+    probe_radius,
+    bins=None,
+    samples_per_region=10000,
+    density=False,
+    return_fig=False,
+    material="Material",
+):
+    """Compute global accessible PSD (volume-weighted from percolating regions only).
+
+    Thin wrapper around compute_accessible_psd_from_results that returns the same
+    format as compute_psd_uniform_rust for app compatibility: psd_hist or (psd_hist, fig).
+
+    Only void space that percolates at the given probe_radius is included.
+
+    :param results: Segmentation results from do_periodic_segmentation_rust with return_dgrid=True
+    :type results: dict
+    :param mat_atoms: ASE Atoms with the simulation cell
+    :type mat_atoms: ase.Atoms
+    :param probe_radius: Probe radius (Å) for percolation threshold
+    :type probe_radius: float
+    :param bins: Bin edges for histogram. If None, uses np.linspace(0, 50, 200)
+    :type bins: numpy.ndarray or None
+    :param samples_per_region: Samples per pocket for pocketwise sampler
+    :type samples_per_region: int
+    :param density: Whether to normalize the histogram (matches compute_psd_uniform_rust)
+    :type density: bool
+    :param return_fig: Whether to return a plotly figure
+    :type return_fig: bool
+    :param material: Name of the material for plot title
+    :type material: str
+    :return: psd_hist or (psd_hist, fig) - same shape as compute_psd_uniform_rust
+    :rtype: numpy.ndarray or tuple[numpy.ndarray, plotly.graph_objects.Figure]
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+
+    if bins is None:
+        bins = np.linspace(0, 50, 200)
+    bin_edges = np.asarray(bins)
+
+    out = compute_accessible_psd_from_results(
+        results,
+        mat_atoms,
+        probe_radius,
+        bin_edges=bin_edges,
+        samples_per_region=samples_per_region,
+        accessible_only=True,
+        pb_normalization=False,
+    )
+
+    pdf = out["pdf"]
+    bin_centers = out["bin_centers"]
+    accessible_region_ids = out["accessible_region_ids"]
+
+    # Convert pdf to histogram for consistency with compute_psd_uniform_rust
+    # pdf is normalized (sum=1); scale to counts: total_samples = samples_per_region * num_regions
+    n_regions = len(accessible_region_ids)
+    total_samples = samples_per_region * n_regions if n_regions > 0 else 1
+    if density:
+        bin_widths = np.diff(bin_edges)
+        # density = pdf / bin_width (so integral = 1)
+        psd_hist = np.where(bin_widths > 0, pdf / bin_widths, 0.0)
+    else:
+        psd_hist = pdf * total_samples
+
+    if return_fig:
+        print("\nCreating accessible global PSD plot...")
+        print(f"  Accessible regions at probe_radius={probe_radius} Å: {n_regions}")
+        trace = go.Scatter(
+            x=bin_centers,
+            y=psd_hist,
+            mode="lines",
+            name="Accessible PSD",
+            line=dict(width=2),
+        )
+        fig = go.Figure()
+        fig.add_trace(trace)
+        fig.update_layout(
+            title=f"Accessible Pore Size Distribution (probe {probe_radius} Å) - {material}",
+            xaxis_title="Pore Diameter (Å)",
+            yaxis_title="Counts" if not density else "Density",
+            legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+            width=1000,
+            height=600,
+        )
+        return psd_hist, fig
+    return psd_hist
+
+
+def compute_psds_pocketwise_accessible(
+    results,
+    mat_atoms,
+    probe_radius,
+    num_samples_per_region=1000,
+    bins=None,
+    return_fig=False,
+    material="Material",
+):
+    """Compute pocket-wise PSD restricted to accessible (percolating) regions only.
+
+    Returns the same dict structure as compute_psds_pocketwise_rust for app compatibility:
+    {region_id: {'hist', 'bin_centers', 'num_samples', 'mean_pore_size', 'std_pore_size'}}
+
+    :param results: Segmentation results from do_periodic_segmentation_rust with return_dgrid=True
+    :type results: dict
+    :param mat_atoms: ASE Atoms with the simulation cell
+    :type mat_atoms: ase.Atoms
+    :param probe_radius: Probe radius (Å) for percolation threshold
+    :type probe_radius: float
+    :param num_samples_per_region: Samples per pocket
+    :type num_samples_per_region: int
+    :param bins: Bin edges for histogram. If None, uses np.linspace(0, 50, 200)
+    :type bins: numpy.ndarray or None
+    :param return_fig: Whether to return a plotly figure
+    :type return_fig: bool
+    :param material: Name of the material for plot title
+    :type material: str
+    :return: pocket_psds or (pocket_psds, fig) - same shape as compute_psds_pocketwise_rust
+    :rtype: dict or tuple[dict, plotly.graph_objects.Figure]
+    """
+    import numpy as np
+    from .visualize import plot_pocket_psds
+
+    if bins is None:
+        bins = np.linspace(0, 50, 200)
+    bin_edges = np.asarray(bins)
+
+    out = compute_accessible_psd_from_results(
+        results,
+        mat_atoms,
+        probe_radius,
+        bin_edges=bin_edges,
+        samples_per_region=num_samples_per_region,
+        accessible_only=True,
+        pb_normalization=False,
+    )
+
+    per_region = out["per_region"]
+    bin_centers = out["bin_centers"]
+
+    # Convert to same format as compute_psds_pocketwise_rust
+    pocket_psds = {}
+    for rid, data in per_region.items():
+        pdf_r = data["pdf"]
+        n_samples = num_samples_per_region
+        hist = pdf_r * n_samples
+        mean_pore_size = np.sum(pdf_r * bin_centers)
+        var = np.sum(pdf_r * (bin_centers - mean_pore_size) ** 2)
+        std_pore_size = np.sqrt(var) if var > 0 else 0.0
+        pocket_psds[rid] = {
+            "hist": hist,
+            "bin_centers": bin_centers,
+            "num_samples": n_samples,
+            "mean_pore_size": mean_pore_size,
+            "std_pore_size": std_pore_size,
+        }
+
+    if return_fig:
+        # Reconstruct pore_sizes and region_labels for plot_pocket_psds
+        # (plot_pocket_psds needs them for the overall trace; we use bin_centers + hist)
+        if pocket_psds:
+            all_bin_centers = list(pocket_psds.values())[0]["bin_centers"]
+            # Create synthetic pore_sizes by expanding hist to sample points
+            pore_sizes_list = []
+            region_labels_list = []
+            for rid, psd_data in pocket_psds.items():
+                hist = psd_data["hist"]
+                bc = psd_data["bin_centers"]
+                for i, count in enumerate(hist):
+                    n = int(round(count))
+                    if n > 0:
+                        pore_sizes_list.extend([bc[i]] * n)
+                        region_labels_list.extend([rid] * n)
+            if pore_sizes_list:
+                pore_sizes_arr = np.array(pore_sizes_list)
+                region_labels_arr = np.array(region_labels_list)
+                fig = plot_pocket_psds(
+                    pore_sizes_arr,
+                    region_labels_arr,
+                    pocket_psds,
+                    bins,
+                    material_name=material,
+                )
+                fig.update_layout(
+                    title=f"Accessible Pore Size Distribution (probe {probe_radius} Å) - {material}",
+                )
+                return pocket_psds, fig
+        # Empty case: create minimal figure
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"Accessible Pore Size Distribution (probe {probe_radius} Å) - {material}",
+            xaxis_title="Pore Diameter (Å)",
+            yaxis_title="Counts",
+            annotations=[
+                dict(
+                    text="No percolating regions at this probe radius",
+                    xref="paper",
+                    yref="paper",
+                    x=0.5,
+                    y=0.5,
+                    showarrow=False,
+                )
+            ],
+        )
+        return pocket_psds, fig
+
+    return pocket_psds
