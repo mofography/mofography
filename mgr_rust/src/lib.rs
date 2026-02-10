@@ -1010,48 +1010,124 @@ fn seeded_watershed_bucket(
         (1, 1, -1), (1, 1, 0), (1, 1, 1),
     ];
 
-    // Main flooding loop from highest bucket downwards
+    // Buckets that received pushes after we had already passed their level (b > level).
+    // We will drain and process these after the main loop until quiescent.
+    let late_buckets: Arc<Mutex<HashSet<usize>>> = Arc::new(Mutex::new(HashSet::new()));
+
+    // Main flooding loop from highest bucket downwards.
+    // Inner loop: re-process same bucket until empty so same-bucket voxels get to propagate.
     for level in (0..BUCKETS).rev() {
-        let frontier: Vec<usize> = {
-            let mut guard = buckets[level].lock();
-            std::mem::take(&mut *guard)
-        };
-        if frontier.is_empty() {
-            continue;
-        }
+        loop {
+            let frontier: Vec<usize> = {
+                let mut guard = buckets[level].lock();
+                std::mem::take(&mut *guard)
+            };
+            if frontier.is_empty() {
+                break;
+            }
+            frontier.par_iter().for_each(|&idx| {
+                let current_label = labels[idx].load(Ordering::Relaxed);
+                let i = idx / (ny * nz);
+                let j = (idx / nz) % ny;
+                let k = idx % nz;
 
-        frontier.par_iter().for_each(|&idx| {
-            let current_label = labels[idx].load(Ordering::Relaxed);
-            let i = idx / (ny * nz);
-            let j = (idx / nz) % ny;
-            let k = idx % nz;
-
-            for &(dx, dy, dz) in neighbor_offsets {
-                let ni = i as isize + dx;
-                let nj = j as isize + dy;
-                let nk = k as isize + dz;
-                if ni < 0 || nj < 0 || nk < 0 {
-                    continue;
-                }
-                let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
-                if ni_u >= nx || nj_u >= ny || nk_u >= nz {
-                    continue;
-                }
-                if let Some(ref mask_v) = mask_vec {
-                    if !mask_v[to_flat(ni_u, nj_u, nk_u)] {
+                for &(dx, dy, dz) in neighbor_offsets {
+                    let ni = i as isize + dx;
+                    let nj = j as isize + dy;
+                    let nk = k as isize + dz;
+                    if ni < 0 || nj < 0 || nk < 0 {
                         continue;
                     }
+                    let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                    if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                        continue;
+                    }
+                    if let Some(ref mask_v) = mask_vec {
+                        if !mask_v[to_flat(ni_u, nj_u, nk_u)] {
+                            continue;
+                        }
+                    }
+                    let nidx = to_flat(ni_u, nj_u, nk_u);
+                    if labels[nidx]
+                        .compare_exchange(0, current_label, Ordering::Relaxed, Ordering::Relaxed)
+                        .is_ok()
+                    {
+                        let b = bucket_idx_vec[nidx];
+                        if b > level {
+                            late_buckets.lock().insert(b);
+                        }
+                        buckets[b].lock().push(nidx);
+                    }
                 }
-                let nidx = to_flat(ni_u, nj_u, nk_u);
-                if labels[nidx]
-                    .compare_exchange(0, current_label, Ordering::Relaxed, Ordering::Relaxed)
-                    .is_ok()
-                {
-                    let b = bucket_idx_vec[nidx];
-                    buckets[b].lock().push(nidx);
+            });
+        }
+    }
+
+    // Re-process late buckets: drain and propagate until no bucket has pending work.
+    loop {
+        let to_process: Vec<usize> = late_buckets.lock().drain().collect();
+        if to_process.is_empty() {
+            break;
+        }
+        for b in to_process {
+            loop {
+                let frontier: Vec<usize> = {
+                    let mut guard = buckets[b].lock();
+                    std::mem::take(&mut *guard)
+                };
+                if frontier.is_empty() {
+                    break;
                 }
+                frontier.par_iter().for_each(|&idx| {
+                    let current_label = labels[idx].load(Ordering::Relaxed);
+                    let i = idx / (ny * nz);
+                    let j = (idx / nz) % ny;
+                    let k = idx % nz;
+
+                    for &(dx, dy, dz) in neighbor_offsets {
+                        let ni = i as isize + dx;
+                        let nj = j as isize + dy;
+                        let nk = k as isize + dz;
+                        if ni < 0 || nj < 0 || nk < 0 {
+                            continue;
+                        }
+                        let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                        if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                            continue;
+                        }
+                        if let Some(ref mask_v) = mask_vec {
+                            if !mask_v[to_flat(ni_u, nj_u, nk_u)] {
+                                continue;
+                            }
+                        }
+                        let nidx = to_flat(ni_u, nj_u, nk_u);
+                        if labels[nidx]
+                            .compare_exchange(0, current_label, Ordering::Relaxed, Ordering::Relaxed)
+                            .is_ok()
+                        {
+                            let b_prime = bucket_idx_vec[nidx];
+                            late_buckets.lock().insert(b_prime);
+                            buckets[b_prime].lock().push(nidx);
+                        }
+                    }
+                });
             }
-        });
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    if let Some(ref mask_v) = mask_vec {
+        let unprocessed: usize = (0..total_voxels)
+            .filter(|&idx| mask_v[idx] && labels[idx].load(Ordering::Relaxed) == 0)
+            .count();
+        if unprocessed > 0 {
+            eprintln!(
+                "[seeded_watershed_bucket] WARNING: {} masked voxels still unlabeled (bug)",
+                unprocessed
+            );
+        } else {
+            eprintln!("[seeded_watershed_bucket] OK: no masked voxels left unlabeled");
+        }
     }
 
     // Convert labels into ndarray
