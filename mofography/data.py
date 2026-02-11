@@ -233,6 +233,77 @@ async def get_data_from_mofdb(
     return data_df
 
 
+# Default columns to stratify on for representative sampling (MOFdb-style df)
+MOFDB_STRAT_COLS = ["surface_area_m2g", "void_fraction", "lcd", "pld"]
+
+
+def sample_representative_mofdb(
+    df,
+    n,
+    strat_cols=None,
+    n_bins=4,
+    random_state=0,
+):
+    """
+    Sample a representative set of N materials from a MOFdb-style dataframe using
+    proportional stratified sampling so the sample's marginal distributions match
+    the population over the given columns (e.g. surface area, void fraction, LCD, PLD).
+
+    :param df: DataFrame with MOFdb-style columns (e.g. surface_area_m2g, void_fraction, lcd, pld).
+    :param n: Target number of materials to sample.
+    :param strat_cols: List of column names to stratify on. Defaults to MOFDB_STRAT_COLS.
+    :param n_bins: Number of quantile-based bins per column for stratification.
+    :param random_state: Random seed for reproducibility.
+    :return: DataFrame of sampled rows (materials).
+    """
+    import numpy as np
+    import pandas as pd
+
+    strat_cols = strat_cols or MOFDB_STRAT_COLS
+    missing = [c for c in strat_cols if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"DataFrame missing columns: {missing}. Available: {list(df.columns)}"
+        )
+    df = df.dropna(subset=strat_cols)
+    N = len(df)
+    if n >= N:
+        return df.sample(n=min(n, N), random_state=random_state)
+
+    stratum_parts = []
+    for c in strat_cols:
+        labels, _ = pd.qcut(
+            df[c], q=n_bins, labels=False, retbins=True, duplicates="drop"
+        )
+        stratum_parts.append(labels.astype(str))
+    df = df.copy()
+    df["_stratum"] = stratum_parts[0]
+    for s in stratum_parts[1:]:
+        df["_stratum"] = df["_stratum"] + "_" + s
+
+    g = df.groupby("_stratum", group_keys=False)
+    counts = g.size()
+    exact = n * counts / counts.sum()
+    floor = np.floor(exact).astype(int)
+    remainder = exact - floor
+    to_take = floor.copy()
+    shortfall = n - int(to_take.sum())
+    if shortfall > 0:
+        add_idx = remainder.nlargest(min(shortfall, len(remainder))).index
+        to_take.loc[add_idx] += 1
+
+    sampled = []
+    for stratum_id in to_take.index:
+        size = int(to_take.loc[stratum_id])
+        if size <= 0:
+            continue
+        block = g.get_group(stratum_id)
+        k = min(size, len(block))
+        sampled.append(block.sample(n=k, random_state=random_state))
+    out = pd.concat(sampled, axis=0)
+    return out.drop(columns=["_stratum"], errors="ignore")
+
+
 # def get_data_from_mofdb(
 #     url="https://mof.tech.northwestern.edu/mofs/#.json",
 #     params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
