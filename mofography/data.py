@@ -304,6 +304,128 @@ def sample_representative_mofdb(
     return out.drop(columns=["_stratum"], errors="ignore")
 
 
+def plot_representative_sample_subplots(
+    full,
+    sample,
+    strat_cols=None,
+    nbins_hist=40,
+    n_sample=None,
+    title=None,
+):
+    """
+    Build a 2x2 Plotly figure comparing full vs sample histograms for each
+    stratification column (surface area, void fraction, LCD, PLD). Use to verify
+    that a representative sample matches the full distribution.
+
+    :param full: Full population DataFrame (MOFdb-style columns).
+    :param sample: Sampled DataFrame from sample_representative_mofdb.
+    :param strat_cols: Columns to plot; defaults to MOFDB_STRAT_COLS.
+    :param nbins_hist: Number of histogram bins per subplot.
+    :param n_sample: Number to show in title (default: len(sample)).
+    :param title: Main figure title. If None, uses "Representative subset (N={n_sample})".
+    :return: Plotly Figure.
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    strat_cols = strat_cols or MOFDB_STRAT_COLS
+    n_sample = n_sample if n_sample is not None else len(sample)
+    labels = {
+        "surface_area_m2g": "Surface area (m²/g)",
+        "void_fraction": "Void fraction",
+        "lcd": "LCD (Å)",
+        "pld": "PLD (Å)",
+    }
+    if title is None:
+        title = f"Representative subset (N={n_sample})"
+
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        subplot_titles=("", "", "", ""),
+        vertical_spacing=0.12,
+        horizontal_spacing=0.18,
+    )
+    for i, col in enumerate(strat_cols):
+        if col not in full.columns or col not in sample.columns:
+            continue
+        row, c = i // 2 + 1, i % 2 + 1
+        x_full = full[col].dropna()
+        x_samp = sample[col].dropna()
+        low = min(x_full.min(), x_samp.min())
+        high = max(x_full.max(), x_samp.max())
+        if low == high:
+            low, high = low - 0.5, high + 0.5
+        xbins = dict(
+            start=float(low),
+            end=float(high),
+            size=float((high - low) / nbins_hist),
+        )
+        show_leg = i == 0
+        fig.add_trace(
+            go.Histogram(
+                x=x_full,
+                xbins=xbins,
+                name="Full (>0.2 Vf)",
+                marker=dict(
+                    color="rgba(100,100,100,0.5)", line=dict(width=0.5)
+                ),
+                legendgroup="full",
+                showlegend=show_leg,
+            ),
+            row=row,
+            col=c,
+        )
+        fig.add_trace(
+            go.Histogram(
+                x=x_samp,
+                xbins=xbins,
+                name="Sample",
+                marker=dict(
+                    color="rgba(30,120,180,0.7)", line=dict(width=0.5)
+                ),
+                legendgroup="sample",
+                showlegend=show_leg,
+            ),
+            row=row,
+            col=c,
+        )
+        fig.update_xaxes(title_text=labels.get(col, col), row=row, col=c)
+        fig.update_yaxes(title_text="Count", row=row, col=c)
+
+    font_arial_16 = dict(family="Arial", size=16)
+    fig.update_layout(
+        template="plotly_white",
+        title=dict(text=title, x=0.5, font=dict(family="Arial", size=16)),
+        barmode="overlay",
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            font=font_arial_16,
+        ),
+        margin=dict(t=80, b=55, l=50, r=40),
+        height=500,
+        width=700,
+    )
+    fig.update_xaxes(title_font=font_arial_16)
+    fig.update_yaxes(title_font=font_arial_16)
+    axes_style = dict(
+        showline=True,
+        linecolor="black",
+        mirror=True,
+        zeroline=True,
+        zerolinecolor="black",
+        rangemode="tozero",
+    )
+    fig.update_xaxes(**axes_style)
+    fig.update_yaxes(**axes_style)
+    return fig
+
+
 # def get_data_from_mofdb(
 #     url="https://mof.tech.northwestern.edu/mofs/#.json",
 #     params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
