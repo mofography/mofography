@@ -206,7 +206,7 @@ def get_num_graphs(db_path):
 
 
 async def get_data_from_mofdb(
-    url="https://mof.tech.northwestern.edu/mofs/#.json",
+    url="https://mof.tech.northwestern.edu/mofs.json",
     params={"vf_min": 0.1, "vf_max": 1.0, "database": "IZA", "page": 1},
     headers={"loading": "cm3(STP)/cm3", "pressure": "bar"},
     npages=None,
@@ -216,13 +216,16 @@ async def get_data_from_mofdb(
     import pandas as pd
     import numpy as np
 
-    # just put page:1 in the params it doesn't matter, only the npages parameter is used
+    # copy so we don't mutate the caller's dict; page is set for pagination
+    params = dict(params)
     params["page"] = 1
 
     if npages is None:
         npages = get_number_of_pages(url, headers, params)
 
-    async with aiohttp.ClientSession(headers=headers) as session:
+    # Use a very generous timeout since some mofdb pages can be slow
+    timeout = aiohttp.ClientTimeout(total=None, sock_read=None)
+    async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
         results = await get_mofdb_data(
             session, url=url, params=params, headers=headers, npages=npages, limit=limit
         )
