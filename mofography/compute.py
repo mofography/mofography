@@ -8978,6 +8978,13 @@ def compute_surface_area_from_results(
     # Step 7: Calculate total accessible surface area
     accessible_surface_area = sum(accessible_region_areas.values())
 
+    # Basic diagnostics about area accounting
+    total_region_area = sum(region_areas.values())
+    region_area_loss = max(total_surface_area - total_region_area, 0.0)
+    region_area_loss_fraction = (
+        region_area_loss / total_surface_area if total_surface_area > 0 else 0.0
+    )
+
     # Prepare results
     results = {
         'total_surface_area': total_surface_area,
@@ -9001,7 +9008,13 @@ def compute_surface_area_from_results(
             'complete_pockets': len(complete_pockets),
             'incomplete_pockets': len(incomplete_pockets),
             'completeness_rate': len(complete_pockets) / len(pbc_groups) if pbc_groups else 0
-        }
+        },
+        # Area accounting diagnostics
+        'sa_area_diagnostics': {
+            'total_surface_area_from_regions': total_region_area,
+            'total_surface_area_region_loss': region_area_loss,
+            'total_surface_area_region_loss_fraction': region_area_loss_fraction,
+        },
     }
 
     # Add point probe reference
@@ -9023,6 +9036,224 @@ def compute_surface_area_from_results(
             'submeshes': submeshes,
             'point_probe_details': point_probe_ref
         })
+
+    return results
+
+
+def compute_surface_area_from_results_mc(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+):
+    """
+    Experimental Monte Carlo shell-based surface area estimator.
+
+    This function reuses the existing distance grid, region labels, and
+    percolation history to estimate total and accessible surface area at a
+    given probe radius by sampling points in a thin shell around the
+    isosurface f(x) = probe_radius.
+
+    Parameters
+    ----------
+    results_dict : dict
+        Results dictionary containing at minimum:
+        - 'dgrid' or 'distance_grid': Distance grid array
+        - 'pbc_groups': PBC groups dictionary
+        - 'regions_pbc': Periodic regions array
+        - Optional: 'percolation_history' from compute_percolation_history
+    mat_atoms : ase.Atoms
+        Atomic structure for mass calculation and coordinate transformations.
+    probe_radius : float, optional
+        Probe radius for surface area calculation. If None, uses helium radius.
+    n_samples : int, optional
+        Number of Monte Carlo samples per structure.
+    shell_thickness : float, optional
+        Thickness of the shell around probe_radius used for the estimator.
+    return_details : bool, optional
+        If True, returns additional diagnostic information.
+
+    Returns
+    -------
+    dict
+        Dictionary with at least:
+        - 'total_surface_area': Total SA (m²/g), MC estimate
+        - 'accessible_surface_area': Accessible SA (percolated regions) (m²/g)
+        - 'accessible_fraction': Accessible / total
+        - 'probe_radius': Probe radius used
+        - 'sa_mc_diagnostics': Dict with sampling diagnostics
+
+        For now, per-region/pocket/cluster breakdowns are populated only for
+        accessible (percolating) regions, mirroring the semantics of
+        compute_surface_area_from_results (by_region = accessible SA).
+    """
+    import numpy as np
+    from ase.data import vdw_radii
+    from ase.units import _amu
+    from scipy.ndimage import map_coordinates
+
+    # Extract required data from results
+    distance_grid = results_dict.get("dgrid", results_dict.get("distance_grid"))
+    if distance_grid is None:
+        raise KeyError("results_dict must contain 'dgrid' or 'distance_grid'")
+
+    pbc_groups = results_dict["pbc_groups"]
+    regions_pbc = results_dict["regions_pbc"]
+
+    # Convert pbc_groups to dictionary format if it's a list (from Rust backend)
+    if isinstance(pbc_groups, list):
+        pbc_groups = {f"pocket_{i}": group_set for i, group_set in enumerate(pbc_groups)}
+
+    # Set probe radius
+    if probe_radius is None:
+        probe_radius = vdw_radii[2]  # helium radius
+
+    # Calculate mass for normalization
+    mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # grams
+
+    # Ensure percolation history is available
+    if "percolation_history" not in results_dict:
+        logger.info("Percolation history not found in results. Computing it now for MC SA...")
+        results_dict = compute_percolation_history_from_results(results_dict)
+        logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
+
+    percolation_history = results_dict.get("percolation_history", [])
+
+    # Determine percolating regions at this probe radius
+    threshold, components, exact_match, message = select_percolation_threshold(
+        percolation_history, probe_radius
+    )
+    logger.info(message)
+
+    percolating_regions = set()
+    if threshold is not None and components:
+        for axis, comp_list in components.items():
+            for comp in comp_list:
+                percolating_regions.update(comp)
+        if not exact_match:
+            logger.warning(
+                f"MC SA: Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate"
+            )
+    else:
+        logger.info(
+            f"MC SA: No percolation at probe radius {probe_radius:.3f} Å - accessible surface area will be zero"
+        )
+
+    shape = distance_grid.shape
+    # Sample random fractional coordinates in [0,1)^3
+    u = np.random.rand(n_samples, 3)
+    coords = np.vstack(
+        [
+            u[:, 0] * (shape[0] - 1),
+            u[:, 1] * (shape[1] - 1),
+            u[:, 2] * (shape[2] - 1),
+        ]
+    )
+
+    # Interpolate distance and region labels at sample points
+    d_samples = map_coordinates(distance_grid, coords, order=1, mode="wrap")
+    reg_samples = map_coordinates(
+        regions_pbc.astype(float), coords, order=0, mode="wrap"
+    ).astype(int)
+
+    half_delta = shell_thickness / 2.0
+    shell_mask = np.abs(d_samples - probe_radius) <= half_delta
+    n_shell_total = int(shell_mask.sum())
+
+    if percolating_regions:
+        acc_region_mask = np.isin(reg_samples, list(percolating_regions))
+        shell_acc_mask = shell_mask & acc_region_mask
+    else:
+        acc_region_mask = np.zeros_like(shell_mask, dtype=bool)
+        shell_acc_mask = shell_mask & acc_region_mask
+    n_shell_acc = int(shell_acc_mask.sum())
+
+    if n_samples == 0 or shell_thickness <= 0.0:
+        total_surface_area = 0.0
+        accessible_surface_area = 0.0
+        by_region_mc = {}
+        by_pocket_mc = {}
+        by_cluster_mc = {}
+    else:
+        p_shell_total = n_shell_total / float(n_samples)
+        p_shell_acc = n_shell_acc / float(n_samples)
+
+        volume_cell = mat_atoms.get_volume()  # Å³
+        # V_cell [Å³] / delta [Å] -> Å²; convert Å² -> m²/g
+        total_surface_area = volume_cell * p_shell_total / shell_thickness * 1e-20 / mass_g
+        accessible_surface_area = volume_cell * p_shell_acc / shell_thickness * 1e-20 / mass_g
+
+        # --- Per-region accessible SA (MC) ---
+        # We only build per-region SA for accessible (percolating) regions,
+        # mirroring compute_surface_area_from_results (by_region = accessible).
+        by_region_mc = {}
+        if n_shell_acc > 0 and percolating_regions:
+            reg_shell_acc = reg_samples[shell_acc_mask]
+            unique_regions, counts = np.unique(reg_shell_acc, return_counts=True)
+            for rid, hit_count in zip(unique_regions, counts):
+                if rid not in percolating_regions:
+                    continue
+                p_shell_r = hit_count / float(n_samples)
+                sa_r = volume_cell * p_shell_r / shell_thickness * 1e-20 / mass_g
+                by_region_mc[int(rid)] = sa_r
+
+        # --- Per-pocket (PBC group) accessible SA (MC) ---
+        by_pocket_mc = {}
+        if by_region_mc:
+            for pocket_id, region_set in pbc_groups.items():
+                pocket_area = sum(by_region_mc.get(int(r), 0.0) for r in region_set)
+                if pocket_area > 0:
+                    by_pocket_mc[pocket_id] = pocket_area
+
+        # --- Per-percolated-cluster accessible SA (MC) ---
+        by_cluster_mc = {}
+        if threshold is not None and percolation_history and percolating_regions:
+            percolated_clusters = {}
+            cluster_id = 0
+            for thr, comps in percolation_history:
+                if abs(thr - threshold) < 1e-10:
+                    for axis, comp_list in comps.items():
+                        for comp in comp_list:
+                            cluster_regions = set(comp).intersection(percolating_regions)
+                            if cluster_regions:
+                                key = f"axis_{axis}_cluster_{cluster_id}"
+                                percolated_clusters[key] = cluster_regions
+                                cluster_id += 1
+                    break
+            for cid, region_set in percolated_clusters.items():
+                cluster_area = sum(by_region_mc.get(int(r), 0.0) for r in region_set)
+                if cluster_area > 0:
+                    by_cluster_mc[cid] = cluster_area
+
+    sa_mc_diag = {
+        "n_samples": int(n_samples),
+        "shell_thickness": float(shell_thickness),
+        "n_shell_hits_total": n_shell_total,
+        "n_shell_hits_accessible": n_shell_acc,
+    }
+
+    results = {
+        "total_surface_area": total_surface_area,
+        "accessible_surface_area": accessible_surface_area,
+        "accessible_fraction": (
+            accessible_surface_area / total_surface_area if total_surface_area > 0 else 0
+        ),
+        "probe_radius": probe_radius,
+        "by_region": by_region_mc,
+        "by_pocket": by_pocket_mc,
+        "by_percolated_cluster": by_cluster_mc,
+        "sa_mc_diagnostics": sa_mc_diag,
+    }
+
+    if return_details:
+        results.update(
+            {
+                "percolating_regions": percolating_regions,
+                "percolation_history": percolation_history,
+            }
+        )
 
     return results
 
