@@ -910,7 +910,6 @@ fn seeded_watershed_bucket(
 ) -> PyResult<Py<PyArray3<u32>>> {
     let img = image.as_array();
     let seeds_arr = seeds.as_array();
-
     if img.dim() != seeds_arr.dim() {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "`image` and `seeds` must have identical shapes",
@@ -923,7 +922,6 @@ fn seeded_watershed_bucket(
             ));
         }
     }
-
     if let Some(n) = n_threads {
         rayon::ThreadPoolBuilder::new()
             .num_threads(n)
@@ -931,48 +929,18 @@ fn seeded_watershed_bucket(
             .ok();
     }
 
-    // Determine min and max of the image to scale into 0..65535
-    let (mut min_val, mut max_val) = (f32::MAX, f32::MIN);
-    img.iter().for_each(|&v| {
-        if v < min_val {
-            min_val = v;
-        }
-        if v > max_val {
-            max_val = v;
-        }
-    });
-    // avoid div-by-zero
-    let range = if (max_val - min_val).abs() < 1e-12 {
-        1.0
-    } else {
-        max_val - min_val
-    };
-
-    let to_bucket = |v: f32| -> usize {
-        let norm = ((v - min_val) / range * (BUCKETS as f32 - 1.0)).round() as usize;
-        norm
-    };
-
-    // Precompute bucket index for every voxel to avoid recalculating
-    let bucket_idx_vec: Vec<usize> = img
-        .iter()
-        .map(|&v| to_bucket(v))
-        .collect();
+    // --- Monotone bucket watershed: bucketized version of heap-based flooding on -image ---
 
     let (nx, ny, nz) = img.dim();
     let total_voxels = nx * ny * nz;
 
     use std::sync::atomic::{AtomicU32, Ordering};
 
+    // Labels array (0 = background/unlabeled)
     let labels: Vec<AtomicU32> = (0..total_voxels).map(|_| AtomicU32::new(0)).collect();
 
-    let buckets: Arc<Vec<Mutex<Vec<usize>>>> = Arc::new(
-        (0..BUCKETS).map(|_| Mutex::new(Vec::<usize>::new())).collect(),
-    );
-
-    let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
-
     // Materialise mask (if any) into a flat Vec<bool> that is Sync/Send.
+    let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
     let mask_vec: Option<Vec<bool>> = mask.as_ref().map(|m| {
         m.as_array()
             .iter()
@@ -980,43 +948,113 @@ fn seeded_watershed_bucket(
             .collect::<Vec<bool>>()
     });
 
-    // Initialise with seeds
+    // Define the scalar image used for priority ordering: here we use -dgrid so that
+    // "lower is better" (minima flood first), matching scikit's use of -distance.
+    let mut min_img = f32::MAX;
+    let mut max_img = f32::MIN;
+    img.iter().for_each(|&v| {
+        let f = -v;
+        if f < min_img {
+            min_img = f;
+        }
+        if f > max_img {
+            max_img = f;
+        }
+    });
+
+    // Avoid div-by-zero; if the image is constant, treat the range as 1.
+    let range = if (max_img - min_img).abs() < 1e-12 {
+        1.0
+    } else {
+        max_img - min_img
+    };
+
+    let to_bucket = |p: f32| -> usize {
+        // Clamp to [min_img, max_img] before scaling into bucket range.
+        let p_clamped = if p < min_img {
+            min_img
+        } else if p > max_img {
+            max_img
+        } else {
+            p
+        };
+        let norm = ((p_clamped - min_img) / range * (BUCKETS as f32 - 1.0)).round();
+        norm as usize
+    };
+
+    // Map each voxel's raw image value f = -dgrid to its base bucket index.
+    let bucket_from_image: Vec<usize> = img
+        .iter()
+        .map(|&v| {
+            let f = -v;
+            to_bucket(f)
+        })
+        .collect();
+
+    // Buckets of frontiers keyed by discretised priority (bucket index).
+    let buckets: Arc<Vec<Mutex<Vec<usize>>>> = Arc::new(
+        (0..BUCKETS)
+            .map(|_| Mutex::new(Vec::<usize>::new()))
+            .collect(),
+    );
+
+    // Neighbourhood (26-connectivity as before).
+    let neighbor_offsets: &[(isize, isize, isize)] = &[
+        (-1, -1, -1),
+        (-1, -1, 0),
+        (-1, -1, 1),
+        (-1, 0, -1),
+        (-1, 0, 0),
+        (-1, 0, 1),
+        (-1, 1, -1),
+        (-1, 1, 0),
+        (-1, 1, 1),
+        (0, -1, -1),
+        (0, -1, 0),
+        (0, -1, 1),
+        (0, 0, -1),
+        (0, 0, 1),
+        (0, 1, -1),
+        (0, 1, 0),
+        (0, 1, 1),
+        (1, -1, -1),
+        (1, -1, 0),
+        (1, -1, 1),
+        (1, 0, -1),
+        (1, 0, 0),
+        (1, 0, 1),
+        (1, 1, -1),
+        (1, 1, 0),
+        (1, 1, 1),
+    ];
+
+    // Seed initial labels and priorities.
     for ((i, j, k), &label) in seeds_arr.indexed_iter() {
         if label == 0 {
             continue;
         }
+        let idx = to_flat(i, j, k);
         if let Some(ref mask_v) = mask_vec {
-            if !mask_v[to_flat(i, j, k)] {
+            if !mask_v[idx] {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Seed label found in location where mask==0",
                 ));
             }
         }
-        let idx = to_flat(i, j, k);
+
         labels[idx].store(label, Ordering::Relaxed);
-        let b = bucket_idx_vec[idx];
+
+        // Initial bucket for this seed is determined solely by its local image value.
+        let b = bucket_from_image[idx];
         buckets[b].lock().push(idx);
     }
 
-    let neighbor_offsets: &[(isize, isize, isize)] = &[
-        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
-        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
-        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
-        (0, -1, -1), (0, -1, 0), (0, -1, 1),
-        (0, 0, -1),                 (0, 0, 1),
-        (0, 1, -1), (0, 1, 0), (0, 1, 1),
-        (1, -1, -1), (1, -1, 0), (1, -1, 1),
-        (1, 0, -1), (1, 0, 0), (1, 0, 1),
-        (1, 1, -1), (1, 1, 0), (1, 1, 1),
-    ];
-
-    // Buckets that received pushes after we had already passed their level (b > level).
-    // We will drain and process these after the main loop until quiescent.
-    let late_buckets: Arc<Mutex<HashSet<usize>>> = Arc::new(Mutex::new(HashSet::new()));
-
-    // Main flooding loop from highest bucket downwards.
-    // Inner loop: re-process same bucket until empty so same-bucket voxels get to propagate.
-    for level in (0..BUCKETS).rev() {
+    // Main flooding loop: process buckets in ascending priority order. Because we always
+    // assign neighbour priorities as new_prio = max(f_n, current_prio), where f_n is the
+    // raw image at the neighbour, new_prio is monotonically non-decreasing along any
+    // path. Therefore, any voxel pushed during processing of level L will have a bucket
+    // index >= L, and we never need a separate "late buckets" pass.
+    for level in 0..BUCKETS {
         loop {
             let frontier: Vec<usize> = {
                 let mut guard = buckets[level].lock();
@@ -1025,8 +1063,13 @@ fn seeded_watershed_bucket(
             if frontier.is_empty() {
                 break;
             }
+
             frontier.par_iter().for_each(|&idx| {
                 let current_label = labels[idx].load(Ordering::Relaxed);
+                if current_label == 0 {
+                    return;
+                }
+
                 let i = idx / (ny * nz);
                 let j = (idx / nz) % ny;
                 let k = idx % nz;
@@ -1042,20 +1085,28 @@ fn seeded_watershed_bucket(
                     if ni_u >= nx || nj_u >= ny || nk_u >= nz {
                         continue;
                     }
+
+                    let nidx = to_flat(ni_u, nj_u, nk_u);
                     if let Some(ref mask_v) = mask_vec {
-                        if !mask_v[to_flat(ni_u, nj_u, nk_u)] {
+                        if !mask_v[nidx] {
                             continue;
                         }
                     }
-                    let nidx = to_flat(ni_u, nj_u, nk_u);
+
+                    // Try to claim an unlabeled neighbour.
                     if labels[nidx]
-                        .compare_exchange(0, current_label, Ordering::Relaxed, Ordering::Relaxed)
+                        .compare_exchange(
+                            0,
+                            current_label,
+                            Ordering::Relaxed,
+                            Ordering::Relaxed,
+                        )
                         .is_ok()
                     {
-                        let b = bucket_idx_vec[nidx];
-                        if b > level {
-                            late_buckets.lock().insert(b);
-                        }
+                        // Base bucket index from the raw image at this voxel.
+                        let b0 = bucket_from_image[nidx];
+                        // Path-based priority: bucket index is non-decreasing along any path.
+                        let b = if b0 > level { b0 } else { level };
                         buckets[b].lock().push(nidx);
                     }
                 }
@@ -1063,28 +1114,35 @@ fn seeded_watershed_bucket(
         }
     }
 
-    // Re-process late buckets: drain and propagate until no bucket has pending work.
-    loop {
-        let to_process: Vec<usize> = late_buckets.lock().drain().collect();
-        if to_process.is_empty() {
-            break;
-        }
-        for b in to_process {
-            loop {
-                let frontier: Vec<usize> = {
-                    let mut guard = buckets[b].lock();
-                    std::mem::take(&mut *guard)
-                };
-                if frontier.is_empty() {
-                    break;
-                }
-                frontier.par_iter().for_each(|&idx| {
-                    let current_label = labels[idx].load(Ordering::Relaxed);
-                    let i = idx / (ny * nz);
-                    let j = (idx / nz) % ny;
-                    let k = idx % nz;
+    #[cfg(debug_assertions)]
+    if let Some(ref mask_v) = mask_vec {
+        // Count masked voxels with label==0.
+        let total_unlabeled: usize = (0..total_voxels)
+            .filter(|&idx| mask_v[idx] && labels[idx].load(Ordering::Relaxed) == 0)
+            .count();
 
-                    for &(dx, dy, dz) in neighbor_offsets {
+        // Also count the subset that have at least one labeled neighbour inside the
+        // mask. These correspond to "interior" background voxels (true bug) as
+        // opposed to isolated or unreachable masked cells (e.g. padding-only).
+        let mut interior_unlabeled: usize = 0;
+        for i in 0..nx {
+            for j in 0..ny {
+                for k in 0..nz {
+                    let idx = to_flat(i, j, k);
+                    if !mask_v[idx] || labels[idx].load(Ordering::Relaxed) != 0 {
+                        continue;
+                    }
+                    // 6-neighbourhood is enough for this diagnostic.
+                    let neigh6: &[(isize, isize, isize)] = &[
+                        (-1, 0, 0),
+                        (1, 0, 0),
+                        (0, -1, 0),
+                        (0, 1, 0),
+                        (0, 0, -1),
+                        (0, 0, 1),
+                    ];
+                    let mut has_labeled_neigh = false;
+                    for &(dx, dy, dz) in neigh6 {
                         let ni = i as isize + dx;
                         let nj = j as isize + dy;
                         let nk = k as isize + dz;
@@ -1095,35 +1153,28 @@ fn seeded_watershed_bucket(
                         if ni_u >= nx || nj_u >= ny || nk_u >= nz {
                             continue;
                         }
-                        if let Some(ref mask_v) = mask_vec {
-                            if !mask_v[to_flat(ni_u, nj_u, nk_u)] {
-                                continue;
-                            }
-                        }
                         let nidx = to_flat(ni_u, nj_u, nk_u);
-                        if labels[nidx]
-                            .compare_exchange(0, current_label, Ordering::Relaxed, Ordering::Relaxed)
-                            .is_ok()
-                        {
-                            let b_prime = bucket_idx_vec[nidx];
-                            late_buckets.lock().insert(b_prime);
-                            buckets[b_prime].lock().push(nidx);
+                        if mask_v[nidx] && labels[nidx].load(Ordering::Relaxed) != 0 {
+                            has_labeled_neigh = true;
+                            break;
                         }
                     }
-                });
+                    if has_labeled_neigh {
+                        interior_unlabeled += 1;
+                    }
+                }
             }
         }
-    }
 
-    #[cfg(debug_assertions)]
-    if let Some(ref mask_v) = mask_vec {
-        let unprocessed: usize = (0..total_voxels)
-            .filter(|&idx| mask_v[idx] && labels[idx].load(Ordering::Relaxed) == 0)
-            .count();
-        if unprocessed > 0 {
+        if interior_unlabeled > 0 {
             eprintln!(
-                "[seeded_watershed_bucket] WARNING: {} masked voxels still unlabeled (bug)",
-                unprocessed
+                "[seeded_watershed_bucket] WARNING: {} masked voxels unlabeled with at least one labeled neighbour (bug), total masked unlabeled = {}",
+                interior_unlabeled, total_unlabeled
+            );
+        } else if total_unlabeled > 0 {
+            eprintln!(
+                "[seeded_watershed_bucket] NOTE: {} masked voxels unlabeled but without labeled neighbours (likely isolated/padding)",
+                total_unlabeled
             );
         } else {
             eprintln!("[seeded_watershed_bucket] OK: no masked voxels left unlabeled");

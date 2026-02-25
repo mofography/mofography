@@ -1352,7 +1352,82 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
             np.round(time() - start_time, decimals=2)
         } Padded segmentation workflow complete :) \n"
     )
+    # Run a consistency check between maxima_info-based pocket radii and
+    # true per-region maxima on the central box. This helps distinguish
+    # segmentation issues from missing/under-detected maxima.
+    try:
+        _check_pocket_maxima_consistency(dgrid, outputs["regions"], outputs["maxima_info"])
+    except Exception as exc:
+        logger.warning(f"[pocket_maxima_check] consistency check failed with error: {exc}")
+
     return outputs
+
+
+def _check_pocket_maxima_consistency(dgrid, regions, maxima_info, tol=0.25):
+    """
+    Diagnostic check: compare pocket radii from maxima_info with the true
+    per-region maxima in dgrid, and log a warning when the gap is large.
+
+    Parameters
+    ----------
+    dgrid : ndarray
+        Distance grid used for segmentation.
+    regions : ndarray (int)
+        Region labels on the central (unpadded) box.
+    maxima_info : ndarray
+        Array of shape (n_maxima, 7) with columns
+        [label, i, j, k, ox, oy, oz].
+    tol : float
+        Tolerance (Å). If true_max - pocket_from_max > tol, a warning is logged.
+    """
+    import numpy as np
+
+    maxima_info = np.asarray(maxima_info)
+    regions = np.asarray(regions)
+
+    labels = np.unique(regions)
+    labels = labels[labels != 0]
+
+    n_flagged = 0
+    for lab in labels:
+        rows = maxima_info[maxima_info[:, 0] == lab]
+        if rows.size == 0:
+            logger.warning(
+                f"[pocket_maxima_check] No maxima_info row found for region {lab}"
+            )
+            continue
+
+        row = rows[0]
+        voxel = tuple(row[1:4].astype(int))
+        pocket_from_max = float(dgrid[voxel])
+
+        mask = regions == lab
+        if not np.any(mask):
+            logger.warning(
+                f"[pocket_maxima_check] Region {lab} has no voxels in regions array"
+            )
+            continue
+
+        true_max = float(dgrid[mask].max())
+        gap = true_max - pocket_from_max
+        if gap > tol:
+            n_flagged += 1
+            logger.warning(
+                "[pocket_maxima_check] Region %d: pocket_radius from maxima_info "
+                "(%.3f Å) underestimates true region max (%.3f Å) by %.3f Å; "
+                "this suggests a missing or under-detected maximum.",
+                lab,
+                pocket_from_max,
+                true_max,
+                gap,
+            )
+    logger.info(
+        "[pocket_maxima_check] Completed maxima vs region-max consistency check: "
+        "checked %d regions, %d flagged with gap > %.2f Å",
+        int(labels.size),
+        int(n_flagged),
+        float(tol),
+    )
 
 
 def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
