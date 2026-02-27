@@ -555,6 +555,31 @@ def seeded_watershed_det_rust(image, seeds, mask=None):
         return mgr_rust.seeded_watershed_det(img32, seeds32, None)
 
 
+def seeded_watershed_det_parallel_rust(image, seeds, mask=None):
+    """Deterministic parallel seeded watershed wrapper around mgr_rust.
+
+    Parameters
+    ----------
+    image : ndarray, float32
+        3D scalar field; larger values flood first. For a distance grid, pass
+        the raw ``dgrid`` (do NOT negate).
+    seeds : ndarray, uint32
+        3D array of markers (0 = background).
+    mask : ndarray, uint8 or bool, optional
+        3D mask array; voxels with mask == 0 are never labeled.
+    """
+    import numpy as np
+    import mgr_rust
+
+    img32 = np.asarray(image, dtype=np.float32)
+    seeds32 = np.asarray(seeds, dtype=np.uint32)
+    if mask is not None:
+        mask8 = np.asarray(mask, dtype=np.uint8)
+        return mgr_rust.seeded_watershed_det_parallel(img32, seeds32, mask8)
+    else:
+        return mgr_rust.seeded_watershed_det_parallel(img32, seeds32, None)
+
+
 def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_bucket",):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
@@ -603,7 +628,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
     :type compute_connections: bool
     :param return_dgrid: Whether to include dgrid in output
     :type return_dgrid: bool
-    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), or \"skimage\".
+    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), \"rust_det_parallel\" (deterministic parallel), or \"skimage\".
     :type watershed_backend: str
     :return: Dictionary containing segmentation results including maxima, regions, connections, etc.
     :rtype: dict
@@ -793,6 +818,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
             padded_markers.astype(np.uint32),
             padded_void.astype(np.uint8),
         )
+    elif watershed_backend == "rust_det_parallel":
+        padded_regions = mgr_rust.seeded_watershed_det_parallel(
+            padded_grid.astype(np.float32),
+            padded_markers.astype(np.uint32),
+            padded_void.astype(np.uint8),
+        )
     elif watershed_backend == "skimage":
         from skimage.segmentation import watershed as sk_watershed
 
@@ -879,6 +910,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
             )
         elif watershed_backend == "rust_det":
             padded_regions = mgr_rust.seeded_watershed_det(
+                padded_grid.astype(np.float32),
+                padded_markers.astype(np.uint32),
+                padded_void.astype(np.uint8),
+            )
+        elif watershed_backend == "rust_det_parallel":
+            padded_regions = mgr_rust.seeded_watershed_det_parallel(
                 padded_grid.astype(np.float32),
                 padded_markers.astype(np.uint32),
                 padded_void.astype(np.uint8),
@@ -984,6 +1021,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
             unmerged_markers.astype(np.uint32),
             padded_void.astype(np.uint8),
         )
+    elif watershed_backend == "rust_det_parallel":
+        unmerged_padded_regions = mgr_rust.seeded_watershed_det_parallel(
+            padded_grid.astype(np.float32),
+            unmerged_markers.astype(np.uint32),
+            padded_void.astype(np.uint8),
+        )
     elif watershed_backend == "skimage":
         from skimage.segmentation import watershed as sk_watershed
 
@@ -996,7 +1039,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.5, h=0.2, 
         ).astype(np.uint32)
     else:
         raise ValueError(
-            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', or 'skimage'."
+            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', 'rust_det_parallel', or 'skimage'."
         )
 
     # grab the central block
