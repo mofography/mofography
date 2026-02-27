@@ -1214,6 +1214,239 @@ fn seeded_watershed_det(
 }
 
 // ============================================================================
+// Deterministic level-synchronous parallel watershed (experimental backend)
+// ----------------------------------------------------------------------------
+// This backend performs a level-synchronous multi-source flood over unique
+// intensity levels in the image, using parallel frontier scans and a
+// deterministic two-phase commit. It is designed to match the behavior of the
+// heap-based seeded_watershed_det while scaling better on large grids.
+// ============================================================================
+
+#[pyfunction]
+#[pyo3(text_signature = "(image, seeds, mask=None)")]
+fn seeded_watershed_det_parallel(
+    py: Python<'_>,
+    image: PyReadonlyArray3<'_, f32>,
+    seeds: PyReadonlyArray3<'_, u32>,
+    mask: Option<PyReadonlyArray3<'_, u8>>,
+) -> PyResult<Py<PyArray3<u32>>> {
+    use rayon::prelude::*;
+
+    let img = image.as_array();
+    let seeds_arr = seeds.as_array();
+    if img.dim() != seeds_arr.dim() {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "`image` and `seeds` must have identical shapes",
+        ));
+    }
+
+    if let Some(ref m) = mask {
+        if m.as_array().dim() != img.dim() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "`mask` shape must match `image`",
+            ));
+        }
+    }
+
+    let (nx, ny, nz) = img.dim();
+    let total_voxels = nx * ny * nz;
+
+    let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
+
+    // Flatten image and optional mask
+    let img_flat: Vec<f32> = img.iter().copied().collect();
+    let mask_vec: Option<Vec<bool>> = mask.as_ref().map(|m| {
+        m.as_array()
+            .iter()
+            .map(|&v| v != 0)
+            .collect::<Vec<bool>>()
+    });
+
+    // Prepare bucketization on f = -dgrid, identical to seeded_watershed_bucket
+    let mut min_img = f32::MAX;
+    let mut max_img = f32::MIN;
+    for &v in img.iter() {
+        let f = -v;
+        if f < min_img {
+            min_img = f;
+        }
+        if f > max_img {
+            max_img = f;
+        }
+    }
+    let range = if (max_img - min_img).abs() < 1e-12 {
+        1.0
+    } else {
+        max_img - min_img
+    };
+    let to_bucket = |p: f32| -> usize {
+        let f = p;
+        let p_clamped = if f < min_img {
+            min_img
+        } else if f > max_img {
+            max_img
+        } else {
+            f
+        };
+        let norm = ((p_clamped - min_img) / range * (BUCKETS as f32 - 1.0)).round();
+        norm as usize
+    };
+
+    // Map each voxel's raw image value f = -dgrid to its base bucket index.
+    let bucket_from_image: Vec<usize> = img_flat
+        .iter()
+        .map(|&v| {
+            let f = -v;
+            to_bucket(f)
+        })
+        .collect();
+
+    // Labels (0 = unlabeled) and non-atomic buckets
+    let mut labels: Vec<u32> = vec![0; total_voxels];
+    let mut buckets: Vec<Vec<usize>> = vec![Vec::new(); BUCKETS];
+
+    // Seed initial labels and priorities
+    for ((i, j, k), &label) in seeds_arr.indexed_iter() {
+        if label == 0 {
+            continue;
+        }
+        let idx = to_flat(i, j, k);
+        if let Some(ref mask_v) = mask_vec {
+            if !mask_v[idx] {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "Seed label found in location where mask==0",
+                ));
+            }
+        }
+        labels[idx] = label;
+        let b = bucket_from_image[idx];
+        buckets[b].push(idx);
+    }
+
+    // Early exit if no seeds
+    if labels.iter().all(|&v| v == 0) {
+        let out_arr =
+            Array3::from_shape_vec((nx, ny, nz), labels).expect("shape mismatch");
+        return Ok(PyArray3::from_owned_array(py, out_arr).to_owned());
+    }
+
+    // 26-neighbour offsets (same as bucket implementation)
+    let neighbor_offsets: &[(isize, isize, isize)] = &[
+        (-1, -1, -1),
+        (-1, -1, 0),
+        (-1, -1, 1),
+        (-1, 0, -1),
+        (-1, 0, 0),
+        (-1, 0, 1),
+        (-1, 1, -1),
+        (-1, 1, 0),
+        (-1, 1, 1),
+        (0, -1, -1),
+        (0, -1, 0),
+        (0, -1, 1),
+        (0, 0, -1),
+        (0, 0, 1),
+        (0, 1, -1),
+        (0, 1, 0),
+        (0, 1, 1),
+        (1, -1, -1),
+        (1, -1, 0),
+        (1, -1, 1),
+        (1, 0, -1),
+        (1, 0, 0),
+        (1, 0, 1),
+        (1, 1, -1),
+        (1, 1, 0),
+        (1, 1, 1),
+    ];
+
+    use std::sync::Mutex;
+
+    // Main flooding loop: process buckets in ascending priority order,
+    // but in a deterministic two-phase fashion.
+    for level in 0..BUCKETS {
+        loop {
+            let frontier: Vec<usize> = std::mem::take(&mut buckets[level]);
+            if frontier.is_empty() {
+                break;
+            }
+
+            let assignments = Mutex::new(Vec::<(usize, u32, usize)>::new());
+
+            frontier.par_iter().for_each(|&idx| {
+                let current_label = labels[idx];
+                if current_label == 0 {
+                    return;
+                }
+                let i = idx / (ny * nz);
+                let j = (idx / nz) % ny;
+                let k = idx % nz;
+
+                let mut local: Vec<(usize, u32, usize)> = Vec::new();
+
+                for &(dx, dy, dz) in neighbor_offsets {
+                    let ni = i as isize + dx;
+                    let nj = j as isize + dy;
+                    let nk = k as isize + dz;
+                    if ni < 0 || nj < 0 || nk < 0 {
+                        continue;
+                    }
+                    let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+                    if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                        continue;
+                    }
+                    let nidx = to_flat(ni_u, nj_u, nk_u);
+                    if let Some(ref mask_v) = mask_vec {
+                        if !mask_v[nidx] {
+                            continue;
+                        }
+                    }
+                    if labels[nidx] != 0 {
+                        continue;
+                    }
+                    let b0 = bucket_from_image[nidx];
+                    let b = if b0 > level { b0 } else { level };
+                    local.push((nidx, current_label, b));
+                }
+
+                if !local.is_empty() {
+                    let mut guard = assignments.lock().unwrap();
+                    guard.extend(local);
+                }
+            });
+
+            let mut assignments_vec = assignments.into_inner().unwrap();
+            if assignments_vec.is_empty() {
+                continue;
+            }
+
+            // Deterministic: sort by index, then label, then bucket index
+            assignments_vec.sort_unstable_by(|a, b| {
+                match a.0.cmp(&b.0) {
+                    std::cmp::Ordering::Equal => match a.1.cmp(&b.1) {
+                        std::cmp::Ordering::Equal => a.2.cmp(&b.2),
+                        other => other,
+                    },
+                    other => other,
+                }
+            });
+
+            // Two-phase commit: sequentially assign labels if still unlabeled
+            for (nidx, lab, b) in assignments_vec {
+                if labels[nidx] == 0 {
+                    labels[nidx] = lab;
+                    buckets[b].push(nidx);
+                }
+            }
+        }
+    }
+
+    let out_arr =
+        Array3::from_shape_vec((nx, ny, nz), labels).expect("shape mismatch");
+    Ok(PyArray3::from_owned_array(py, out_arr).to_owned())
+}
+
+// ============================================================================
 // Heap-based single-threaded watershed (original version, retained for backwards
 // compatibility and low-memory usage)
 // ============================================================================
@@ -1265,28 +1498,39 @@ fn heap_watershed_impl(
     let (nx, ny, nz) = img.dim();
     let total_voxels = nx * ny * nz;
 
+    // Flattened image and optional mask for fast inner-loop access
+    let img_flat: Vec<f32> = img.iter().copied().collect();
+    let mask_flat: Option<Vec<u8>> = mask.as_ref().map(|m| {
+        m.as_array()
+            .iter()
+            .map(|&v| if v != 0 { 1u8 } else { 0u8 })
+            .collect()
+    });
+
     // Flattened labels
     let mut labels: Vec<u32> = vec![0; total_voxels];
     let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
 
     use std::collections::BinaryHeap;
-    let mut heap: BinaryHeap<(NotNan<f32>, usize)> = BinaryHeap::new();
+    // Reserve a reasonable capacity to avoid frequent reallocations
+    let mut heap: BinaryHeap<(NotNan<f32>, usize)> =
+        BinaryHeap::with_capacity(std::cmp::max(1, total_voxels / 8));
 
     // Seed initialisation
     for ((i, j, k), &label) in seeds_arr.indexed_iter() {
         if label == 0 {
             continue;
         }
-        if let Some(ref m) = mask {
-            if m.as_array()[[i, j, k]] == 0 {
+        let idx = to_flat(i, j, k);
+        if let Some(ref m_flat) = mask_flat {
+            if m_flat[idx] == 0 {
                 return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
                     "Seed label found in location where mask==0",
                 ));
             }
         }
-        let idx = to_flat(i, j, k);
         labels[idx] = label;
-        let priority = NotNan::new(img[[i, j, k]]).unwrap();
+        let priority = NotNan::new(img_flat[idx]).unwrap();
         heap.push((priority, idx));
     }
 
@@ -1320,15 +1564,15 @@ fn heap_watershed_impl(
             if ni_u >= nx || nj_u >= ny || nk_u >= nz {
                 continue;
             }
-            if let Some(ref m) = mask {
-                if m.as_array()[[ni_u, nj_u, nk_u]] == 0 {
+            let nidx = to_flat(ni_u, nj_u, nk_u);
+            if let Some(ref m_flat) = mask_flat {
+                if m_flat[nidx] == 0 {
                     continue;
                 }
             }
-            let nidx = to_flat(ni_u, nj_u, nk_u);
             if labels[nidx] == 0 {
                 labels[nidx] = current_label;
-                let priority = NotNan::new(img[[ni_u, nj_u, nk_u]]).unwrap();
+                let priority = NotNan::new(img_flat[nidx]).unwrap();
                 heap.push((priority, nidx));
             }
         }
@@ -5851,6 +6095,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(seeded_watershed_bucket, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det, m)?)?;
+    m.add_function(wrap_pyfunction!(seeded_watershed_det_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph_opening, m)?)?;
@@ -5873,7 +6118,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     // m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
     m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads"])?;
+    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
