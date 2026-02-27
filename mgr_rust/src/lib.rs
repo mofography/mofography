@@ -1195,6 +1195,25 @@ fn seeded_watershed_bucket(
 }
 
 // ============================================================================
+// Deterministic heap-based watershed with optional mask
+// ----------------------------------------------------------------------------
+// This is a thin, explicit wrapper around the original heap_watershed_impl
+// that exposes an optional mask argument from Python. It is single-threaded
+// but bitwise deterministic and intended as the skimage-parity backend.
+// ============================================================================
+
+#[pyfunction]
+#[pyo3(text_signature = "(image, seeds, mask=None)")]
+fn seeded_watershed_det(
+    py: Python<'_>,
+    image: PyReadonlyArray3<'_, f32>,
+    seeds: PyReadonlyArray3<'_, u32>,
+    mask: Option<PyReadonlyArray3<'_, u8>>,
+) -> PyResult<Py<PyArray3<u32>>> {
+    heap_watershed_impl(py, image, seeds, mask)
+}
+
+// ============================================================================
 // Heap-based single-threaded watershed (original version, retained for backwards
 // compatibility and low-memory usage)
 // ============================================================================
@@ -5831,6 +5850,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(periodic_gaussian_filter, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_bucket, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed, m)?)?;
+    m.add_function(wrap_pyfunction!(seeded_watershed_det, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph_opening, m)?)?;
@@ -5853,7 +5873,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     // m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
     m.add_function(wrap_pyfunction!(find_pore_limiting_radius, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads"])?;
+    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
