@@ -36,6 +36,19 @@ publication_layout = dict(template='plotly_white',
                     scene=dict(xaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True), yaxis=dict(zeroline=False, visible=True, linecolor='black', linewidth=2, mirror=True),  aspectmode='data'),
                     margin=dict(t=20, b=20, l=20, r=20), showlegend=True, legend=dict(x=1.1, y=0.75, groupclick='togglegroup'))
 
+# 2D axes style for publication subplots: boxes around each subplot, zeroline, mirror
+publication_2d_axes = dict(
+    showline=True,
+    linecolor="black",
+    linewidth=1,
+    mirror=True,
+    zeroline=True,
+    zerolinecolor="black",
+    zerolinewidth=0.5,
+    rangemode="tozero",
+    gridcolor="rgba(128,128,128,0.2)",
+)
+
 global default_mesh_lighting
 default_mesh_lighting= dict(
         ambient=0.3,
@@ -391,6 +404,372 @@ def plot_cell(ase_atoms, color='purple', name='cell'):
     data_cell = go.Scatter3d(z=cell_lines[:, 2], y=cell_lines[:, 1], x=cell_lines[:, 0], mode='lines',
                              line=dict(color=color, width=8), name=name)
     return data_cell
+
+
+def _fibonacci_sphere_points(n_points=42):
+    """Approximately uniform points on the unit sphere (for blocking-sphere shells)."""
+    import numpy as np
+
+    i = np.arange(n_points, dtype=float) + 0.5
+    theta = 2 * np.pi * i / (1 + np.sqrt(5))
+    phi = np.arccos(1 - 2 * (i / n_points))
+    x = np.sin(phi) * np.cos(theta)
+    y = np.sin(phi) * np.sin(theta)
+    z = np.cos(phi)
+    return np.column_stack((x, y, z))
+
+
+def _coerce_blocking_spheres_list(spheres_or_builder_output):
+    """
+    Normalize blocking-sphere data to ``list`` of ``[sx, sy, sz, r]``.
+
+    Accepts:
+
+    * A plain sequence of sphere rows (e.g. from
+      :func:`mofography.raspa_helper.blocking_spheres_largest_including`).
+    * ``(spheres, meta)`` from :func:`mofography.raspa_helper.blocking_spheres_greedy`.
+    * ``(spheres, percolated, inaccessible)`` from
+      :func:`mofography.raspa_helper.blocking_spheres_for_probe_radius`.
+    * A ``(N, 4)`` float array.
+    """
+    import numpy as np
+
+    obj = spheres_or_builder_output
+    if isinstance(obj, tuple):
+        if len(obj) == 3 and isinstance(obj[1], set) and isinstance(obj[2], set):
+            obj = obj[0]
+        elif len(obj) == 2 and isinstance(obj[1], dict):
+            obj = obj[0]
+
+    arr = np.asarray(obj, dtype=float)
+    if arr.size == 0:
+        return []
+    if arr.ndim == 1:
+        arr = arr.reshape(1, -1)
+    if arr.ndim == 2 and arr.shape[1] >= 4:
+        return arr[:, :4].tolist()
+
+    return [np.asarray(row, dtype=float).ravel()[:4].tolist() for row in obj]
+
+
+def _blocking_spheres_scatter3d(
+    spheres,
+    ase_atoms,
+    *,
+    opacity,
+    color,
+    name,
+    n_points_per_sphere,
+    marker_size,
+    regions,
+    color_by,
+    hover_text,
+    plot_centers_only,
+    center_marker_size,
+    colorscale,
+    scatter_kwargs,
+):
+    import numpy as np
+    import plotly.graph_objects as go
+    import plotly.express as px
+
+    cell = np.asarray(ase_atoms.get_cell(), dtype=float)
+    if cell.shape != (3, 3):
+        cell = cell.reshape(3, 3)
+    cell_T = cell.T
+
+    spheres = [np.asarray(s, dtype=float).ravel() for s in spheres]
+    n = len(spheres)
+    if n == 0:
+        return go.Scatter3d(x=[], y=[], z=[], mode="markers", name=name, **scatter_kwargs)
+
+    qualitative = (
+        px.colors.qualitative.Plotly
+        + px.colors.qualitative.Dark24
+        + px.colors.qualitative.Alphabet
+    )
+
+    regions_arr = None if regions is None else np.asarray(regions)
+    if regions_arr is not None and regions_arr.shape[0] != n:
+        raise ValueError(
+            f"regions length {regions_arr.shape[0]} != number of spheres {n}"
+        )
+    color_by_arr = None if color_by is None else np.asarray(color_by)
+    if color_by_arr is not None and color_by_arr.shape[0] != n:
+        raise ValueError(
+            f"color_by length {color_by_arr.shape[0]} != number of spheres {n}"
+        )
+    hover_arr = None
+    if hover_text is not None:
+        hover_arr = np.asarray(hover_text, dtype=object)
+        if hover_arr.shape[0] != n:
+            raise ValueError(
+                f"hover_text length {hover_arr.shape[0]} != number of spheres {n}"
+            )
+
+    def default_hover(i, r):
+        parts = [f"sphere {i + 1}/{n}", f"r = {r:.3f} Å"]
+        if regions_arr is not None:
+            parts.append(f"region = {regions_arr[i]}")
+        if color_by_arr is not None:
+            parts.append(f"color_by = {color_by_arr[i]}")
+        return "<br>".join(parts)
+
+    region_color_for_index = None
+    if regions_arr is not None:
+        uniq_regions = sorted({int(x) for x in np.unique(regions_arr)})
+        region_color_for_index = {
+            rid: qualitative[j % len(qualitative)]
+            for j, rid in enumerate(uniq_regions)
+        }
+
+    if plot_centers_only:
+        xs, ys, zs = [], [], []
+        for i, row in enumerate(spheres):
+            sx, sy, sz, r = row[0], row[1], row[2], row[3]
+            frac = np.array([sx, sy, sz], dtype=float)
+            c = cell_T @ frac
+            xs.append(c[0])
+            ys.append(c[1])
+            zs.append(c[2])
+        marker_kwargs = dict(
+            size=center_marker_size, opacity=opacity, line=dict(width=0)
+        )
+        text = [
+            hover_arr[i] if hover_arr is not None else default_hover(i, spheres[i][3])
+            for i in range(n)
+        ]
+        if regions_arr is not None:
+            marker_kwargs["color"] = [
+                region_color_for_index[int(regions_arr[i])] for i in range(n)
+            ]
+            return go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="markers",
+                marker=marker_kwargs,
+                text=text,
+                hovertemplate="%{text}<extra></extra>",
+                name=name,
+                **scatter_kwargs,
+            )
+        if color_by_arr is not None:
+            if np.issubdtype(color_by_arr.dtype, np.number):
+                marker_kwargs["color"] = color_by_arr.astype(float)
+                marker_kwargs["colorscale"] = colorscale
+                marker_kwargs["showscale"] = True
+            else:
+                marker_kwargs["color"] = color_by_arr.astype(str)
+            return go.Scatter3d(
+                x=xs,
+                y=ys,
+                z=zs,
+                mode="markers",
+                marker=marker_kwargs,
+                text=text,
+                hovertemplate="%{text}<extra></extra>",
+                name=name,
+                **scatter_kwargs,
+            )
+        marker_kwargs["color"] = color
+        return go.Scatter3d(
+            x=xs,
+            y=ys,
+            z=zs,
+            mode="markers",
+            marker=marker_kwargs,
+            text=text,
+            hovertemplate="%{text}<extra></extra>",
+            name=name,
+            **scatter_kwargs,
+        )
+
+    unit = _fibonacci_sphere_points(n_points_per_sphere)
+    xs, ys, zs = [], [], []
+    point_colors = []
+    point_text = []
+    for i, row in enumerate(spheres):
+        sx, sy, sz, r = row[0], row[1], row[2], row[3]
+        frac = np.array([sx, sy, sz], dtype=float)
+        center_cart = cell_T @ frac
+        ht = str(hover_arr[i]) if hover_arr is not None else default_hover(i, r)
+        for p in unit:
+            pt = center_cart + r * p
+            xs.append(pt[0])
+            ys.append(pt[1])
+            zs.append(pt[2])
+            point_text.append(ht)
+            if regions_arr is not None:
+                point_colors.append(region_color_for_index[int(regions_arr[i])])
+            elif color_by_arr is not None:
+                point_colors.append(color_by_arr[i])
+            else:
+                point_colors.append(color)
+
+    marker_kwargs = dict(size=marker_size, opacity=opacity, line=dict(width=0))
+    if regions_arr is not None:
+        marker_kwargs["color"] = point_colors
+    elif color_by_arr is not None:
+        if np.issubdtype(color_by_arr.dtype, np.number):
+            expanded = np.repeat(color_by_arr.astype(float), n_points_per_sphere)
+            marker_kwargs["color"] = expanded
+            marker_kwargs["colorscale"] = colorscale
+            marker_kwargs["showscale"] = True
+        else:
+            marker_kwargs["color"] = np.repeat(
+                color_by_arr.astype(str), n_points_per_sphere
+            )
+    else:
+        marker_kwargs["color"] = color
+
+    return go.Scatter3d(
+        x=xs,
+        y=ys,
+        z=zs,
+        mode="markers",
+        marker=marker_kwargs,
+        text=point_text,
+        hovertemplate="%{text}<extra></extra>",
+        name=name,
+        **scatter_kwargs,
+    )
+
+
+def plot_blocking_spheres(
+    spheres_or_builder_output,
+    ase_atoms,
+    *,
+    render_mode="points",
+    opacity=0.35,
+    color="crimson",
+    name="Blocking spheres",
+    n_points_per_sphere=42,
+    marker_size=2,
+    regions=None,
+    color_by=None,
+    hover_text=None,
+    plot_centers_only=False,
+    center_marker_size=7,
+    colorscale="Viridis",
+    mesh_opacity=0.30,
+    mesh_color="crimson",
+    mesh_theta_resolution=28,
+    mesh_phi_resolution=28,
+    auto_mesh_max_spheres=250,
+    auto_points_max_spheres=1200,
+    **kwargs,
+):
+    """
+    Plot RASPA blocking spheres (fractional ``[sx, sy, sz, r]`` with ``r`` in Å).
+
+    The first argument may be:
+
+    * a plain sequence of sphere rows;
+    * ``(spheres, meta)`` from :func:`mofography.raspa_helper.blocking_spheres_greedy`;
+    * ``(spheres, percolated, inaccessible)`` from
+      :func:`mofography.raspa_helper.blocking_spheres_for_probe_radius`.
+
+    Parameters
+    ----------
+    render_mode : {"points", "centers", "mesh", "auto"}
+        ``points`` — Fibonacci-sampled shell markers (default; matches legacy
+        ``plot_blocking_spheres``).
+        ``centers`` — one marker per sphere (also selected when
+        ``plot_centers_only=True``).
+        ``mesh`` — smooth spheres as **one** combined ``Mesh3d`` (all PyVista
+        spheres are concatenated with ``trimesh.util.concatenate`` inside
+        :func:`plot_mesh`).
+        ``auto`` — mesh for small ``N``, then points, then centers (see
+        ``auto_mesh_max_spheres`` / ``auto_points_max_spheres``).
+    mesh_opacity, mesh_color, mesh_theta_resolution, mesh_phi_resolution
+        Used when ``render_mode`` is ``"mesh"`` or chosen by ``"auto"``.
+    opacity, color, marker_size, n_points_per_sphere, regions, color_by,
+    hover_text, center_marker_size, colorscale
+        Used for ``points`` / ``centers`` scatter modes.
+
+    Returns
+    -------
+    plotly.graph_objects.Scatter3d or plotly.graph_objects.Mesh3d
+        One Plotly trace (scatter or a single combined blocking mesh).
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+
+    spheres = _coerce_blocking_spheres_list(spheres_or_builder_output)
+    n = len(spheres)
+    if n == 0:
+        return go.Scatter3d(x=[], y=[], z=[], mode="markers", name=name, **kwargs)
+
+    mode = str(render_mode).lower()
+    if plot_centers_only:
+        mode = "centers"
+    elif mode == "auto":
+        if n <= int(auto_mesh_max_spheres):
+            mode = "mesh"
+        elif n <= int(auto_points_max_spheres):
+            mode = "points"
+        else:
+            mode = "centers"
+
+    if mode not in {"mesh", "points", "centers"}:
+        raise ValueError(
+            "render_mode must be one of 'auto', 'mesh', 'points', 'centers'"
+        )
+
+    if mode == "mesh":
+        cell = np.asarray(ase_atoms.get_cell(), dtype=float)
+        if cell.shape != (3, 3):
+            cell = cell.reshape(3, 3)
+        cell_t = cell.T
+        rows = [np.asarray(s, dtype=float).ravel() for s in spheres]
+        centers_cart = []
+        radii_list = []
+        for row in rows:
+            sx, sy, sz, r = float(row[0]), float(row[1]), float(row[2]), float(row[3])
+            centers_cart.append(cell_t @ np.array([sx, sy, sz], dtype=float))
+            radii_list.append(r)
+        centers_cart = np.asarray(centers_cart, dtype=float)
+        radii_arr = np.asarray(radii_list, dtype=float)
+
+        sphere_meshes = spheres_for_positions(
+            positions=centers_cart,
+            radii=radii_arr,
+            scale=1.0,
+            theta_resolution=mesh_theta_resolution,
+            phi_resolution=mesh_phi_resolution,
+        )
+        return plot_mesh(
+            sphere_meshes,
+            stylize=True,
+            opacity=mesh_opacity,
+            color=mesh_color,
+            name=name,
+            showlegend=True,
+            hovertemplate=f"{n} blocking spheres (combined mesh)<extra></extra>",
+            **kwargs,
+        )
+
+    return _blocking_spheres_scatter3d(
+        spheres,
+        ase_atoms,
+        opacity=opacity,
+        color=color,
+        name=name,
+        n_points_per_sphere=n_points_per_sphere,
+        marker_size=marker_size,
+        regions=regions,
+        color_by=color_by,
+        hover_text=hover_text,
+        plot_centers_only=(mode == "centers"),
+        center_marker_size=center_marker_size,
+        colorscale=colorscale,
+        scatter_kwargs=kwargs,
+    )
+
+
+# Former separate entry point; now an alias for :func:`plot_blocking_spheres`.
+plot_blocking_spheres_styled = plot_blocking_spheres
 
 
 def get_default_colors():
