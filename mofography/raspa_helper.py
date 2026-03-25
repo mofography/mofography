@@ -843,6 +843,158 @@ def blocking_spheres_overlap_leakage(
     return out
 
 
+def blocking_spheres_overlap_leakage_pair(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    *,
+    resolution="fine",
+    sample_spacing=0.5,
+    fine_spacing=None,
+    accessible_dgrid_ge_probe=False,
+    restrict_to_rag_adjacent_accessible=True,
+    require_face_neighbor_inaccessible=True,
+    per_label=False,
+    atol=1e-4,
+    chunk_size=65536,
+    inaccessible_resolution=None,
+):
+    """
+    Pair of :func:`blocking_spheres_overlap_leakage` runs for **BlockPockets** QA.
+
+    When spheres are built to cover **inaccessible** void, you usually want both:
+
+    1. **Leakage** — ``denominator_domain="accessible"``: among accessible sample
+       points, what fraction fall **inside** the sphere union (spill into transport
+       void)?
+    2. **Coverage gap** — ``denominator_domain="inaccessible"``: among inaccessible
+       sample points, what fraction fall **outside** the union (missed cages)?
+       Reported as ``frac_covered_inaccessible_mic`` and ``frac_missed_inaccessible_mic``.
+
+    ``resolution`` is passed to the **accessible** leg. The **inaccessible** leg uses
+    the same resolution except when ``resolution="interface"`` (interface is only
+    defined for accessible); then inaccessible defaults to ``"fine"`` unless you set
+    ``inaccessible_resolution``.
+
+    Parameters
+    ----------
+    inaccessible_resolution : str, optional
+        ``"fine"`` or ``"coarse"`` for the inaccessible leg. Default: same as
+        ``resolution``, or ``"fine"`` if ``resolution=="interface"``.
+    """
+    resolution = str(resolution).lower()
+    if inaccessible_resolution is None:
+        inc_res = "fine" if resolution == "interface" else resolution
+    else:
+        inc_res = str(inaccessible_resolution).lower()
+    if inc_res not in {"fine", "coarse"}:
+        raise ValueError(
+            "inaccessible_resolution must be 'fine' or 'coarse', "
+            f"got {inaccessible_resolution!r}"
+        )
+
+    common = dict(
+        sample_spacing=sample_spacing,
+        fine_spacing=fine_spacing,
+        accessible_dgrid_ge_probe=accessible_dgrid_ge_probe,
+        restrict_to_rag_adjacent_accessible=restrict_to_rag_adjacent_accessible,
+        require_face_neighbor_inaccessible=require_face_neighbor_inaccessible,
+        per_label=per_label,
+        atol=atol,
+        chunk_size=chunk_size,
+    )
+    st_acc = blocking_spheres_overlap_leakage(
+        results,
+        ase_atoms,
+        spheres,
+        probe_radius,
+        denominator_domain="accessible",
+        resolution=resolution,
+        **common,
+    )
+    st_inc = blocking_spheres_overlap_leakage(
+        results,
+        ase_atoms,
+        spheres,
+        probe_radius,
+        denominator_domain="inaccessible",
+        resolution=inc_res,
+        **common,
+    )
+    n_inc = int(st_inc.get("n_denominator_points", 0))
+    cov_mic = st_inc.get("frac_overlapped_mic")
+    n_cov_mic = int(st_inc.get("n_overlapped_mic", 0))
+    missed_n = n_inc - n_cov_mic
+    missed_frac = (
+        float(missed_n / n_inc)
+        if n_inc > 0 and cov_mic == cov_mic
+        else float("nan")
+    )
+    cov_frac = float(cov_mic) if cov_mic == cov_mic else float("nan")
+
+    return {
+        "leakage_into_accessible": st_acc,
+        "coverage_of_inaccessible": st_inc,
+        "inaccessible_resolution_used": inc_res,
+        "n_inaccessible_denominator": n_inc,
+        "n_inaccessible_covered_mic": n_cov_mic,
+        "n_inaccessible_missed_mic": missed_n,
+        "frac_covered_inaccessible_mic": cov_frac,
+        "frac_missed_inaccessible_mic": missed_frac,
+    }
+
+
+def print_blocking_spheres_overlap_pair_report(pair: dict) -> None:
+    """
+    Print :func:`blocking_spheres_overlap_leakage_pair` results in plain language.
+    """
+    st_a = pair["leakage_into_accessible"]
+    st_i = pair["coverage_of_inaccessible"]
+    inc_res = pair.get("inaccessible_resolution_used", st_i.get("resolution"))
+
+    print("\n=== Blocking spheres — paired void QA (BlockPockets-style) ===\n")
+    print(
+        f"Probe: {st_a.get('probe_radius')} Å | spheres: {st_a.get('n_spheres')} | "
+        f"accessible leg resolution: {st_a.get('resolution')} | "
+        f"inaccessible leg resolution: {inc_res}\n"
+    )
+
+    na = int(st_a.get("n_denominator_points", 0))
+    oa = int(st_a.get("n_overlapped_mic", 0))
+    fa = st_a.get("frac_overlapped_mic")
+    fa_pct = 100.0 * fa if fa == fa else float("nan")
+    print(
+        "(1) **Leakage into ACCESSIBLE void** — accessible sample points inside "
+        "the sphere union (unintended):\n"
+        f"    MIC: {oa:,} / {na:,}  ({fa_pct:.4f}%)\n"
+        f"    Volume proxy (MIC): {st_a.get('approx_overlap_volume_mic_ang3', 0):.2f} Å³ "
+        f"≈ {100.0 * st_a.get('frac_unit_cell_overlapped_mic', 0):.4f}% of cell\n"
+    )
+
+    ni = int(pair.get("n_inaccessible_denominator", st_i.get("n_denominator_points", 0)))
+    n_cov = int(pair.get("n_inaccessible_covered_mic", st_i.get("n_overlapped_mic", 0)))
+    n_miss = int(pair.get("n_inaccessible_missed_mic", ni - n_cov))
+    f_cov = pair.get("frac_covered_inaccessible_mic")
+    f_miss = pair.get("frac_missed_inaccessible_mic")
+    if f_cov != f_cov:
+        f_cov = float("nan")
+        f_miss = float("nan")
+    else:
+        f_cov = float(f_cov)
+        f_miss = float(f_miss)
+    print(
+        "(2) **Coverage of INACCESSIBLE void** — inaccessible sample points that "
+        "should be blocked:\n"
+        f"    Inside sphere union (MIC, **covered**): {n_cov:,} / {ni:,}  "
+        f"({100.0 * f_cov:.4f}%)\n"
+        f"    **Outside** union (MIC, **missed / gap**): {n_miss:,} / {ni:,}  "
+        f"({100.0 * f_miss:.4f}%)\n"
+        f"    Volume proxy for covered fraction (MIC): "
+        f"{st_i.get('approx_overlap_volume_mic_ang3', 0):.2f} Å³\n"
+    )
+
+
 def blocking_spheres_overlap_into_accessible_regions(
     results,
     ase_atoms,

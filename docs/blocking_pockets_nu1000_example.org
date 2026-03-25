@@ -11,7 +11,7 @@ This note shows how to:
    - *greedy* (fewer spheres, Euclidean cover of the masked voxels).
 3. Write a **RASPA** blocking list (=N= then fractional =x y z r= per line).
 4. **Visualize** with =plot_blocking_spheres= — =render_mode= =mesh= / =points= / =centers= / =auto= (see =mofography/visualize.py=).
-5. Optionally estimate **leakage** of the blocking union into the wrong void class via =blocking_spheres_overlap_leakage= and =print_blocking_spheres_overlap_report= (=mofography/raspa_helper.py=).
+5. Optionally run **paired** overlap QA (=blocking_spheres_overlap_leakage_pair=): leakage into accessible void *and* coverage of inaccessible void (=mofography/raspa_helper.py=).
 
 All API lives in =mofography= after =import mofography as mgr=.
 
@@ -158,36 +158,44 @@ fig.update_layout(
 fig.write_html("nu1000_greedy_blocking_mesh_dark.html", include_plotlyjs="cdn")
 #+end_src
 
-* 5. Optional — overlap / leakage diagnostic
+* 5. Optional — overlap / leakage + inaccessible coverage (paired QA)
 
-Unified API: =blocking_spheres_overlap_leakage= with =denominator_domain= and =resolution=, then =print_blocking_spheres_overlap_report=.
+For **BlockPockets** (spheres built to cover **inaccessible** void), you usually want **two** numbers on the same grid resolution:
 
-Typical **BlockPockets** check (spheres cover inaccessible; measure intrusion into **percolating** void): =denominator_domain="accessible"=.
+1. *Leakage* — among **accessible** sample points, what fraction lie **inside** the sphere union? (spill into transport void.)
+2. *Coverage gap* — among **inaccessible** sample points, what fraction lie **outside** the union? (missed cages.)
 
-- =resolution="fine"=: every accessible voxel center on the segmentation grid (expensive).
-- =resolution="coarse"=: subsample at =sample_spacing= (e.g. 0.5 Å); optional per-label breakdown with =per_label=True=.
-- =resolution="interface"=: coarse samples on the accessible–inaccessible **interface band** only (=denominator_domain= must stay =accessible=).
+Use =blocking_spheres_overlap_leakage_pair= and =print_blocking_spheres_overlap_pair_report=.
+
+- The **accessible** leg uses =resolution= (=fine=, =coarse=, or =interface=).
+- The **inaccessible** leg must be =fine= or =coarse=. If =resolution="interface"=, inaccessible defaults to =fine= unless you pass =inaccessible_resolution="coarse"=.
 
 #+begin_src python
 import mofography as mgr
 
-stats = mgr.blocking_spheres_overlap_leakage(
+pair = mgr.blocking_spheres_overlap_leakage_pair(
     results,
     atoms,
     spheres_g,
     probe_radius,
-    denominator_domain="accessible",
-    resolution="coarse",
-    sample_spacing=0.5,
-    per_label=True,
+    resolution="fine",
+    fine_spacing=spacing,
+    accessible_dgrid_ge_probe=False,
+    per_label=False,
 )
-mgr.print_blocking_spheres_overlap_report(stats)
+mgr.print_blocking_spheres_overlap_pair_report(pair)
 #+end_src
 
-Legacy thin wrappers (=blocking_spheres_overlap_accessible_coarse_sample=, =print_blocking_accessible_coarse_overlap_report=, etc.) still call the same implementation; new code should prefer the names above.
+Lower-level: =blocking_spheres_overlap_leakage(..., denominator_domain="accessible"|"inaccessible")= and =print_blocking_spheres_overlap_report= for one leg at a time.
+
+- =resolution="fine"=: every voxel center in that void class on the segmentation grid.
+- =resolution="coarse"=: subsample at =sample_spacing=; optional =per_label=True=.
+- =resolution="interface"=: (**accessible only**) coarse samples on the pocket–channel **interface band** — *not* the same as “all accessible void”; see tutorial text above.
+
+Legacy thin wrappers (=blocking_spheres_overlap_accessible_coarse_sample=, etc.) still exist; prefer the unified names above.
 
 * See also
 
-- =mofography/raspa_helper.py= — =blocking_spheres_greedy=, =blocking_spheres_largest_including=, =blocking_spheres_for_probe_radius=, =write_blocking_spheres_file=, overlap leakage API.
+- =mofography/raspa_helper.py= — =blocking_spheres_greedy=, =blocking_spheres_largest_including=, =blocking_spheres_for_probe_radius=, =write_blocking_spheres_file=, =blocking_spheres_overlap_leakage= / =blocking_spheres_overlap_leakage_pair=.
 - =mofography/visualize.py= — =plot_blocking_spheres=.
 - Script =nu1000_block_pockets_greedy_visual.py= (mofography manuscript =mgr_org_scripts=): full greedy HTML (surface + sphere centers) with optional =--verify-coverage=.
