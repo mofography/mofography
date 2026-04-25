@@ -1,0 +1,148 @@
+#+title: Make Animation of fig for a material
+#+author: Arun Gopalan
+
+* Goal
+** Imports
+Pick  a cif, do the usual mofography things and make a killer animation of the material
+
+#+begin_src python
+import numpy as np
+import os, sys
+import plotly.graph_objects as go
+import plotly.express as px
+# import plotly.io as pio
+from plotly.subplots import make_subplots
+from ase.io import read
+from pathlib import Path
+import pickle
+import dask
+from dask.distributed import Client, progress, wait
+from dask import delayed
+import dask.bag as db
+import pandas as pd
+import mofography as mgr
+import networkx as nx
+import optuna
+from skimage.measure import regionprops
+import logging
+from io import StringIO
+import time
+import mofography as mgr
+from tqdm import tqdm
+import stackprinter
+stackprinter.set_excepthook(style="darkbg2")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+print("hello cruel world! , just to confirm the imports are working!")
+#+end_src
+
+** read the cif
+
+#+begin_src python
+path_to_cif = Path('~/repos/mofography/examples/TestCIFs/P1-Cu-BTC.cif').expanduser()
+from ase.io import read, write
+mat_atoms = read(path_to_cif)
+
+#+end_src
+** Do segmentation
+
+#+begin_src python
+spacing = 0.25
+h= 0.2
+mask_thickness= 0.5
+threshold_abs= 1.5
+extra_padding= 5
+return_dgrid = True
+min_distance= 1.5
+
+# dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=spacing)
+
+dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=20000).astype(np.float32)
+results = mgr.do_periodic_segmentation_rust(
+    dgrid,
+    mat_atoms,
+    mask_thickness=mask_thickness,
+    h=h,
+    spacing=spacing,
+    return_dgrid=True,
+    threshold_abs=threshold_abs,
+    min_distance=min_distance,
+    return_padded_regions=True,
+    extra_padding=extra_padding,
+)
+
+
+# grab separate variables from output
+dgrid = results["dgrid"]
+regions = results["regions"]
+regions_pbc = results["regions_pbc"]
+maxima_info = results["maxima_info"]
+pbc_groups = results["pbc_groups"]
+connections = results["connections"]
+all_maxima = results["all_maxima"]
+all_maxima_radii = dgrid[tuple(maxima_info[:, 1:4].T)]
+maxima_pbc = results["maxima_pbc"]
+unique_regions = results["unique_regions"]
+close_or_inside_regions = results["close_or_inside_regions"]
+maxima = all_maxima[: regions.max()]
+maxima_radii = all_maxima_radii[: regions.max()]
+connections_trimmed = [c for c in connections if np.any(np.isin(c[0],unique_regions))]
+maxima_pbc_dict = results['maxima_pbc_dict']
+connections_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, mat_atoms
+)
+regions_padded = results["regions_padded"]
+rag = mgr.rag_from_connections(connections_trimmed, maxima)
+rag = mgr.add_maxima_to_rag(rag, maxima, maxima_radii, dgrid.shape, mat_atoms)
+rag = mgr.add_pbc_to_rag(rag, pbc_groups)
+props = regionprops(regions)
+bins = np.linspace(0, 50, 30)
+rag = mgr.add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, mat_atoms, dgrid.shape)
+rag = mgr.add_clustering_to_rag_geometry_js(
+    rag, props, pbc_groups, mat_atoms, dgrid.shape
+)
+regions_cluster = mgr.clustering_grid_from_regions(
+    regions, rag, cluster_key="cluster_geom_pbc"
+)
+
+#+end_src
+
+** Make the plot traces
+#+begin_src python
+import plotly.express as px
+import plotly.graph_objects as go
+cscale = px.colors.qualitative.Pastel
+isovals = [1.0,1.5 ]
+
+mat_updated = mgr.update_with_covalent_bonds(mat_atoms)
+# cscale = px.colors.qualitative.Alphabet
+isosurface_segmentation = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions, ase_atoms=mat_atoms, name='Regions', opacity=1, cscale=cscale)
+isosurface_pbc = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions_pbc, ase_atoms=mat_atoms, name='Regions PBC',  opacity=1, cscale=cscale )
+cell_trace = mgr.plot_cell(mat_atoms, color='orange')
+maxima_trace = mgr.plot_maxima(dgrid,maxima, mat_atoms, marker_size=10,show_spheres=False, marker_colorscale = cscale, name='Maxima (distinct)')
+frame_trace = mgr.plot_framework_as_mesh(mat_updated, stylize=True)
+# frame_trace = mgr.draw_framework(mat_updated, stylize=True)
+
+# plot plocket distributions
+
+# do the same thing with energy?
+# egrid = mgr.egrid_from_atoms2(mat_atoms, spacing=0.5, probe_symbol='He').compute()
+# einterpolator = mgr.interpolate_dgrid(egrid) # we can use the same interpolator as that for the distance grid, because at the end of the day, it's just a 3D array and we are interpolating in fractional coordinates
+
+# rag = mgr.add_clustering_to_rag_energy_js(rag, regions, energy_interpolator=einterpolator, js_threshold=0.10, pbc_groups = pbc_groups) # no need for ase_atoms, because we already have the energy interpolator
+# regions_clusters = mgr.clustering_grid_from_regions(regions, rag, cluster_key='cluster_energy_pbc')
+
+isosurface_clusters = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions_cluster, name='Pocket Types by geometry', ase_atoms=mat_atoms, opacity=1, cscale=cscale)
+maxima_trace_pbc= mgr.plot_maxima(dgrid,maxima_pbc, mat_atoms,show_spheres=False,  marker_size=7.5, marker_colorscale = cscale,name='Maxima (pbc)')
+connections_traces =mgr.plot_connections_as_it_is(connections_trimmed, all_maxima, regions.shape, mat_atoms, cscale=cscale, plot_disconnected=False, plot_periodic=True)
+windows_trace = mgr.plot_windows(connections_trimmed, name='Windows', marker_color='yellow', marker_size=10, marker_opacity=0.8)
+#+end_src
+** make a test figure and show
+
+
+#+begin_src python
+
+fig = go.Figure([*frame_trace, cell_trace, isosurface_segmentation, isosurface_pbc, isosurface_clusters, *connections_traces, maxima_trace, windows_trace], layout=mgr.white_layout)
+fig.show(renderer='browser')
+
+#+end_src
