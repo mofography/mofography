@@ -10,6 +10,7 @@ from .workflow import *
 from .raspa_helper import *
 from .rust_fun import *
 from .winding_percolation import *
+from .movies import *
 
 # Handle versioneer
 from ._version import get_versions

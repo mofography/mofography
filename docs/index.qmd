@@ -143,12 +143,12 @@ The basic tutorials are organized in a sequential way, so it is recommended to g
 - Get a feel for the whole thing [Quick cluster notebook](./quick_cluster.ipynb) 
 - Basic structure analysis [Basic structure analysis notebook](./basic_structure_io.ipynb)
 - Basic structure visualization [Basic structure visualization notebook](./quick_structure_visualization.ipynb)
-- Distance grid calculation and visualization [Distance grid notebook](./distance_grid.ipynb)
+- Distance Grid [Distance grid notebook](./distance_grid.ipynb)
 - Region Segmentation [Region segmentation notebook](./region_segmentation.ipynb)
+- Pore Graph [Pore graph tutorial](./pore_graph.md)
+- Pore Windows [Connections and windows tutorial](./connections_and_windows.md)
 - Applying Periodic Boundary Conditions [PBC notebook](./applying_pbc.ipynb)
-- Region Adjacency Graph (Pore graph) [RAG notebook](./region_adjacency_graph.ipynb)
-- Detecting the windows in a material [Connections and windows notebook](./connections_and_windows.ipynb)
-- Detecting the types of pockets [Pocket type detection notebook](./pockets_detection.ipynb)
+- Detecting the types of pockets [Pocket type detection tutorial](./pockets_detection.md)
 
 
 ### Advanced tutorials 😪
@@ -157,6 +157,7 @@ The advanced tutorials should make sense in any order once the basic tutorials a
 
 - Visualize framework atoms and bonds like a pro .[Advanced structure visualization notebook](./framework_visualization_example.ipynb)
 - Visualize only a subset of the framework atoms and bonds [Framework subset visualization notebook](./plot_subset_as_mesh_tutorial.ipynb)
+- Flexible framework + aligned component movies → Three.js HTML [Flexible framework movie export](./flexible_framework_movie_html.md)
 - Compute percolation paths, pore limiting dia. and pocket accessibility [Percolation paths and PLD notebook](./percolated_paths_tutorial.ipynb)
 - Grab a large DataFrame from MOFDB and do some calculations on some randomly chosen MOFs [MOFDB notebook](./mofdb_example.ipynb)
 - Construct pore graphs for all of the IZA dataset in parallel using Mofography and Dask within Jupyter notebook[HTS Dask notebook](./hts_using_mofography.ipynb)
