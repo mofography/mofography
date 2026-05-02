@@ -337,7 +337,8 @@ def dgrid_from_atoms_cpu_no_aabb(ase_atoms, radii=None, spacing=0.2, block_size=
 def dgrid_from_atoms(
     ase_atoms,
     radii=None,
-    spacing=0.25,
+
+spacing=0.25,
     block_size=50000,
     n_neighbors=10,
     probe_radius=0,
@@ -8891,21 +8892,18 @@ def compute_surface_area_from_results(
         if accessible_pocket_area > 0:
             accessible_pocket_areas[pocket_id] = accessible_pocket_area
 
-    # Step 6: Group accessible regions into percolated clusters using selected_threshold
+    # Step 6: percolated clusters from the SAME components as select_percolation_threshold (no brittle history replay).
     percolated_clusters = {}
-    if selected_threshold is not None and percolation_history:
-        # Find the components that exactly match our selected threshold
-        for threshold, components in percolation_history:
-            if abs(threshold - selected_threshold) < 1e-10:
-                cluster_id = 0
-                for axis, comp_list in components.items():
-                    for comp in comp_list:
-                        cluster_regions = set(comp).intersection(percolating_regions)
-                        if cluster_regions:
-                            percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
-                            cluster_id += 1
-                break  # Found our exact threshold, stop searching
-
+    if threshold is not None and components:
+        cluster_id = 0
+        for axis, comp_list in components.items():
+            if not comp_list:
+                continue
+            for comp in comp_list:
+                cluster_regions = set(comp)
+                if cluster_regions:
+                    percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
+                    cluster_id += 1
         logger.info(f"Found {len(percolated_clusters)} percolated clusters at threshold {selected_threshold:.3f} Å")
     else:
         logger.info("No percolated clusters found - no accessible regions for cluster formation")
@@ -8917,54 +8915,39 @@ def compute_surface_area_from_results(
         if cluster_area > 0:
             percolated_cluster_areas[cluster_id] = cluster_area
 
-    # Step 6b: Check completeness of PBC groups and identify incomplete pockets
+    # Step 6b: pocket completeness vs percolating_regions; retain Step 5 accessible_pocket_areas for by_pocket.
     complete_pockets = {}
     incomplete_pockets = {}
-
-    # Collect all percolated regions across all clusters
-    all_percolated_regions = set()
-    for cluster_regions in percolated_clusters.values():
-        all_percolated_regions.update(cluster_regions)
+    all_percolated_regions = set(percolating_regions)
 
     logger.info(f"Analyzing {len(pbc_groups)} PBC groups for completeness at probe radius {probe_radius:.3f} Å")
 
     for pocket_id, region_set in pbc_groups.items():
-        # Check if all regions in this PBC group are percolated
-        if region_set.issubset(all_percolated_regions):
-            complete_pockets[pocket_id] = region_set
-            logger.debug(f"PBC group {pocket_id} is COMPLETE - all {len(region_set)} regions are percolated")
+        rs = set(region_set)
+        if rs.issubset(all_percolated_regions):
+            complete_pockets[pocket_id] = rs
+            logger.debug(f"PBC group {pocket_id} is COMPLETE - all {len(rs)} regions are percolating at this probe")
         else:
-            # Find which regions are missing from percolation
-            missing_regions = region_set - all_percolated_regions
-            accessible_regions = region_set.intersection(all_percolated_regions)
-
+            accessible_regions = rs.intersection(all_percolated_regions)
+            missing_regions = rs - all_percolated_regions
             incomplete_pockets[pocket_id] = {
-                'all_regions': region_set,
+                'all_regions': rs,
                 'accessible_regions': accessible_regions,
                 'missing_regions': missing_regions,
-                'completeness_fraction': len(accessible_regions) / len(region_set) if region_set else 0
+                'completeness_fraction': len(accessible_regions) / len(rs) if rs else 0
             }
+            logger.debug(
+                f"PBC group {pocket_id} partially percolates: "
+                f"{len(accessible_regions)}/{len(rs)} regions (completeness: {incomplete_pockets[pocket_id]['completeness_fraction']:.2%})"
+            )
 
-            logger.warning(f"PBC group {pocket_id} is INCOMPLETE - {len(missing_regions)}/{len(region_set)} regions not percolated "
-                          f"(completeness: {incomplete_pockets[pocket_id]['completeness_fraction']:.2%})")
+    logger.info(f"Found {len(complete_pockets)} fully percolating PBC pockets and {len(incomplete_pockets)} partial at this probe")
 
-    logger.info(f"Found {len(complete_pockets)} complete pockets and {len(incomplete_pockets)} incomplete pockets")
-
-    # Recalculate accessible pocket areas with completeness information
-    accessible_pocket_areas = {}
     flagged_pocket_areas = {}
-
-    # Add complete pockets
-    for pocket_id, region_set in complete_pockets.items():
-        accessible_area = sum(accessible_region_areas.get(region_id, 0) for region_id in region_set)
-        if accessible_area > 0:
-            accessible_pocket_areas[pocket_id] = accessible_area
-            logger.debug(f"Complete pocket {pocket_id}: accessible SA = {accessible_area:.4f} m²/g")
-
-    # Add incomplete pockets (flagged)
     for pocket_id, pocket_info in incomplete_pockets.items():
-        accessible_area = sum(accessible_region_areas.get(region_id, 0)
-                            for region_id in pocket_info['accessible_regions'])
+        accessible_area = sum(
+            accessible_region_areas.get(region_id, 0) for region_id in pocket_info['accessible_regions']
+        )
         if accessible_area > 0:
             flagged_pocket_areas[pocket_id] = {
                 'accessible_surface_area': accessible_area,
@@ -8972,8 +8955,10 @@ def compute_surface_area_from_results(
                 'missing_regions': list(pocket_info['missing_regions']),
                 'accessible_regions': list(pocket_info['accessible_regions'])
             }
-            logger.info(f"Flagged incomplete pocket {pocket_id}: accessible SA = {accessible_area:.4f} m²/g "
-                       f"(completeness: {pocket_info['completeness_fraction']:.2%})")
+            logger.debug(
+                f"Pocket {pocket_id}: partial accessible SA = {accessible_area:.4f} m²/g "
+                f"(completeness: {pocket_info['completeness_fraction']:.2%})"
+            )
 
     # Step 7: Calculate total accessible surface area
     accessible_surface_area = sum(accessible_region_areas.values())
@@ -9209,19 +9194,18 @@ def compute_surface_area_from_results_mc(
 
         # --- Per-percolated-cluster accessible SA (MC) ---
         by_cluster_mc = {}
-        if threshold is not None and percolation_history and percolating_regions:
+        if threshold is not None and components and percolating_regions:
             percolated_clusters = {}
             cluster_id = 0
-            for thr, comps in percolation_history:
-                if abs(thr - threshold) < 1e-10:
-                    for axis, comp_list in comps.items():
-                        for comp in comp_list:
-                            cluster_regions = set(comp).intersection(percolating_regions)
-                            if cluster_regions:
-                                key = f"axis_{axis}_cluster_{cluster_id}"
-                                percolated_clusters[key] = cluster_regions
-                                cluster_id += 1
-                    break
+            for axis, comp_list in components.items():
+                if not comp_list:
+                    continue
+                for comp in comp_list:
+                    cluster_regions = set(comp)
+                    if cluster_regions:
+                        key = f"axis_{axis}_cluster_{cluster_id}"
+                        percolated_clusters[key] = cluster_regions
+                        cluster_id += 1
             for cid, region_set in percolated_clusters.items():
                 cluster_area = sum(by_region_mc.get(int(r), 0.0) for r in region_set)
                 if cluster_area > 0:
@@ -9393,21 +9377,18 @@ def compute_void_volume_from_results(
         if accessible_pocket_volume > 0:
             accessible_pocket_volumes[pocket_id] = accessible_pocket_volume
 
-    # Step 5: Group accessible regions into percolated clusters using selected_threshold
+    # Group percolated clusters from components returned by select_percolation_threshold.
     percolated_clusters = {}
-    if selected_threshold is not None and percolation_history:
-        # Find the components that exactly match our selected threshold
-        for threshold, components in percolation_history:
-            if abs(threshold - selected_threshold) < 1e-10:
-                cluster_id = 0
-                for axis, comp_list in components.items():
-                    for comp in comp_list:
-                        cluster_regions = set(comp).intersection(percolating_regions)
-                        if cluster_regions:
-                            percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
-                            cluster_id += 1
-                break  # Found our exact threshold, stop searching
-
+    if threshold is not None and components:
+        cluster_id = 0
+        for axis, comp_list in components.items():
+            if not comp_list:
+                continue
+            for comp in comp_list:
+                cluster_regions = set(comp)
+                if cluster_regions:
+                    percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
+                    cluster_id += 1
         logger.info(f"Found {len(percolated_clusters)} percolated clusters at threshold {selected_threshold:.3f} Å")
     else:
         logger.info("No percolated clusters found - no accessible regions for cluster formation")
@@ -9419,54 +9400,42 @@ def compute_void_volume_from_results(
         if cluster_volume > 0:
             percolated_cluster_volumes[cluster_id] = cluster_volume
 
-    # Step 6b: Check completeness of PBC groups and identify incomplete pockets
+    # completeness vs percolating_regions; retain accumulation-step accessible_pocket_volumes for by_pocket.
     complete_pockets = {}
     incomplete_pockets = {}
-
-    # Collect all percolated regions across all clusters
-    all_percolated_regions = set()
-    for cluster_regions in percolated_clusters.values():
-        all_percolated_regions.update(cluster_regions)
+    all_percolated_regions = set(percolating_regions)
 
     logger.info(f"Analyzing {len(pbc_groups)} PBC groups for void volume completeness at probe radius {probe_radius:.3f} Å")
 
     for pocket_id, region_set in pbc_groups.items():
-        # Check if all regions in this PBC group are percolated
-        if region_set.issubset(all_percolated_regions):
-            complete_pockets[pocket_id] = region_set
-            logger.debug(f"PBC group {pocket_id} is COMPLETE - all {len(region_set)} regions are percolated")
+        rs = set(region_set)
+        if rs.issubset(all_percolated_regions):
+            complete_pockets[pocket_id] = rs
+            logger.debug(f"PBC group {pocket_id} is COMPLETE for void volume - all {len(rs)} regions percolate at this probe")
         else:
-            # Find which regions are missing from percolation
-            missing_regions = region_set - all_percolated_regions
-            accessible_regions = region_set.intersection(all_percolated_regions)
-
+            accessible_regions = rs.intersection(all_percolated_regions)
+            missing_regions = rs - all_percolated_regions
             incomplete_pockets[pocket_id] = {
-                'all_regions': region_set,
+                'all_regions': rs,
                 'accessible_regions': accessible_regions,
                 'missing_regions': missing_regions,
-                'completeness_fraction': len(accessible_regions) / len(region_set) if region_set else 0
+                'completeness_fraction': len(accessible_regions) / len(rs) if rs else 0
             }
+            logger.debug(
+                f"PBC group {pocket_id} partial for void volume - "
+                f"{len(accessible_regions)}/{len(rs)} regions "
+                f"(completeness: {incomplete_pockets[pocket_id]['completeness_fraction']:.2%})"
+            )
 
-            logger.warning(f"PBC group {pocket_id} is INCOMPLETE for void volume - {len(missing_regions)}/{len(region_set)} regions not percolated "
-                          f"(completeness: {incomplete_pockets[pocket_id]['completeness_fraction']:.2%})")
+    logger.info(
+        f"Found {len(complete_pockets)} fully percolating PBC pockets and {len(incomplete_pockets)} partial (void volume)"
+    )
 
-    logger.info(f"Found {len(complete_pockets)} complete pockets and {len(incomplete_pockets)} incomplete pockets for void volume")
-
-    # Recalculate accessible pocket volumes with completeness information
-    accessible_pocket_volumes = {}
     flagged_pocket_volumes = {}
-
-    # Add complete pockets
-    for pocket_id, region_set in complete_pockets.items():
-        accessible_volume = sum(accessible_region_volumes.get(region_id, 0) for region_id in region_set)
-        if accessible_volume > 0:
-            accessible_pocket_volumes[pocket_id] = accessible_volume
-            logger.debug(f"Complete pocket {pocket_id}: accessible void volume = {accessible_volume:.4f} cm³/g")
-
-    # Add incomplete pockets (flagged)
     for pocket_id, pocket_info in incomplete_pockets.items():
-        accessible_volume = sum(accessible_region_volumes.get(region_id, 0)
-                            for region_id in pocket_info['accessible_regions'])
+        accessible_volume = sum(
+            accessible_region_volumes.get(region_id, 0) for region_id in pocket_info['accessible_regions']
+        )
         if accessible_volume > 0:
             flagged_pocket_volumes[pocket_id] = {
                 'accessible_void_volume': accessible_volume,
@@ -9474,8 +9443,10 @@ def compute_void_volume_from_results(
                 'missing_regions': list(pocket_info['missing_regions']),
                 'accessible_regions': list(pocket_info['accessible_regions'])
             }
-            logger.info(f"Flagged incomplete pocket {pocket_id}: accessible void volume = {accessible_volume:.4f} cm³/g "
-                       f"(completeness: {pocket_info['completeness_fraction']:.2%})")
+            logger.debug(
+                f"Pocket {pocket_id}: partial accessible void volume = {accessible_volume:.4f} cm³/g "
+                f"(completeness: {pocket_info['completeness_fraction']:.2%})"
+            )
 
     # Step 7: Calculate total accessible void volume
     accessible_void_volume = sum(accessible_region_volumes.values())
