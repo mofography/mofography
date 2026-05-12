@@ -3189,7 +3189,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function updateSurfaceCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellPbc) {
-        const ids = ["surface", "surface_regions_raw", "surface_regions_pbc"];
+        const ids = ["surface_pbc", "surface_regions_pbc"];
         const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
         cellPbc.visible = exploded && anyVisible;
       }
