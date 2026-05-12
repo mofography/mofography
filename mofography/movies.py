@@ -2033,16 +2033,33 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
       recreateComposer();
 
-      // Boost directional contrast in ortho (no SSAO → need stronger highlights)
-      var dirScale = isOrtho ? 1.4 : (1.0 / 1.4);
+      var dirScale = isOrtho ? 1.8 : (1.0 / 1.8);
       dirKey.intensity *= dirScale;
       dirFill.intensity *= dirScale;
+      ambient.intensity = isOrtho ? 0.12 : 0.28;
+      hemiLight.intensity = isOrtho ? 0.40 : 0.25;
 
-      // Ortho linear depth puts points behind surfaces → disable depth test
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
           obj.material.depthTest = !isOrtho;
           obj.material.depthWrite = !isOrtho;
+          if (isOrtho) {
+            obj.material.userData = obj.material.userData || {};
+            obj.material.userData.perspSize = obj.material.userData.perspSize || obj.material.size;
+            obj.material.size = obj.material.userData.perspSize * 1.8;
+          } else if (obj.material.userData && obj.material.userData.perspSize) {
+            obj.material.size = obj.material.userData.perspSize;
+          }
+          obj.material.needsUpdate = true;
+        }
+        if (obj && obj.material && obj.material.isMeshStandardMaterial) {
+          if (isOrtho) {
+            obj.material.userData = obj.material.userData || {};
+            obj.material.userData.perspRoughness = obj.material.userData.perspRoughness !== undefined ? obj.material.userData.perspRoughness : obj.material.roughness;
+            obj.material.roughness = obj.material.userData.perspRoughness * 0.65;
+          } else if (obj.material.userData && obj.material.userData.perspRoughness !== undefined) {
+            obj.material.roughness = obj.material.userData.perspRoughness;
+          }
           obj.material.needsUpdate = true;
         }
       });
@@ -2058,6 +2075,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const dirFill = new THREE.DirectionalLight(0xffffff, 0.32);
     dirFill.position.set(-5, -9, -7.5);
     scene.add(dirFill);
+
+    // Ortho init: adjust lighting when starting in orthographic mode
+    if (isOrtho) {
+      dirKey.intensity *= 1.8;
+      dirFill.intensity *= 1.8;
+      ambient.intensity = 0.12;
+      hemiLight.intensity = 0.40;
+    }
 
     // SSAO post-processing (perspective only — orthographic produces black output)
     let composer, ssaoPass;
@@ -2168,7 +2193,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         geo.setAttribute("color", new THREE.Float32BufferAttribute(trace.data.colors, 3));
       }
       const style = styleFor(trace);
-      const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
+      const orthoPtBoost = isOrtho ? 1.8 : 1.0;
+      const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3 * orthoPtBoost;
       const mat = new THREE.PointsMaterial({
         size: size,
         map: circleTex,
@@ -2259,7 +2285,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       points.geometry = geo;
       if (oldGeo) oldGeo.dispose();
       const style = styleFor(trace);
-      points.material.size = pointsBaseSize(trace) * 1.3;
+      const orthoPtBoost = isOrtho ? 1.8 : 1.0;
+      points.material.size = pointsBaseSize(trace) * 1.3 * orthoPtBoost;
       points.material.vertexColors = !!(trace.data.colors && trace.data.colors.length);
       if (!trace.data.colors || !trace.data.colors.length) {
         points.material.color.copy(threeColorFromStyle(style.color, 0xffffff));
