@@ -2039,11 +2039,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
       recreateComposer();
 
-      var dirScale = isOrtho ? 1.8 : (1.0 / 1.8);
+      var dirScale = isOrtho ? 1.3 : (1.0 / 1.3);
       dirKey.intensity *= dirScale;
       dirFill.intensity *= dirScale;
-      ambient.intensity = isOrtho ? 0.12 : 0.28;
-      hemiLight.intensity = isOrtho ? 0.40 : 0.25;
+      ambient.intensity = isOrtho ? 0.18 : 0.28;
+      hemiLight.intensity = isOrtho ? 0.30 : 0.25;
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
@@ -2062,7 +2062,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           if (isOrtho) {
             obj.material.userData = obj.material.userData || {};
             obj.material.userData.perspRoughness = obj.material.userData.perspRoughness !== undefined ? obj.material.userData.perspRoughness : obj.material.roughness;
-            obj.material.roughness = obj.material.userData.perspRoughness * 0.65;
+            obj.material.roughness = obj.material.userData.perspRoughness * 0.80;
           } else if (obj.material.userData && obj.material.userData.perspRoughness !== undefined) {
             obj.material.roughness = obj.material.userData.perspRoughness;
           }
@@ -2084,10 +2084,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     // Ortho init: adjust lighting when starting in orthographic mode
     if (isOrtho) {
-      dirKey.intensity *= 1.8;
-      dirFill.intensity *= 1.8;
-      ambient.intensity = 0.12;
-      hemiLight.intensity = 0.40;
+      dirKey.intensity *= 1.3;
+      dirFill.intensity *= 1.3;
+      ambient.intensity = 0.18;
+      hemiLight.intensity = 0.30;
     }
 
     // SSAO post-processing (perspective only — orthographic produces black output)
