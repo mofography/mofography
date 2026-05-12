@@ -117,6 +117,7 @@ from ase.neighborlist import natural_cutoffs, neighbor_list
 from matplotlib import colors as mcolors
 from skimage.measure import marching_cubes
 
+from .analyze import update_with_covalent_bonds
 from .helper import get_fractional_coordinates, interpolate_labels
 
 # ---------------------------------------------------------------------------
@@ -3870,6 +3871,8 @@ def make_sparse_multicomponent_movie(
 
     for local_frame, global_frame_idx in enumerate(selected):
         framework_atoms = fw_snaps[global_frame_idx]["atoms"]
+        if animate_framework:
+            framework_atoms = update_with_covalent_bonds(framework_atoms)
         seg = seg_by_global_idx[int(global_frame_idx)]
 
         if animate_framework:
