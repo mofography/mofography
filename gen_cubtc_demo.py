@@ -15,7 +15,7 @@ def make_surface_trace_smooth(
     atoms, dgrid, labels_array, isovalue=1.0, step_size=1,
     trace_id="surface", name="Surface",
     hover_prefix="Region",
-    opacity=1.0, roughness=0.6, metalness=0.0,
+    opacity=1.0, roughness=0.15, metalness=0.05,
     smooth_iters=5,
 ):
     """Create a surface trace with unique per-region colors, label-0 fix, and Laplacian smoothing."""
@@ -78,7 +78,7 @@ def make_surface_trace_smooth(
     return _mt(
         trace_id=trace_id, trace_type="mesh", name=name,
         data=data,
-        style={"opacity": opacity, "roughness": roughness, "metalness": metalness, "side": "DoubleSide"},
+        style={"opacity": opacity, "roughness": roughness, "metalness": metalness, "side": "DoubleSide", "clearcoat": 0.8, "clearcoatRoughness": 0.05},
         hover=hover, visible=True,
     )
 

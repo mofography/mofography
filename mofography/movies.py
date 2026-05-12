@@ -143,9 +143,11 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "surface": {
         "opacity": 0.92,
-        "roughness": 0.34,
-        "metalness": 0.0,
+        "roughness": 0.15,
+        "metalness": 0.05,
         "side": "FrontSide",
+        "clearcoat": 0.8,
+        "clearcoatRoughness": 0.05,
     },
     "cell": {
         "color": 0xFFA500,
@@ -2158,13 +2160,31 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           }
           obj.material.needsUpdate = true;
         }
-        if (obj && obj.material && obj.material.isMeshStandardMaterial) {
+        if (obj && obj.material && (obj.material.isMeshStandardMaterial || obj.material.isMeshPhysicalMaterial)) {
           if (isOrtho) {
             obj.material.userData = obj.material.userData || {};
             obj.material.userData.perspRoughness = obj.material.userData.perspRoughness !== undefined ? obj.material.userData.perspRoughness : obj.material.roughness;
-            obj.material.roughness = obj.material.userData.perspRoughness * 0.80;
+            obj.material.roughness = Math.max(0.05, obj.material.userData.perspRoughness * 0.4);
+            if (obj.material.clearcoat !== undefined) {
+              obj.material.userData.perspClearcoat = obj.material.userData.perspClearcoat !== undefined ? obj.material.userData.perspClearcoat : obj.material.clearcoat;
+              obj.material.clearcoat = 1.0;
+              obj.material.clearcoatRoughness = 0.05;
+            }
+            if (hasColorsAttr(obj)) {
+              obj.material.userData.perspEmissive = obj.material.userData.perspEmissive !== undefined ? obj.material.userData.perspEmissive : obj.material.emissive.clone();
+              obj.material.emissive.copy(obj.material.userData.perspEmissive || new THREE.Color(0x000000));
+              obj.material.emissiveIntensity = 0.15;
+            }
           } else if (obj.material.userData && obj.material.userData.perspRoughness !== undefined) {
             obj.material.roughness = obj.material.userData.perspRoughness;
+            if (obj.material.clearcoat !== undefined && obj.material.userData.perspClearcoat !== undefined) {
+              obj.material.clearcoat = obj.material.userData.perspClearcoat;
+              obj.material.clearcoatRoughness = obj.material.userData.perspClearcoatRoughness || 0.1;
+            }
+            if (obj.material.userData.perspEmissive !== undefined) {
+              obj.material.emissive.copy(obj.material.userData.perspEmissive);
+              obj.material.emissiveIntensity = 1.0;
+            }
           }
           obj.material.needsUpdate = true;
         }
@@ -2214,6 +2234,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       return {};
     }
 
+    function hasColorsAttr(obj) {
+      return obj && obj.geometry && obj.geometry.attributes && obj.geometry.attributes.color;
+    }
+
     function threeColorFromStyle(c, fallbackHex) {
       if (c === undefined || c === null) return new THREE.Color(fallbackHex !== undefined ? fallbackHex : 0xffffff);
       if (typeof c === "number") return new THREE.Color(c);
@@ -2248,14 +2272,30 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       geo.setIndex(trace.data.indices);
       geo.computeVertexNormals();
       const style = styleFor(trace);
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: !!(trace.data.colors && trace.data.colors.length),
-        transparent: true,
-        opacity: style.opacity !== undefined ? style.opacity : 0.95,
-        roughness: style.roughness !== undefined ? style.roughness : 0.38,
-        metalness: style.metalness !== undefined ? style.metalness : 0.0,
-        side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
-      });
+      const hasColors = !!(trace.data.colors && trace.data.colors.length);
+      const clearcoat = style.clearcoat !== undefined ? style.clearcoat : 0.0;
+      let mat;
+      if (typeof THREE.MeshPhysicalMaterial !== "undefined" && clearcoat > 0) {
+        mat = new THREE.MeshPhysicalMaterial({
+          vertexColors: hasColors,
+          transparent: true,
+          opacity: style.opacity !== undefined ? style.opacity : 0.95,
+          roughness: style.roughness !== undefined ? style.roughness : 0.38,
+          metalness: style.metalness !== undefined ? style.metalness : 0.0,
+          side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
+          clearcoat: clearcoat,
+          clearcoatRoughness: style.clearcoatRoughness !== undefined ? style.clearcoatRoughness : 0.1,
+        });
+      } else {
+        mat = new THREE.MeshStandardMaterial({
+          vertexColors: hasColors,
+          transparent: true,
+          opacity: style.opacity !== undefined ? style.opacity : 0.95,
+          roughness: style.roughness !== undefined ? style.roughness : 0.38,
+          metalness: style.metalness !== undefined ? style.metalness : 0.0,
+          side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
+        });
+      }
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = trace.id;
       scene.add(mesh);
