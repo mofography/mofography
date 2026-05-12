@@ -2420,12 +2420,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const upArr = {{up}};
     const projection = "{{projection}}";
 
-    // Pull camera 3.0x farther from center for better default framing
-    const _centerVec = new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]);
-    const _eyeVec = new THREE.Vector3(eyeArr[0], eyeArr[1], eyeArr[2]);
-    const _camDir = new THREE.Vector3().subVectors(_eyeVec, _centerVec).multiplyScalar(3.0);
-    const _scaledEye = new THREE.Vector3().addVectors(_centerVec, _camDir);
-    const scaledEyeArr = [_scaledEye.x, _scaledEye.y, _scaledEye.z];
+    const scaledEyeArr = eyeArr;
 
     let camera, perspectiveCam, orthoCam, frustumSize, isOrtho;
     const aspect = window.innerWidth / window.innerHeight;
@@ -2940,10 +2935,27 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let frameDtMs = 1000.0 / Math.max({{fps}}, 0.01);
     const fps = Math.max({{fps}}, 0.01);
 
-    slider.max = String(Math.max(FRAMES.length - 1, 0));
+        slider.max = String(Math.max(FRAMES.length - 1, 0));
     metaEl.textContent = `Frames: ${FRAMES.length}`;
     controls.target.copy(sceneCenter);
     controls.update();
+
+    // Override default camera to 1.5 * (la, lb, lc) from scene center along (1,1,1)
+    let _camOverridePos = null;
+    if (cellObj && cellObj.geometry && cellObj.geometry.attributes && cellObj.geometry.attributes.position) {
+      const cpos = cellObj.geometry.attributes.position.array;
+      const la = Math.sqrt(cpos[3]*cpos[3] + cpos[4]*cpos[4] + cpos[5]*cpos[5]);
+      const lb = Math.sqrt(cpos[9]*cpos[9] + cpos[10]*cpos[10] + cpos[11]*cpos[11]);
+      const lc = Math.sqrt(cpos[15]*cpos[15] + cpos[16]*cpos[16] + cpos[17]*cpos[17]);
+      _camOverridePos = new THREE.Vector3(1.5 * la, 1.5 * lb, 1.5 * lc);
+      [perspectiveCam, orthoCam].forEach(function(cam) {
+        cam.position.copy(_camOverridePos);
+        cam.lookAt(sceneCenter);
+      });
+      controls.target.copy(sceneCenter);
+      controls.update();
+      updateOrthoFrustum();
+    }
 
     // Exploded view: two groups
     //   Group 0 (stays): framework + surface + original cell
@@ -3012,6 +3024,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         wrapper.appendChild(slider);
         meshOpacityContainer.appendChild(wrapper);
       });
+      // Stacking-order note for overlapping mesh traces (e.g. multiple surfaces)
+      if (meshTraces.length > 0) {
+        const note = document.createElement("div");
+        note.style.cssText = "font-size:9px;color:#aaa;margin-top:4px;font-style:italic;";
+        note.textContent = "Tip: turn off upper surfaces to see through to lower ones";
+        meshOpacityContainer.appendChild(note);
+      }
     }
 
     function setFrame(i) {
@@ -3156,7 +3175,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     // ---- New dynamic controls ----
-    const _camOrig = { pos: new THREE.Vector3(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2]), target: new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]) };
+    const _camOrigPos = _camOverridePos ? _camOverridePos.clone() : new THREE.Vector3(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2]);
+    const _camOrig = { pos: _camOrigPos, target: sceneCenter.clone() };
     resetCamBtn.addEventListener("click", () => {
       camera.position.copy(_camOrig.pos);
       controls.target.copy(_camOrig.target);
