@@ -391,13 +391,16 @@ def _serialize_segmentation_surface_mesh(
     labels = interp(frac % 1).astype(int)
     cscale = [
         [102, 197, 204],
-        [143, 200, 178],
-        [184, 203, 152],
-        [225, 206, 126],
-        [246, 200, 113],
-        [247, 171, 115],
-        [240, 162, 152],
-        [224, 173, 224],
+        [246, 207, 113],
+        [248, 156, 116],
+        [220, 176, 242],
+        [135, 197, 95],
+        [158, 185, 243],
+        [254, 136, 177],
+        [201, 219, 116],
+        [139, 224, 164],
+        [180, 151, 231],
+        [179, 179, 179],
     ]
     uniq = sorted([int(x) for x in np.unique(labels) if int(x) > 0])
     cmap = {rid: cscale[i % len(cscale)] for i, rid in enumerate(uniq)}
@@ -438,16 +441,18 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms) -> dict[str, Any]
     frac = maxima / np.asarray(dgrid.shape, dtype=float)
     pos = np.dot(cell, frac.T).T
 
-    # Segmentation palette (same 8 colors used for surface regions)
     cscale = [
         [102, 197, 204],
-        [143, 200, 178],
-        [184, 203, 152],
-        [225, 206, 126],
-        [246, 200, 113],
-        [247, 171, 115],
-        [240, 162, 152],
-        [224, 173, 224],
+        [246, 207, 113],
+        [248, 156, 116],
+        [220, 176, 242],
+        [135, 197, 95],
+        [158, 185, 243],
+        [254, 136, 177],
+        [201, 219, 116],
+        [139, 224, 164],
+        [180, 151, 231],
+        [179, 179, 179],
     ]
 
     # Color maxima by their region label for consistency with the surface mesh.
@@ -2046,7 +2051,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           if (isOrtho) {
             obj.material.userData = obj.material.userData || {};
             obj.material.userData.perspSize = obj.material.userData.perspSize || obj.material.size;
-            obj.material.size = obj.material.userData.perspSize * 1.8;
+            obj.material.size = obj.material.userData.perspSize * 4.0;
           } else if (obj.material.userData && obj.material.userData.perspSize) {
             obj.material.size = obj.material.userData.perspSize;
           }
@@ -2193,7 +2198,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         geo.setAttribute("color", new THREE.Float32BufferAttribute(trace.data.colors, 3));
       }
       const style = styleFor(trace);
-      const orthoPtBoost = isOrtho ? 1.8 : 1.0;
+      const orthoPtBoost = isOrtho ? 4.0 : 1.0;
       const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3 * orthoPtBoost;
       const mat = new THREE.PointsMaterial({
         size: size,
@@ -2285,7 +2290,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       points.geometry = geo;
       if (oldGeo) oldGeo.dispose();
       const style = styleFor(trace);
-      const orthoPtBoost = isOrtho ? 1.8 : 1.0;
+      const orthoPtBoost = isOrtho ? 4.0 : 1.0;
       points.material.size = pointsBaseSize(trace) * 1.3 * orthoPtBoost;
       points.material.vertexColors = !!(trace.data.colors && trace.data.colors.length);
       if (!trace.data.colors || !trace.data.colors.length) {
