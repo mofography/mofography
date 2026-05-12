@@ -2357,59 +2357,45 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const scene = new THREE.Scene();
     scene.background = new THREE.Color({{scene_bg}});
 
-    // --- Shader modes: fresnel, matcap ---
-    // Fresnel rim glow — edges glow with configurable color/intensity
-    const fresnelShader = {
-      uniforms: { fresnelColor: { value: new THREE.Color(0x66ccff) }, fresnelPower: { value: 2.5 } },
-      vertexShader: [
-        "varying vec3 vNormalW; varying vec3 vPositionW;",
-        "void main() {",
-        "  vNormalW = normalize(normalMatrix * normal);",
-        "  vec4 wp = modelMatrix * vec4(position, 1.0);",
-        "  vPositionW = wp.xyz;",
-        "  gl_Position = projectionMatrix * viewMatrix * wp;",
-        "}",
-      ].join("\n"),
-      fragmentShader: [
-        "uniform vec3 fresnelColor; uniform float fresnelPower;",
-        "uniform vec3 diffuse; uniform float opacity;",
-        "varying vec3 vNormalW; varying vec3 vPositionW;",
-        "void main() {",
-        "  vec3 viewDir = normalize(cameraPosition - vPositionW);",
-        "  float fresnel = pow(1.0 - abs(dot(viewDir, vNormalW)), fresnelPower);",
-        "  vec3 col = diffuse + fresnelColor * fresnel * 0.6;",
-        "  gl_FragColor = vec4(col, opacity);",
-        "}",
-      ].join("\n"),
-    };
-
+    // --- Shader modes: fresnel rim glow, matcap lighting boost ---
     function applyShaderMode(material) {
-      if (SHADER_MODE !== "fresnel" && SHADER_MODE !== "matcap") return;
-      material.onBeforeCompile = function(shader) {
-        if (SHADER_MODE === "fresnel") {
+      if (SHADER_MODE === "fresnel") {
+        material.onBeforeCompile = function(shader) {
           shader.uniforms.fresnelColor = { value: new THREE.Color(0x66ccff) };
           shader.uniforms.fresnelPower = { value: 2.5 };
+          shader.vertexShader = shader.vertexShader.replace(
+            "#include <worldpos_vertex>",
+            "#include <worldpos_vertex>\n  #if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined( USE_SHADOWMAP )\n    vec4 worldPos4 = modelMatrix * vec4(transformed, 1.0);\n  #endif"
+          );
           shader.fragmentShader = shader.fragmentShader.replace(
             "void main() {",
-            "uniform vec3 fresnelColor; uniform float fresnelPower;\nvarying vec3 vWorldPos;\nvoid main() {"
+            "uniform vec3 fresnelColor; uniform float fresnelPower;\nvoid main() {"
           );
           shader.fragmentShader = shader.fragmentShader.replace(
             "#include <emissivemap_fragment>",
-            "#include <emissivemap_fragment>\n  vec3 viewDir = normalize(cameraPosition - vWorldPos);\n  float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), fresnelPower);\n  totalEmissiveRadiance += fresnelColor * fresnel * 0.7;"
+            [
+              "#include <emissivemap_fragment>",
+              "  vec3 vViewDir = normalize(cameraPosition - vViewPosition);",
+              "  float fRim = pow(1.0 - abs(dot(normalize(vNormal), vViewDir)), fresnelPower);",
+              "  totalEmissiveRadiance += fresnelColor * fRim * 0.6;",
+            ].join("\n")
           );
-        }
-        if (SHADER_MODE === "matcap") {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <normal_fragment_begin>",
-            "#include <normal_fragment_begin>\n  vec2 matcapUV = normal.xy * 0.5 + 0.5;"
-          );
+        };
+        material.needsUpdate = true;
+      } else if (SHADER_MODE === "matcap") {
+        material.onBeforeCompile = function(shader) {
           shader.fragmentShader = shader.fragmentShader.replace(
             "#include <color_fragment>",
-            "#include <color_fragment>\n  float mc = 0.5 + 0.5 * dot(normal, vec3(0.0, 0.0, 1.0));\n  diffuseColor.rgb *= (0.6 + 0.4 * mc);"
+            [
+              "#include <color_fragment>",
+              "  vec3 mcNormal = normalize(vNormal);",
+              "  float mcShade = 0.55 + 0.45 * mcNormal.z;",
+              "  diffuseColor.rgb *= mcShade;",
+            ].join("\n")
           );
-        }
-      };
-      material.needsUpdate = true;
+        };
+        material.needsUpdate = true;
+      }
     }
 
     const eyeArr = {{eye}};
