@@ -2423,10 +2423,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       recreateComposer();
 
       var dirScale = isOrtho ? 1.3 : (1.0 / 1.3);
-      dirKey.intensity *= dirScale;
-      dirFill.intensity *= dirScale;
-      ambient.intensity = isOrtho ? 0.07 : 0.28;
-      hemiLight.intensity = isOrtho ? 0.11 : 0.25;
+      if (isOrtho) {
+        dirKey.intensity *= 1.15;
+        dirFill.intensity *= 1.15;
+      } else {
+        dirKey.intensity /= 1.15;
+        dirFill.intensity /= 1.15;
+      }
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
@@ -2442,32 +2445,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.material.needsUpdate = true;
         }
         if (obj && obj.material && (obj.material.isMeshStandardMaterial || obj.material.isMeshPhysicalMaterial)) {
-          if (isOrtho) {
-            obj.material.userData = obj.material.userData || {};
-            obj.material.userData.perspRoughness = obj.material.userData.perspRoughness !== undefined ? obj.material.userData.perspRoughness : obj.material.roughness;
-            obj.material.roughness = Math.max(0.05, obj.material.userData.perspRoughness * 0.4);
-            if (obj.material.clearcoat !== undefined) {
-              obj.material.userData.perspClearcoat = obj.material.userData.perspClearcoat !== undefined ? obj.material.userData.perspClearcoat : obj.material.clearcoat;
-              obj.material.clearcoat = 1.0;
-              obj.material.clearcoatRoughness = 0.05;
-            }
-            if (hasColorsAttr(obj)) {
-              obj.material.userData.perspEmissive = obj.material.userData.perspEmissive !== undefined ? obj.material.userData.perspEmissive : obj.material.emissive.clone();
-              obj.material.emissive.copy(obj.material.userData.perspEmissive || new THREE.Color(0x000000));
-              obj.material.emissiveIntensity = 0.15;
-            }
-          } else if (obj.material.userData && obj.material.userData.perspRoughness !== undefined) {
-            obj.material.roughness = obj.material.userData.perspRoughness;
-            if (obj.material.clearcoat !== undefined && obj.material.userData.perspClearcoat !== undefined) {
-              obj.material.clearcoat = obj.material.userData.perspClearcoat;
-              obj.material.clearcoatRoughness = obj.material.userData.perspClearcoatRoughness || 0.1;
-            }
-            if (obj.material.userData.perspEmissive !== undefined) {
-              obj.material.emissive.copy(obj.material.userData.perspEmissive);
-              obj.material.emissiveIntensity = 1.0;
-            }
-          }
-          obj.material.needsUpdate = true;
+          // No material changes in ortho — keep perspective colors intact
         }
       });
     });
@@ -2483,12 +2461,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     dirFill.position.set(-5, -9, -7.5);
     scene.add(dirFill);
 
-    // Ortho init: adjust lighting when starting in orthographic mode
+    // Ortho init: compensate for lack of SSAO with stronger directional contrast
     if (isOrtho) {
-      dirKey.intensity *= 1.3;
-      dirFill.intensity *= 1.3;
-      ambient.intensity = 0.07;
-      hemiLight.intensity = 0.11;
+      dirKey.intensity *= 1.15;
+      dirFill.intensity *= 1.15;
     }
 
     // SSAO post-processing (perspective only — orthographic produces black output)
