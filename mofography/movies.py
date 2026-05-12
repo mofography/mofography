@@ -3308,7 +3308,17 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         return;
       }
       const meshHits = hits.filter(h => h.face);
-      const hit = meshHits.length ? meshHits[0] : hits[0];
+      let hit;
+      if (meshHits.length) {
+        // Pick the mesh that is rendered last (visually on top in the scene)
+        hit = meshHits.reduce((best, h) => {
+          const bestIdx = scene.children.indexOf(best.object);
+          const hIdx = scene.children.indexOf(h.object);
+          return hIdx > bestIdx ? h : best;
+        });
+      } else {
+        hit = hits[0];
+      }
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
