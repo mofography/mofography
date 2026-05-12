@@ -2957,9 +2957,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
     }
 
-    // Exploded view: two groups
-    //   Group 0 (stays): framework + surface + original cell
-    //   Group 1 (moves): all pore graph traces + a single cell copy
+    // Exploded view: two groups move in opposite directions
+    //   Group 0 (moves left):  framework + surface + original cell
+    //   Group 1 (moves right): all pore graph traces + a single cell copy
     const _explodeGroups = [
       ["cell", "framework", "surface"],
       ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
@@ -3245,13 +3245,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const dist = parseFloat(explodeSlider.value);
       const spacing = dist * 8.0;
       _explodeGroups.forEach(function(group, idx) {
+        const offset = (idx === 0) ? -spacing : spacing;
         group.forEach(function(tid) {
           const obj = objectsById[tid];
           if (!obj) return;
           if (_explodeOrig[tid] === undefined) {
             _explodeOrig[tid] = obj.position.clone();
           }
-          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(idx * spacing, 0, 0));
+          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offset, 0, 0));
         });
       });
       // Show/hide the cell copy when exploded
