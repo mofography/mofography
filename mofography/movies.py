@@ -2928,6 +2928,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     controls.target.copy(sceneCenter);
     controls.update();
 
+    // Exploded view: move trace groups horizontally apart
+    const _explodeGroups = [
+      ["cell", "framework"],
+      ["surface"],
+      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"],
+      ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"],
+    ];
+
     // Create extra unit-cell copies for exploded view (one per additional group)
     const cellObj = objectsById["cell"];
     const _cellCopies = [];
@@ -3170,13 +3178,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       dirFill.intensity = (_lightOrig.fill !== undefined ? _lightOrig.fill : 0.32) * mult;
     });
 
-    // Exploded view: move trace groups horizontally apart
-    const _explodeGroups = [
-      ["cell", "framework"],
-      ["surface"],
-      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"],
-      ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"],
-    ];
     const _explodeOrig = {};
     explodeSlider.addEventListener("input", () => {
       const dist = parseFloat(explodeSlider.value);
