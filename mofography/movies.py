@@ -2068,7 +2068,7 @@ def build_fixed_framework_movie(
     isovalue: float = 1.0,
     surf_step_size: int = 2,
     fps: float = 20.0,
-    eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
+    eye: tuple[float, float, float] = (1.5, 1.5, 1.5),
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
     max_frames: int | None = None,
@@ -2268,8 +2268,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="measureTool">Measure</button>
     </div>
     <div class="checkrow" id="advancedControls" style="flex-direction:column;gap:6px;">
-      <label>Mesh opacity: <select id="opacityTarget" style="font-size:10px;vertical-align:middle;width:90px;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface</option></select> <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:60px;vertical-align:middle;" /></label>
-      <label>Framework scale: <input id="fwScale" type="range" min="0.3" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Mesh opacity: <select id="opacityTarget" style="font-size:10px;vertical-align:middle;width:90px;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface (regions)</option></select> <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:60px;vertical-align:middle;" /></label>
       <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
@@ -2277,7 +2276,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label>Exploded: <input id="explodeSlider" type="range" min="0" max="2" step="0.05" value="0" style="width:80px;vertical-align:middle;" /></label>
       <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
       <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
-      <label><input type="checkbox" id="showAtomLabels" /> Atom labels</label>
     </div>
     <div class="checkrow">
       <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
@@ -2346,9 +2344,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const explodeSlider = document.getElementById("explodeSlider");
     const bgPicker = document.getElementById("bgPicker");
     const pngResSelect = document.getElementById("pngRes");
-    const showAtomLabelsCb = document.getElementById("showAtomLabels");
     const opacityTarget = document.getElementById("opacityTarget");
-    const fwScaleSlider = document.getElementById("fwScale");
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -3052,19 +3048,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const val = parseFloat(surfOpacitySlider.value);
       const target = opacityTarget.value;
       Object.values(objectsById).forEach(function(obj) {
-        if (obj && obj.material && obj.material.transparent !== undefined && obj.type === "Mesh") {
+        if (obj && obj.isMesh && obj.material) {
           if (target === "all" || obj.name === target) {
             obj.material.opacity = val;
             obj.material.needsUpdate = true;
           }
         }
       });
-    });
-
-    fwScaleSlider.addEventListener("input", () => {
-      const s = parseFloat(fwScaleSlider.value);
-      const fw = objectsById["framework"];
-      if (fw) { fw.scale.set(s, s, s); }
     });
 
     ptSizeSlider.addEventListener("input", () => {
@@ -3095,23 +3085,27 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       dirFill.intensity = (_lightOrig.fill !== undefined ? _lightOrig.fill : 0.32) * mult;
     });
 
+    // Exploded view: move trace groups horizontally apart
+    const _explodeGroups = [
+      ["cell", "framework"],
+      ["surface"],
+      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"],
+      ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"],
+    ];
+    const _explodeOrig = {};
     explodeSlider.addEventListener("input", () => {
       const dist = parseFloat(explodeSlider.value);
-      const cell = objectsById["cell"];
-      const fw = objectsById["framework"];
-      const surf = objectsById["surface"];
-      if (cell && cell.geometry) {
-        const scale = 1.0 + dist * 0.5;
-        cell.scale.set(scale, scale, scale);
-      }
-      if (fw && fw.geometry) {
-        const d = dist * 0.3;
-        fw.position.set(d, d, d);
-      }
-      if (surf && surf.geometry) {
-        const d = dist * 0.3;
-        surf.position.set(-d, -d, -d);
-      }
+      const spacing = dist * 3.0;
+      _explodeGroups.forEach(function(group, idx) {
+        group.forEach(function(tid) {
+          const obj = objectsById[tid];
+          if (!obj) return;
+          if (_explodeOrig[tid] === undefined) {
+            _explodeOrig[tid] = obj.position.clone();
+          }
+          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(idx * spacing, 0, 0));
+        });
+      });
     });
 
     bgPicker.addEventListener("input", () => {
@@ -3134,40 +3128,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         markers.forEach(function(m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
       }
     });
-
-    // Atom labels (simple sprites)
-    const atomLabels = [];
-    function toggleAtomLabels() {
-      atomLabels.forEach(function(lbl) { scene.remove(lbl); });
-      atomLabels.length = 0;
-      if (!showAtomLabelsCb.checked) return;
-      const fw = objectsById["framework"];
-      if (!fw || !fw.geometry || !fw.geometry.attributes || !fw.geometry.attributes.position) return;
-      const pos = fw.geometry.attributes.position.array;
-      const hover = fw.userData && fw.userData.hoverText ? fw.userData.hoverText : [];
-      for (let i = 0; i < pos.length; i += 3) {
-        const txt = hover[i/3] || "";
-        const elSym = txt.split(" ")[0];
-        if (!elSym) continue;
-        const canvas = document.createElement('canvas');
-        canvas.width = 64; canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0, 0, 64, 32);
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(elSym, 32, 22);
-        const tex = new THREE.CanvasTexture(canvas);
-        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
-        const sprite = new THREE.Sprite(mat);
-        sprite.position.set(pos[i], pos[i+1] + 0.4, pos[i+2]);
-        sprite.scale.set(0.6, 0.3, 1);
-        scene.add(sprite);
-        atomLabels.push(sprite);
-      }
-    }
-    showAtomLabelsCb.addEventListener("change", toggleAtomLabels);
 
     const raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 0.3;
