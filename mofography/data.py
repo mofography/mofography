@@ -525,6 +525,121 @@ def atoms_from_mofdb_df(mofdb_df):
     return np.array(atoms_list, dtype="object")
 
 
+def get_atoms_from_mofdb_df_parallel(
+    mofdb_df,
+    scheduler: str = "threads",
+):
+    """
+    Parallel variant of ``atoms_from_mofdb_df`` for large MOFdb-style DataFrames.
+
+    Uses Dask delayed to parse CIF strings into ASE Atoms objects in parallel.
+
+    - Input df is expected to have columns:
+        - ``'cif'`` : CIF content as strings
+        - ``'name'``: material name (used to set ``atoms.info['name']``)
+    - Each failed or malformed CIF is turned into the string ``'NaN'``,
+      matching the behavior of ``read_cif_string`` and ``atoms_from_mofdb_df``.
+
+    Parameters
+    ----------
+    mofdb_df : pandas.DataFrame
+        MOFdb-style dataframe from ``get_data_from_mofdb`` (or similar) with
+        at least ``'cif'`` and ``'name'`` columns.
+    scheduler : str, optional
+        Dask scheduler to use for ``dask.compute`` (default: ``'threads'``).
+
+    Returns
+    -------
+    numpy.ndarray
+        1D object array of ASE Atoms objects or ``'NaN'`` entries, aligned
+        with the rows of ``mofdb_df``.
+    """
+    import numpy as np
+    from dask import delayed, compute
+
+    if "cif" not in mofdb_df.columns:
+        raise ValueError("DataFrame missing required column 'cif'")
+    if "name" not in mofdb_df.columns:
+        raise ValueError("DataFrame missing required column 'name'")
+
+    def _safe_read_atoms(cif_str, name):
+        atoms = read_cif_string(cif_str)
+        if atoms != "NaN":
+            atoms.info["name"] = name
+        return atoms
+
+    names = mofdb_df["name"].tolist()
+    cif_strings = mofdb_df["cif"].tolist()
+
+    delayed_atoms = [
+        delayed(_safe_read_atoms)(cif, name)
+        for cif, name in zip(cif_strings, names)
+    ]
+
+    atoms_list = list(compute(*delayed_atoms, scheduler=scheduler))
+    return np.array(atoms_list, dtype="object")
+
+
+def write_cifs_from_mofdb_df(
+    mofdb_df,
+    folder,
+    name_column="name",
+    cif_column="cif",
+    skip_failed=True,
+):
+    """
+    Write CIF strings from a MOFdb-style DataFrame to .cif files in a folder.
+    Creates the folder if it does not exist. Uses the name column for filenames
+    (sanitized); duplicate names get _1, _2, ... appended.
+
+    :param mofdb_df: DataFrame with CIF data (e.g. from get_data_from_mofdb or
+        sample_representative_mofdb). Must have columns for names and CIF strings.
+    :param folder: Path or str to the output directory (created if missing).
+    :param name_column: Column used for filenames (default "name").
+    :param cif_column: Column containing CIF content as strings (default "cif").
+    :param skip_failed: If True, skip rows with missing or empty CIF (default True).
+    :return: List of Paths of written .cif files.
+    """
+    import re
+    from pathlib import Path
+
+    folder = Path(folder).expanduser().resolve()
+    folder.mkdir(parents=True, exist_ok=True)
+
+    if name_column not in mofdb_df.columns:
+        raise ValueError(f"DataFrame missing column: {name_column}")
+    if cif_column not in mofdb_df.columns:
+        raise ValueError(f"DataFrame missing column: {cif_column}")
+
+    def safe_filename(s):
+        s = str(s).strip()
+        s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", s)
+        return s[:200] if s else "unnamed"
+
+    written = []
+    seen = {}
+    for idx, row in mofdb_df.iterrows():
+        cif = row[cif_column]
+        if skip_failed and (cif is None or (isinstance(cif, str) and not cif.strip())):
+            continue
+        if not isinstance(cif, str):
+            cif = str(cif)
+        base = safe_filename(row[name_column])
+        stem = base
+        suffix = ""
+        n = 0
+        while True:
+            path = folder / f"{stem}{suffix}.cif"
+            if path not in written and not path.exists():
+                break
+            n += 1
+            suffix = f"_{n}"
+            stem = base
+        path.write_text(cif, encoding="utf-8")
+        written.append(path)
+    return written
+
+
 def read_raspa_pdb(path_to_file, symbol_map=None):
     """
             created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
@@ -568,8 +683,9 @@ def read_raspa_pdb(path_to_file, symbol_map=None):
             if len(parts) >= 7:  # Ensure there are enough parts to avoid index errors
                 try:
                     coord.append(np.array(parts[4:7], dtype=float))
-                    # Use symbol_map if provided, otherwise use the original symbol
-                    symbol = parts[2]
+                    # Prefer the element column (last token in PDB ATOM records),
+                    # fall back to the atom label when missing.
+                    symbol = parts[-1] if len(parts) >= 10 else parts[2]
                     if symbol_map and symbol in symbol_map:
                         symbol = symbol_map[
                             symbol

@@ -1371,7 +1371,9 @@ fn seeded_watershed_det_parallel(
                 break;
             }
 
-            let assignments = Mutex::new(Vec::<(usize, u32, usize)>::new());
+            // Per-thread assignment buffers to avoid contention, followed by a
+            // single deterministic merge + sort in the main thread.
+            let assignments = std::sync::Mutex::new(Vec::<(usize, u32, usize)>::new());
 
             frontier.par_iter().for_each(|&idx| {
                 let current_label = labels[idx];

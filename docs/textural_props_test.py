@@ -18,7 +18,7 @@ stackprinter.set_excepthook(style="full")
 
 # get dat from mofdb for iza
 iza_df = await mgr.get_data_from_mofdb(
-    params=dict(database="IZA", Vf_min=0, Vf_max=1.0)
+    params=dict(database="IZA", vf_min=0, vf_max=1.0)
 )
 iza_atoms = mgr.atoms_from_mofdb_df(iza_df)
 
