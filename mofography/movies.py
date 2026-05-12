@@ -2263,6 +2263,23 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       </div>
     </div>
     <div class="checkrow">
+      <button id="resetCam">Reset View</button>
+      <button id="toggleRotate">Auto-Rotate</button>
+      <button id="measureTool">Measure</button>
+    </div>
+    <div class="checkrow" id="advancedControls" style="flex-direction:column;gap:6px;">
+      <label>Mesh opacity: <select id="opacityTarget" style="font-size:10px;vertical-align:middle;width:90px;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface</option></select> <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:60px;vertical-align:middle;" /></label>
+      <label>Framework scale: <input id="fwScale" type="range" min="0.3" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
+      <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Exploded: <input id="explodeSlider" type="range" min="0" max="2" step="0.05" value="0" style="width:80px;vertical-align:middle;" /></label>
+      <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
+      <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+      <label><input type="checkbox" id="showAtomLabels" /> Atom labels</label>
+    </div>
+    <div class="checkrow">
       <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
       <label id="labelShowFramework"><input type="checkbox" id="showFramework" checked /> Framework mesh</label>
       <label id="labelShowSurface"><input type="checkbox" id="showSurface" checked /> Segmentation surface (regions)</label>
@@ -2318,6 +2335,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const showPeriodicConnections = document.getElementById("showPeriodicConnections");
     const pivotSceneBtn = document.getElementById("pivotScene");
     const pivotOriginBtn = document.getElementById("pivotOrigin");
+    const resetCamBtn = document.getElementById("resetCam");
+    const toggleRotateBtn = document.getElementById("toggleRotate");
+    const measureBtn = document.getElementById("measureTool");
+    const surfOpacitySlider = document.getElementById("surfOpacity");
+    const ptSizeSlider = document.getElementById("ptSizeSlider");
+    const speedSlider = document.getElementById("speedSlider");
+    const ambSlider = document.getElementById("ambSlider");
+    const dirSlider = document.getElementById("dirSlider");
+    const explodeSlider = document.getElementById("explodeSlider");
+    const bgPicker = document.getElementById("bgPicker");
+    const pngResSelect = document.getElementById("pngRes");
+    const showAtomLabelsCb = document.getElementById("showAtomLabels");
+    const opacityTarget = document.getElementById("opacityTarget");
+    const fwScaleSlider = document.getElementById("fwScale");
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -2710,7 +2741,31 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (trace.type === "mesh") addMesh(trace);
       else if (trace.type === "line_segments") addLineSegments(trace);
       else if (trace.type === "points") addPoints(trace);
-      else if (trace.type === "unit_cell_lines") addUnitCellLines(trace);
+      else if (trace.type === "unit_cell_lines") {
+        addUnitCellLines(trace);
+        // Add A/B/C axis labels at cell corners
+        if (trace.data && trace.data.positions && trace.data.positions.length >= 18) {
+          const pos = trace.data.positions;
+          const labels = [{ t: 'A', x: pos[3], y: pos[4], z: pos[5] }, { t: 'B', x: pos[9], y: pos[10], z: pos[11] }, { t: 'C', x: pos[15], y: pos[16], z: pos[17] }];
+          labels.forEach(function(lbl) {
+            const c = document.createElement('canvas');
+            c.width = 32; c.height = 32;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = 'rgba(255,165,0,0.9)';
+            ctx.font = 'bold 20px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(lbl.t, 16, 16);
+            const tex = new THREE.CanvasTexture(c);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(mat);
+            sprite.position.set(lbl.x, lbl.y, lbl.z);
+            sprite.scale.set(1.0, 1.0, 1);
+            sprite.name = 'axisLabel_' + lbl.t;
+            scene.add(sprite);
+          });
+        }
+      }
       else if (trace.type === "instanced_spheres") {
         if (trace.id === "guests" || trace.id.startsWith("guests_")) {
           return;
@@ -2838,7 +2893,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let frame = 0;
     let playing = false;
     let lastT = 0;
-    const frameDtMs = 1000.0 / Math.max({{fps}}, 0.01);
+    let frameDtMs = 1000.0 / Math.max({{fps}}, 0.01);
+    const fps = Math.max({{fps}}, 0.01);
 
     slider.max = String(Math.max(FRAMES.length - 1, 0));
     metaEl.textContent = `Frames: ${FRAMES.length}`;
@@ -2920,6 +2976,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     showCell.addEventListener("change", () => {
       const obj = objectsById["cell"];
       if (obj) obj.visible = showCell.checked;
+      scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
     });
     showFramework.addEventListener("change", () => {
       const obj = objectsById["framework"];
@@ -2972,6 +3029,145 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       controls.target.set(0, 0, 0);
       controls.update();
     });
+
+    // ---- New dynamic controls ----
+    const _camOrig = { pos: camera.position.clone(), target: controls.target.clone() };
+    resetCamBtn.addEventListener("click", () => {
+      camera.position.copy(_camOrig.pos);
+      controls.target.copy(_camOrig.target);
+      camera.lookAt(_camOrig.target);
+      controls.update();
+      updateOrthoFrustum();
+    });
+
+    let autoRotating = false;
+    toggleRotateBtn.addEventListener("click", () => {
+      autoRotating = !autoRotating;
+      controls.autoRotate = autoRotating;
+      controls.autoRotateSpeed = 2.0;
+      toggleRotateBtn.textContent = autoRotating ? "Stop Rotate" : "Auto-Rotate";
+    });
+
+    surfOpacitySlider.addEventListener("input", () => {
+      const val = parseFloat(surfOpacitySlider.value);
+      const target = opacityTarget.value;
+      Object.values(objectsById).forEach(function(obj) {
+        if (obj && obj.material && obj.material.transparent !== undefined && obj.type === "Mesh") {
+          if (target === "all" || obj.name === target) {
+            obj.material.opacity = val;
+            obj.material.needsUpdate = true;
+          }
+        }
+      });
+    });
+
+    fwScaleSlider.addEventListener("input", () => {
+      const s = parseFloat(fwScaleSlider.value);
+      const fw = objectsById["framework"];
+      if (fw) { fw.scale.set(s, s, s); }
+    });
+
+    ptSizeSlider.addEventListener("input", () => {
+      const mult = parseFloat(ptSizeSlider.value);
+      Object.values(objectsById).forEach(function(obj) {
+        if (obj && obj.material && obj.material.isPointsMaterial) {
+          var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
+          obj.material.size = base * mult * (isOrtho ? 2.0 : 1.0);
+          obj.material.needsUpdate = true;
+        }
+      });
+    });
+
+    let speedMult = 1.0;
+    speedSlider.addEventListener("input", () => {
+      speedMult = parseFloat(speedSlider.value);
+      if (FRAMES.length > 1) {
+        frameDtMs = 1000.0 / (fps * speedMult);
+      }
+    });
+
+    ambSlider.addEventListener("input", () => {
+      ambient.intensity = parseFloat(ambSlider.value);
+    });
+    dirSlider.addEventListener("input", () => {
+      const mult = parseFloat(dirSlider.value);
+      dirKey.intensity = (_lightOrig.key !== undefined ? _lightOrig.key : 0.48) * mult;
+      dirFill.intensity = (_lightOrig.fill !== undefined ? _lightOrig.fill : 0.32) * mult;
+    });
+
+    explodeSlider.addEventListener("input", () => {
+      const dist = parseFloat(explodeSlider.value);
+      const cell = objectsById["cell"];
+      const fw = objectsById["framework"];
+      const surf = objectsById["surface"];
+      if (cell && cell.geometry) {
+        const scale = 1.0 + dist * 0.5;
+        cell.scale.set(scale, scale, scale);
+      }
+      if (fw && fw.geometry) {
+        const d = dist * 0.3;
+        fw.position.set(d, d, d);
+      }
+      if (surf && surf.geometry) {
+        const d = dist * 0.3;
+        surf.position.set(-d, -d, -d);
+      }
+    });
+
+    bgPicker.addEventListener("input", () => {
+      scene.background = new THREE.Color(bgPicker.value);
+    });
+
+    // Measurement tool
+    let measuring = false;
+    let measurePts = [];
+    let measureLine = null;
+    let measureLabel = null;
+    measureBtn.addEventListener("click", () => {
+      measuring = !measuring;
+      measureBtn.textContent = measuring ? "Cancel Meas." : "Measure";
+      if (!measuring) {
+        const markers = measurePts.marker || [];
+        measurePts = [];
+        if (measureLine) { scene.remove(measureLine); measureLine.geometry.dispose(); measureLine.material.dispose(); measureLine = null; }
+        if (measureLabel) { scene.remove(measureLabel); measureLabel = null; }
+        markers.forEach(function(m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+      }
+    });
+
+    // Atom labels (simple sprites)
+    const atomLabels = [];
+    function toggleAtomLabels() {
+      atomLabels.forEach(function(lbl) { scene.remove(lbl); });
+      atomLabels.length = 0;
+      if (!showAtomLabelsCb.checked) return;
+      const fw = objectsById["framework"];
+      if (!fw || !fw.geometry || !fw.geometry.attributes || !fw.geometry.attributes.position) return;
+      const pos = fw.geometry.attributes.position.array;
+      const hover = fw.userData && fw.userData.hoverText ? fw.userData.hoverText : [];
+      for (let i = 0; i < pos.length; i += 3) {
+        const txt = hover[i/3] || "";
+        const elSym = txt.split(" ")[0];
+        if (!elSym) continue;
+        const canvas = document.createElement('canvas');
+        canvas.width = 64; canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, 0, 64, 32);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(elSym, 32, 22);
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.set(pos[i], pos[i+1] + 0.4, pos[i+2]);
+        sprite.scale.set(0.6, 0.3, 1);
+        scene.add(sprite);
+        atomLabels.push(sprite);
+      }
+    }
+    showAtomLabelsCb.addEventListener("change", toggleAtomLabels);
 
     const raycaster = new THREE.Raycaster();
     raycaster.params.Points.threshold = 0.3;
@@ -3063,6 +3259,59 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     renderer.domElement.addEventListener("pointermove", onPointerMove);
     renderer.domElement.addEventListener("pointerleave", () => tooltip.style.display = "none");
+    renderer.domElement.addEventListener("pointerdown", function(ev) {
+      if (!measuring) return;
+      const rc = new THREE.Raycaster();
+      rc.setFromCamera(new THREE.Vector2((ev.clientX / window.innerWidth) * 2 - 1, -(ev.clientY / window.innerHeight) * 2 + 1), camera);
+      const hits = rc.intersectObjects(Object.values(objectsById), false);
+      if (!hits.length) return;
+      const pt = hits[0].point.clone();
+      // Keep only last point if already have 2
+      if (measurePts.length >= 2) {
+        measurePts = [measurePts[measurePts.length - 1]];
+        if (measurePts.marker && measurePts.marker.length > 1) {
+          const old = measurePts.marker.shift();
+          scene.remove(old); old.geometry.dispose(); old.material.dispose();
+        }
+      }
+      measurePts.push(pt);
+      // Drop marker sphere
+      const markerGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const markerMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const marker = new THREE.Mesh(markerGeo, markerMat);
+      marker.position.copy(pt);
+      scene.add(marker);
+      measurePts.marker = measurePts.marker || [];
+      measurePts.marker.push(marker);
+      if (measurePts.length >= 2) {
+        const p1 = measurePts[0];
+        const p2 = measurePts[1];
+        const dist = p1.distanceTo(p2).toFixed(3);
+        if (measureLine) { scene.remove(measureLine); measureLine.geometry.dispose(); measureLine.material.dispose(); }
+        const lineGeo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 2 });
+        measureLine = new THREE.Line(lineGeo, lineMat);
+        scene.add(measureLine);
+        if (measureLabel) { scene.remove(measureLabel); }
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillRect(0, 0, 256, 64);
+        ctx.fillStyle = '#0f0';
+        ctx.font = 'bold 28px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(dist + ' Å', 128, 34);
+        const tex = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+        measureLabel = new THREE.Sprite(spriteMat);
+        measureLabel.position.copy(mid);
+        measureLabel.scale.set(1.2, 0.3, 1);
+        scene.add(measureLabel);
+      }
+    });
 
     function animate(t) {
       requestAnimationFrame(animate);
@@ -3092,11 +3341,26 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     // Export PNG button
     document.getElementById("exportPng").addEventListener("click", function() {
+      const resMult = parseInt(pngResSelect.value, 10) || 1;
+      const oldW = renderer.domElement.width;
+      const oldH = renderer.domElement.height;
+      if (resMult > 1) {
+        renderer.setSize(oldW * resMult, oldH * resMult, false);
+        camera.aspect = (oldW * resMult) / (oldH * resMult);
+        camera.updateProjectionMatrix();
+        updateOrthoFrustum();
+      }
       if (composer) { composer.render(); } else { renderer.render(scene, camera); }
       const link = document.createElement("a");
-      link.download = "figure3d_export.png";
+      link.download = "figure3d_export_" + resMult + "x.png";
       link.href = renderer.domElement.toDataURL("image/png");
       link.click();
+      if (resMult > 1) {
+        renderer.setSize(oldW, oldH, false);
+        camera.aspect = oldW / oldH;
+        camera.updateProjectionMatrix();
+        updateOrthoFrustum();
+      }
     });
 
     document.getElementById("lightInfo").addEventListener("click", function() {
