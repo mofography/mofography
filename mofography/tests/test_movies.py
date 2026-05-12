@@ -143,3 +143,350 @@ def test_to_html_writes_file(tmp_path: Path) -> None:
     assert "<!doctype html>" in text
     assert "three@0.128.0" in text
     assert "MovieFigure" not in text  # ensure template substitution happened
+
+
+# ---------------------------------------------------------------------------
+# Figure3D convenience methods
+# ---------------------------------------------------------------------------
+
+def test_figure3d_alias():
+    """Figure3D must be the same class as MovieFigure."""
+    assert mofography.Figure3D is mofography.MovieFigure
+    assert hasattr(mofography, "Figure3D")
+
+
+def test_add_framework_chainable():
+    """add_framework adds a framework trace and returns self."""
+    from ase import Atoms
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    fig = mofography.Figure3D()
+    result = fig.add_framework(atoms)
+    assert result is fig
+    assert len(fig.data) == 1
+    assert fig.data[0]["id"] == "framework"
+    assert fig.data[0]["type"] == "mesh"
+
+
+def test_add_cell_chainable():
+    """add_cell adds a unit-cell trace and returns self."""
+    from ase import Atoms
+
+    atoms = Atoms("H", positions=[[0, 0, 0]], cell=[5, 5, 5], pbc=True)
+    fig = mofography.Figure3D()
+    result = fig.add_cell(atoms)
+    assert result is fig
+    assert len(fig.data) == 1
+    assert fig.data[0]["id"] == "cell"
+
+
+def test_add_surface_from_arrays():
+    """add_surface works with raw dgrid + regions arrays."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("H", positions=[[2, 2, 2]], cell=[5, 5, 5], pbc=True)
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+
+    fig = mofography.Figure3D()
+    fig.add_surface(dgrid, regions, atoms, isovalue=1.5)
+    assert len(fig.data) == 1
+    assert fig.data[0]["id"] == "surface"
+    assert fig.data[0]["type"] == "mesh"
+
+
+def test_add_maxima_hides_periodic():
+    """Periodic maxima should be hidden when hide_periodic=True."""
+    seg = _make_minimal_seg()
+    atoms = _make_cubic_atoms()
+
+    fig = mofography.Figure3D()
+    fig.add_maxima(seg, atoms, hide_periodic=True)
+
+    traces = {t["id"]: t for t in fig.data}
+    assert traces["maxima_internal"]["visible"] is True
+    assert traces["maxima_outside"]["visible"] is False
+
+
+def test_add_connections_hides_periodic():
+    """Periodic connections should be hidden when hide_periodic=True."""
+    seg = _make_minimal_seg()
+    atoms = _make_cubic_atoms()
+
+    fig = mofography.Figure3D()
+    fig.add_connections(seg, atoms, hide_periodic=True)
+
+    traces = {t["id"]: t for t in fig.data}
+    assert traces["connections_internal"]["visible"] is True
+    assert traces["connections_periodic"]["visible"] is False
+    assert traces["connections_periodic_nodes"]["visible"] is False
+
+
+def test_add_windows_hides_periodic():
+    """Periodic windows should be hidden when hide_periodic=True."""
+    seg = _make_minimal_seg()
+    atoms = _make_cubic_atoms()
+
+    fig = mofography.Figure3D()
+    fig.add_windows(seg, hide_periodic=True)
+
+    traces = {t["id"]: t for t in fig.data}
+    assert traces["windows_internal"]["visible"] is True
+    assert traces["windows_periodic"]["visible"] is False
+
+
+def test_add_guests_with_color():
+    """add_guests with explicit color should override style and disable per-instance colors."""
+    from ase import Atoms
+
+    atoms = Atoms("K3", positions=[[0, 0, 0], [1, 0, 0], [2, 0, 0]], cell=[10, 10, 10], pbc=True)
+    fig = mofography.Figure3D()
+    fig.add_guests(atoms, color=[1.0, 0.0, 1.0])
+
+    trace = fig.data[0]
+    assert trace["id"] == "guests"
+    assert trace["type"] == "instanced_spheres"
+    assert trace["style"]["color"] == [1.0, 0.0, 1.0]
+    assert trace["data"]["colors"] == []  # per-instance colors disabled
+    assert trace["data"]["n_atoms"] == 3
+
+
+def test_full_chainable_pipeline():
+    """All add_* methods chained together produce correct traces."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+    seg = _make_minimal_seg()
+
+    fig = (
+        mofography.Figure3D()
+        .add_framework(atoms)
+        .add_cell(atoms)
+        .add_surface(dgrid, regions, atoms)
+        .add_maxima(seg, atoms)
+        .add_connections(seg, atoms)
+        .add_windows(seg)
+        .add_guests(atoms)
+    )
+
+    expected_ids = {
+        "framework", "cell", "surface",
+        "maxima_internal", "maxima_outside",
+        "connections_internal", "connections_internal_nodes",
+        "connections_periodic", "connections_periodic_nodes",
+        "windows_internal", "windows_periodic",
+        "guests",
+    }
+    trace_ids = {t["id"] for t in fig.data}
+    assert expected_ids.issubset(trace_ids)
+    assert len(fig.data) >= 12
+
+
+# ---------------------------------------------------------------------------
+# Jupyter integration
+# ---------------------------------------------------------------------------
+
+def test_render_html_string():
+    """_render_html_string returns valid HTML string with three.js CDN."""
+    fig = mofography.Figure3D()
+    fig.add_trace(movies._make_trace("t1", "points", "T1", {"positions": [0, 0, 0]}))
+    html_str = fig._render_html_string()
+    assert "<!doctype html>" in html_str
+    assert "three@0.128.0" in html_str
+    assert "MovieFigure" not in html_str
+
+
+def test_repr_html_contains_iframe():
+    """_repr_html_ wraps content in an IFrame with srcdoc."""
+    fig = mofography.Figure3D()
+    fig.add_trace(movies._make_trace("t1", "points", "T1", {"positions": [0, 0, 0]}))
+    repr_html = fig._repr_html_()
+    assert repr_html.startswith('<iframe ')
+    assert 'srcdoc="' in repr_html
+    assert 'three@0.128.0' in repr_html
+
+
+def test_show_browser_writes_temp_file(monkeypatch):
+    """show(renderer='browser') writes a temp HTML file."""
+    import tempfile
+    import webbrowser
+
+    opened = []
+
+    def fake_open(path: str) -> None:
+        opened.append(path)
+
+    monkeypatch.setattr(webbrowser, "open", fake_open)
+
+    fig = mofography.Figure3D()
+    fig.add_trace(movies._make_trace("t1", "points", "T1", {"positions": [0, 0, 0]}))
+    fig.show(renderer="browser")
+
+    assert len(opened) == 1
+    tmp_path = Path(opened[0])
+    assert tmp_path.suffix == ".html"
+    content = tmp_path.read_text(encoding="utf-8")
+    assert "<!doctype html>" in content
+    # Cleanup
+    tmp_path.unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Static scene builder
+# ---------------------------------------------------------------------------
+
+def test_build_static_scene_basic():
+    """build_static_scene with just atoms produces framework + cell."""
+    from ase import Atoms
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    fig = mofography.build_static_scene(atoms)
+
+    trace_ids = {t["id"] for t in fig.data}
+    assert "framework" in trace_ids
+    assert "cell" in trace_ids
+    assert len(fig.data) == 2  # only framework + cell
+
+
+def test_build_static_scene_with_surface():
+    """build_static_scene with dgrid+regions includes surface."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("H", positions=[[2, 2, 2]], cell=[5, 5, 5], pbc=True)
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+
+    fig = mofography.build_static_scene(atoms, dgrid=dgrid, regions=regions, isovalue=1.5)
+    trace_ids = {t["id"] for t in fig.data}
+    assert "framework" in trace_ids
+    assert "cell" in trace_ids
+    assert "surface" in trace_ids
+
+
+def test_build_static_scene_with_seg():
+    """build_static_scene with full seg dict adds pore graph traces."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+    seg = _make_minimal_seg()
+
+    fig = mofography.build_static_scene(
+        atoms, dgrid=dgrid, regions=regions, seg=seg, hide_periodic=True,
+    )
+    trace_ids = {t["id"] for t in fig.data}
+    for tid in ("framework", "cell", "surface", "maxima_internal", "connections_internal"):
+        assert tid in trace_ids, f"missing trace: {tid}"
+
+    # Periodic traces should be hidden
+    periodic_traces = {
+        t["id"]: t["visible"]
+        for t in fig.data
+        if "periodic" in t["id"] or "outside" in t["id"]
+    }
+    for tid, vis in periodic_traces.items():
+        assert vis is False, f"{tid} should be hidden"
+
+
+# ---------------------------------------------------------------------------
+# Public compute helpers
+# ---------------------------------------------------------------------------
+
+def test_compute_framework_mesh():
+    """compute_framework_mesh returns complete payload."""
+    from ase import Atoms
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    data = mofography.compute_framework_mesh(atoms)
+    assert "positions" in data
+    assert "indices" in data
+    assert "colors" in data
+    assert data["n_vertices"] > 0
+    assert data["n_triangles"] > 0
+    assert data["n_atoms"] == 2
+
+
+def test_compute_cell_lines():
+    """compute_cell_lines returns 12 edges."""
+    from ase import Atoms
+
+    atoms = Atoms("H", positions=[[0, 0, 0]], cell=[5, 5, 5], pbc=True)
+    data = mofography.compute_cell_lines(atoms)
+    assert data["n_segments"] == 12
+    assert len(data["positions"]) == 12 * 6  # 12 edges * 2 pts * 3 coords
+
+
+def test_compute_surface_mesh():
+    """compute_surface_mesh returns marching-cubes output."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("H", positions=[[2, 2, 2]], cell=[5, 5, 5], pbc=True)
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+
+    data = mofography.compute_surface_mesh(atoms, dgrid, regions, isovalue=1.5)
+    assert "positions" in data
+    assert "indices" in data
+    assert "colors" in data
+    assert "labels" in data
+    assert data["n_vertices"] > 0
+    assert data["n_triangles"] > 0
+
+
+def test_compute_connection_data():
+    """compute_connection_data handles empty connections gracefully."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = _make_cubic_atoms()
+    seg = _make_minimal_seg()
+    data = mofography.compute_connection_data(seg, atoms)
+    assert "internal_segments" in data
+    assert "periodic_segments" in data
+    assert "internal_points" in data
+    assert "periodic_points" in data
+
+
+# ---------------------------------------------------------------------------
+# Helpers for tests
+# ---------------------------------------------------------------------------
+
+def _make_cubic_atoms() -> "Atoms":
+    from ase import Atoms
+    return Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+
+
+def _make_minimal_seg() -> dict:
+    """Return a minimal segmentation dict with mock maxima and no connections."""
+    import numpy as np
+
+    dgrid = np.ones((10, 10, 10), dtype=np.float32) * 3.0
+    dgrid[4:7, 4:7, 4:7] = 0.1
+    regions = np.zeros((10, 10, 10), dtype=np.int32)
+    regions[3:8, 3:8, 3:8] = 1
+    all_maxima = np.array([[5, 5, 5], [10, 5, 5]], dtype=int)
+    return {
+        "dgrid": dgrid,
+        "regions": regions,
+        "all_maxima": all_maxima,
+        "maxima_pbc": np.array([[5, 5, 5]]),
+        "connections": [],
+    }
