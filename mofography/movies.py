@@ -1971,13 +1971,19 @@ class MovieFigure:
         if representation == "ball_and_stick":
             trace = make_framework_trace(atoms, bonds=bonds, style=style if style else "framework")
             self.add_trace(trace)
-            # Also add stick representation (starts hidden)
+            # Also add stick and space-filling representations (start hidden)
             stick_trace = make_framework_trace(
                 atoms, bonds=bonds, trace_id="framework_stick",
                 name="Framework (stick)", representation="stick",
                 style={"visible": False}
             )
             self.add_trace(stick_trace)
+            sf_trace = make_framework_trace(
+                atoms, bonds=bonds, trace_id="framework_spacefill",
+                name="Framework (spacefill)", representation="space_filling",
+                style={"visible": False}
+            )
+            self.add_trace(sf_trace)
         else:
             trace = make_framework_trace(
                 atoms, bonds=bonds, representation=representation,
@@ -2106,9 +2112,10 @@ def build_fixed_framework_movie(
     fig.set_camera(eye=eye, center=center, up=up)
     fig.update_layout({"fps": fps, "n_frames": n_frames})
 
-    # Static traces — framework in both ball-and-stick and stick representations
+    # Static traces — framework in three representations (ball-and-stick default)
     fig.add_trace(make_framework_trace(framework_atoms))
     fig.add_trace(make_framework_trace(framework_atoms, trace_id="framework_stick", representation="stick", name="Framework (stick)", style={"visible": False}))
+    fig.add_trace(make_framework_trace(framework_atoms, trace_id="framework_spacefill", representation="space_filling", name="Framework (spacefill)", style={"visible": False}))
     fig.add_trace(make_cell_trace(framework_atoms))
 
     # Compute segmentation once on the framework
@@ -2290,11 +2297,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="measureTool">Measure</button>
     </div>
     <div class="checkrow" id="advancedControls" style="flex-direction:column;gap:6px;">
-      <label style="display:flex;flex-direction:column;gap:2px;">Mesh opacity:
-        <select id="opacityTarget" style="font-size:10px;width:100%;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface (regions)</option></select>
-        <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:100%;" />
+      <label>Representation:
+        <select id="reprSelect" style="font-size:10px;width:100%;"><option value="ball_and_stick">Ball-and-stick</option><option value="stick">Stick</option><option value="space_filling">Space-filling</option></select>
       </label>
-      <label><input type="checkbox" id="toggleStick" /> Stick representation</label>
+      <div id="meshOpacityContainer" style="display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto;font-size:10px;"></div>
       <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
@@ -2348,7 +2354,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const nextBtn = document.getElementById("nextFrame");
     const tooltip = document.getElementById("tooltip");
 
-    const toggleStickCb = document.getElementById("toggleStick");
+    const reprSelect = document.getElementById("reprSelect");
     const showCell = document.getElementById("showCell");
     const showFramework = document.getElementById("showFramework");
     const showSurface = document.getElementById("showSurface");
@@ -2363,7 +2369,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const resetCamBtn = document.getElementById("resetCam");
     const toggleRotateBtn = document.getElementById("toggleRotate");
     const measureBtn = document.getElementById("measureTool");
-    const surfOpacitySlider = document.getElementById("surfOpacity");
     const ptSizeSlider = document.getElementById("ptSizeSlider");
     const speedSlider = document.getElementById("speedSlider");
     const ambSlider = document.getElementById("ambSlider");
@@ -2371,7 +2376,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const explodeSlider = document.getElementById("explodeSlider");
     const bgPicker = document.getElementById("bgPicker");
     const pngResSelect = document.getElementById("pngRes");
-    const opacityTarget = document.getElementById("opacityTarget");
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -2924,6 +2928,61 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     controls.target.copy(sceneCenter);
     controls.update();
 
+    // Create extra unit-cell copies for exploded view (one per additional group)
+    const cellObj = objectsById["cell"];
+    const _cellCopies = [];
+    if (cellObj && cellObj.geometry) {
+      const nGroups = _explodeGroups.length;
+      for (let i = 1; i < nGroups; i++) {
+        const copy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+        copy.name = "cell_copy_" + i;
+        copy.visible = false;
+        scene.add(copy);
+        _cellCopies.push(copy);
+        objectsById["cell_copy_" + i] = copy;
+      }
+    }
+
+    // Populate per-mesh opacity controls
+    const meshOpacityContainer = document.getElementById("meshOpacityContainer");
+    if (meshOpacityContainer) {
+      const meshTraces = [];
+      staticTraces.forEach(t => { if (t.type === "mesh") meshTraces.push(t); });
+      if (FRAMES.length > 0 && FRAMES[0].traces) {
+        FRAMES[0].traces.forEach(t => {
+          if (t.type === "mesh" && !meshTraces.some(mt => mt.id === t.id)) meshTraces.push(t);
+        });
+      }
+      meshTraces.forEach(trace => {
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
+        const label = document.createElement("label");
+        label.style.cssText = "font-size:10px;white-space:nowrap;width:70px;overflow:hidden;text-overflow:ellipsis;";
+        label.textContent = (trace.name || trace.id);
+        const slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "0";
+        slider.max = "1";
+        slider.step = "0.05";
+        const st = styleFor(trace);
+        slider.value = st.opacity !== undefined ? st.opacity : 0.95;
+        slider.style.cssText = "flex:1;";
+        slider.dataset.traceId = trace.id;
+        slider.addEventListener("input", () => {
+          const val = parseFloat(slider.value);
+          const obj = objectsById[trace.id];
+          if (obj && obj.material) {
+            obj.material.opacity = val;
+            obj.material.transparent = val < 1.0;
+            obj.material.needsUpdate = true;
+          }
+        });
+        wrapper.appendChild(label);
+        wrapper.appendChild(slider);
+        meshOpacityContainer.appendChild(wrapper);
+      });
+    }
+
     function setFrame(i) {
       if (FRAMES.length <= 0) {
         statusEl.textContent = "No frames";
@@ -3000,24 +3059,21 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const obj = objectsById["cell"];
       if (obj) obj.visible = showCell.checked;
       scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
+      _cellCopies.forEach(copy => {
+        copy.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
+      });
     });
-    showFramework.addEventListener("change", () => {
-      const obj = objectsById["framework"];
-      if (obj) obj.visible = showFramework.checked;
-      const stickObj = objectsById["framework_stick"];
-      if (stickObj) stickObj.visible = showFramework.checked && toggleStickCb.checked;
-    });
-    toggleStickCb.addEventListener("change", () => {
-      const obj = objectsById["framework"];
-      const stickObj = objectsById["framework_stick"];
-      if (obj) obj.visible = !toggleStickCb.checked;
-      if (stickObj) stickObj.visible = toggleStickCb.checked;
-      // Sync the framework checkbox state
-      if (showFramework.checked) {
-        if (obj) obj.visible = !toggleStickCb.checked;
-        if (stickObj) stickObj.visible = toggleStickCb.checked;
-      }
-    });
+    function updateFrameworkVisibility() {
+      const val = reprSelect.value;
+      const fw = objectsById["framework"];
+      const stick = objectsById["framework_stick"];
+      const sf = objectsById["framework_spacefill"];
+      if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
+      if (stick) stick.visible = showFramework.checked && val === "stick";
+      if (sf) sf.visible = showFramework.checked && val === "space_filling";
+    }
+    showFramework.addEventListener("change", updateFrameworkVisibility);
+    reprSelect.addEventListener("change", updateFrameworkVisibility);
     showSurface.addEventListener("change", () => {
       const obj = objectsById["surface"];
       if (obj) obj.visible = showSurface.checked;
@@ -3084,18 +3140,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       toggleRotateBtn.textContent = autoRotating ? "Stop Rotate" : "Auto-Rotate";
     });
 
-    surfOpacitySlider.addEventListener("input", () => {
-      const val = parseFloat(surfOpacitySlider.value);
-      const target = opacityTarget.value;
-      Object.values(objectsById).forEach(function(obj) {
-        if (obj && obj.isMesh && obj.material) {
-          if (target === "all" || obj.name === target) {
-            obj.material.opacity = val;
-            obj.material.needsUpdate = true;
-          }
-        }
-      });
-    });
+    // Per-mesh opacity sliders are populated dynamically after scene init
 
     ptSizeSlider.addEventListener("input", () => {
       const mult = parseFloat(ptSizeSlider.value);
@@ -3146,6 +3191,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(idx * spacing, 0, 0));
         });
       });
+      // Update unit-cell copies to follow each additional group position
+      if (_cellCopies.length > 0 && cellObj) {
+        const cellOrig = _explodeOrig["cell"] || cellObj.position.clone();
+        _cellCopies.forEach((copy, idx) => {
+          copy.visible = dist > 0 && showCell.checked;
+          copy.position.copy(cellOrig).add(new THREE.Vector3((idx + 1) * spacing, 0, 0));
+        });
+      }
     });
 
     bgPicker.addEventListener("input", () => {
