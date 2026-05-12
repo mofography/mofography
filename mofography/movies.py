@@ -2957,19 +2957,25 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
     }
 
-    // Exploded view: two groups move in opposite directions
-    //   Group 0 (moves left):  framework + surface + original cell
-    //   Group 1 (moves right): all pore graph traces + a single cell copy
+    // Exploded view: multi-directional separation
+    //   X-axis: framework left, pore graph right
+    //   Y-axis (perpendicular): PBC surface up, pocket types down, regions surface middle
     const _explodeGroups = [
-      ["cell", "framework", "surface"],
-      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
-       "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
-       "cell_copy"],
+      { ids: ["framework", "cell_framework"], x: -1, y: 0 },
+      { ids: ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
+              "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
+              "cell_copy"], x: 1, y: 0 },
+      { ids: ["surface"], x: 0, y: 0 },
+      { ids: ["surface_pbc", "cell_pbc"], x: 0, y: 1 },
+      { ids: ["surface_pocket", "cell_pocket"], x: 0, y: -1 },
     ];
 
-    // Create unit-cell copies for exploded view
+    // Create unit-cell copies for each exploded group position
     let cellCopy = null;
     let cellCenter = null;
+    let cellFramework = null;
+    let cellPbc = null;
+    let cellPocket = null;
     if (cellObj && cellObj.geometry) {
       cellCopy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
       cellCopy.name = "cell_copy";
@@ -2982,6 +2988,24 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       cellCenter.visible = false;
       scene.add(cellCenter);
       objectsById["cell_center"] = cellCenter;
+
+      cellFramework = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellFramework.name = "cell_framework";
+      cellFramework.visible = false;
+      scene.add(cellFramework);
+      objectsById["cell_framework"] = cellFramework;
+
+      cellPbc = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellPbc.name = "cell_pbc";
+      cellPbc.visible = false;
+      scene.add(cellPbc);
+      objectsById["cell_pbc"] = cellPbc;
+
+      cellPocket = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellPocket.name = "cell_pocket";
+      cellPocket.visible = false;
+      scene.add(cellPocket);
+      objectsById["cell_pocket"] = cellPocket;
     }
 
     // Populate per-mesh opacity controls (skip alt-representation meshes)
@@ -3116,10 +3140,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const obj = objectsById["cell"];
       if (obj) obj.visible = showCell.checked;
       scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
-      if (cellCopy) {
-        cellCopy.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
-        if (cellCenter) cellCenter.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
-      }
+      const exploded = parseFloat(explodeSlider.value) > 0;
+      if (cellCopy) cellCopy.visible = exploded && showCell.checked;
+      if (cellCenter) cellCenter.visible = exploded && showCell.checked;
+      if (cellFramework) cellFramework.visible = exploded && showCell.checked;
+      if (cellPbc) cellPbc.visible = exploded && showCell.checked;
+      if (cellPocket) cellPocket.visible = exploded && showCell.checked;
     });
     function updateFrameworkVisibility() {
       const val = reprSelect.value;
@@ -3252,24 +3278,24 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     explodeSlider.addEventListener("input", () => {
       const dist = parseFloat(explodeSlider.value);
       const spacing = dist * 8.0;
-      _explodeGroups.forEach(function(group, idx) {
-        const offset = (idx === 0) ? -spacing : spacing;
-        group.forEach(function(tid) {
+      _explodeGroups.forEach(function(group) {
+        const offsetX = group.x * spacing;
+        const offsetY = group.y * spacing;
+        group.ids.forEach(function(tid) {
           const obj = objectsById[tid];
           if (!obj) return;
           if (_explodeOrig[tid] === undefined) {
             _explodeOrig[tid] = obj.position.clone();
           }
-          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offset, 0, 0));
+          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offsetX, offsetY, 0));
         });
       });
       // Show/hide the cell copies when exploded
-      if (cellCopy) {
-        cellCopy.visible = dist > 0 && showCell.checked;
-      }
-      if (cellCenter) {
-        cellCenter.visible = dist > 0 && showCell.checked;
-      }
+      if (cellCopy) cellCopy.visible = dist > 0 && showCell.checked;
+      if (cellCenter) cellCenter.visible = dist > 0 && showCell.checked;
+      if (cellFramework) cellFramework.visible = dist > 0 && showCell.checked;
+      if (cellPbc) cellPbc.visible = dist > 0 && showCell.checked;
+      if (cellPocket) cellPocket.visible = dist > 0 && showCell.checked;
     });
 
     bgPicker.addEventListener("input", () => {
