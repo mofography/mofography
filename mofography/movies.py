@@ -2409,6 +2409,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
     }
 
+    // Store original light intensities for reversible ortho toggle
+    const _lightOrig = {};
+
     toggleOrthoBtn.addEventListener("click", function() {
       isOrtho = !isOrtho;
       var oldPos = camera.position.clone();
@@ -2422,30 +2425,31 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
       recreateComposer();
 
-      var dirScale = isOrtho ? 1.3 : (1.0 / 1.3);
       if (isOrtho) {
-        dirKey.intensity *= 1.15;
-        dirFill.intensity *= 1.15;
+        _lightOrig.ambient = ambient.intensity;
+        _lightOrig.hemi = hemiLight.intensity;
+        _lightOrig.key = dirKey.intensity;
+        _lightOrig.fill = dirFill.intensity;
+        ambient.intensity = 0.04;
+        hemiLight.intensity = 0.18;
+        dirKey.intensity = _lightOrig.key * 2.1;
+        dirFill.intensity = _lightOrig.fill * 0.4;
       } else {
-        dirKey.intensity /= 1.15;
-        dirFill.intensity /= 1.15;
+        ambient.intensity = _lightOrig.ambient;
+        hemiLight.intensity = _lightOrig.hemi;
+        dirKey.intensity = _lightOrig.key;
+        dirFill.intensity = _lightOrig.fill;
       }
+
+      renderer.domElement.style.filter = isOrtho ? "contrast(1.15) saturate(1.2)" : "";
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
-          obj.material.depthTest = true;
+          obj.material.depthTest = !isOrtho;
           obj.material.depthWrite = false;
-          if (isOrtho) {
-            obj.material.userData = obj.material.userData || {};
-            obj.material.userData.perspSize = obj.material.userData.perspSize || obj.material.size;
-            obj.material.size = obj.material.userData.perspSize * 4.0;
-          } else if (obj.material.userData && obj.material.userData.perspSize) {
-            obj.material.size = obj.material.userData.perspSize;
-          }
+          var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
+          obj.material.size = base * (isOrtho ? 2.0 : 1.0);
           obj.material.needsUpdate = true;
-        }
-        if (obj && obj.material && (obj.material.isMeshStandardMaterial || obj.material.isMeshPhysicalMaterial)) {
-          // No material changes in ortho — keep perspective colors intact
         }
       });
     });
@@ -2463,24 +2467,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     // Ortho init: compensate for lack of SSAO with stronger directional contrast
     if (isOrtho) {
-      dirKey.intensity *= 1.15;
-      dirFill.intensity *= 1.15;
+      _lightOrig.ambient = ambient.intensity;
+      _lightOrig.hemi = hemiLight.intensity;
+      _lightOrig.key = dirKey.intensity;
+      _lightOrig.fill = dirFill.intensity;
+      ambient.intensity = 0.04;
+      hemiLight.intensity = 0.18;
+      dirKey.intensity = _lightOrig.key * 3.0;
+      dirFill.intensity = _lightOrig.fill * 0.4;
     }
+    renderer.domElement.style.filter = isOrtho ? "contrast(1.15) saturate(1.2)" : "";
 
-    // SSAO post-processing (perspective only — orthographic produces black output)
+    // Post-processing: SSAO in perspective, contrast boost in ortho
     let composer, ssaoPass;
-    if (!isOrtho) {
-      try {
-        composer = new THREE.EffectComposer(renderer);
-        composer.addPass(new THREE.RenderPass(scene, camera));
-        ssaoPass = new THREE.SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
-        ssaoPass.kernelRadius = 0.8;
-        ssaoPass.kernelSize = 24;
-        ssaoPass.minDistance = 0.001;
-        ssaoPass.maxDistance = 0.05;
-        composer.addPass(ssaoPass);
-      } catch (e) { console.warn('SSAO unavailable, using standard render:', e); composer = null; }
-    }
+    recreateComposer();
 
     const objectsById = {};
 
@@ -2600,8 +2600,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         geo.setAttribute("color", new THREE.Float32BufferAttribute(trace.data.colors, 3));
       }
       const style = styleFor(trace);
-      const orthoPtBoost = isOrtho ? 4.0 : 1.0;
-      const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3 * orthoPtBoost;
+      const baseSize = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
+      const size = baseSize * (isOrtho ? 2.0 : 1.0);
       const sym = style.symbol || "circle";
       const tex = spriteTextures[sym] || spriteTextures["circle"];
       const mat = new THREE.PointsMaterial({
@@ -2612,6 +2612,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         transparent: true,
         opacity: 0.95,
       });
+      mat.userData.baseSize = baseSize;
       if (colorOverride !== undefined && (!trace.data.colors || !trace.data.colors.length)) {
         mat.color.copy(threeColorFromStyle(colorOverride, 0xffffff));
       } else if (!trace.data.colors || !trace.data.colors.length) {
@@ -2694,8 +2695,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       points.geometry = geo;
       if (oldGeo) oldGeo.dispose();
       const style = styleFor(trace);
-      const orthoPtBoost = isOrtho ? 4.0 : 1.0;
-      points.material.size = pointsBaseSize(trace) * 1.3 * orthoPtBoost;
+      const baseSize = pointsBaseSize(trace) * 1.3;
+      points.material.size = baseSize * (isOrtho ? 2.0 : 1.0);
+      points.material.userData.baseSize = baseSize;
       points.material.vertexColors = !!(trace.data.colors && trace.data.colors.length);
       if (!trace.data.colors || !trace.data.colors.length) {
         points.material.color.copy(threeColorFromStyle(style.color, 0xffffff));
