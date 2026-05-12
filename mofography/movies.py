@@ -2961,7 +2961,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     //   X-axis: framework+cell left, pore graph+cell_copy right
     //   Y-axis (perpendicular): PBC surface+cell_pbc up, cluster surface+cell_pocket down, raw surface middle
     const _explodeGroups = [
-      { ids: ["framework", "cell"], x: -1, y: 0 },
+      { ids: ["framework", "framework_stick", "framework_spacefill", "cell"], x: -1, y: 0 },
       { ids: ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
