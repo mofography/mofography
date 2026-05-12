@@ -3358,12 +3358,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     raycaster.params.Points.threshold = 0.3;
 
     function hoverHitPriority(obj, hit) {
+      if (obj instanceof THREE.Points) return 6;
       if (hit && hit.face && obj instanceof THREE.Mesh) return 5;
-      if (obj instanceof THREE.Points) return 4;
-      if (obj instanceof THREE.LineSegments) return 3;
-      if (obj instanceof THREE.InstancedMesh) return 2;
-      if (obj instanceof THREE.Mesh) return 1;
-      return 0;
+      if (obj instanceof THREE.LineSegments) return 4;
+      if (obj instanceof THREE.InstancedMesh) return 3;
+      if (obj instanceof THREE.Mesh) return 2;
+      return 1;
     }
 
     const mouse = new THREE.Vector2();
@@ -3380,18 +3380,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         tooltip.style.display = "none";
         return;
       }
-      const meshHits = hits.filter(h => h.face);
-      let hit;
-      if (meshHits.length) {
-        // Pick the mesh that is rendered last (visually on top in the scene)
-        hit = meshHits.reduce((best, h) => {
-          const bestIdx = scene.children.indexOf(best.object);
-          const hIdx = scene.children.indexOf(h.object);
-          return hIdx > bestIdx ? h : best;
-        });
-      } else {
-        hit = hits[0];
-      }
+      // Pick the hit with the highest hover priority; tie-break by scene order (last rendered = on top)
+      const hit = hits.reduce((best, h) => {
+        const bestPri = hoverHitPriority(best.object, best);
+        const hPri = hoverHitPriority(h.object, h);
+        if (hPri !== bestPri) return hPri > bestPri ? h : best;
+        const bestIdx = scene.children.indexOf(best.object);
+        const hIdx = scene.children.indexOf(h.object);
+        return hIdx > bestIdx ? h : best;
+      });
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
