@@ -2285,12 +2285,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="lightInfo">Lights</button>
     </div>
     <div class="checkrow" id="viewButtons" style="gap:2px;">
-      <button id="viewX" title="View +X">+X</button>
-      <button id="viewNegX" title="View -X">-X</button>
-      <button id="viewY" title="View +Y">+Y</button>
-      <button id="viewNegY" title="View -Y">-Y</button>
-      <button id="viewZ" title="View +Z">+Z</button>
-      <button id="viewNegZ" title="View -Z">-Z</button>
+      <button id="viewX" title="View +X" style="font-size:9px;padding:1px 4px;min-width:24px;">+X</button>
+      <button id="viewNegX" title="View -X" style="font-size:9px;padding:1px 4px;min-width:24px;">-X</button>
+      <button id="viewY" title="View +Y" style="font-size:9px;padding:1px 4px;min-width:24px;">+Y</button>
+      <button id="viewNegY" title="View -Y" style="font-size:9px;padding:1px 4px;min-width:24px;">-Y</button>
+      <button id="viewZ" title="View +Z" style="font-size:9px;padding:1px 4px;min-width:24px;">+Z</button>
+      <button id="viewNegZ" title="View -Z" style="font-size:9px;padding:1px 4px;min-width:24px;">-Z</button>
     </div>
     <div id="lightModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);">
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;color:#eee;padding:16px;border-radius:10px;font-size:12px;max-width:320px;">
@@ -2420,10 +2420,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const upArr = {{up}};
     const projection = "{{projection}}";
 
-    // Pull camera 1.5x farther from center for better default framing
+    // Pull camera 3.0x farther from center for better default framing
     const _centerVec = new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]);
     const _eyeVec = new THREE.Vector3(eyeArr[0], eyeArr[1], eyeArr[2]);
-    const _camDir = new THREE.Vector3().subVectors(_eyeVec, _centerVec).multiplyScalar(1.5);
+    const _camDir = new THREE.Vector3().subVectors(_eyeVec, _centerVec).multiplyScalar(3.0);
     const _scaledEye = new THREE.Vector3().addVectors(_centerVec, _camDir);
     const scaledEyeArr = [_scaledEye.x, _scaledEye.y, _scaledEye.z];
 
@@ -2619,7 +2619,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
           clearcoat: clearcoat,
           clearcoatRoughness: style.clearcoatRoughness !== undefined ? style.clearcoatRoughness : 0.1,
-          depthWrite: isOpaque,
+          depthWrite: true,
         });
       } else {
         mat = new THREE.MeshStandardMaterial({
@@ -2629,7 +2629,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           roughness: style.roughness !== undefined ? style.roughness : 0.38,
           metalness: style.metalness !== undefined ? style.metalness : 0.0,
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
-          depthWrite: isOpaque,
+          depthWrite: true,
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
@@ -3004,7 +3004,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
             if (obj && obj.material) {
               obj.material.opacity = val;
               obj.material.transparent = val < 1.0;
-              obj.material.depthWrite = val >= 1.0;
               obj.material.needsUpdate = true;
             }
           });
@@ -3166,11 +3165,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
     });
 
-    // Quick view along principal axes
-    const _viewDist = _scaledEye.distanceTo(_centerVec);
+    // Quick view along principal axes — preserves current zoom distance
     function setViewAxis(dir) {
       const target = controls.target.clone();
-      const newPos = target.clone().add(dir.clone().multiplyScalar(_viewDist));
+      const dist = camera.position.distanceTo(target);
+      const newPos = target.clone().add(dir.clone().multiplyScalar(dist));
       camera.position.copy(newPos);
       camera.lookAt(target);
       controls.update();
