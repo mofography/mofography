@@ -1405,6 +1405,223 @@ def make_cell_trace(
 # MovieFigure class
 # ---------------------------------------------------------------------------
 
+_MARKER_SHAPES = frozenset({
+    "circle", "square", "diamond", "triangle-up", "triangle-down",
+    "cross", "x", "star", "pentagon", "hexagon", "ring",
+})
+
+
+class _MarkerProxy:
+    """Plotly-like marker accessor: fig.traces['name'].marker.size = 12"""
+
+    def __init__(self, trace: dict) -> None:
+        self._trace = trace
+
+    @property
+    def size(self) -> float | None:
+        s = self._trace.get("style", {})
+        return s.get("size")
+
+    @size.setter
+    def size(self, val: float) -> None:
+        self._trace.setdefault("style", {})["size"] = val
+
+    @property
+    def color(self):
+        s = self._trace.get("style", {})
+        return s.get("color")
+
+    @color.setter
+    def color(self, val) -> None:
+        self._trace.setdefault("style", {})["color"] = val
+
+    @property
+    def opacity(self) -> float | None:
+        s = self._trace.get("style", {})
+        return s.get("opacity")
+
+    @opacity.setter
+    def opacity(self, val: float) -> None:
+        self._trace.setdefault("style", {})["opacity"] = val
+
+    @property
+    def symbol(self) -> str | None:
+        s = self._trace.get("style", {})
+        return s.get("symbol", "circle")
+
+    @symbol.setter
+    def symbol(self, val: str) -> None:
+        if val not in _MARKER_SHAPES:
+            raise ValueError(f"Unknown marker symbol '{val}'. Choose from: {sorted(_MARKER_SHAPES)}")
+        self._trace.setdefault("style", {})["symbol"] = val
+
+
+class _LineProxy:
+    """Plotly-like line accessor: fig.traces['name'].line.width = 3"""
+
+    def __init__(self, trace: dict) -> None:
+        self._trace = trace
+
+    @property
+    def width(self) -> float | None:
+        s = self._trace.get("style", {})
+        return s.get("linewidth")
+
+    @width.setter
+    def width(self, val: float) -> None:
+        self._trace.setdefault("style", {})["linewidth"] = val
+
+    @property
+    def color(self):
+        s = self._trace.get("style", {})
+        return s.get("color")
+
+    @color.setter
+    def color(self, val) -> None:
+        self._trace.setdefault("style", {})["color"] = val
+
+    @property
+    def dash(self) -> str | None:
+        s = self._trace.get("style", {})
+        if "dashSize" in s:
+            return "dash"
+        return "solid"
+
+    @dash.setter
+    def dash(self, val: str) -> None:
+        s = self._trace.setdefault("style", {})
+        if val == "dash":
+            s.setdefault("dashSize", 0.9)
+            s.setdefault("gapSize", 0.5)
+        else:
+            s.pop("dashSize", None)
+            s.pop("gapSize", None)
+
+
+class _MeshProxy:
+    """Plotly-like mesh accessor: fig.traces['name'].mesh.roughness = 0.3"""
+
+    def __init__(self, trace: dict) -> None:
+        self._trace = trace
+
+    @property
+    def roughness(self) -> float | None:
+        return self._trace.get("style", {}).get("roughness")
+
+    @roughness.setter
+    def roughness(self, val: float) -> None:
+        self._trace.setdefault("style", {})["roughness"] = val
+
+    @property
+    def metalness(self) -> float | None:
+        return self._trace.get("style", {}).get("metalness")
+
+    @metalness.setter
+    def metalness(self, val: float) -> None:
+        self._trace.setdefault("style", {})["metalness"] = val
+
+    @property
+    def opacity(self) -> float | None:
+        return self._trace.get("style", {}).get("opacity")
+
+    @opacity.setter
+    def opacity(self, val: float) -> None:
+        self._trace.setdefault("style", {})["opacity"] = val
+
+    @property
+    def clearcoat(self) -> float | None:
+        return self._trace.get("style", {}).get("clearcoat")
+
+    @clearcoat.setter
+    def clearcoat(self, val: float) -> None:
+        self._trace.setdefault("style", {})["clearcoat"] = val
+
+    @property
+    def side(self) -> str | None:
+        return self._trace.get("style", {}).get("side")
+
+    @side.setter
+    def side(self, val: str) -> None:
+        self._trace.setdefault("style", {})["side"] = val
+
+
+class _TraceProxy:
+    """Plotly-like trace accessor returned by fig.traces['trace_name'].
+
+    Usage::
+
+        fig.traces['maxima_internal'].marker.size = 12
+        fig.traces['maxima_internal'].marker.color = [1, 0, 0]
+        fig.traces['maxima_internal'].marker.symbol = 'square'
+        fig.traces['connections_internal'].line.width = 3
+        fig.traces['surface'].mesh.roughness = 0.2
+        fig.traces['surface'].visible = False
+    """
+
+    def __init__(self, trace: dict) -> None:
+        self._trace = trace
+        self.marker = _MarkerProxy(trace)
+        self.line = _LineProxy(trace)
+        self.mesh = _MeshProxy(trace)
+
+    @property
+    def name(self) -> str:
+        return self._trace.get("name", "")
+
+    @name.setter
+    def name(self, val: str) -> None:
+        self._trace["name"] = val
+
+    @property
+    def visible(self) -> bool:
+        return self._trace.get("visible", True)
+
+    @visible.setter
+    def visible(self, val: bool) -> None:
+        self._trace["visible"] = val
+
+    @property
+    def type(self) -> str:
+        return self._trace.get("type", "")
+
+    @property
+    def id(self) -> str:
+        return self._trace.get("id", "")
+
+
+class _TraceCollection:
+    """Dict-like accessor: fig.traces['trace_name'] returns a _TraceProxy."""
+
+    def __init__(self, data: list[dict], frames: list[dict]) -> None:
+        self._data = data
+        self._frames = frames
+
+    def _find(self, key: str) -> dict | None:
+        for t in self._data:
+            if t.get("id") == key or t.get("name") == key:
+                return t
+        return None
+
+    def __getitem__(self, key: str) -> _TraceProxy:
+        trace = self._find(key)
+        if trace is None:
+            raise KeyError(f"Trace '{key}' not found. Available: {[t.get('id') for t in self._data]}")
+        return _TraceProxy(trace)
+
+    def __contains__(self, key: str) -> bool:
+        return self._find(key) is not None
+
+    def keys(self) -> list[str]:
+        return [t.get("id", "") for t in self._data]
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        ids = [t.get("id", "?") for t in self._data]
+        return f"TraceCollection({ids})"
+
+
 class MovieFigure:
     """Plotly-like API for building Three.js movie scenes."""
 
@@ -1547,6 +1764,10 @@ class MovieFigure:
     # ------------------------------------------------------------------
     # Serialization
     # ------------------------------------------------------------------
+
+    @property
+    def traces(self) -> _TraceCollection:
+        return _TraceCollection(self.data, self.frames)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -1960,25 +2181,33 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
       background: {{bg_css}};
-      font-family: {{font_family}}; color: #efefef; }
+      font-family: {{font_family}}; color: #efefef;
+      -webkit-text-size-adjust: 100%; touch-action: none; }
     #app { position: fixed; inset: 0; }
-    #hud { position: fixed; left: 12px; top: 12px; width: min(320px, calc(100vw - 24px));
-      max-height: calc(100vh - 24px); overflow: auto;
-      background: rgba(16, 16, 16, 0.12); border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px; padding: 10px; display: grid; gap: 8px; backdrop-filter: blur(2px); }
-    #row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    #hud { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+      width: min(720px, calc(100vw - 24px));
+      background: rgba(16, 16, 16, 0.55); border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;
+      backdrop-filter: blur(4px); z-index: 10; max-height: 40vh; overflow-y: auto; }
+    #row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
     #frameSlider { width: 100%; }
-    .checkrow { display: grid; gap: 6px; align-items: start; }
-    label { user-select: none; font-size: {{label_font_size}}px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-    #tooltip { position: fixed; pointer-events: none; display: none;
+    .checkrow { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: center; }
+    label { user-select: none; font-size: {{label_font_size}}px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      white-space: nowrap; }
+    #tooltip { position: fixed; pointer-events: none; display: none; z-index: 20;
       background: rgba(0,0,0,0.85); border: 1px solid #666; border-radius: 8px;
       padding: 6px 8px; font-size: 12px; white-space: pre; }
     button { background: rgba(0,0,0,0.0); color: #f1f1f1; border: 1px solid rgba(255,255,255,0.4);
       border-radius: 6px; padding: 4px 8px; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,0.65); }
     button:hover { background: rgba(255,255,255,0.1); }
     #status, #meta { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.65); }
-    #meta { display: block; opacity: 0.92; line-height: 1.35; }
+    #meta { display: block; opacity: 0.92; line-height: 1.35; text-align: center; }
     input[type="checkbox"] { accent-color: #b9d7ff; }
+    @media (max-width: 600px) {
+      #hud { width: calc(100vw - 16px); padding: 6px 8px; border-radius: 8px; bottom: 8px; }
+      label { font-size: 12px; }
+      button { padding: 6px 10px; font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -2059,14 +2288,27 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
     app.appendChild(renderer.domElement);
-
-    // Circular point sprite texture (replaces default square PointsMaterial)
-    const ptCanvas = document.createElement('canvas');
-    ptCanvas.width = 64; ptCanvas.height = 64;
-    const ptCtx = ptCanvas.getContext('2d');
-    ptCtx.beginPath(); ptCtx.arc(32, 32, 28, 0, Math.PI * 2);
-    ptCtx.fillStyle = 'white'; ptCtx.fill();
-    const circleTex = new THREE.CanvasTexture(ptCanvas);
+    function makeSprite(drawFn) {
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = 64;
+      const ctx = c.getContext('2d');
+      drawFn(ctx);
+      return new THREE.CanvasTexture(c);
+    }
+    const spriteTextures = {
+      circle: makeSprite(ctx => { ctx.beginPath(); ctx.arc(32, 32, 28, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); }),
+      square: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.fillRect(4, 4, 56, 56); }),
+      diamond: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.moveTo(32, 2); ctx.lineTo(62, 32); ctx.lineTo(32, 62); ctx.lineTo(2, 32); ctx.closePath(); ctx.fill(); }),
+      "triangle-up": makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.moveTo(32, 4); ctx.lineTo(60, 58); ctx.lineTo(4, 58); ctx.closePath(); ctx.fill(); }),
+      "triangle-down": makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); ctx.moveTo(32, 60); ctx.lineTo(60, 4); ctx.lineTo(4, 4); ctx.closePath(); ctx.fill(); }),
+      star: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = (i * 72 - 90) * Math.PI / 180; ctx.lineTo(32 + 28 * Math.cos(a), 32 + 28 * Math.sin(a)); const b = ((i * 72 + 36) - 90) * Math.PI / 180; ctx.lineTo(32 + 12 * Math.cos(b), 32 + 12 * Math.sin(b)); } ctx.closePath(); ctx.fill(); }),
+      cross: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.fillRect(24, 4, 16, 56); ctx.fillRect(4, 24, 56, 16); }),
+      x: makeSprite(ctx => { ctx.strokeStyle = 'white'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(8, 8); ctx.lineTo(56, 56); ctx.moveTo(56, 8); ctx.lineTo(8, 56); ctx.stroke(); }),
+      ring: makeSprite(ctx => { ctx.strokeStyle = 'white'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(32, 32, 24, 0, Math.PI * 2); ctx.stroke(); }),
+      pentagon: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); for (let i = 0; i < 5; i++) { const a = (i * 72 - 90) * Math.PI / 180; ctx.lineTo(32 + 28 * Math.cos(a), 32 + 28 * Math.sin(a)); } ctx.closePath(); ctx.fill(); }),
+      hexagon: makeSprite(ctx => { ctx.fillStyle = 'white'; ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = (i * 60 - 90) * Math.PI / 180; ctx.lineTo(32 + 28 * Math.cos(a), 32 + 28 * Math.sin(a)); } ctx.closePath(); ctx.fill(); }),
+    };
+    const circleTex = spriteTextures["circle"];
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color({{scene_bg}});
@@ -2103,6 +2345,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     controls.target.set(centerArr[0], centerArr[1], centerArr[2]);
     controls.update();
     updateOrthoFrustum();  // set initial frustum from camera-to-target distance
@@ -2345,9 +2590,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const style = styleFor(trace);
       const orthoPtBoost = isOrtho ? 4.0 : 1.0;
       const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3 * orthoPtBoost;
+      const sym = style.symbol || "circle";
+      const tex = spriteTextures[sym] || spriteTextures["circle"];
       const mat = new THREE.PointsMaterial({
         size: size,
-        map: circleTex,
+        map: tex,
         vertexColors: !!(trace.data.colors && trace.data.colors.length),
         sizeAttenuation: true,
         transparent: true,
