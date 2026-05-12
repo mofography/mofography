@@ -1484,7 +1484,25 @@ def trimesh_from_pyvista(pv_mesh):
     :return: A trimesh object.
     """
     import trimesh
-    faces_array = pv_mesh.faces.reshape((pv_mesh.n_faces_strict, 4))[:, 1:]
+    import numpy as np
+    faces = pv_mesh.faces
+    tri_faces = []
+    i = 0
+    while i < len(faces):
+        n = int(faces[i])
+        verts = faces[i + 1:i + 1 + n]
+        if n == 3:
+            tri_faces.append(verts)
+        elif n == 4:
+            # Split quad into two triangles
+            tri_faces.append([verts[0], verts[1], verts[2]])
+            tri_faces.append([verts[0], verts[2], verts[3]])
+        else:
+            # Fan triangulation for n-gons
+            for j in range(1, n - 1):
+                tri_faces.append([verts[0], verts[j], verts[j + 1]])
+        i += n + 1
+    faces_array = np.array(tri_faces, dtype=int)
     tmesh = trimesh.Trimesh(pv_mesh.points, faces_array)
     return tmesh
 
