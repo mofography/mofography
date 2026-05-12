@@ -2967,14 +2967,21 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
        "cell_copy"],
     ];
 
-    // Create ONE unit-cell copy that moves with the pore graph group
+    // Create unit-cell copies for exploded view
     let cellCopy = null;
+    let cellCenter = null;
     if (cellObj && cellObj.geometry) {
       cellCopy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
       cellCopy.name = "cell_copy";
       cellCopy.visible = false;
       scene.add(cellCopy);
       objectsById["cell_copy"] = cellCopy;
+
+      cellCenter = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellCenter.name = "cell_center";
+      cellCenter.visible = false;
+      scene.add(cellCenter);
+      objectsById["cell_center"] = cellCenter;
     }
 
     // Populate per-mesh opacity controls (skip alt-representation meshes)
@@ -3111,6 +3118,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
       if (cellCopy) {
         cellCopy.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
+        if (cellCenter) cellCenter.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
       }
     });
     function updateFrameworkVisibility() {
@@ -3255,9 +3263,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offset, 0, 0));
         });
       });
-      // Show/hide the cell copy when exploded
+      // Show/hide the cell copies when exploded
       if (cellCopy) {
         cellCopy.visible = dist > 0 && showCell.checked;
+      }
+      if (cellCenter) {
+        cellCenter.visible = dist > 0 && showCell.checked;
       }
     });
 
