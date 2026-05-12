@@ -2900,6 +2900,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           const obj = objectsById[tid];
           if (obj) obj.visible = cb.checked;
         });
+        updateCellCopyVisibility();
+        updateSurfaceCellVisibility();
+        updateFrameworkCellVisibility();
       });
       label.appendChild(cb);
       label.appendChild(document.createTextNode(" " + (group.label || groupId)));
@@ -3143,9 +3146,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
       if (stick) stick.visible = showFramework.checked && val === "stick";
       if (sf) sf.visible = showFramework.checked && val === "space_filling";
-      if (cellFramework) {
-        cellFramework.visible = showFramework.checked && parseFloat(explodeSlider.value) > 0;
-      }
+      updateFrameworkCellVisibility();
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
@@ -3169,20 +3170,42 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         }
       });
     });
-    // Helpers to keep exploded cell-copy visibility in sync with group checkboxes
+    // Helpers to keep exploded cell-copy visibility in sync with actual trace visibility
+    // (works for individual checkboxes, group checkboxes, and any other toggle mechanism)
     function updateCellCopyVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellCopy) {
-        cellCopy.visible = exploded && (
-          showWindows.checked || showPeriodicWindows.checked ||
-          showInternalConnections.checked || showPeriodicConnections.checked
-        );
+        const poreGraphIds = [
+          "maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
+          "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"
+        ];
+        const anyVisible = poreGraphIds.some(id => {
+          const obj = objectsById[id];
+          return obj && obj.visible;
+        });
+        cellCopy.visible = exploded && anyVisible;
       }
     }
     function updateSurfaceCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
-      if (cellPbc) cellPbc.visible = exploded && showSurface.checked;
-      if (cellPocket) cellPocket.visible = exploded && showSurface.checked;
+      if (cellPbc) {
+        const ids = ["surface", "surface_regions_raw", "surface_regions_pbc"];
+        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        cellPbc.visible = exploded && anyVisible;
+      }
+      if (cellPocket) {
+        const ids = ["surface_pocket", "surface_regions_cluster"];
+        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        cellPocket.visible = exploded && anyVisible;
+      }
+    }
+    function updateFrameworkCellVisibility() {
+      const exploded = parseFloat(explodeSlider.value) > 0;
+      if (cellFramework) {
+        const ids = ["framework", "framework_stick", "framework_spacefill"];
+        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        cellFramework.visible = exploded && anyVisible;
+      }
     }
 
     showWindows.addEventListener("change", () => {
@@ -3304,8 +3327,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offsetX, offsetY, 0));
         });
       });
-      // Show/hide the cell copies when exploded — each follows its group checkbox
-      if (cellFramework) cellFramework.visible = dist > 0 && showFramework.checked;
+      // Show/hide the cell copies when exploded — each follows actual trace visibility
+      updateFrameworkCellVisibility();
       updateCellCopyVisibility();
       updateSurfaceCellVisibility();
     });
