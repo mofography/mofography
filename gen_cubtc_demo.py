@@ -53,16 +53,14 @@ def make_surface_trace_smooth(
     uniq = sorted(int(x) for x in np.unique(labels) if x > 0)
     n_regions = len(uniq)
 
-    # Generate n_regions distinct hues evenly spaced
-    hues = np.linspace(0, 1, n_regions, endpoint=False)
-    import colorsys
-    palette = {}
-    for i, rid in enumerate(uniq):
-        # Use high saturation, medium-high value for vibrant distinct colors
-        rgb = colorsys.hsv_to_rgb(hues[i], 0.7, 0.85)
-        palette[rid] = list(rgb)
+    import re, plotly.express as px
+    pastel_rgb = []
+    for s in px.colors.qualitative.Pastel:
+        m = re.match(r"rgb\((\d+),\s*(\d+),\s*(\d+)\)", s)
+        if m:
+            pastel_rgb.append([int(m.group(i)) / 255.0 for i in (1, 2, 3)])
+    palette = {rid: pastel_rgb[i % len(pastel_rgb)] for i, rid in enumerate(uniq)}
 
-    # Fallback gray for label 0 (shouldn't happen after fix)
     colors = np.array([palette.get(int(l), [0.55, 0.55, 0.55]) for l in labels], dtype=float)
 
     # --- Step 5: hover text ---
