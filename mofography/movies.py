@@ -3156,9 +3156,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const obj = objectsById[id];
         if (obj) obj.visible = showSurface.checked;
       });
-      const exploded = parseFloat(explodeSlider.value) > 0;
-      if (cellPbc) cellPbc.visible = exploded && showSurface.checked;
-      if (cellPocket) cellPocket.visible = exploded && showSurface.checked;
+      updateSurfaceCellVisibility();
     });
     showGuests.addEventListener("change", () => {
       Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
@@ -3171,13 +3169,31 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         }
       });
     });
+    // Helpers to keep exploded cell-copy visibility in sync with group checkboxes
+    function updateCellCopyVisibility() {
+      const exploded = parseFloat(explodeSlider.value) > 0;
+      if (cellCopy) {
+        cellCopy.visible = exploded && (
+          showWindows.checked || showPeriodicWindows.checked ||
+          showInternalConnections.checked || showPeriodicConnections.checked
+        );
+      }
+    }
+    function updateSurfaceCellVisibility() {
+      const exploded = parseFloat(explodeSlider.value) > 0;
+      if (cellPbc) cellPbc.visible = exploded && showSurface.checked;
+      if (cellPocket) cellPocket.visible = exploded && showSurface.checked;
+    }
+
     showWindows.addEventListener("change", () => {
       const obj = objectsById["windows_internal"];
       if (obj) obj.visible = showWindows.checked;
+      updateCellCopyVisibility();
     });
     showPeriodicWindows.addEventListener("change", () => {
       const obj = objectsById["windows_periodic"];
       if (obj) obj.visible = showPeriodicWindows.checked;
+      updateCellCopyVisibility();
     });
     showInternalConnections.addEventListener("change", () => {
       const lineObj = objectsById["connections_internal"];
@@ -3186,10 +3202,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (lineObj) lineObj.visible = showInternalConnections.checked;
       if (nodeObj) nodeObj.visible = showInternalConnections.checked;
       if (maxObj) maxObj.visible = showInternalConnections.checked;
-      if (cellCopy) {
-        const exploded = parseFloat(explodeSlider.value) > 0;
-        cellCopy.visible = exploded && (showInternalConnections.checked || showPeriodicConnections.checked);
-      }
+      updateCellCopyVisibility();
     });
     showPeriodicConnections.addEventListener("change", () => {
       const lineObj = objectsById["connections_periodic"];
@@ -3198,10 +3211,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (lineObj) lineObj.visible = showPeriodicConnections.checked;
       if (nodeObj) nodeObj.visible = showPeriodicConnections.checked;
       if (maxObj) maxObj.visible = showPeriodicConnections.checked;
-      if (cellCopy) {
-        const exploded = parseFloat(explodeSlider.value) > 0;
-        cellCopy.visible = exploded && (showInternalConnections.checked || showPeriodicConnections.checked);
-      }
+      updateCellCopyVisibility();
     });
     pivotSceneBtn.addEventListener("click", () => {
       controls.target.copy(sceneCenter);
@@ -3296,9 +3306,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       });
       // Show/hide the cell copies when exploded — each follows its group checkbox
       if (cellFramework) cellFramework.visible = dist > 0 && showFramework.checked;
-      if (cellCopy) cellCopy.visible = dist > 0 && (showInternalConnections.checked || showPeriodicConnections.checked);
-      if (cellPbc) cellPbc.visible = dist > 0 && showSurface.checked;
-      if (cellPocket) cellPocket.visible = dist > 0 && showSurface.checked;
+      updateCellCopyVisibility();
+      updateSurfaceCellVisibility();
     });
 
     bgPicker.addEventListener("input", () => {
