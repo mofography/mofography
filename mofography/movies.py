@@ -2275,6 +2275,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="prevFrame">Prev</button>
       <button id="nextFrame">Next</button>
       <span id="status">Frame 0</span>
+      <button id="recordGif" style="display:none;">Record GIF</button>
     </div>
     <span id="meta"></span>
     <div class="checkrow">
@@ -2343,6 +2344,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
+  <script src="https://unpkg.com/gif.js@0.2.0/dist/gif.js"></script>
   <script>
     const DATA = {{payload_json}};
     const MOV = DATA.static && DATA.static.traces ? DATA.static.traces : [];
@@ -3604,6 +3606,90 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       recordBtn.style.background = "#cc3333";
       recordBtn.style.color = "#fff";
     });
+
+    // Record GIF (via gif.js) — only meaningful when there are frames
+    const recordGifBtn = document.getElementById("recordGif");
+    let gifRecorder = null;
+    let gifRecording = false;
+    let gifFrameTimer = null;
+    let gifFramesCaptured = 0;
+    let gifWorkerBlobUrl = null;
+    const GIF_MAX_FRAMES = 100;   // ~5-10 seconds at 10-20 fps
+    const GIF_FRAME_DELAY = 100;  // ms between captures
+
+    async function getGifWorkerUrl() {
+      if (gifWorkerBlobUrl) return gifWorkerBlobUrl;
+      try {
+        const resp = await fetch("https://unpkg.com/gif.js@0.2.0/dist/gif.worker.js");
+        if (!resp.ok) throw new Error("fetch failed");
+        const text = await resp.text();
+        const blob = new Blob([text], { type: "application/javascript" });
+        gifWorkerBlobUrl = URL.createObjectURL(blob);
+        return gifWorkerBlobUrl;
+      } catch(e) {
+        return "https://unpkg.com/gif.js@0.2.0/dist/gif.worker.js";
+      }
+    }
+
+    if (recordGifBtn && FRAMES.length > 0) {
+      recordGifBtn.style.display = "";
+      recordGifBtn.addEventListener("click", async function() {
+        if (gifRecording) {
+          gifRecording = false;
+          if (gifFrameTimer) { clearTimeout(gifFrameTimer); gifFrameTimer = null; }
+          recordGifBtn.textContent = "Record GIF";
+          recordGifBtn.style.background = "";
+          recordGifBtn.style.color = "";
+          if (gifRecorder) { gifRecorder.render(); }
+          return;
+        }
+        if (typeof GIF === "undefined") {
+          alert("GIF encoder not loaded. Check your network connection.");
+          return;
+        }
+        const workerUrl = await getGifWorkerUrl();
+        gifRecording = true;
+        gifFramesCaptured = 0;
+        recordGifBtn.textContent = "Stop GIF";
+        recordGifBtn.style.background = "#cc3333";
+        recordGifBtn.style.color = "#fff";
+
+        const w = renderer.domElement.width;
+        const h = renderer.domElement.height;
+        gifRecorder = new GIF({
+          workers: 2,
+          quality: 10,
+          width: w,
+          height: h,
+          workerScript: workerUrl
+        });
+        gifRecorder.on("finished", function(blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "figure3d_movie.gif";
+          a.click();
+          setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+          gifRecorder = null;
+        });
+
+        function captureNextGifFrame() {
+          if (!gifRecording || !gifRecorder) return;
+          if (gifFramesCaptured >= GIF_MAX_FRAMES) {
+            gifRecording = false;
+            recordGifBtn.textContent = "Record GIF";
+            recordGifBtn.style.background = "";
+            recordGifBtn.style.color = "";
+            gifRecorder.render();
+            return;
+          }
+          gifRecorder.addFrame(renderer.domElement, { delay: GIF_FRAME_DELAY, copy: true });
+          gifFramesCaptured += 1;
+          gifFrameTimer = setTimeout(captureNextGifFrame, GIF_FRAME_DELAY);
+        }
+        captureNextGifFrame();
+      });
+    }
 
     document.getElementById("lightInfo").addEventListener("click", function() {
       const proj = camera.isPerspectiveCamera ? "Perspective" : "Orthographic";
