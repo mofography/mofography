@@ -1775,6 +1775,7 @@ def build_fixed_framework_movie(
         "periodic_pore_graph": {
             "traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"],
             "label": "Periodic Pore Graph",
+            "default_off": True,
         },
         "guests": {
             "traces": ["guests"],
@@ -2387,7 +2388,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const label = document.createElement("label");
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      cb.checked = true;
+      const startOff = !!group.default_off;
+      cb.checked = !startOff;
+      if (startOff) {
+        (group.traces || []).forEach(function(tid) {
+          const obj = objectsById[tid];
+          if (obj) obj.visible = false;
+        });
+      }
       cb.addEventListener("change", function() {
         (group.traces || []).forEach(function(tid) {
           const obj = objectsById[tid];

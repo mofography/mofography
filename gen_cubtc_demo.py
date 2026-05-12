@@ -193,7 +193,7 @@ fig.groups.update({
     "surface_regions_pbc":    {"traces": ["surface_regions_pbc"],    "label": "Regions (PBC merged)"},
     "surface_regions_cluster": {"traces": ["surface_regions_cluster"], "label": "Pocket types (cluster)"},
     "internal_pore_graph":   {"traces": ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"], "label": "Internal Pore Graph"},
-    "periodic_pore_graph":   {"traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"], "label": "Periodic Pore Graph"},
+    "periodic_pore_graph":   {"traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"], "label": "Periodic Pore Graph", "default_off": True},
 })
 
 fig.meta["description"] = "CuBTC — smoothed surfaces, unique per-region colors, hover labels"
@@ -265,7 +265,7 @@ movie_fig.add_trace(conns_lta["periodic_nodes"])
 
 movie_fig.groups = {
     "internal_pore_graph": {"traces": ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"], "label": "Internal Pore Graph"},
-    "periodic_pore_graph": {"traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"], "label": "Periodic Pore Graph"},
+    "periodic_pore_graph": {"traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"], "label": "Periodic Pore Graph", "default_off": True},
     "guests": {"traces": ["guests"], "label": "K+ Adsorbates"},
 }
 
