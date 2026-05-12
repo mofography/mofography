@@ -326,7 +326,7 @@ def _framework_vertex_hovertext(
 
 
 def _serialize_framework_mesh(
-    atoms: Atoms, bonds: list[list[int]] | None = None
+    atoms: Atoms, bonds: list[list[int]] | None = None, representation: str = "ball_and_stick"
 ) -> dict[str, Any]:
     from .visualize import mesh_for_atoms
 
@@ -335,6 +335,7 @@ def _serialize_framework_mesh(
         bonds=bonds,
         kwargs_spheres=dict(scale=0.8),
         kwargs_cylinders=dict(radius=0.25),
+        representation=representation,
     )
     payload = _serialize_trimesh(mesh)
     payload["vertex_hover"] = _framework_vertex_hovertext(mesh, atoms)
@@ -1024,6 +1025,7 @@ def make_framework_trace(
     style: str | dict | None = "framework",
     name: str = "Framework",
     trace_id: str = "framework",
+    representation: str = "ball_and_stick",
 ) -> dict[str, Any]:
     def _ase_covalent_bonds(a: Atoms, mult: float = 1.05) -> list[list[int]]:
         cutoffs = np.asarray(natural_cutoffs(a, mult=mult), dtype=float)
@@ -1050,7 +1052,7 @@ def make_framework_trace(
         mesh_bonds = None
     elif isinstance(bonds, list):
         mesh_bonds = bonds
-    payload = _serialize_framework_mesh(atoms, bonds=mesh_bonds)
+    payload = _serialize_framework_mesh(atoms, bonds=mesh_bonds, representation=representation)
     return _make_trace(
         trace_id=trace_id,
         trace_type="mesh",
@@ -1958,11 +1960,30 @@ class MovieFigure:
         self,
         atoms: Atoms,
         bonds: str | list | None = "auto",
+        representation: str = "ball_and_stick",
         **style: Any,
     ) -> "MovieFigure":
-        """Add framework atoms + bonds as a mesh trace (static)."""
-        trace = make_framework_trace(atoms, bonds=bonds, style=style if style else "framework")
-        self.add_trace(trace)
+        """Add framework atoms + bonds as a mesh trace (static).
+        representation: "ball_and_stick" (default), "stick", or "space_filling".
+        When called with default representation, both ball-and-stick and stick
+        meshes are added; the stick mesh starts hidden and can be toggled in the viewer.
+        """
+        if representation == "ball_and_stick":
+            trace = make_framework_trace(atoms, bonds=bonds, style=style if style else "framework")
+            self.add_trace(trace)
+            # Also add stick representation (starts hidden)
+            stick_trace = make_framework_trace(
+                atoms, bonds=bonds, trace_id="framework_stick",
+                name="Framework (stick)", representation="stick",
+                style={"visible": False}
+            )
+            self.add_trace(stick_trace)
+        else:
+            trace = make_framework_trace(
+                atoms, bonds=bonds, representation=representation,
+                style=style if style else "framework"
+            )
+            self.add_trace(trace)
         return self
 
     def add_cell(self, atoms: Atoms, **style: Any) -> "MovieFigure":
@@ -2085,8 +2106,9 @@ def build_fixed_framework_movie(
     fig.set_camera(eye=eye, center=center, up=up)
     fig.update_layout({"fps": fps, "n_frames": n_frames})
 
-    # Static traces
+    # Static traces — framework in both ball-and-stick and stick representations
     fig.add_trace(make_framework_trace(framework_atoms))
+    fig.add_trace(make_framework_trace(framework_atoms, trace_id="framework_stick", representation="stick", name="Framework (stick)", style={"visible": False}))
     fig.add_trace(make_cell_trace(framework_atoms))
 
     # Compute segmentation once on the framework
@@ -2205,11 +2227,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       background: {{bg_css}};
       font-family: {{font_family}}; color: {{text_color}};
       -webkit-text-size-adjust: 100%; touch-action: none; }
-    #app { position: fixed; inset: 0; right: 200px; }
-    #hud { position: fixed; right: 0; top: 0; width: 200px; height: 100vh;
+    #app { position: fixed; inset: 0; right: 260px; }
+    #hud { position: fixed; right: 0; top: 0; width: 260px; height: 100vh;
       background: {{panel_bg}}; border-left: 1px solid rgba(128,128,128,0.2);
       padding: 10px; display: flex; flex-direction: column; gap: 4px;
-      overflow-y: auto; z-index: 10; font-size: 11px; }
+      overflow-y: auto; overflow-x: hidden; resize: horizontal; z-index: 10; font-size: 11px; }
     #figTitle { font-size: 14px; font-weight: 600; margin-bottom: 4px; text-align: center; }
     #row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     #frameSlider { width: 100%; }
@@ -2268,12 +2290,16 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="measureTool">Measure</button>
     </div>
     <div class="checkrow" id="advancedControls" style="flex-direction:column;gap:6px;">
-      <label>Mesh opacity: <select id="opacityTarget" style="font-size:10px;vertical-align:middle;width:90px;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface (regions)</option></select> <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:60px;vertical-align:middle;" /></label>
+      <label style="display:flex;flex-direction:column;gap:2px;">Mesh opacity:
+        <select id="opacityTarget" style="font-size:10px;width:100%;"><option value="all">All meshes</option><option value="framework">Framework</option><option value="surface">Surface (regions)</option></select>
+        <input id="surfOpacity" type="range" min="0" max="1" step="0.05" value="0.95" style="width:100%;" />
+      </label>
+      <label><input type="checkbox" id="toggleStick" /> Stick representation</label>
       <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
       <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
-      <label>Exploded: <input id="explodeSlider" type="range" min="0" max="2" step="0.05" value="0" style="width:80px;vertical-align:middle;" /></label>
+      <label>Exploded: <input id="explodeSlider" type="range" min="0" max="4" step="0.05" value="0" style="width:80px;vertical-align:middle;" /></label>
       <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
       <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
     </div>
@@ -2322,6 +2348,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const nextBtn = document.getElementById("nextFrame");
     const tooltip = document.getElementById("tooltip");
 
+    const toggleStickCb = document.getElementById("toggleStick");
     const showCell = document.getElementById("showCell");
     const showFramework = document.getElementById("showFramework");
     const showSurface = document.getElementById("showSurface");
@@ -2977,6 +3004,19 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     showFramework.addEventListener("change", () => {
       const obj = objectsById["framework"];
       if (obj) obj.visible = showFramework.checked;
+      const stickObj = objectsById["framework_stick"];
+      if (stickObj) stickObj.visible = showFramework.checked && toggleStickCb.checked;
+    });
+    toggleStickCb.addEventListener("change", () => {
+      const obj = objectsById["framework"];
+      const stickObj = objectsById["framework_stick"];
+      if (obj) obj.visible = !toggleStickCb.checked;
+      if (stickObj) stickObj.visible = toggleStickCb.checked;
+      // Sync the framework checkbox state
+      if (showFramework.checked) {
+        if (obj) obj.visible = !toggleStickCb.checked;
+        if (stickObj) stickObj.visible = toggleStickCb.checked;
+      }
     });
     showSurface.addEventListener("change", () => {
       const obj = objectsById["surface"];
@@ -3095,7 +3135,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const _explodeOrig = {};
     explodeSlider.addEventListener("input", () => {
       const dist = parseFloat(explodeSlider.value);
-      const spacing = dist * 3.0;
+      const spacing = dist * 5.0;
       _explodeGroups.forEach(function(group, idx) {
         group.forEach(function(tid) {
           const obj = objectsById[tid];

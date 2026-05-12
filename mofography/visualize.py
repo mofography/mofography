@@ -1812,7 +1812,11 @@ def _batched_spheres_mesh(positions, radii, colors, theta_resolution=8, phi_reso
 
 
 def _batched_cylinders_mesh(centers, directions, heights, radius, colors, sections=15):
-    """Return a single trimesh with all cylinders batched together."""
+    """Return a single trimesh with all cylinders batched together.
+
+    colors: (n, 4) uint8 — uniform color per cylinder, or
+            (n, 2, 4) uint8 — two-tone per cylinder (bottom cap, top cap).
+    """
     import numpy as np
     import trimesh.creation
 
@@ -1888,10 +1892,25 @@ def _batched_cylinders_mesh(centers, directions, heights, radius, colors, sectio
     # Ensure RGBA
     if colors.ndim == 2 and colors.shape[1] == 3:
         colors = np.hstack([colors, np.full((colors.shape[0], 1), 255, dtype=np.uint8)])
-    if colors.shape[0] == n:
+
+    if colors.ndim == 3 and colors.shape[1:] == (2, 3):
+        # Two-tone RGB → expand to RGBA
+        colors = np.concatenate([colors, np.full((colors.shape[0], 2, 1), 255, dtype=np.uint8)], axis=2)
+
+    if colors.ndim == 2 and colors.shape[0] == n:
+        # Uniform per cylinder
         colors = np.repeat(colors, Nv, axis=0)
+    elif colors.ndim == 3 and colors.shape[0] == n and colors.shape[1] == 2:
+        # Two-tone per cylinder: bottom cap (z=-0.5) gets colors[:,0], top cap (z=0.5) gets colors[:,1]
+        is_top = v0[:, 2] > 0          # (Nv,) boolean
+        bottom_idx = np.where(~is_top)[0]
+        top_idx = np.where(is_top)[0]
+        per_vert = np.empty((n, Nv, 4), dtype=np.uint8)
+        per_vert[:, bottom_idx] = colors[:, 0:1]
+        per_vert[:, top_idx] = colors[:, 1:2]
+        colors = per_vert.reshape(n * Nv, 4)
     else:
-        raise ValueError(f"colors shape must be (n, 3) or (n, 4), got {colors.shape}")
+        raise ValueError(f"colors shape must be (n, 3/4), (n, 2, 3/4), got {colors.shape}")
 
     mesh = trimesh.Trimesh(vertices=vertices, faces=faces, vertex_colors=colors, process=False)
     return mesh
@@ -1899,11 +1918,14 @@ def _batched_cylinders_mesh(centers, directions, heights, radius, colors, sectio
 
 
 def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 128, 129, 255],
-                           scale=0.5, radius=0.25, sphere_sections=2, cylinder_sections=15):
+                           scale=0.5, radius=0.25, sphere_sections=2, cylinder_sections=15,
+                           representation="ball_and_stick"):
     """Fast batched mesh generation — returns a single trimesh for atoms + bonds.
 
     Typically 5–10× faster than the PyVista loop path because it avoids
     creating thousands of individual mesh objects in Python.
+
+    representation: "ball_and_stick" (default), "stick", or "space_filling"
     """
     import numpy as np
     import time
@@ -1922,17 +1944,32 @@ def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array
 
     t0 = time.time()
 
-    # ---- Spheres ----
     from ase.data import covalent_radii
     positions = ase_atoms.get_positions()
-    radii = covalent_radii[ase_atoms.get_atomic_numbers()] * scale
     atomic_numbers = ase_atoms.get_atomic_numbers()
-    # cpk_colors is float64 RGB 0-1; pass raw floats so _batched_spheres_mesh auto-converts
     sphere_colors = np.array([colormap[an] for an in atomic_numbers])
 
-    sphere_mesh = _batched_spheres_mesh(positions, radii, sphere_colors,
-                                        theta_resolution=sphere_sections * 4,
-                                        phi_resolution=sphere_sections * 4)
+    if representation == "stick":
+        # Small sphere caps at atom positions, thin cylinders with two-tone CPK colors
+        radii = covalent_radii[atomic_numbers] * 0.15
+        sphere_mesh = _batched_spheres_mesh(positions, radii, sphere_colors,
+                                            theta_resolution=sphere_sections * 4,
+                                            phi_resolution=sphere_sections * 4)
+    elif representation == "space_filling":
+        # Large spheres that touch each other (CPK)
+        radii = covalent_radii[atomic_numbers] * scale
+        sphere_mesh = _batched_spheres_mesh(positions, radii, sphere_colors,
+                                            theta_resolution=sphere_sections * 4,
+                                            phi_resolution=sphere_sections * 4)
+        # No bonds in space-filling
+        cylinder_mesh = None
+    else:
+        # ball_and_stick — default
+        radii = covalent_radii[atomic_numbers] * scale
+        sphere_mesh = _batched_spheres_mesh(positions, radii, sphere_colors,
+                                            theta_resolution=sphere_sections * 4,
+                                            phi_resolution=sphere_sections * 4)
+
     t1 = time.time()
 
     # ---- Cylinders ----
@@ -1942,9 +1979,25 @@ def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array
         dirs = bond_coords[:, 1] - bond_coords[:, 0]
         centers = (bond_coords[:, 0] + bond_coords[:, 1]) / 2
         heights = np.linalg.norm(dirs, axis=1)
-        bond_colors = np.tile(np.array(bond_rgba_array, dtype=np.uint8), (len(bonds), 1))
 
-        cylinder_mesh = _batched_cylinders_mesh(centers, dirs, heights, radius, bond_colors,
+        if representation == "stick":
+            # Two-tone: bottom cap = atom A CPK color, top cap = atom B CPK color
+            bond_colors = np.empty((len(bonds), 2, 4), dtype=np.uint8)
+            for i, (a, b) in enumerate(bonds):
+                c_a = np.array(colormap[atomic_numbers[a]] * 255, dtype=np.uint8)
+                c_b = np.array(colormap[atomic_numbers[b]] * 255, dtype=np.uint8)
+                if len(c_a) == 3:
+                    c_a = np.append(c_a, 255)
+                if len(c_b) == 3:
+                    c_b = np.append(c_b, 255)
+                bond_colors[i, 0] = c_a
+                bond_colors[i, 1] = c_b
+            cyl_radius = radius * 0.5  # thinner bonds for stick
+        else:
+            bond_colors = np.tile(np.array(bond_rgba_array, dtype=np.uint8), (len(bonds), 1))
+            cyl_radius = radius
+
+        cylinder_mesh = _batched_cylinders_mesh(centers, dirs, heights, cyl_radius, bond_colors,
                                                  sections=cylinder_sections)
     else:
         cylinder_mesh = trimesh.Trimesh(vertices=np.zeros((0, 3)), faces=np.zeros((0, 3), dtype=int))
@@ -1953,7 +2006,10 @@ def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array
 
     # ---- Concatenate ----
     import trimesh
-    combined = trimesh.util.concatenate(sphere_mesh, cylinder_mesh)
+    if representation == "space_filling":
+        combined = sphere_mesh
+    else:
+        combined = trimesh.util.concatenate(sphere_mesh, cylinder_mesh)
     t3 = time.time()
 
     total_faces = len(combined.faces) if hasattr(combined, 'faces') else 0
@@ -2026,7 +2082,7 @@ def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array
 
 def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 128, 129, 255],
                    kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False,
-                   use_batched=True):
+                   use_batched=True, representation="ball_and_stick"):
     """
     > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
     notebook
@@ -2040,6 +2096,7 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
     :param return_scene: if True, returns a trimesh.Scene object, which can be rendered with the
     trimesh.Scene.show() method, defaults to False (optional)
     :param use_batched: if True, uses the fast numpy-batched path (~300× faster), defaults to True
+    :param representation: "ball_and_stick", "stick", or "space_filling"
     :return: A trimesh.Scene object.
     """
 
@@ -2057,6 +2114,7 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
             bond_rgba_array=bond_rgba_array,
             scale=scale,
             radius=radius,
+            representation=representation,
         )
 
     # Fallback: original PyVista loop path (for return_scene or debugging)
