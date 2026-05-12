@@ -2284,6 +2284,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="exportPng">Export PNG</button>
       <button id="lightInfo">Lights</button>
     </div>
+    <div class="checkrow" id="viewButtons" style="gap:2px;">
+      <button id="viewX" title="View +X">+X</button>
+      <button id="viewNegX" title="View -X">-X</button>
+      <button id="viewY" title="View +Y">+Y</button>
+      <button id="viewNegY" title="View -Y">-Y</button>
+      <button id="viewZ" title="View +Z">+Z</button>
+      <button id="viewNegZ" title="View -Z">-Z</button>
+    </div>
     <div id="lightModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);">
       <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;color:#eee;padding:16px;border-radius:10px;font-size:12px;max-width:320px;">
         <h3 style="margin:0 0 8px 0;font-size:14px;">Lighting Settings</h3>
@@ -2305,7 +2313,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
       <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
-      <label>Exploded: <input id="explodeSlider" type="range" min="0" max="4" step="0.05" value="0" style="width:80px;vertical-align:middle;" /></label>
+      <label>Exploded: <input id="explodeSlider" type="range" min="0" max="6" step="0.05" value="0" style="width:140px;vertical-align:middle;" /></label>
       <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
       <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
     </div>
@@ -2412,6 +2420,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const upArr = {{up}};
     const projection = "{{projection}}";
 
+    // Pull camera 1.5x farther from center for better default framing
+    const _centerVec = new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]);
+    const _eyeVec = new THREE.Vector3(eyeArr[0], eyeArr[1], eyeArr[2]);
+    const _camDir = new THREE.Vector3().subVectors(_eyeVec, _centerVec).multiplyScalar(1.5);
+    const _scaledEye = new THREE.Vector3().addVectors(_centerVec, _camDir);
+    const scaledEyeArr = [_scaledEye.x, _scaledEye.y, _scaledEye.z];
+
     let camera, perspectiveCam, orthoCam, frustumSize, isOrtho;
     const aspect = window.innerWidth / window.innerHeight;
 
@@ -2433,7 +2448,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     camera = isOrtho ? orthoCam : perspectiveCam;
 
     [perspectiveCam, orthoCam].forEach(function(cam) {
-      cam.position.set(eyeArr[0], eyeArr[1], eyeArr[2]);
+      cam.position.set(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2]);
       cam.up.set(upArr[0], upArr[1], upArr[2]);
       cam.lookAt(new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]));
     });
@@ -2448,6 +2463,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     // Orthographic toggle
     const toggleOrthoBtn = document.getElementById("toggleOrtho");
+    toggleOrthoBtn.textContent = isOrtho ? "Perspective" : "Ortho";
     function recreateComposer() {
       if (composer) {
         try { composer.passes.forEach(function(p) { if (p.dispose) p.dispose(); }); } catch(e) {}
@@ -2500,6 +2516,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
 
       renderer.domElement.style.filter = isOrtho ? "contrast(1.15) saturate(1.2)" : "";
+      toggleOrthoBtn.textContent = isOrtho ? "Perspective" : "Ortho";
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
@@ -2602,7 +2619,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
           clearcoat: clearcoat,
           clearcoatRoughness: style.clearcoatRoughness !== undefined ? style.clearcoatRoughness : 0.1,
-          depthWrite: true,
+          depthWrite: isOpaque,
         });
       } else {
         mat = new THREE.MeshStandardMaterial({
@@ -2612,7 +2629,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           roughness: style.roughness !== undefined ? style.roughness : 0.38,
           metalness: style.metalness !== undefined ? style.metalness : 0.0,
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
-          depthWrite: true,
+          depthWrite: isOpaque,
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
@@ -2987,6 +3004,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
             if (obj && obj.material) {
               obj.material.opacity = val;
               obj.material.transparent = val < 1.0;
+              obj.material.depthWrite = val >= 1.0;
               obj.material.needsUpdate = true;
             }
           });
@@ -3139,7 +3157,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     // ---- New dynamic controls ----
-    const _camOrig = { pos: camera.position.clone(), target: controls.target.clone() };
+    const _camOrig = { pos: new THREE.Vector3(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2]), target: new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]) };
     resetCamBtn.addEventListener("click", () => {
       camera.position.copy(_camOrig.pos);
       controls.target.copy(_camOrig.target);
@@ -3147,6 +3165,23 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       controls.update();
       updateOrthoFrustum();
     });
+
+    // Quick view along principal axes
+    const _viewDist = _scaledEye.distanceTo(_centerVec);
+    function setViewAxis(dir) {
+      const target = controls.target.clone();
+      const newPos = target.clone().add(dir.clone().multiplyScalar(_viewDist));
+      camera.position.copy(newPos);
+      camera.lookAt(target);
+      controls.update();
+      updateOrthoFrustum();
+    }
+    document.getElementById("viewX").addEventListener("click", () => setViewAxis(new THREE.Vector3(1, 0, 0)));
+    document.getElementById("viewNegX").addEventListener("click", () => setViewAxis(new THREE.Vector3(-1, 0, 0)));
+    document.getElementById("viewY").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 1, 0)));
+    document.getElementById("viewNegY").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, -1, 0)));
+    document.getElementById("viewZ").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 0, 1)));
+    document.getElementById("viewNegZ").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 0, -1)));
 
     let autoRotating = false;
     toggleRotateBtn.addEventListener("click", () => {
@@ -3189,7 +3224,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const _explodeOrig = {};
     explodeSlider.addEventListener("input", () => {
       const dist = parseFloat(explodeSlider.value);
-      const spacing = dist * 5.0;
+      const spacing = dist * 8.0;
       _explodeGroups.forEach(function(group, idx) {
         group.forEach(function(tid) {
           const obj = objectsById[tid];
