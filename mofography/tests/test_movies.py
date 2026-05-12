@@ -163,8 +163,10 @@ def test_add_framework_chainable():
     fig = mofography.Figure3D()
     result = fig.add_framework(atoms)
     assert result is fig
-    assert len(fig.data) == 1
-    assert fig.data[0]["id"] == "framework"
+    assert len(fig.data) == 2
+    ids = {t["id"] for t in fig.data}
+    assert "framework" in ids
+    assert "framework_stick" in ids
     assert fig.data[0]["type"] == "mesh"
 
 
@@ -352,8 +354,9 @@ def test_build_static_scene_basic():
 
     trace_ids = {t["id"] for t in fig.data}
     assert "framework" in trace_ids
+    assert "framework_stick" in trace_ids
     assert "cell" in trace_ids
-    assert len(fig.data) == 2  # only framework + cell
+    assert len(fig.data) == 3  # framework + framework_stick + cell
 
 
 def test_build_static_scene_with_surface():
