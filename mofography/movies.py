@@ -1871,6 +1871,17 @@ class MovieFigure:
                 for fr in frames_data:
                     fh.write(json.dumps(_pack_frame_data(fr)) + "\n")
             scene["sidecar"] = str(sidecar_path.name)
+            # Build byte-offset index for per-frame HTTP Range streaming
+            offsets: list[int] = []
+            with open(sidecar_path, "rb") as fh:
+                offset = 0
+                for line in fh:
+                    offsets.append(offset)
+                    offset += len(line)
+            idx_path = out.with_suffix(".frames.idx")
+            with open(idx_path, "w", encoding="utf-8") as fh:
+                json.dump(offsets, fh)
+            scene["sidecar_idx"] = str(idx_path.name)
 
         payload_json = json.dumps(scene)
 
@@ -2399,72 +2410,138 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const MOV = DATA.static && DATA.static.traces ? DATA.static.traces : [];
     const FRAMES = DATA.frames || [];
 
-    // ---- Sidecar lazy-loading (keeps only 2-3 parsed frames in RAM) ----
-    let sidecarLines = [];
+    // ---- Sidecar streaming (per-frame Range fetch, only 2-3 parsed frames in RAM) ----
+    let frameOffsets = [];
     let parsedFrameCache = new Map();
     const FRAME_CACHE_SIZE = 3;
-    if (DATA.sidecar) {
+    let sidecarFullText = null;   // fallback when Range is unsupported
+
+    // Load the tiny byte-offset index (e.g. 200 frames -> 1.6 KB)
+    if (DATA.sidecar && DATA.sidecar_idx) {
+      try {
+        const idxReq = new XMLHttpRequest();
+        idxReq.open('GET', DATA.sidecar_idx, false);
+        idxReq.send();
+        if (idxReq.status === 200 || idxReq.status === 0) {
+          frameOffsets = JSON.parse(idxReq.responseText);
+        }
+      } catch (e) {
+        console.warn("Sidecar index load failed:", e);
+      }
+    }
+
+    // Fallback: if no index, load the whole sidecar once (old behaviour)
+    if (DATA.sidecar && frameOffsets.length === 0) {
       try {
         const req = new XMLHttpRequest();
         req.open('GET', DATA.sidecar, false);
         req.send();
         if (req.status === 200 || req.status === 0) {
-          sidecarLines = req.responseText.trim().split('\n').filter(l => l.trim());
+          sidecarFullText = req.responseText.trim().split('\n').filter(l => l.trim());
         }
       } catch (e) {
         console.error("Sidecar load failed. Serve via HTTP (e.g. python -m http.server):", e);
       }
     }
+
     function getFrameCount() {
-      if (DATA.sidecar) return sidecarLines.length;
+      if (DATA.sidecar) {
+        if (frameOffsets.length > 0) return frameOffsets.length;
+        if (sidecarFullText) return sidecarFullText.length;
+      }
       return FRAMES.length;
     }
-    function getFrame(i) {
-      if (DATA.sidecar) {
-        if (i < 0 || i >= sidecarLines.length) return null;
-        if (parsedFrameCache.has(i)) return parsedFrameCache.get(i);
-        const raw = JSON.parse(sidecarLines[i]);
-        // Unpack base64-encoded binary arrays back into regular Arrays
-        // (THREE.js r128 is most compatible with plain Arrays for setAttribute/setIndex)
-        if (raw.traces) {
-          raw.traces.forEach(trace => {
-            if (trace.data) {
-              for (const key in trace.data) {
-                const val = trace.data[key];
-                if (val && val.__binary__) {
-                  const binaryString = atob(val.data);
-                  const len = binaryString.length;
-                  const bytes = new Uint8Array(len);
-                  for (let j = 0; j < len; j++) bytes[j] = binaryString.charCodeAt(j);
-                  const view = new DataView(bytes.buffer);
-                  if (val.dtype === 'float32') {
-                    const out = new Array(len / 4);
-                    for (let j = 0; j < len / 4; j++) out[j] = view.getFloat32(j * 4, true);
-                    trace.data[key] = out;
-                  } else if (val.dtype === 'uint32') {
-                    const out = new Array(len / 4);
-                    for (let j = 0; j < len / 4; j++) out[j] = view.getUint32(j * 4, true);
-                    trace.data[key] = out;
-                  } else if (val.dtype === 'uint16') {
-                    const out = new Array(len / 2);
-                    for (let j = 0; j < len / 2; j++) out[j] = view.getUint16(j * 2, true);
-                    trace.data[key] = out;
-                  } else {
-                    trace.data[key] = Array.from(bytes);
-                  }
-                }
+
+    function _unpackBinaryArrays(raw) {
+      if (!raw.traces) return raw;
+      raw.traces.forEach(trace => {
+        if (trace.data) {
+          for (const key in trace.data) {
+            const val = trace.data[key];
+            if (val && val.__binary__) {
+              const binaryString = atob(val.data);
+              const len = binaryString.length;
+              const bytes = new Uint8Array(len);
+              for (let j = 0; j < len; j++) bytes[j] = binaryString.charCodeAt(j);
+              const view = new DataView(bytes.buffer);
+              if (val.dtype === 'float32') {
+                const out = new Array(len / 4);
+                for (let j = 0; j < len / 4; j++) out[j] = view.getFloat32(j * 4, true);
+                trace.data[key] = out;
+              } else if (val.dtype === 'uint32') {
+                const out = new Array(len / 4);
+                for (let j = 0; j < len / 4; j++) out[j] = view.getUint32(j * 4, true);
+                trace.data[key] = out;
+              } else if (val.dtype === 'uint16') {
+                const out = new Array(len / 2);
+                for (let j = 0; j < len / 2; j++) out[j] = view.getUint16(j * 2, true);
+                trace.data[key] = out;
+              } else {
+                trace.data[key] = Array.from(bytes);
               }
             }
-          });
+          }
         }
-        parsedFrameCache.set(i, raw);
-        while (parsedFrameCache.size > FRAME_CACHE_SIZE) {
-          const firstKey = parsedFrameCache.keys().next().value;
-          parsedFrameCache.delete(firstKey);
+      });
+      return raw;
+    }
+
+    function _parseFrame(text) {
+      const raw = JSON.parse(text);
+      _unpackBinaryArrays(raw);
+      return raw;
+    }
+
+    function getFrame(i) {
+      if (!DATA.sidecar) return FRAMES[i] || null;
+      const n = getFrameCount();
+      if (i < 0 || i >= n) return null;
+      if (parsedFrameCache.has(i)) return parsedFrameCache.get(i);
+
+      let text = null;
+      if (frameOffsets.length > 0) {
+        // Streaming: fetch single frame line via HTTP Range
+        const start = frameOffsets[i];
+        const end = (i + 1 < frameOffsets.length) ? frameOffsets[i + 1] : null;
+        const req = new XMLHttpRequest();
+        if (end !== null) {
+          req.open('GET', DATA.sidecar, false);
+          req.setRequestHeader('Range', 'bytes=' + start + '-' + (end - 1));
+          req.send();
+          if (req.status === 206) {
+            text = req.responseText;
+          } else if (req.status === 200) {
+            // Server ignored Range header — slice the full response manually
+            // (sidecar is ASCII JSONL, so byte offsets == char offsets)
+            text = req.responseText.substring(start, end);
+          }
+        } else {
+          // Last frame: open-ended range
+          req.open('GET', DATA.sidecar, false);
+          req.setRequestHeader('Range', 'bytes=' + start + '-');
+          req.send();
+          if (req.status === 206) {
+            text = req.responseText;
+          } else if (req.status === 200) {
+            text = req.responseText.substring(start);
+          }
         }
-        return raw;
+        if (text === null) {
+          console.error("Range fetch failed for frame", i, "status:", req.status);
+          return null;
+        }
+      } else if (sidecarFullText) {
+        text = sidecarFullText[i];
       }
-      return FRAMES[i] || null;
+      if (text === null) return null;
+
+      const data = _parseFrame(text);
+      parsedFrameCache.set(i, data);
+      while (parsedFrameCache.size > FRAME_CACHE_SIZE) {
+        const firstKey = parsedFrameCache.keys().next().value;
+        parsedFrameCache.delete(firstKey);
+      }
+      return data;
     }
     // ----------------------------------------------------------------------
 
@@ -3057,7 +3134,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       sceneBox.getCenter(sceneCenter);
     }
 
-    let frame = 0;
+    var frame = 0;
     let playing = false;
     let lastT = 0;
     let frameDtMs = 1000.0 / Math.max({{fps}}, 0.01);
