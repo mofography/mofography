@@ -323,23 +323,204 @@ fig.show(renderer="notebook")  # inline
 fig.show(renderer="browser")   # opens in default browser
 #+end_src
 
+* Movie HTMLs — Animated Framework + Adsorbates
+
+The Three.js viewer supports two kinds of movies: (1) fixed framework with
+moving adsorbates, and (2) flexible framework where both framework and
+adsorbates change every frame.
+
+** Fixed-Framework Movie (One-Liner)
+
+The framework and pore graph are computed once and stay static. Only guest
+molecules animate frame-to-frame.
+
+#+begin_src python :exports both
+import mofography as mgr
+from pathlib import Path
+
+fig = mgr.make_movie_from_raspa_pdb(
+    pdb_path="movie.s0.pdb",          # guest trajectory (RASPA format)
+    cif_path="framework.cif",         # static framework
+    out_html="movie.html",
+    max_frames=200,
+    spacing=0.25,
+    isovalue=1.0,
+    fps=20.0,
+)
+#+end_src
+
+** Flexible-Framework Movie (Framework + Pores Recompute Every Frame)
+
+When =framework_movie_path= is set, the framework mesh, unit cell,
+isosurface, pore graph (maxima, windows, connections), and adsorbates are
+all stored per frame.
+
+#+begin_src python :exports both
+import mofography as mgr
+from pathlib import Path
+
+base = Path("outputs/github_raspa_test")
+
+fig, payload = mgr.make_sparse_multicomponent_movie(
+    component_movie_paths={
+        "benzene": base / "movies/movie.s0.pdb",
+    },
+    framework_movie_path=base / "Movie_IRMOF1_frameworks.pdb",
+    cif_path=base / "IRMOF-1.cif",
+    out_html=base / "flexible_movie.html",
+    max_frames=15,
+    movie_format="raspa_pdb",
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+)
+#+end_src
+
+** Sidecar Streaming Mode (For Long Trajectories)
+
+For movies with hundreds of frames, embedding all frame data in the HTML
+causes browser OOM. Enable =sidecar=True= to write frame data to a
+separate =.frames.jsonl= file loaded on demand.
+
+#+begin_src python :exports both
+fig, payload = mgr.make_sparse_multicomponent_movie(
+    component_movie_paths={"benzene": "movie.s0.pdb"},
+    framework_movie_path="frameworks.pdb",
+    cif_path="IRMOF-1.cif",
+    out_html="movie_streaming.html",
+    sidecar=True,                     # writes movie_streaming.frames.jsonl
+    max_frames=200,
+    spacing=0.25,
+    isovalue=1.0,
+)
+#+end_src
+
+Serve both files from the same directory via any HTTP server:
+
+#+begin_src bash
+python -m http.server 8000
+# then open http://localhost:8000/movie_streaming.html
+#+end_src
+
+The viewer fetches only the current frame (and one ahead/behind) via HTTP
+=Range: bytes=...= requests, keeping JS heap at ~50-60 MB regardless of
+total movie length. If the server does not support Range (e.g.
+=python -m http.server=), the full sidecar is cached once and sliced
+in-memory.
+
+* Viewer Features (Built Into Every HTML)
+
+Every exported HTML includes these interactive controls without any extra
+Python code:
+
+** Exploded View
+
+Drag the "Exploded" slider to separate the framework (left), pore graph
+(right), raw surface (center), PBC surface (up), and cluster surface
+(down). A lightweight unit-cell copy follows each group for reference.
+
+** Orthographic / Perspective Toggle
+
+Click "Ortho" / "Perspective" to switch projection. Ortho mode
+automatically boosts directional light intensity and contrast for clean
+2D-style renders.
+
+** Quick Axis Views
+
+Click =+X=, =-X=, =+Y=, =-Y=, =+Z=, =-Z= to snap the camera to an axis
+alignment while preserving zoom distance.
+
+** Video / GIF Recording
+
+- "Record" captures WebM video via =MediaRecorder= + canvas stream.
+- "Record GIF" (movie-mode only, when =FRAMES.length > 0=) uses =gif.js=
+  from CDN. Captures up to 100 frames at 10 fps. The GIF worker is loaded
+  via a Blob URL so it works even when opening the file with =file://=.
+
+** Per-Mesh Opacity Sliders
+
+Every mesh trace (framework, surfaces) gets its own opacity slider in the
+HUD. A tooltip note reminds users to turn off upper surfaces to see
+through to lower ones.
+
+** Hover Tooltips
+
+Mouse over any atom, bond, surface face, or pore-graph node to see a
+rich tooltip. Local maxima now show:
+- pore radius (dgrid) in Angstroms
+- segmentation region label
+- xyz coordinates and grid indices
+
+* Comparison with the Plotly Renderer
+
+Mofography originally used Plotly for 3D visualization. The Three.js
+viewer (=MovieFigure= / =Figure3D=) replaces it for all new work. Here is
+how they compare:
+
+** Similarities
+
+Both APIs follow the same object model:
+
+| Concept          | Plotly                        | Three.js (=MovieFigure=)         |
+|------------------+-------------------------------+------------------------------------|
+| Add trace        | =fig.add_trace(go.Mesh3d(...))= | =fig.add_trace({...})=            |
+| Update traces    | =fig.update_traces(...)=      | =fig.update_traces(patch, selector)= |
+| Layout / camera  | =fig.update_layout(scene_camera=...)= | =fig.set_camera(eye=..., center=...)= |
+| Color palettes   | =px.colors.qualitative.Pastel= | =fig.set_colorscale("Pastel")=    |
+| Jupyter display  | =fig.show()=                  | =fig= (last cell expression)         |
+| HTML export      | =pio.write_html(fig, ...)=   | =fig.to_html("out.html")=            |
+
+** Differences
+
+| Feature                | Plotly                        | Three.js (=MovieFigure=)         |
+|------------------------+-------------------------------+------------------------------------|
+| Rendering backend      | WebGL via stack.gl            | Three.js r128 (more mature, SSAO)  |
+| Post-processing        | None                          | SSAO, ortho lighting compensation  |
+| Orthographic mode      | Not supported                 | Full support with auto-lighting    |
+| Exploded view          | Manual trace transforms       | Built-in 5-group slider            |
+| Video/GIF recording    | External tools only           | Built-in buttons                   |
+| File size (movies)     | ~300-500 MB for 50 frames      | ~100-150 MB (binary-packed sidecar) |
+| RAM for long movies    | All frames in memory           | Sidecar streaming: ~50 MB fixed    |
+| Mesh opacity per trace | Single opacity slider          | Per-trace opacity sliders in HUD   |
+| Hover on meshes        | Not supported                  | Per-face hover with region labels  |
+| Point hover priority   | First hit                      | Ranked: Points > Mesh-with-face > Lines > Instanced > Mesh |
+
 * API Reference Summary
 
-| Method                  | Description                                       |
-|-------------------------+---------------------------------------------------|
-| =add_trace(trace)=       | Add a trace dict                                  |
-| =add_traces(traces)=     | Batch add traces                                  |
-| =update_traces(patch, selector)= | Merge patch into matching traces       |
-| =update_layout(patch)=   | Deep-merge layout dict                            |
-| =set_camera(...)=        | Set eye, center, up, projection                   |
-| =set_appearance(...)=    | Set background, scene_bg, font_family, label_size |
-| =set_colorscale(colors)= | Set surface colors from px.colors or color list   |
-| =add_framework(atoms)=   | Add framework mesh                                |
-| =add_cell(atoms)=        | Add unit cell wireframe                           |
-| =add_surface(...)=       | Add segmentation isosurface                       |
-| =add_maxima(seg, atoms)= | Add pore center markers                           |
-| =add_connections(...)=   | Add pore graph edges                              |
-| =add_windows(seg)=       | Add window markers                                |
-| =add_guests(atoms)=      | Add adsorbate spheres                             |
-| =to_html(path)=          | Save self-contained HTML                          |
-| =show(renderer)=         | Display in notebook or browser                    |
+** Static Scene Builders
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =build_static_scene(atoms, dgrid, regions, seg)= | One-liner for framework + segmentation + pore graph   |
+| =make_framework_trace(atoms)=   | Framework mesh trace (CPK colors)                      |
+| =make_surface_trace(dgrid, regions, atoms, ...)= | Isosurface mesh trace                                |
+| =make_maxima_trace(seg, atoms)= | Local maxima points (internal + periodic)            |
+| =make_windows_trace(seg)=       | Window markers                                         |
+| =make_connections_trace(seg, atoms)= | Pore graph edges (internal + periodic)            |
+| =make_cell_trace(atoms)=        | Unit cell wireframe                                    |
+| =make_guest_trace(atoms)=       | Adsorbate instanced spheres                            |
+| =make_guest_bonds_trace(atoms)= | Adsorbate bond cylinders                             |
+
+** Movie Builders
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =make_movie_from_raspa_pdb(...)= | Fixed framework + RASPA PDB guests                    |
+| =make_movie_from_trajectory(...)= | Fixed framework + any ASE-readable trajectory        |
+| =make_sparse_multicomponent_movie(...)= | Flexible framework + multi-component guests      |
+| =build_fixed_framework_movie(...)= | Lower-level fixed-framework movie builder             |
+
+** Figure Mutation
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =add_trace(trace, frame=None)=   | Add a trace dict (frame=None for static)              |
+| =add_traces(traces, frame=None)= | Batch add traces                                      |
+| =update_traces(patch, selector, frame)= | Merge patch into matching traces            |
+| =update_layout(patch)=           | Deep-merge layout dict                                |
+| =set_camera(...)=                | Set eye, center, up, projection                       |
+| =set_appearance(...)=            | Set background, scene_bg, font_family, label_size     |
+| =set_colorscale(colors)=         | Set surface colors from px.colors or color list       |
+| =to_html(path, sidecar=False)=   | Save self-contained HTML (or sidecar pair)            |
+| =show(renderer)=                 | Display in notebook or browser                        |
