@@ -482,13 +482,14 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     norm = (vals - vmin) / denom
     sizes = (3.0 + 2.5 * norm).astype(float).tolist()
     hover = []
-    for i, (g, p, r) in enumerate(zip(maxima, pos, cage_radii, strict=False)):
+    for i, (g, p, r, rid) in enumerate(zip(maxima, pos, cage_radii, region_labels, strict=False)):
         hover.append(
             f"trace: local maxima\n"
             f"index: {i + 1}\n"
             f"grid: [{int(g[0])}, {int(g[1])}, {int(g[2])}]\n"
             f"xyz: ({float(p[0]):.3f}, {float(p[1]):.3f}, {float(p[2]):.3f})\n"
-            f"size: {float(r):.3f} A"
+            f"pore radius (dgrid): {float(r):.3f} A\n"
+            f"region: {int(rid)}"
         )
 
     connections = list(seg.get("connections", []))
