@@ -2351,10 +2351,47 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const DATA = {{payload_json}};
     const MOV = DATA.static && DATA.static.traces ? DATA.static.traces : [];
     const FRAMES = DATA.frames || [];
+
+    // ---- Sidecar lazy-loading (keeps only 2-3 parsed frames in RAM) ----
+    let sidecarLines = [];
+    let parsedFrameCache = new Map();
+    const FRAME_CACHE_SIZE = 3;
+    if (DATA.sidecar) {
+      try {
+        const req = new XMLHttpRequest();
+        req.open('GET', DATA.sidecar, false);
+        req.send();
+        if (req.status === 200 || req.status === 0) {
+          sidecarLines = req.responseText.trim().split('\n').filter(l => l.trim());
+        }
+      } catch (e) {
+        console.error("Sidecar load failed. Serve via HTTP (e.g. python -m http.server):", e);
+      }
+    }
+    function getFrameCount() {
+      if (DATA.sidecar) return sidecarLines.length;
+      return FRAMES.length;
+    }
+    function getFrame(i) {
+      if (DATA.sidecar) {
+        if (i < 0 || i >= sidecarLines.length) return null;
+        if (parsedFrameCache.has(i)) return parsedFrameCache.get(i);
+        const data = JSON.parse(sidecarLines[i]);
+        parsedFrameCache.set(i, data);
+        while (parsedFrameCache.size > FRAME_CACHE_SIZE) {
+          const firstKey = parsedFrameCache.keys().next().value;
+          parsedFrameCache.delete(firstKey);
+        }
+        return data;
+      }
+      return FRAMES[i] || null;
+    }
+    // ----------------------------------------------------------------------
+
     const STYLES = DATA.styles || {};
     let guestSphereSegments = 14;
-    const _gtProbe = FRAMES.length && FRAMES[0].traces
-      ? FRAMES[0].traces.find(t => t.id === "guests" || t.id.startsWith("guests_"))
+    const _gtProbe = getFrameCount() && getFrame(0) && getFrame(0).traces
+      ? getFrame(0).traces.find(t => t.id === "guests" || t.id.startsWith("guests_"))
       : null;
     if (_gtProbe && _gtProbe.data && _gtProbe.data.n_atoms > 2000) guestSphereSegments = 6;
     else if (_gtProbe && _gtProbe.data && _gtProbe.data.n_atoms > 500) guestSphereSegments = 8;
@@ -2818,7 +2855,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     // Traces that exist only on animation frames (e.g. flexible framework) — create once from frame 0
-    const firstFrameTraces = (FRAMES.length > 0 && FRAMES[0].traces) ? FRAMES[0].traces : [];
+    const firstFrameTraces = (getFrameCount() > 0 && getFrame(0) && getFrame(0).traces) ? getFrame(0).traces : [];
     firstFrameTraces.forEach(trace => {
       if (objectsById[trace.id]) return;
       if (trace.type === "mesh") addMesh(trace);
@@ -2855,7 +2892,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     // Sync initial visibility from trace data (honors visible=false for periodic elements)
-    const allSetupTraces = [...staticTraces, ...(FRAMES.length && FRAMES[0].traces ? FRAMES[0].traces : [])];
+    const allSetupTraces = [...staticTraces, ...(getFrameCount() && getFrame(0) && getFrame(0).traces ? getFrame(0).traces : [])];
     allSetupTraces.forEach(trace => {
       const obj = objectsById[trace.id];
       if (obj && trace.visible === false) {
@@ -2870,7 +2907,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     function hasStaticOrFrameTrace(pred) {
       if (staticTraces.some(pred)) return true;
-      return FRAMES.some(fr => (fr && fr.traces ? fr.traces : []).some(pred));
+      if (!DATA.sidecar) {
+        return FRAMES.some(fr => (fr && fr.traces ? fr.traces : []).some(pred));
+      }
+      const first = getFrame(0);
+      return first && first.traces ? first.traces.some(pred) : false;
     }
     setVisibleIfPresent("labelShowCell", hasStaticOrFrameTrace(t => t.id === "cell"));
     setVisibleIfPresent("labelShowFramework", hasStaticOrFrameTrace(t => t.id === "framework"));
@@ -2942,8 +2983,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let frameDtMs = 1000.0 / Math.max({{fps}}, 0.01);
     const fps = Math.max({{fps}}, 0.01);
 
-        slider.max = String(Math.max(FRAMES.length - 1, 0));
-    metaEl.textContent = `Frames: ${FRAMES.length}`;
+        slider.max = String(Math.max(getFrameCount() - 1, 0));
+    metaEl.textContent = `Frames: ${getFrameCount()}`;
     controls.target.copy(sceneCenter);
     controls.update();
 
@@ -3014,8 +3055,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     if (meshOpacityContainer) {
       const meshTraces = [];
       staticTraces.forEach(t => { if (t.type === "mesh") meshTraces.push(t); });
-      if (FRAMES.length > 0 && FRAMES[0].traces) {
-        FRAMES[0].traces.forEach(t => {
+      if (getFrameCount() > 0 && getFrame(0) && getFrame(0).traces) {
+        getFrame(0).traces.forEach(t => {
           if (t.type === "mesh" && !meshTraces.some(mt => mt.id === t.id)) meshTraces.push(t);
         });
       }
@@ -3066,13 +3107,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     function setFrame(i) {
-      if (FRAMES.length <= 0) {
+      if (getFrameCount() <= 0) {
         statusEl.textContent = "No frames";
         slider.value = "0";
         return;
       }
-      frame = Math.max(0, Math.min(i, FRAMES.length - 1));
-      const fr = FRAMES[frame];
+      frame = Math.max(0, Math.min(i, getFrameCount() - 1));
+      const fr = getFrame(frame);
       const traces = fr && fr.traces ? fr.traces : [];
       Object.keys(guestMeshes).forEach(guestId => {
         const guestTrace = traces.find(t => t.id === guestId);
@@ -3301,7 +3342,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let speedMult = 1.0;
     speedSlider.addEventListener("input", () => {
       speedMult = parseFloat(speedSlider.value);
-      if (FRAMES.length > 1) {
+      if (getFrameCount() > 1) {
         frameDtMs = 1000.0 / (fps * speedMult);
       }
     });
@@ -3396,7 +3437,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
-        const fr = FRAMES[frame];
+        const fr = getFrame(frame);
         const traces = fr && fr.traces ? fr.traces : [];
         const gt = traces.find(t => t.id === hit.object.name);
         if (gt) {
@@ -3405,7 +3446,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           txt = `trace: ${hit.object.name}\nframe: ${frame}\natom: ${idx}\nelement: ${s}\nxyz: (${p[0].toFixed(3)}, ${p[1].toFixed(3)}, ${p[2].toFixed(3)})`;
         }
       } else if (hit.object.name && objectsById[hit.object.name]) {
-        const frNow = FRAMES[frame];
+        const frNow = getFrame(frame);
         const tracesNow = frNow && frNow.traces ? frNow.traces : [];
         const trace = tracesNow.find(t => t.id === hit.object.name) || staticTraces.find(t => t.id === hit.object.name);
         if (trace && trace.hover && hit.face) {
@@ -3511,8 +3552,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     function animate(t) {
       requestAnimationFrame(animate);
-      if (playing && FRAMES.length > 1 && (t - lastT) >= frameDtMs) {
-        setFrame((frame + 1) % FRAMES.length);
+      if (playing && getFrameCount() > 1 && (t - lastT) >= frameDtMs) {
+        setFrame((frame + 1) % getFrameCount());
         lastT = t;
       }
       controls.update();
@@ -3632,7 +3673,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
     }
 
-    if (recordGifBtn && FRAMES.length > 0) {
+    if (recordGifBtn && getFrameCount() > 0) {
       recordGifBtn.style.display = "";
       recordGifBtn.addEventListener("click", async function() {
         if (gifRecording) {
@@ -3758,7 +3799,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       animate = wrappedAnimate;
     }
 
-    if (FRAMES.length <= 0) {
+    if (getFrameCount() <= 0) {
       slider.disabled = true;
       playBtn.disabled = true;
       prevBtn.disabled = true;
@@ -3803,6 +3844,7 @@ def make_sparse_multicomponent_movie(
     eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
+    sidecar: bool = False,
 ) -> tuple[Path, dict[str, Any]]:
     """Build sparse-index movie with separate guest traces per component.
 
@@ -3963,7 +4005,7 @@ def make_sparse_multicomponent_movie(
         "flexible_framework_per_frame": bool(animate_framework),
     }
 
-    out = fig.to_html(out_html, fps=fps)
+    out = fig.to_html(out_html, fps=fps, sidecar=sidecar)
     payload = {
         "html_path": str(out),
         "snapshot_indices": [int(i) for i in selected],
@@ -3988,6 +4030,7 @@ def make_movie_from_trajectory(
     eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
+    sidecar: bool = False,
 ) -> Path:
     """Build a fixed-framework movie from any ASE-readable trajectory (or RASPA PDB) + CIF."""
     snapshots = read_movie_snapshots(
@@ -4010,7 +4053,7 @@ def make_movie_from_trajectory(
         up=up,
         max_frames=None,
     )
-    return fig.to_html(out_html, fps=fps)
+    return fig.to_html(out_html, fps=fps, sidecar=sidecar)
 
 
 def make_movie_from_raspa_pdb(
@@ -4027,6 +4070,7 @@ def make_movie_from_raspa_pdb(
     eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
+    sidecar: bool = False,
 ) -> Path:
     """High-level convenience function to build a fixed-framework movie from RASPA PDB + CIF."""
     return make_movie_from_trajectory(
@@ -4044,6 +4088,7 @@ def make_movie_from_raspa_pdb(
         eye=eye,
         center=center,
         up=up,
+        sidecar=sidecar,
     )
 
 
