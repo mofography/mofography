@@ -2415,6 +2415,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let parsedFrameCache = new Map();
     const FRAME_CACHE_SIZE = 3;
     let sidecarFullText = null;   // fallback when Range is unsupported
+    let sidecarTextBlob = null;   // cached full response text when server ignores Range
 
     // Load the tiny byte-offset index (e.g. 200 frames -> 1.6 KB)
     if (DATA.sidecar && DATA.sidecar_idx) {
@@ -2503,32 +2504,38 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         // Streaming: fetch single frame line via HTTP Range
         const start = frameOffsets[i];
         const end = (i + 1 < frameOffsets.length) ? frameOffsets[i + 1] : null;
-        const req = new XMLHttpRequest();
-        if (end !== null) {
-          req.open('GET', DATA.sidecar, false);
-          req.setRequestHeader('Range', 'bytes=' + start + '-' + (end - 1));
-          req.send();
-          if (req.status === 206) {
-            text = req.responseText;
-          } else if (req.status === 200) {
-            // Server ignored Range header — slice the full response manually
-            // (sidecar is ASCII JSONL, so byte offsets == char offsets)
-            text = req.responseText.substring(start, end);
-          }
+        // If we already discovered the server ignores Range, slice from cached blob
+        if (sidecarTextBlob) {
+          text = (end !== null) ? sidecarTextBlob.substring(start, end) : sidecarTextBlob.substring(start);
         } else {
-          // Last frame: open-ended range
-          req.open('GET', DATA.sidecar, false);
-          req.setRequestHeader('Range', 'bytes=' + start + '-');
-          req.send();
-          if (req.status === 206) {
-            text = req.responseText;
-          } else if (req.status === 200) {
-            text = req.responseText.substring(start);
+          const req = new XMLHttpRequest();
+          if (end !== null) {
+            req.open('GET', DATA.sidecar, false);
+            req.setRequestHeader('Range', 'bytes=' + start + '-' + (end - 1));
+            req.send();
+            if (req.status === 206) {
+              text = req.responseText;
+            } else if (req.status === 200) {
+              // Server ignored Range header — cache full response once, then slice
+              sidecarTextBlob = req.responseText;
+              text = sidecarTextBlob.substring(start, end);
+            }
+          } else {
+            // Last frame: open-ended range
+            req.open('GET', DATA.sidecar, false);
+            req.setRequestHeader('Range', 'bytes=' + start + '-');
+            req.send();
+            if (req.status === 206) {
+              text = req.responseText;
+            } else if (req.status === 200) {
+              sidecarTextBlob = req.responseText;
+              text = sidecarTextBlob.substring(start);
+            }
           }
-        }
-        if (text === null) {
-          console.error("Range fetch failed for frame", i, "status:", req.status);
-          return null;
+          if (text === null) {
+            console.error("Range fetch failed for frame", i, "status:", req.status);
+            return null;
+          }
         }
       } else if (sidecarFullText) {
         text = sidecarFullText[i];
