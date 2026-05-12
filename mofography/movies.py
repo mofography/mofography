@@ -2149,8 +2149,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
-          obj.material.depthTest = !isOrtho;
-          obj.material.depthWrite = !isOrtho;
+          obj.material.depthTest = true;
+          obj.material.depthWrite = false;
           if (isOrtho) {
             obj.material.userData = obj.material.userData || {};
             obj.material.userData.perspSize = obj.material.userData.perspSize || obj.material.size;
@@ -2274,26 +2274,30 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const style = styleFor(trace);
       const hasColors = !!(trace.data.colors && trace.data.colors.length);
       const clearcoat = style.clearcoat !== undefined ? style.clearcoat : 0.0;
+      const opacity = style.opacity !== undefined ? style.opacity : 0.95;
+      const isOpaque = opacity >= 1.0;
       let mat;
       if (typeof THREE.MeshPhysicalMaterial !== "undefined" && clearcoat > 0) {
         mat = new THREE.MeshPhysicalMaterial({
           vertexColors: hasColors,
-          transparent: true,
-          opacity: style.opacity !== undefined ? style.opacity : 0.95,
+          transparent: !isOpaque,
+          opacity: opacity,
           roughness: style.roughness !== undefined ? style.roughness : 0.38,
           metalness: style.metalness !== undefined ? style.metalness : 0.0,
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
           clearcoat: clearcoat,
           clearcoatRoughness: style.clearcoatRoughness !== undefined ? style.clearcoatRoughness : 0.1,
+          depthWrite: true,
         });
       } else {
         mat = new THREE.MeshStandardMaterial({
           vertexColors: hasColors,
-          transparent: true,
-          opacity: style.opacity !== undefined ? style.opacity : 0.95,
+          transparent: !isOpaque,
+          opacity: opacity,
           roughness: style.roughness !== undefined ? style.roughness : 0.38,
           metalness: style.metalness !== undefined ? style.metalness : 0.0,
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
+          depthWrite: true,
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
@@ -2709,9 +2713,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     const raycaster = new THREE.Raycaster();
-    raycaster.params.Points.threshold = 1.25;
+    raycaster.params.Points.threshold = 0.3;
 
-    function hoverHitPriority(obj) {
+    function hoverHitPriority(obj, hit) {
+      if (hit && hit.face && obj instanceof THREE.Mesh) return 5;
       if (obj instanceof THREE.Points) return 4;
       if (obj instanceof THREE.LineSegments) return 3;
       if (obj instanceof THREE.InstancedMesh) return 2;
@@ -2729,21 +2734,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       raycaster.setFromCamera(mouse, camera);
       const pickables = Object.values(objectsById).filter(o => o && o.visible);
       const hits = raycaster.intersectObjects(pickables, false);
-      hits.sort((a, b) => a.distance - b.distance);
       if (!hits.length) {
         tooltip.style.display = "none";
         return;
       }
-      const d0 = hits[0].distance;
-      const slack = Math.max(0.12, d0 * 0.025);
-      const band = hits.filter(h => h.distance <= d0 + slack);
-      band.sort((a, b) => {
-        const pa = hoverHitPriority(a.object);
-        const pb = hoverHitPriority(b.object);
-        if (pb !== pa) return pb - pa;
-        return a.distance - b.distance;
-      });
-      const hit = band[0];
+      const meshHits = hits.filter(h => h.face);
+      const hit = meshHits.length ? meshHits[0] : hits[0];
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
@@ -2759,7 +2755,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const frNow = FRAMES[frame];
         const tracesNow = frNow && frNow.traces ? frNow.traces : [];
         const trace = tracesNow.find(t => t.id === hit.object.name) || staticTraces.find(t => t.id === hit.object.name);
-        if (trace && trace.hover && hit.index != null && hit.index >= 0 && hit.index < trace.hover.length) {
+        if (trace && trace.hover && hit.face) {
+          const vi = hit.face.a;
+          if (vi >= 0 && vi < trace.hover.length) txt = trace.hover[vi];
+        } else if (trace && trace.hover && hit.index != null && hit.index >= 0 && hit.index < trace.hover.length) {
           txt = trace.hover[hit.index];
         } else if (hit.object instanceof THREE.LineSegments && trace && trace.hover && hit.index != null) {
           const segIdx = Math.floor(hit.index / 2);
