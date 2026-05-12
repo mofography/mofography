@@ -1718,6 +1718,7 @@ class MovieFigure:
         label_font_size: int | None = None,
         title: str | None = None,
         theme: str | None = None,
+        shader: str | None = None,
     ) -> "MovieFigure":
         if "appearance" not in self.layout:
             self.layout["appearance"] = {}
@@ -1734,6 +1735,8 @@ class MovieFigure:
             ap["title"] = title
         if theme is not None:
             ap["theme"] = theme
+        if shader is not None:
+            ap["shader"] = shader
         return self
 
     @staticmethod
@@ -1838,6 +1841,7 @@ class MovieFigure:
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
         label_font_size = ap.get("label_font_size", 11)
         title = ap.get("title", "")
+        shader = ap.get("shader", "default")
         text_color = "#222222" if is_light else "#efefef"
         panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
@@ -1858,6 +1862,7 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
+            shader_mode=shader,
         )
         out.write_text(html, encoding="utf-8")
         return out
@@ -1886,6 +1891,7 @@ class MovieFigure:
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
         label_font_size = ap.get("label_font_size", 11)
         title = ap.get("title", "")
+        shader = ap.get("shader", "default")
         text_color = "#222222" if is_light else "#efefef"
         panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
@@ -1906,6 +1912,7 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
+            shader_mode=shader,
         )
 
     def _repr_html_(self) -> str:
@@ -2253,6 +2260,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="pivotOrigin">Pivot: Origin</button>
       <button id="toggleOrtho">Ortho</button>
       <button id="exportPng">Export PNG</button>
+      <button id="lightInfo">Lights</button>
+    </div>
+    <div id="lightModal" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.5);">
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;color:#eee;padding:16px;border-radius:10px;font-size:12px;max-width:320px;">
+        <h3 style="margin:0 0 8px 0;font-size:14px;">Lighting Settings</h3>
+        <pre id="lightDetails" style="margin:0;white-space:pre-wrap;font-family:monospace;font-size:11px;"></pre>
+        <button id="closeLightModal" style="margin-top:10px;width:100%;">Close</button>
+      </div>
     </div>
     <div class="checkrow">
       <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
@@ -2338,8 +2353,64 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     };
     const circleTex = spriteTextures["circle"];
 
+    const SHADER_MODE = "{{shader_mode}}";
     const scene = new THREE.Scene();
     scene.background = new THREE.Color({{scene_bg}});
+
+    // --- Shader modes: fresnel, matcap ---
+    // Fresnel rim glow — edges glow with configurable color/intensity
+    const fresnelShader = {
+      uniforms: { fresnelColor: { value: new THREE.Color(0x66ccff) }, fresnelPower: { value: 2.5 } },
+      vertexShader: [
+        "varying vec3 vNormalW; varying vec3 vPositionW;",
+        "void main() {",
+        "  vNormalW = normalize(normalMatrix * normal);",
+        "  vec4 wp = modelMatrix * vec4(position, 1.0);",
+        "  vPositionW = wp.xyz;",
+        "  gl_Position = projectionMatrix * viewMatrix * wp;",
+        "}",
+      ].join("\n"),
+      fragmentShader: [
+        "uniform vec3 fresnelColor; uniform float fresnelPower;",
+        "uniform vec3 diffuse; uniform float opacity;",
+        "varying vec3 vNormalW; varying vec3 vPositionW;",
+        "void main() {",
+        "  vec3 viewDir = normalize(cameraPosition - vPositionW);",
+        "  float fresnel = pow(1.0 - abs(dot(viewDir, vNormalW)), fresnelPower);",
+        "  vec3 col = diffuse + fresnelColor * fresnel * 0.6;",
+        "  gl_FragColor = vec4(col, opacity);",
+        "}",
+      ].join("\n"),
+    };
+
+    function applyShaderMode(material) {
+      if (SHADER_MODE !== "fresnel" && SHADER_MODE !== "matcap") return;
+      material.onBeforeCompile = function(shader) {
+        if (SHADER_MODE === "fresnel") {
+          shader.uniforms.fresnelColor = { value: new THREE.Color(0x66ccff) };
+          shader.uniforms.fresnelPower = { value: 2.5 };
+          shader.fragmentShader = shader.fragmentShader.replace(
+            "void main() {",
+            "uniform vec3 fresnelColor; uniform float fresnelPower;\nvarying vec3 vWorldPos;\nvoid main() {"
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <emissivemap_fragment>",
+            "#include <emissivemap_fragment>\n  vec3 viewDir = normalize(cameraPosition - vWorldPos);\n  float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), fresnelPower);\n  totalEmissiveRadiance += fresnelColor * fresnel * 0.7;"
+          );
+        }
+        if (SHADER_MODE === "matcap") {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <normal_fragment_begin>",
+            "#include <normal_fragment_begin>\n  vec2 matcapUV = normal.xy * 0.5 + 0.5;"
+          );
+          shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <color_fragment>",
+            "#include <color_fragment>\n  float mc = 0.5 + 0.5 * dot(normal, vec3(0.0, 0.0, 1.0));\n  diffuseColor.rgb *= (0.6 + 0.4 * mc);"
+          );
+        }
+      };
+      material.needsUpdate = true;
+    }
 
     const eyeArr = {{eye}};
     const centerArr = {{center}};
@@ -2574,6 +2645,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
+      applyShaderMode(mat);
       mesh.name = trace.id;
       scene.add(mesh);
       objectsById[trace.id] = mesh;
@@ -3032,14 +3104,29 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const trace = tracesNow.find(t => t.id === hit.object.name) || staticTraces.find(t => t.id === hit.object.name);
         if (trace && trace.hover && hit.face) {
           const vi = hit.face.a;
-          if (vi >= 0 && vi < trace.hover.length) txt = trace.hover[vi];
+          const hoverTxt = (vi >= 0 && vi < trace.hover.length) ? trace.hover[vi] : "";
+          const traceName = trace.name || hit.object.name;
+          txt = `trace: ${traceName}\n${hoverTxt}\nxyz: (${hit.point.x.toFixed(3)}, ${hit.point.y.toFixed(3)}, ${hit.point.z.toFixed(3)})`;
         } else if (trace && trace.hover && hit.index != null && hit.index >= 0 && hit.index < trace.hover.length) {
           txt = trace.hover[hit.index];
         } else if (hit.object instanceof THREE.LineSegments && trace && trace.hover && hit.index != null) {
           const segIdx = Math.floor(hit.index / 2);
           if (segIdx >= 0 && segIdx < trace.hover.length) txt = trace.hover[segIdx];
         } else if (hit.face) {
-          txt = `trace: ${hit.object.name}\nxyz: (${hit.point.x.toFixed(3)}, ${hit.point.y.toFixed(3)}, ${hit.point.z.toFixed(3)})`;
+          const traceName = trace ? (trace.name || hit.object.name) : hit.object.name;
+          txt = `trace: ${traceName}\nxyz: (${hit.point.x.toFixed(3)}, ${hit.point.y.toFixed(3)}, ${hit.point.z.toFixed(3)})`;
+          const maxPts = staticTraces.filter(t => t.type === "points" && t.data && t.data.positions && t.data.sizes);
+          let bestDist = Infinity, bestSize = null;
+          maxPts.forEach(function(mt) {
+            const mp = mt.data.positions;
+            const ms = mt.data.sizes;
+            for (let k = 0; k < mp.length; k += 3) {
+              const dx = hit.point.x - mp[k], dy = hit.point.y - mp[k+1], dz = hit.point.z - mp[k+2];
+              const d = dx*dx + dy*dy + dz*dz;
+              if (d < bestDist && ms[k/3] !== undefined) { bestDist = d; bestSize = ms[k/3]; }
+            }
+          });
+          if (bestSize !== null && bestDist < 100) txt += `\nnearest maxima size: ${bestSize.toFixed(3)} A`;
         }
       }
       if (!txt || !String(txt).trim()) {
@@ -3098,6 +3185,28 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       link.click();
     });
 
+    document.getElementById("lightInfo").addEventListener("click", function() {
+      const proj = camera.isPerspectiveCamera ? "Perspective" : "Orthographic";
+      const ssao = composer ? "ON" : "OFF";
+      const info = [
+        "Projection: " + proj,
+        "SSAO: " + ssao,
+        "",
+        "Ambient:     " + ambient.intensity.toFixed(3) + "  (#ffffff)",
+        "Hemisphere:  " + hemiLight.intensity.toFixed(3) + "  (sky: #ddeeff, ground: #3b3b3b)",
+        "Dir Key:     " + dirKey.intensity.toFixed(3) + "  pos: (" + dirKey.position.x + ", " + dirKey.position.y + ", " + dirKey.position.z + ")",
+        "Dir Fill:    " + dirFill.intensity.toFixed(3) + "  pos: (" + dirFill.position.x + ", " + dirFill.position.y + ", " + dirFill.position.z + ")",
+        "",
+        "Camera:  eye=(" + camera.position.x.toFixed(2) + ", " + camera.position.y.toFixed(2) + ", " + camera.position.z.toFixed(2) + ")",
+        "Target: (" + controls.target.x.toFixed(2) + ", " + controls.target.y.toFixed(2) + ", " + controls.target.z.toFixed(2) + ")",
+      ];
+      document.getElementById("lightDetails").textContent = info.join("\n");
+      document.getElementById("lightModal").style.display = "block";
+    });
+    document.getElementById("closeLightModal").addEventListener("click", function() {
+      document.getElementById("lightModal").style.display = "none";
+    });
+
     // Axis labels — project lattice vectors to screen
     const cell = DATA.static && DATA.static.traces ? DATA.static.traces.find(t => t.id === "cell") : null;
     if (cell && cell.data && cell.data.positions && cell.data.positions.length >= 18) {
@@ -3106,33 +3215,34 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const aEnd = new THREE.Vector3(p[3], p[4], p[5]);
       const bEnd = new THREE.Vector3(p[9], p[10], p[11]);
       const cEnd = new THREE.Vector3(p[15], p[16], p[17]);
-      const aVec = aEnd.clone().sub(origin);
-      const bVec = bEnd.clone().sub(origin);
-      const cVec = cEnd.clone().sub(origin);
+      const aLen = origin.distanceTo(aEnd);
+      const bLen = origin.distanceTo(bEnd);
+      const cLen = origin.distanceTo(cEnd);
       const axDiv = document.getElementById("axisLabels");
+      let axisTick = 0;
       function updateAxisLabels() {
+        if (++axisTick % 3 !== 0) return;
         const w = renderer.domElement.clientWidth;
         const h = renderer.domElement.clientHeight;
         function proj(v) {
           const p = v.clone().project(camera);
           return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h };
         }
-        const o = proj(origin);
         const labels = [
-          { text: "O", pos: o },
-          { text: "a", pos: proj(origin.clone().add(aVec)) },
-          { text: "b", pos: proj(origin.clone().add(bVec)) },
-          { text: "c", pos: proj(origin.clone().add(cVec)) },
+          { text: "O", pos: proj(origin), color: "#aaaaaa" },
+          { text: "a (" + aLen.toFixed(2) + " A)", pos: proj(aEnd), color: "#ff6666" },
+          { text: "b (" + bLen.toFixed(2) + " A)", pos: proj(bEnd), color: "#66ff66" },
+          { text: "c (" + cLen.toFixed(2) + " A)", pos: proj(cEnd), color: "#6688ff" },
         ];
         axDiv.innerHTML = "";
         labels.forEach(l => {
-          if (l.pos.x < 0 || l.pos.x > w || l.pos.y < 0 || l.pos.y > h) return;
+          if (l.pos.x < -50 || l.pos.x > w + 50 || l.pos.y < -50 || l.pos.y > h + 50) return;
           const span = document.createElement("span");
           span.textContent = l.text;
           span.style.position = "absolute";
-          span.style.left = l.pos.x + "px";
-          span.style.top = l.pos.y + "px";
-          span.style.color = l.text === "O" ? "#aaa" : (l.text === "a" ? "#ff6666" : l.text === "b" ? "#66ff66" : "#6688ff");
+          span.style.left = (l.pos.x + 4) + "px";
+          span.style.top = (l.pos.y - 14) + "px";
+          span.style.color = l.color;
           axDiv.appendChild(span);
         });
       }
