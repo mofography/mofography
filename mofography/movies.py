@@ -2958,10 +2958,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     // Exploded view: multi-directional separation
-    //   X-axis: framework+cell left, pore graph+cell_copy right
+    //   X-axis: framework+cell_framework left, pore graph+cell_copy right
     //   Y-axis (perpendicular): PBC surface+cell_pbc up, cluster surface+cell_pocket down, raw surface middle
+    //   Original cell stays at center and is controlled independently by showCell.
     const _explodeGroups = [
-      { ids: ["framework", "framework_stick", "framework_spacefill", "cell"], x: -1, y: 0 },
+      { ids: ["framework", "framework_stick", "framework_spacefill", "cell_framework"], x: -1, y: 0 },
       { ids: ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
@@ -2970,9 +2971,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       { ids: ["surface_pocket", "surface_regions_cluster", "cell_pocket"], x: 0, y: -1 },
     ];
 
-    // Create unit-cell copies for exploded view
+    // Create unit-cell copies for exploded view — each group gets its own copy
     let cellCopy = null;
-    let cellCenter = null;
+    let cellFramework = null;
     let cellPbc = null;
     let cellPocket = null;
     if (cellObj && cellObj.geometry) {
@@ -2982,11 +2983,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       scene.add(cellCopy);
       objectsById["cell_copy"] = cellCopy;
 
-      cellCenter = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellCenter.name = "cell_center";
-      cellCenter.visible = false;
-      scene.add(cellCenter);
-      objectsById["cell_center"] = cellCenter;
+      cellFramework = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellFramework.name = "cell_framework";
+      cellFramework.visible = false;
+      scene.add(cellFramework);
+      objectsById["cell_framework"] = cellFramework;
 
       cellPbc = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
       cellPbc.name = "cell_pbc";
@@ -3133,11 +3134,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const obj = objectsById["cell"];
       if (obj) obj.visible = showCell.checked;
       scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
-      const exploded = parseFloat(explodeSlider.value) > 0;
-      if (cellCopy) cellCopy.visible = exploded && showCell.checked;
-      if (cellCenter) cellCenter.visible = exploded && showCell.checked;
-      if (cellPbc) cellPbc.visible = exploded && showCell.checked;
-      if (cellPocket) cellPocket.visible = exploded && showCell.checked;
     });
     function updateFrameworkVisibility() {
       const val = reprSelect.value;
@@ -3147,14 +3143,22 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
       if (stick) stick.visible = showFramework.checked && val === "stick";
       if (sf) sf.visible = showFramework.checked && val === "space_filling";
+      if (cellFramework) {
+        cellFramework.visible = showFramework.checked && parseFloat(explodeSlider.value) > 0;
+      }
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
     // Initialize visibility so only the selected representation is shown
     updateFrameworkVisibility();
     showSurface.addEventListener("change", () => {
-      const obj = objectsById["surface"];
-      if (obj) obj.visible = showSurface.checked;
+      ["surface", "surface_regions_raw", "surface_regions_pbc", "surface_regions_cluster"].forEach(function(id) {
+        const obj = objectsById[id];
+        if (obj) obj.visible = showSurface.checked;
+      });
+      const exploded = parseFloat(explodeSlider.value) > 0;
+      if (cellPbc) cellPbc.visible = exploded && showSurface.checked;
+      if (cellPocket) cellPocket.visible = exploded && showSurface.checked;
     });
     showGuests.addEventListener("change", () => {
       Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
@@ -3182,6 +3186,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (lineObj) lineObj.visible = showInternalConnections.checked;
       if (nodeObj) nodeObj.visible = showInternalConnections.checked;
       if (maxObj) maxObj.visible = showInternalConnections.checked;
+      if (cellCopy) {
+        const exploded = parseFloat(explodeSlider.value) > 0;
+        cellCopy.visible = exploded && (showInternalConnections.checked || showPeriodicConnections.checked);
+      }
     });
     showPeriodicConnections.addEventListener("change", () => {
       const lineObj = objectsById["connections_periodic"];
@@ -3190,6 +3198,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (lineObj) lineObj.visible = showPeriodicConnections.checked;
       if (nodeObj) nodeObj.visible = showPeriodicConnections.checked;
       if (maxObj) maxObj.visible = showPeriodicConnections.checked;
+      if (cellCopy) {
+        const exploded = parseFloat(explodeSlider.value) > 0;
+        cellCopy.visible = exploded && (showInternalConnections.checked || showPeriodicConnections.checked);
+      }
     });
     pivotSceneBtn.addEventListener("click", () => {
       controls.target.copy(sceneCenter);
@@ -3282,11 +3294,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offsetX, offsetY, 0));
         });
       });
-      // Show/hide the cell copies when exploded
-      if (cellCopy) cellCopy.visible = dist > 0 && showCell.checked;
-      if (cellCenter) cellCenter.visible = dist > 0 && showCell.checked;
-      if (cellPbc) cellPbc.visible = dist > 0 && showCell.checked;
-      if (cellPocket) cellPocket.visible = dist > 0 && showCell.checked;
+      // Show/hide the cell copies when exploded — each follows its group checkbox
+      if (cellFramework) cellFramework.visible = dist > 0 && showFramework.checked;
+      if (cellCopy) cellCopy.visible = dist > 0 && (showInternalConnections.checked || showPeriodicConnections.checked);
+      if (cellPbc) cellPbc.visible = dist > 0 && showSurface.checked;
+      if (cellPocket) cellPocket.visible = dist > 0 && showSurface.checked;
     });
 
     bgPicker.addEventListener("input", () => {
