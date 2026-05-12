@@ -2718,7 +2718,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         color: col,
         shininess: style.shininess !== undefined ? style.shininess : 10,
         specular: style.specular !== undefined ? style.specular : 0x151515,
-        vertexColors: hasInstanceColors,
       });
       const mesh = new THREE.InstancedMesh(geo, mat, n);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
