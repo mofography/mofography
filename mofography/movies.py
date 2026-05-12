@@ -2958,22 +2958,21 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     // Exploded view: multi-directional separation
-    //   X-axis: framework left, pore graph right
-    //   Y-axis (perpendicular): PBC surface up, pocket types down, regions surface middle
+    //   X-axis: framework+cell left, pore graph+cell_copy right
+    //   Y-axis (perpendicular): PBC surface+cell_pbc up, cluster surface+cell_pocket down, raw surface middle
     const _explodeGroups = [
-      { ids: ["framework", "cell_framework"], x: -1, y: 0 },
+      { ids: ["framework", "cell"], x: -1, y: 0 },
       { ids: ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
-      { ids: ["surface"], x: 0, y: 0 },
-      { ids: ["surface_pbc", "cell_pbc"], x: 0, y: 1 },
-      { ids: ["surface_pocket", "cell_pocket"], x: 0, y: -1 },
+      { ids: ["surface", "surface_regions_raw"], x: 0, y: 0 },
+      { ids: ["surface_pbc", "surface_regions_pbc", "cell_pbc"], x: 0, y: 1 },
+      { ids: ["surface_pocket", "surface_regions_cluster", "cell_pocket"], x: 0, y: -1 },
     ];
 
-    // Create unit-cell copies for each exploded group position
+    // Create unit-cell copies for exploded view
     let cellCopy = null;
     let cellCenter = null;
-    let cellFramework = null;
     let cellPbc = null;
     let cellPocket = null;
     if (cellObj && cellObj.geometry) {
@@ -2988,12 +2987,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       cellCenter.visible = false;
       scene.add(cellCenter);
       objectsById["cell_center"] = cellCenter;
-
-      cellFramework = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellFramework.name = "cell_framework";
-      cellFramework.visible = false;
-      scene.add(cellFramework);
-      objectsById["cell_framework"] = cellFramework;
 
       cellPbc = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
       cellPbc.name = "cell_pbc";
@@ -3143,7 +3136,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellCopy) cellCopy.visible = exploded && showCell.checked;
       if (cellCenter) cellCenter.visible = exploded && showCell.checked;
-      if (cellFramework) cellFramework.visible = exploded && showCell.checked;
       if (cellPbc) cellPbc.visible = exploded && showCell.checked;
       if (cellPocket) cellPocket.visible = exploded && showCell.checked;
     });
@@ -3293,7 +3285,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       // Show/hide the cell copies when exploded
       if (cellCopy) cellCopy.visible = dist > 0 && showCell.checked;
       if (cellCenter) cellCenter.visible = dist > 0 && showCell.checked;
-      if (cellFramework) cellFramework.visible = dist > 0 && showCell.checked;
       if (cellPbc) cellPbc.visible = dist > 0 && showCell.checked;
       if (cellPocket) cellPocket.visible = dist > 0 && showCell.checked;
     });
