@@ -2445,7 +2445,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
+    controls.dampingFactor = 0.25;
     controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
     controls.target.set(centerArr[0], centerArr[1], centerArr[2]);
     controls.update();
