@@ -1,6 +1,6 @@
 # get_data_from_mofdb { #mofography.data.get_data_from_mofdb }
 
-`data.get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs/#.json', params={'vf_min': 0.1, 'vf_max': 1.0, 'database': 'IZA', 'page': 1}, headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'}, npages=None, limit=1000)`
+`data.get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs.json', params={'vf_min': 0.1, 'vf_max': 1.0, 'database': 'IZA', 'page': 1}, headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'}, npages=None, limit=1000)`
 
 This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api 
 It takes in a url, parameters, headers, number of pages and a path to the mofography repository and

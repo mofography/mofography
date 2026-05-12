@@ -364,28 +364,28 @@ def main() -> None:
         help="Disable per-frame camera motion.",
     )
     p.add_argument(
-        "--camera-eye",
+        "--eye",
         nargs=3,
         type=float,
         metavar=("X", "Y", "Z"),
         default=(2.0, 0.0, 1.35),
-        help="Camera eye vector (default: 2.0 0.0 1.35).",
+        help="Eye vector (default: 2.0 0.0 1.35).",
     )
     p.add_argument(
-        "--camera-center",
+        "--center",
         nargs=3,
         type=float,
         metavar=("X", "Y", "Z"),
         default=(0.0, 0.0, 0.0),
-        help="Camera center vector (default: 0.0 0.0 0.0).",
+        help="Center vector (default: 0.0 0.0 0.0).",
     )
     p.add_argument(
-        "--camera-up",
+        "--up",
         nargs=3,
         type=float,
         metavar=("X", "Y", "Z"),
         default=(0.0, 0.0, 1.0),
-        help="Camera up vector (default: 0.0 0.0 1.0).",
+        help="Up vector (default: 0.0 0.0 1.0).",
     )
     p.add_argument(
         "--bg-type",
@@ -419,9 +419,9 @@ def main() -> None:
         raise SystemExit(f"CIF not found: {cif}")
 
     fig, stage_vis_specs = build_tutorial_figure(cif)
-    camera_eye = tuple(args.camera_eye)
-    camera_center = tuple(args.camera_center)
-    camera_up = tuple(args.camera_up)
+    camera_eye = tuple(args.eye)
+    camera_center = tuple(args.center)
+    camera_up = tuple(args.up)
     fig.update_layout(scene_camera=_camera_dict(camera_eye, camera_center, camera_up))
     if args.bg_type is not None:
         fig.update_layout(images=[make_bg_image(type=args.bg_type, cmap=args.bg_cmap)])

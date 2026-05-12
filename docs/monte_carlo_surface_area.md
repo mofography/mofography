@@ -19,12 +19,8 @@ Given a periodic unit cell and a distance–to–framework field \(f(x)\) (the
 4. Let \(p_{\text{shell}}\) be the fraction of samples in this shell.
 
 For small \(\delta\), the surface area can be estimated by the identity
-
-\[
-\mathrm{SA} \approx \frac{V_\mathrm{cell}}{\delta} \, p_{\text{shell}},
-\]
-
-where \(V_\mathrm{cell}\) is the unit–cell volume. We convert from Å² to m²/g
+`SA ≈ V_cell * p_shell / δ`, where \(V_\mathrm{cell}\) is the unit–cell volume.
+We convert from Å² to m²/g
 using the same normalization as the existing code:
 
 - Compute \(V_\mathrm{cell}\) in Å³ from `mat_atoms.get_volume()`.
@@ -64,13 +60,8 @@ Interpolations are done with `scipy.ndimage.map_coordinates`:
 Accessible SA is obtained by restricting shell samples to those whose
 interpolated region label is in the percolating–region set at the probe
 radius. The estimator then becomes
-
-\[
-\mathrm{SA}_\mathrm{acc} \approx
-  \frac{V_\mathrm{cell}}{\delta} \, p_{\text{shell,acc}},
-\]
-
-where \(p_{\text{shell,acc}}\) is the fraction of random points in the shell
+`SA_acc ≈ V_cell * p_shell_acc / δ`, where \(p_{\text{shell,acc}}\) is the
+fraction of random points in the shell
 that also belong to percolating regions.
 
 #### Relation to the marching–cubes method
@@ -127,4 +118,49 @@ rich breakdowns:
 which are useful for visualization and qualitative analysis. The MC estimator
 is intended as a complementary, more robust global SA estimator that you can
 use alongside the existing breakdowns and Zeo++ parity plots.
+
+#### Implementation details
+
+- **Location in codebase**
+  - Core implementation: `mofography/compute.py`, function
+    `compute_surface_area_from_results_mc(results_dict, mat_atoms, ...)`.
+  - This function is part of the public `mofography.compute` API and is
+    intended to be a drop-in alternative to
+    `compute_surface_area_from_results` for SA.
+
+- **Inputs**
+  - `results_dict`:
+    - Must contain at least:
+      - `'dgrid'` or `'distance_grid'`: distance grid (Å).
+      - `'regions_pbc'`: periodic region labels (integers).
+      - `'pbc_groups'`: list or dict of PBC pockets (each group is a set of
+        region IDs).
+    - Optionally:
+      - `'percolation_history'`: list of `(threshold, components)` tuples. If
+        missing it is computed via `compute_percolation_history_from_results`.
+  - `mat_atoms`:
+    - ASE `Atoms` object for the (super)cell used in the distance grid.
+    - Provides `get_volume()` and atomic masses for normalization to m²/g.
+  - `probe_radius`:
+    - Probe radius (Å) for which SA is estimated.
+  - `n_samples`, `shell_thickness`:
+    - Monte Carlo sample count and shell half-width control accuracy and cost.
+
+- **Outputs**
+  - Global SA:
+    - `total_surface_area`: MC estimate over all regions (m²/g).
+    - `accessible_surface_area`: MC estimate over percolating regions only
+      (m²/g).
+    - `accessible_fraction`: ratio of accessible to total SA.
+  - Breakdowns (accessible SA only, mirroring the marching-cubes function):
+    - `by_region`: dict `{region_id -> SA}` for percolating regions.
+    - `by_pocket`: dict `{pocket_id -> SA}` from summing per-region SA over
+      each PBC group.
+    - `by_percolated_cluster`: dict `{cluster_id -> SA}` from summing
+      per-region SA over each percolated cluster at the selected probe-threshold.
+  - Diagnostics:
+    - `sa_mc_diagnostics` with:
+      - `n_samples`, `shell_thickness`,
+      - `n_shell_hits_total`, `n_shell_hits_accessible`.
+
 

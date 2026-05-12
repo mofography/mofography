@@ -1718,7 +1718,6 @@ class MovieFigure:
         label_font_size: int | None = None,
         title: str | None = None,
         theme: str | None = None,
-        shader: str | None = None,
     ) -> "MovieFigure":
         if "appearance" not in self.layout:
             self.layout["appearance"] = {}
@@ -1735,8 +1734,6 @@ class MovieFigure:
             ap["title"] = title
         if theme is not None:
             ap["theme"] = theme
-        if shader is not None:
-            ap["shader"] = shader
         return self
 
     @staticmethod
@@ -1841,7 +1838,6 @@ class MovieFigure:
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
         label_font_size = ap.get("label_font_size", 11)
         title = ap.get("title", "")
-        shader = ap.get("shader", "default")
         text_color = "#222222" if is_light else "#efefef"
         panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
@@ -1862,7 +1858,6 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
-            shader_mode=shader,
         )
         out.write_text(html, encoding="utf-8")
         return out
@@ -1891,7 +1886,6 @@ class MovieFigure:
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
         label_font_size = ap.get("label_font_size", 11)
         title = ap.get("title", "")
-        shader = ap.get("shader", "default")
         text_color = "#222222" if is_light else "#efefef"
         panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
@@ -1912,7 +1906,6 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
-            shader_mode=shader,
         )
 
     def _repr_html_(self) -> str:
@@ -2353,50 +2346,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     };
     const circleTex = spriteTextures["circle"];
 
-    const SHADER_MODE = "{{shader_mode}}";
     const scene = new THREE.Scene();
     scene.background = new THREE.Color({{scene_bg}});
-
-    // --- Shader modes: fresnel rim glow, matcap lighting boost ---
-    function applyShaderMode(material) {
-      if (SHADER_MODE === "fresnel") {
-        material.onBeforeCompile = function(shader) {
-          shader.uniforms.fresnelColor = { value: new THREE.Color(0x66ccff) };
-          shader.uniforms.fresnelPower = { value: 2.5 };
-          shader.vertexShader = shader.vertexShader.replace(
-            "#include <worldpos_vertex>",
-            "#include <worldpos_vertex>\n  #if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined( USE_SHADOWMAP )\n    vec4 worldPos4 = modelMatrix * vec4(transformed, 1.0);\n  #endif"
-          );
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "void main() {",
-            "uniform vec3 fresnelColor; uniform float fresnelPower;\nvoid main() {"
-          );
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <emissivemap_fragment>",
-            [
-              "#include <emissivemap_fragment>",
-              "  vec3 vViewDir = normalize(cameraPosition - vViewPosition);",
-              "  float fRim = pow(1.0 - abs(dot(normalize(vNormal), vViewDir)), fresnelPower);",
-              "  totalEmissiveRadiance += fresnelColor * fRim * 0.6;",
-            ].join("\n")
-          );
-        };
-        material.needsUpdate = true;
-      } else if (SHADER_MODE === "matcap") {
-        material.onBeforeCompile = function(shader) {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <color_fragment>",
-            [
-              "#include <color_fragment>",
-              "  vec3 mcNormal = normalize(vNormal);",
-              "  float mcShade = 0.55 + 0.45 * mcNormal.z;",
-              "  diffuseColor.rgb *= mcShade;",
-            ].join("\n")
-          );
-        };
-        material.needsUpdate = true;
-      }
-    }
 
     const eyeArr = {{eye}};
     const centerArr = {{center}};
@@ -2631,7 +2582,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
-      applyShaderMode(mat);
       mesh.name = trace.id;
       scene.add(mesh);
       objectsById[trace.id] = mesh;

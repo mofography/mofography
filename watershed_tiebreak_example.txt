@@ -1,0 +1,83 @@
+1D watershed tie-break example
+==============================
+
+Grid (distance values)          Seeds
+Index :  0   1   2   3   4       0 = seed A        4 = seed B
+dgrid :  3   1   1   1   3       (peak)            (peak)
+        ^       ^       ^
+      peak    saddle    peak
+
+The saddle (indices 1-3) is perfectly flat — every voxel has the same
+priority.  The two algorithms therefore resolve every saddle voxel by
+tie-break, not by value.
+
+---
+
+A.  skimage  (min-heap, age tie-break)
+    Priority = -dgrid, then earliest-push wins.
+
+    Step 1  push A(age=0) and B(age=1)          heap: [A0 , B1]
+    Step 2  pop A (age wins tie).  Flood 1 -> A  heap: [B1 , A2]
+    Step 3  pop B (value=-3 beats -1). Flood 3 -> B  heap: [A2 , B3]
+    Step 4  pop A (age 2 < 3).     Flood 2 -> A  heap: [B3]
+    Step 5  pop B.  Neighbour 2 already A. Done.
+
+    Labels:  A   A   A   B   B
+             ^^^^^^^^^^^^
+             whole saddle goes to A
+
+    skimage gives the ENTIRE flat saddle to whichever seed happened to
+    reach the first saddle voxel one step earlier.  On a 1-voxel saddle
+    the other seed never even touches it.
+
+---
+
+B.  Rust heap_watershed_impl  (max-heap, flat_index tie-break)
+    Priority = +dgrid, then highest flat index wins.
+
+    Step 1  push A(3,idx=0) and B(3,idx=4)       heap: [B(4) , A(0)]
+    Step 2  pop B (idx 4 wins tie).  Flood 3 -> B heap: [A(0) , B(1)]
+    Step 3  pop A (value 3 beats 1). Flood 1 -> A heap: [B(3) , A(1)]
+    Step 4  pop B (idx 3 > 1).       Flood 2 -> B heap: [A(1)]
+    Step 5  pop A.  Neighbour 2 already B. Done.
+
+    Labels:  A   A   B   B   B
+             ^^^^^^
+             saddle split roughly in half
+
+    Rust splits the saddle arbitrarily by memory address (high index
+    favoured).  The split has no geometric meaning, but it does mean
+    both seeds get a foothold on the saddle.
+
+---
+
+What changes if the saddle is only ONE voxel wide?
+
+Grid:    3   1   3
+Index:   0   1   2
+Seed A at 0,  Seed B at 2
+
+skimage  ->  A   A   B        (A monopolises the bridge)
+Rust     ->  A   B   B        (B monopolises the bridge)
+
+Both are greedy.  The difference is WHICH seed gets the monopoly.
+skimage always favours the seed that is graph-distance-closest; on a
+flat 1-voxel bridge that is whichever happens to be 1 step nearer in
+the ravelled ordering.
+
+---
+
+Why your 0.3-Å window disappears in skimage
+--------------------------------------------
+A narrow pore window is exactly this 1-voxel (or 2-voxel) flat saddle.
+Because skimage's age-based flood gives the WHOLE bridge to whichever
+side arrives first, the two regions never share a boundary voxel and
+the adjacency graph reports "no connection".  The window is physically
+there (voxels exist), but the watershed label field has swallowed it.
+
+Rust, by blindly splitting on flat-index, accidentally leaves one or
+two boundary voxels for the other side, so the regions touch and the
+adjacency graph keeps the edge.
+
+Neither is truly "correct" for topology.  Both are artefacts of greedy
+flood-fill on a quantized grid.  
