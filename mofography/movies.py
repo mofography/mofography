@@ -113,6 +113,7 @@ from ase.data import atomic_masses as atomic_masses_table
 from ase.data import covalent_radii
 from ase.geometry import cellpar_to_cell
 from ase.io import read
+from ase.neighborlist import natural_cutoffs, neighbor_list
 from matplotlib import colors as mcolors
 from skimage.measure import marching_cubes
 
@@ -136,6 +137,10 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
         "shininess": 10,
         "specular": 0x151515,
     },
+    "guest_bonds": {
+        "color": [0.88, 0.88, 0.90],
+        "linewidth": 2,
+    },
     "surface": {
         "opacity": 0.92,
         "roughness": 0.34,
@@ -148,11 +153,11 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 5.0,
+        "size": 2.5,
     },
     "periodic_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 5.0,
+        "size": 2.5,
     },
     "internal_windows": {
         "color": 0xFFE600,
@@ -318,11 +323,14 @@ def _framework_vertex_hovertext(
     return hover_atoms + hover_bonds
 
 
-def _serialize_framework_mesh(atoms: Atoms) -> dict[str, Any]:
+def _serialize_framework_mesh(
+    atoms: Atoms, bonds: list[list[int]] | None = None
+) -> dict[str, Any]:
     from .visualize import mesh_for_atoms
 
     mesh = mesh_for_atoms(
         atoms,
+        bonds=bonds,
         kwargs_spheres=dict(scale=0.8),
         kwargs_cylinders=dict(radius=0.25),
     )
@@ -449,13 +457,13 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms) -> dict[str, Any]
     cmap = {rid: cscale[i % len(cscale)] for i, rid in enumerate(uniq_regions)}
     colors = [list(np.asarray(cmap.get(int(r), [180, 180, 180]), dtype=float) / 255.0) for r in region_labels]
 
-    # Marker scale (matches devtools/md_pdb_threejs_viewer: 6 + 5 * norm from cage radii)
+    # Marker scale (half of former 6 + 5 * norm): 3 + 2.5 * norm from cage radii
     vals = np.asarray(cage_radii, dtype=float)
     vmin = float(vals.min()) if len(vals) else 0.0
     vmax = float(vals.max()) if len(vals) else 1.0
     denom = max(vmax - vmin, 1e-12)
     norm = (vals - vmin) / denom
-    sizes = (6.0 + 5.0 * norm).astype(float).tolist()
+    sizes = (3.0 + 2.5 * norm).astype(float).tolist()
     hover = []
     for i, (g, p, r) in enumerate(zip(maxima, pos, cage_radii, strict=False)):
         hover.append(
@@ -1001,13 +1009,32 @@ def make_framework_trace(
     name: str = "Framework",
     trace_id: str = "framework",
 ) -> dict[str, Any]:
-    if bonds == "auto":
-        from .analyze import update_with_covalent_bonds
+    def _ase_covalent_bonds(a: Atoms, mult: float = 1.05) -> list[list[int]]:
+        cutoffs = np.asarray(natural_cutoffs(a, mult=mult), dtype=float)
+        i_idx, j_idx = neighbor_list("ij", a, cutoffs, self_interaction=False)
+        seen: set[tuple[int, int]] = set()
+        out: list[list[int]] = []
+        for i, j in zip(i_idx, j_idx, strict=False):
+            x = int(min(i, j))
+            y = int(max(i, j))
+            if x == y or (x, y) in seen:
+                continue
+            seen.add((x, y))
+            out.append([x, y])
+        return out
 
-        if "covalent_bonds" not in atoms.info:
-            atoms = update_with_covalent_bonds(atoms)
-        # bonds already stored in atoms.info
-    payload = _serialize_framework_mesh(atoms)
+    mesh_bonds: list[list[int]] | None = None
+    if bonds == "auto":
+        if "covalent_bonds" in atoms.info and atoms.info["covalent_bonds"]:
+            mesh_bonds = atoms.info["covalent_bonds"]
+        else:
+            atoms.info["covalent_bonds"] = _ase_covalent_bonds(atoms, mult=1.05)
+            mesh_bonds = atoms.info["covalent_bonds"]
+    elif bonds is None:
+        mesh_bonds = None
+    elif isinstance(bonds, list):
+        mesh_bonds = bonds
+    payload = _serialize_framework_mesh(atoms, bonds=mesh_bonds)
     return _make_trace(
         trace_id=trace_id,
         trace_type="mesh",
@@ -1190,9 +1217,11 @@ def make_guest_trace(
     name: str = "Adsorbates",
     trace_id: str = "guests",
 ) -> dict[str, Any]:
-    syms = atoms.get_chemical_symbols()
-    colors = np.asarray([_hex_to_rgb01(CPK_COLORS.get(s, "#CCCCCC")) for s in syms], dtype=float)
     atomic_numbers = atoms.get_atomic_numbers()
+    from ase.data.colors import cpk_colors
+
+    syms = atoms.get_chemical_symbols()
+    colors = np.asarray(cpk_colors[atomic_numbers], dtype=float)
     radii = covalent_radii[atomic_numbers] * 0.8
     positions = atoms.get_positions().reshape(-1).tolist()
     return _make_trace(
@@ -1206,6 +1235,130 @@ def make_guest_trace(
             "radii": radii.astype(float).tolist(),
             "n_atoms": int(len(atoms)),
         },
+        style=style,
+        hover=None,
+        visible=True,
+    )
+
+
+def _minimum_image_displacement(
+    p: np.ndarray, q: np.ndarray, cell: np.ndarray | None
+) -> np.ndarray:
+    if cell is None or np.asarray(cell).size == 0:
+        return np.asarray(p, dtype=float) - np.asarray(q, dtype=float)
+    C = np.asarray(cell, dtype=float)
+    invC = np.linalg.inv(C.T)
+    df = np.dot(np.asarray(p, dtype=float) - np.asarray(q, dtype=float), invC.T)
+    df -= np.round(df)
+    return np.dot(df, C)
+
+
+def _strip_framework_like_atoms(
+    component_atoms: Atoms, framework_atoms: Atoms, tol: float = 0.08
+) -> Atoms:
+    """Remove framework-like atoms from an allcomponents snapshot.
+
+    Matches atoms by element + minimum-image distance to framework atoms.
+    """
+    if len(component_atoms) == 0 or len(framework_atoms) == 0:
+        return component_atoms
+    comp_syms = component_atoms.get_chemical_symbols()
+    fw_syms = framework_atoms.get_chemical_symbols()
+    comp_pos = np.asarray(component_atoms.get_positions(), dtype=float)
+    fw_pos = np.asarray(framework_atoms.get_positions(), dtype=float)
+    cell = (
+        framework_atoms.get_cell().array
+        if framework_atoms.cell is not None and np.asarray(framework_atoms.get_cell().array).size
+        else None
+    )
+
+    fw_by_sym: dict[str, list[int]] = {}
+    for j, s in enumerate(fw_syms):
+        fw_by_sym.setdefault(str(s), []).append(j)
+
+    keep = np.ones(len(component_atoms), dtype=bool)
+    matched = 0
+    for i, s in enumerate(comp_syms):
+        cands = fw_by_sym.get(str(s), [])
+        if not cands:
+            continue
+        pi = comp_pos[i]
+        best_j = -1
+        best_d = float("inf")
+        for j in cands:
+            dvec = _minimum_image_displacement(pi, fw_pos[j], cell)
+            d = float(np.linalg.norm(dvec))
+            if d < best_d:
+                best_d = d
+                best_j = j
+        if best_j >= 0 and best_d <= tol:
+            keep[i] = False
+            matched += 1
+            fw_by_sym[str(s)].remove(best_j)
+
+    # Keep original trajectory if match confidence is low.
+    if matched < max(4, int(0.4 * len(framework_atoms))):
+        return component_atoms
+    return component_atoms[keep]
+
+
+def make_guest_bonds_trace(
+    atoms: Atoms,
+    style: str | dict | None = "guest_bonds",
+    name: str = "Adsorbate bonds",
+    trace_id: str = "guest_bonds",
+) -> dict[str, Any]:
+    """Build cylindrical bond mesh for polyatomic adsorbates."""
+    if len(atoms) <= 1:
+        return _make_trace(
+            trace_id=trace_id,
+            trace_type="mesh",
+            name=name,
+            data={"positions": [], "indices": [], "colors": [], "n_vertices": 0, "n_triangles": 0},
+            style=style,
+            hover=None,
+            visible=True,
+        )
+    from .visualize import cylinders_for_bonds
+
+    cutoffs = np.asarray(natural_cutoffs(atoms, mult=1.15), dtype=float)
+    i_idx, j_idx = neighbor_list("ij", atoms, cutoffs, self_interaction=False)
+    pos = np.asarray(atoms.get_positions(), dtype=float)
+    seen: set[tuple[int, int]] = set()
+    bonds: list[list[int]] = []
+    for i, j in zip(i_idx, j_idx, strict=False):
+        a = int(min(i, j))
+        b = int(max(i, j))
+        if a == b or (a, b) in seen:
+            continue
+        seen.add((a, b))
+        # Keep short bonds only (avoid occasional PBC-neighbor artifacts).
+        if float(np.linalg.norm(pos[a] - pos[b])) <= 2.2:
+            bonds.append([a, b])
+    if not bonds:
+        return _make_trace(
+            trace_id=trace_id,
+            trace_type="mesh",
+            name=name,
+            data={"positions": [], "indices": [], "colors": [], "n_vertices": 0, "n_triangles": 0},
+            style=style,
+            hover=None,
+            visible=True,
+        )
+    cyl = cylinders_for_bonds(
+        bonds,
+        atoms,
+        radius=0.12,
+        bond_rgba_array=[127, 128, 129, 255],
+        cylinder_resolution=12,
+    )
+    mesh = trimesh.util.concatenate(cyl)
+    payload = _serialize_trimesh(mesh)
+    return _make_trace(
+        trace_id=trace_id,
+        trace_type="mesh",
+        name=name,
+        data=payload,
         style=style,
         hover=None,
         visible=True,
@@ -1294,6 +1447,7 @@ class MovieFigure:
         eye: tuple[float, float, float] | None = None,
         center: tuple[float, float, float] | None = None,
         up: tuple[float, float, float] | None = None,
+        projection: str | None = None,
         keyframes: list[dict[str, Any]] | None = None,
     ) -> "MovieFigure":
         if "scene" not in self.layout:
@@ -1305,6 +1459,8 @@ class MovieFigure:
             cam["center"] = list(center)
         if up is not None:
             cam["up"] = list(up)
+        if projection is not None:
+            cam["projection"] = projection
         if keyframes is not None:
             cam["keyframes"] = keyframes
         return self
@@ -1366,6 +1522,7 @@ class MovieFigure:
         eye = tuple(cam.get("eye", [2.0, 0.0, 1.35]))
         center = tuple(cam.get("center", [0.0, 0.0, 0.0]))
         up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
+        projection = str(cam.get("projection", "perspective"))
 
         html = _THREEJS_TEMPLATE.render(
             payload_json=payload_json,
@@ -1374,9 +1531,180 @@ class MovieFigure:
             center=center,
             up=up,
             point_size=point_size,
+            projection=projection,
         )
         out.write_text(html, encoding="utf-8")
         return out
+
+    # ------------------------------------------------------------------
+    # Jupyter integration
+    # ------------------------------------------------------------------
+
+    def _render_html_string(self) -> str:
+        """Render scene to HTML string (no file write)."""
+        import json as _json
+        scene = self.to_dict()
+        payload_json = _json.dumps(scene)
+        cam = scene.get("layout", {}).get("scene", {}).get("camera", {})
+        eye = tuple(cam.get("eye", [2.0, 0.0, 1.35]))
+        center = tuple(cam.get("center", [0.0, 0.0, 0.0]))
+        up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
+        projection = str(cam.get("projection", "perspective"))
+        fps = float(scene.get("layout", {}).get("fps", 20.0))
+        return _THREEJS_TEMPLATE.render(
+            payload_json=payload_json,
+            fps=fps,
+            eye=eye,
+            center=center,
+            up=up,
+            point_size=0.16,
+            projection=projection,
+        )
+
+    def _repr_html_(self) -> str:
+        """Jupyter notebook integration — display via IFrame (avoids CSP issues).
+
+        Jupyter auto-calls this method when the figure is the last expression
+        in a cell.  Uses the ``srcdoc`` IFrame pattern (same approach as pydeck
+        and Plotly's notebook renderer) to isolate Three.js/WebGL content from
+        the notebook's Content Security Policy.
+        """
+        import html
+        html_str = self._render_html_string()
+        escaped = html.escape(html_str)
+        return (
+            f'<iframe width="100%" height="600" frameborder="0" '
+            f'srcdoc="{escaped}"></iframe>'
+        )
+
+    def show(self, renderer: str = "notebook") -> None:
+        """Display the figure.
+
+        Parameters
+        ----------
+        renderer
+            ``"notebook"`` — display inline in Jupyter output cell (default).
+            ``"browser"`` — write a temporary HTML file and open it in the
+            system's default web browser (like ``plotly.io.show(renderer="browser")``).
+        """
+        if renderer == "browser":
+            import tempfile
+            import webbrowser
+            tmp = Path(tempfile.mktemp(suffix=".html"))
+            self.to_html(tmp)
+            webbrowser.open(str(tmp))
+        else:
+            try:
+                from IPython.display import HTML, display
+                display(HTML(self._repr_html_()))
+            except ImportError:
+                raise RuntimeError(
+                    "IPython is required for notebook rendering. "
+                    "Use renderer='browser' to open in a web browser instead."
+                )
+
+    # ------------------------------------------------------------------
+    # Convenience trace builders (static scenes)
+    # ------------------------------------------------------------------
+
+    def add_framework(
+        self,
+        atoms: Atoms,
+        bonds: str | list | None = "auto",
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add framework atoms + bonds as a mesh trace (static)."""
+        trace = make_framework_trace(atoms, bonds=bonds, style=style if style else "framework")
+        self.add_trace(trace)
+        return self
+
+    def add_cell(self, atoms: Atoms, **style: Any) -> "MovieFigure":
+        """Add unit-cell wireframe (static)."""
+        trace = make_cell_trace(atoms, style=style if style else "cell")
+        self.add_trace(trace)
+        return self
+
+    def add_surface(
+        self,
+        dgrid: np.ndarray,
+        regions: np.ndarray,
+        atoms: Atoms,
+        isovalue: float = 1.0,
+        step_size: int = 1,
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add segmentation isosurface mesh (static)."""
+        trace = make_surface_trace(
+            dgrid, regions, atoms,
+            isovalue=isovalue,
+            step_size=step_size,
+            style=style if style else "surface",
+        )
+        self.add_trace(trace)
+        return self
+
+    def add_maxima(
+        self,
+        seg: dict[str, Any],
+        atoms: Atoms,
+        hide_periodic: bool = True,
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add pore-centre maxima points (internal always visible, periodic optionally hidden)."""
+        maxima = make_maxima_trace(seg, atoms, style=style if style else "internal_maxima")
+        self.add_trace(maxima["internal"])
+        if hide_periodic:
+            maxima["outside"]["visible"] = False
+        self.add_trace(maxima["outside"])
+        return self
+
+    def add_connections(
+        self,
+        seg: dict[str, Any],
+        atoms: Atoms,
+        hide_periodic: bool = True,
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add pore-graph connection lines + nodes (internal + optional periodic)."""
+        conns = make_connections_trace(seg, atoms, style=style if style else "internal_connections")
+        self.add_trace(conns["internal_lines"])
+        self.add_trace(conns["internal_nodes"])
+        if hide_periodic:
+            conns["periodic_lines"]["visible"] = False
+            conns["periodic_nodes"]["visible"] = False
+        self.add_trace(conns["periodic_lines"])
+        self.add_trace(conns["periodic_nodes"])
+        return self
+
+    def add_windows(
+        self,
+        seg: dict[str, Any],
+        hide_periodic: bool = True,
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add window points between connected pores (internal + optional periodic)."""
+        windows = make_windows_trace(seg, style=style if style else "internal_windows")
+        self.add_trace(windows["internal"])
+        if hide_periodic:
+            windows["periodic"]["visible"] = False
+        self.add_trace(windows["periodic"])
+        return self
+
+    def add_guests(
+        self,
+        atoms: Atoms,
+        color: list[float] | None = None,
+        **style: Any,
+    ) -> "MovieFigure":
+        """Add guest / adsorbate atoms as instanced spheres (single frame, static)."""
+        trace = make_guest_trace(atoms, style=style if style else "guests")
+        if color is not None:
+            resolved = _resolve_style(style) if style else {}
+            resolved["color"] = color
+            trace["style"] = resolved
+            trace["data"]["colors"] = []  # disable per-instance colors → use material base
+        self.add_trace(trace)
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -1447,12 +1775,25 @@ def build_fixed_framework_movie(
             "traces": ["guests"],
             "label": "Adsorbates",
         },
+        "guest_bonds": {
+            "traces": ["guestbonds_main"],
+            "label": "Adsorbate bonds",
+        },
     }
 
     # Per-frame guest traces
     for i, snap in enumerate(snapshots):
         guest = make_guest_trace(snap["atoms"])
         fig.add_trace(guest, frame=i)
+        fig.add_trace(
+            make_guest_bonds_trace(
+                snap["atoms"],
+                style="guest_bonds",
+                name="Adsorbate bonds",
+                trace_id="guestbonds_main",
+            ),
+            frame=i,
+        )
 
     fig.meta = {
         "workflow": "fixed_framework",
@@ -1546,22 +1887,33 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     <div class="checkrow">
       <button id="pivotScene">Pivot: Scene center</button>
       <button id="pivotOrigin">Pivot: Origin (0,0,0)</button>
+      <button id="toggleOrtho">Toggle Orthographic</button>
     </div>
     <div class="checkrow">
-      <label><input type="checkbox" id="showCell" checked /> Unit cell</label>
-      <label><input type="checkbox" id="showFramework" checked /> Framework mesh</label>
-      <label><input type="checkbox" id="showSurface" checked /> Segmentation surface (regions)</label>
-      <label><input type="checkbox" id="showGuests" checked /> Snapshot adsorbates (mesh spheres)</label>
-      <label><input type="checkbox" id="showWindows" checked /> Internal windows</label>
-      <label><input type="checkbox" id="showPeriodicWindows" checked /> Periodic windows</label>
-      <label><input type="checkbox" id="showInternalConnections" checked /> Internal connections</label>
-      <label><input type="checkbox" id="showPeriodicConnections" checked /> Periodic connections</label>
+      <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
+      <label id="labelShowFramework"><input type="checkbox" id="showFramework" checked /> Framework mesh</label>
+      <label id="labelShowSurface"><input type="checkbox" id="showSurface" checked /> Segmentation surface (regions)</label>
+      <label id="labelShowGuests"><input type="checkbox" id="showGuests" checked /> Snapshot adsorbates (mesh spheres)</label>
+      <label id="labelShowGuestBonds"><input type="checkbox" id="showGuestBonds" checked /> Adsorbate bonds</label>
+      <label id="labelShowWindows"><input type="checkbox" id="showWindows" checked /> Internal windows</label>
+      <label id="labelShowPeriodicWindows"><input type="checkbox" id="showPeriodicWindows" /> Periodic windows</label>
+      <label id="labelShowInternalConnections"><input type="checkbox" id="showInternalConnections" checked /> Internal connections</label>
+      <label id="labelShowPeriodicConnections"><input type="checkbox" id="showPeriodicConnections" /> Periodic connections</label>
     </div>
+    <div class="checkrow" id="groupChecks"></div>
     <input id="frameSlider" type="range" min="0" max="0" step="1" value="0" />
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/SSAOShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/SimplexNoise.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/SSAOPass.js"></script>
   <script>
     const DATA = {{payload_json}};
     const MOV = DATA.static && DATA.static.traces ? DATA.static.traces : [];
@@ -1586,6 +1938,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const showFramework = document.getElementById("showFramework");
     const showSurface = document.getElementById("showSurface");
     const showGuests = document.getElementById("showGuests");
+    const showGuestBonds = document.getElementById("showGuestBonds");
     const showWindows = document.getElementById("showWindows");
     const showPeriodicWindows = document.getElementById("showPeriodicWindows");
     const showInternalConnections = document.getElementById("showInternalConnections");
@@ -1593,32 +1946,133 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const pivotSceneBtn = document.getElementById("pivotScene");
     const pivotOriginBtn = document.getElementById("pivotOrigin");
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
     app.appendChild(renderer.domElement);
+
+    // Circular point sprite texture (replaces default square PointsMaterial)
+    const ptCanvas = document.createElement('canvas');
+    ptCanvas.width = 64; ptCanvas.height = 64;
+    const ptCtx = ptCanvas.getContext('2d');
+    ptCtx.beginPath(); ptCtx.arc(32, 32, 28, 0, Math.PI * 2);
+    ptCtx.fillStyle = 'white'; ptCtx.fill();
+    const circleTex = new THREE.CanvasTexture(ptCanvas);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x111111);
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
+
     const eyeArr = {{eye}};
     const centerArr = {{center}};
     const upArr = {{up}};
-    camera.position.set(eyeArr[0], eyeArr[1], eyeArr[2]);
-    camera.up.set(upArr[0], upArr[1], upArr[2]);
-    camera.lookAt(new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]));
+    const projection = "{{projection}}";
+
+    let camera, perspectiveCam, orthoCam, frustumSize, isOrtho;
+    const aspect = window.innerWidth / window.innerHeight;
+
+    perspectiveCam = new THREE.PerspectiveCamera(45, aspect, 0.01, 2000);
+    orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 2000);
+
+    function updateOrthoFrustum() {
+      var dist = camera.position.distanceTo(controls.target);
+      frustumSize = 2 * dist * Math.tan(THREE.MathUtils.degToRad(22.5));
+      var asp = window.innerWidth / window.innerHeight;
+      orthoCam.left = frustumSize * asp / -2;
+      orthoCam.right = frustumSize * asp / 2;
+      orthoCam.top = frustumSize / 2;
+      orthoCam.bottom = frustumSize / -2;
+      orthoCam.updateProjectionMatrix();
+    }
+
+    isOrtho = projection === "orthographic";
+    camera = isOrtho ? orthoCam : perspectiveCam;
+
+    [perspectiveCam, orthoCam].forEach(function(cam) {
+      cam.position.set(eyeArr[0], eyeArr[1], eyeArr[2]);
+      cam.up.set(upArr[0], upArr[1], upArr[2]);
+      cam.lookAt(new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2]));
+    });
+
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.target.set(centerArr[0], centerArr[1], centerArr[2]);
     controls.update();
+    updateOrthoFrustum();  // set initial frustum from camera-to-target distance
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+    // Orthographic toggle
+    const toggleOrthoBtn = document.getElementById("toggleOrtho");
+    function recreateComposer() {
+      if (composer) {
+        try { composer.passes.forEach(function(p) { if (p.dispose) p.dispose(); }); } catch(e) {}
+      }
+      composer = null; ssaoPass = null;
+      if (!isOrtho) {
+        try {
+          composer = new THREE.EffectComposer(renderer);
+          composer.addPass(new THREE.RenderPass(scene, camera));
+          ssaoPass = new THREE.SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+          ssaoPass.kernelRadius = 0.8;
+          ssaoPass.kernelSize = 24;
+          ssaoPass.minDistance = 0.001;
+          ssaoPass.maxDistance = 0.05;
+          composer.addPass(ssaoPass);
+        } catch(e) { console.warn('SSAO unavailable:', e); composer = null; }
+      }
+    }
+
+    toggleOrthoBtn.addEventListener("click", function() {
+      isOrtho = !isOrtho;
+      var oldPos = camera.position.clone();
+      var oldTarget = controls.target.clone();
+      camera = isOrtho ? orthoCam : perspectiveCam;
+      camera.position.copy(oldPos);
+      camera.lookAt(oldTarget);
+      controls.object = camera;
+      controls.target.copy(oldTarget);
+      controls.update();
+      updateOrthoFrustum();
+      recreateComposer();
+
+      // Boost directional contrast in ortho (no SSAO → need stronger highlights)
+      var dirScale = isOrtho ? 1.4 : (1.0 / 1.4);
+      dirKey.intensity *= dirScale;
+      dirFill.intensity *= dirScale;
+
+      // Ortho linear depth puts points behind surfaces → disable depth test
+      Object.values(objectsById).forEach(function(obj) {
+        if (obj && obj.material && obj.material.isPointsMaterial) {
+          obj.material.depthTest = !isOrtho;
+          obj.material.depthWrite = !isOrtho;
+          obj.material.needsUpdate = true;
+        }
+      });
+    });
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.28);
     scene.add(ambient);
-    const dirKey = new THREE.DirectionalLight(0xffffff, 0.85);
+    const hemiLight = new THREE.HemisphereLight(0xddeeff, 0x3b3b3b, 0.25);
+    scene.add(hemiLight);
+    const dirKey = new THREE.DirectionalLight(0xffffff, 0.48);
     dirKey.position.set(5, 10, 7.5);
     scene.add(dirKey);
-    const dirFill = new THREE.DirectionalLight(0xffffff, 0.55);
+    const dirFill = new THREE.DirectionalLight(0xffffff, 0.32);
     dirFill.position.set(-5, -9, -7.5);
     scene.add(dirFill);
+
+    // SSAO post-processing (perspective only — orthographic produces black output)
+    let composer, ssaoPass;
+    if (!isOrtho) {
+      try {
+        composer = new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene, camera));
+        ssaoPass = new THREE.SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+        ssaoPass.kernelRadius = 0.8;
+        ssaoPass.kernelSize = 24;
+        ssaoPass.minDistance = 0.001;
+        ssaoPass.maxDistance = 0.05;
+        composer.addPass(ssaoPass);
+      } catch (e) { console.warn('SSAO unavailable, using standard render:', e); composer = null; }
+    }
 
     const objectsById = {};
 
@@ -1714,9 +2168,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         geo.setAttribute("color", new THREE.Float32BufferAttribute(trace.data.colors, 3));
       }
       const style = styleFor(trace);
-      const size = sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace);
+      const size = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
       const mat = new THREE.PointsMaterial({
         size: size,
+        map: circleTex,
         vertexColors: !!(trace.data.colors && trace.data.colors.length),
         sizeAttenuation: true,
         transparent: true,
@@ -1741,17 +2196,22 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const sh = segLon || 14;
       const geo = new THREE.SphereBufferGeometry(1.0, sw, sh);
       const style = styleFor(trace);
+      const hasInstanceColors = !!(trace.data && trace.data.colors && trace.data.colors.length >= 3);
       const c = style.color;
-      const col = Array.isArray(c) && c.length >= 3
-        ? new THREE.Color(c[0], c[1], c[2])
-        : (typeof c === "number" ? new THREE.Color(c) : new THREE.Color(0xff69b4));
+      const col = hasInstanceColors
+        ? new THREE.Color(1.0, 1.0, 1.0)
+        : (Array.isArray(c) && c.length >= 3
+            ? new THREE.Color(c[0], c[1], c[2])
+            : (typeof c === "number" ? new THREE.Color(c) : new THREE.Color(0xff69b4)));
       const mat = new THREE.MeshPhongMaterial({
         color: col,
         shininess: style.shininess !== undefined ? style.shininess : 10,
         specular: style.specular !== undefined ? style.specular : 0x151515,
+        vertexColors: hasInstanceColors,
       });
       const mesh = new THREE.InstancedMesh(geo, mat, n);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (mesh.instanceColor) mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
       mesh.name = trace.id;
       scene.add(mesh);
       objectsById[trace.id] = mesh;
@@ -1799,7 +2259,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       points.geometry = geo;
       if (oldGeo) oldGeo.dispose();
       const style = styleFor(trace);
-      points.material.size = pointsBaseSize(trace);
+      points.material.size = pointsBaseSize(trace) * 1.3;
       points.material.vertexColors = !!(trace.data.colors && trace.data.colors.length);
       if (!trace.data.colors || !trace.data.colors.length) {
         points.material.color.copy(threeColorFromStyle(style.color, 0xffffff));
@@ -1850,9 +2310,61 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const frameTrace = firstFrameTraces.find(t => t.id === id);
       const src = staticTrace || frameTrace;
       if (!src) return;
-      guestMeshes[id] = addInstancedSpheres(src, guestSphereSegments, guestSphereSegments);
-      guestMeshes[id].userData.maxInstances = src.data.n_atoms || 0;
+      const mesh = addInstancedSpheres(src, guestSphereSegments, guestSphereSegments);
+      guestMeshes[id] = mesh;
+      if (mesh) {
+        mesh.userData.maxInstances = src.data.n_atoms || 0;
+      }
       lastRenderedGuestFrameById[id] = -999;
+    });
+
+    // Sync initial visibility from trace data (honors visible=false for periodic elements)
+    const allSetupTraces = [...staticTraces, ...(FRAMES.length && FRAMES[0].traces ? FRAMES[0].traces : [])];
+    allSetupTraces.forEach(trace => {
+      const obj = objectsById[trace.id];
+      if (obj && trace.visible === false) {
+        obj.visible = false;
+      }
+    });
+
+    function setVisibleIfPresent(labelId, predicate) {
+      const el = document.getElementById(labelId);
+      if (!el) return;
+      el.style.display = predicate ? "" : "none";
+    }
+    function hasStaticOrFrameTrace(pred) {
+      if (staticTraces.some(pred)) return true;
+      return FRAMES.some(fr => (fr && fr.traces ? fr.traces : []).some(pred));
+    }
+    setVisibleIfPresent("labelShowCell", hasStaticOrFrameTrace(t => t.id === "cell"));
+    setVisibleIfPresent("labelShowFramework", hasStaticOrFrameTrace(t => t.id === "framework"));
+    setVisibleIfPresent("labelShowSurface", hasStaticOrFrameTrace(t => t.id === "surface"));
+    setVisibleIfPresent("labelShowGuests", hasStaticOrFrameTrace(t => t.id === "guests" || (t.id && t.id.startsWith("guests_"))));
+    setVisibleIfPresent("labelShowGuestBonds", hasStaticOrFrameTrace(t => t.id && t.id.startsWith("guestbonds_")));
+    setVisibleIfPresent("labelShowWindows", hasStaticOrFrameTrace(t => t.id === "windows_internal"));
+    setVisibleIfPresent("labelShowPeriodicWindows", hasStaticOrFrameTrace(t => t.id === "windows_periodic"));
+    setVisibleIfPresent("labelShowInternalConnections", hasStaticOrFrameTrace(t => t.id === "connections_internal" || t.id === "connections_internal_nodes" || t.id === "maxima_internal"));
+    setVisibleIfPresent("labelShowPeriodicConnections", hasStaticOrFrameTrace(t => t.id === "connections_periodic" || t.id === "connections_periodic_nodes" || t.id === "maxima_outside"));
+
+    // Populate dynamic group checkboxes from DATA.groups
+    const groupChecksDiv = document.getElementById("groupChecks");
+    const groups = DATA.groups || {};
+    Object.entries(groups).forEach(function(entry) {
+      const groupId = entry[0];
+      const group = entry[1];
+      const label = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = true;
+      cb.addEventListener("change", function() {
+        (group.traces || []).forEach(function(tid) {
+          const obj = objectsById[tid];
+          if (obj) obj.visible = cb.checked;
+        });
+      });
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(" " + (group.label || groupId)));
+      groupChecksDiv.appendChild(label);
     });
 
     // Fallback: if nothing expanded the bounding box (no objects created),
@@ -1922,9 +2434,22 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           dummy.scale.set(r, r, r);
           dummy.updateMatrix();
           guestMesh.setMatrixAt(a, dummy.matrix);
+          if (guestMesh.setColorAt && guestTrace.data.colors && guestTrace.data.colors.length >= (a * 3 + 3)) {
+            const rr = guestTrace.data.colors[a * 3];
+            const gg = guestTrace.data.colors[a * 3 + 1];
+            const bb = guestTrace.data.colors[a * 3 + 2];
+            guestMesh.setColorAt(a, new THREE.Color(rr, gg, bb));
+          }
         }
         guestMesh.count = n;
         guestMesh.instanceMatrix.needsUpdate = true;
+        if (guestMesh.instanceColor) guestMesh.instanceColor.needsUpdate = true;
+        if (guestMesh.material) {
+          if (guestTrace.data.colors && guestTrace.data.colors.length > 0) {
+            guestMesh.material.color.setRGB(1.0, 1.0, 1.0);
+          }
+          guestMesh.material.needsUpdate = true;
+        }
         lastRenderedGuestFrameById[guestId] = frame;
       });
       traces.forEach(trace => {
@@ -1962,6 +2487,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     showGuests.addEventListener("change", () => {
       Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
     });
+    showGuestBonds.addEventListener("change", () => {
+      Object.keys(objectsById).forEach(id => {
+        if (id && id.startsWith("guestbonds_")) {
+          const obj = objectsById[id];
+          if (obj) obj.visible = showGuestBonds.checked;
+        }
+      });
+    });
     showWindows.addEventListener("change", () => {
       const obj = objectsById["windows_internal"];
       if (obj) obj.visible = showWindows.checked;
@@ -1996,7 +2529,16 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     const raycaster = new THREE.Raycaster();
-    raycaster.params.Points.threshold = 0.2;
+    raycaster.params.Points.threshold = 1.25;
+
+    function hoverHitPriority(obj) {
+      if (obj instanceof THREE.Points) return 4;
+      if (obj instanceof THREE.LineSegments) return 3;
+      if (obj instanceof THREE.InstancedMesh) return 2;
+      if (obj instanceof THREE.Mesh) return 1;
+      return 0;
+    }
+
     const mouse = new THREE.Vector2();
     let hoverRaf = null;
     let pendingHoverEv = null;
@@ -2005,19 +2547,23 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
-      const all = [];
-      Object.values(objectsById).forEach(obj => {
-        if (obj.visible) {
-          const hits = raycaster.intersectObject(obj);
-          if (hits.length) all.push(hits[0]);
-        }
-      });
-      all.sort((a, b) => a.distance - b.distance);
-      if (!all.length) {
+      const pickables = Object.values(objectsById).filter(o => o && o.visible);
+      const hits = raycaster.intersectObjects(pickables, false);
+      hits.sort((a, b) => a.distance - b.distance);
+      if (!hits.length) {
         tooltip.style.display = "none";
         return;
       }
-      const hit = all[0];
+      const d0 = hits[0].distance;
+      const slack = Math.max(0.12, d0 * 0.025);
+      const band = hits.filter(h => h.distance <= d0 + slack);
+      band.sort((a, b) => {
+        const pa = hoverHitPriority(a.object);
+        const pb = hoverHitPriority(b.object);
+        if (pb !== pa) return pb - pa;
+        return a.distance - b.distance;
+      });
+      const hit = band[0];
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
@@ -2035,9 +2581,16 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const trace = tracesNow.find(t => t.id === hit.object.name) || staticTraces.find(t => t.id === hit.object.name);
         if (trace && trace.hover && hit.index != null && hit.index >= 0 && hit.index < trace.hover.length) {
           txt = trace.hover[hit.index];
+        } else if (hit.object instanceof THREE.LineSegments && trace && trace.hover && hit.index != null) {
+          const segIdx = Math.floor(hit.index / 2);
+          if (segIdx >= 0 && segIdx < trace.hover.length) txt = trace.hover[segIdx];
         } else if (hit.face) {
           txt = `trace: ${hit.object.name}\nxyz: (${hit.point.x.toFixed(3)}, ${hit.point.y.toFixed(3)}, ${hit.point.z.toFixed(3)})`;
         }
+      }
+      if (!txt || !String(txt).trim()) {
+        tooltip.style.display = "none";
+        return;
       }
       tooltip.style.display = "block";
       tooltip.style.left = `${ev.clientX + 12}px`;
@@ -2063,13 +2616,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         lastT = t;
       }
       controls.update();
-      renderer.render(scene, camera);
+      if (composer) {
+        composer.render();
+      } else {
+        renderer.render(scene, camera);
+      }
     }
 
     window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
+      const aspect = window.innerWidth / window.innerHeight;
+      perspectiveCam.aspect = aspect;
+      perspectiveCam.updateProjectionMatrix();
+      updateOrthoFrustum();
       renderer.setSize(window.innerWidth, window.innerHeight);
+      if (composer) composer.setSize(window.innerWidth, window.innerHeight);
     });
 
     if (FRAMES.length <= 0) {
@@ -2080,6 +2640,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       statusEl.textContent = "No frames";
     }
     Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
+    Object.keys(objectsById).forEach(id => {
+      if (id && id.startsWith("guestbonds_")) {
+        const obj = objectsById[id];
+        if (obj) obj.visible = showGuestBonds.checked;
+      }
+    });
     setFrame(0);
     requestAnimationFrame(animate);
   </script>
@@ -2230,6 +2796,8 @@ def make_sparse_multicomponent_movie(
 
         for ci, label in enumerate(component_labels):
             atoms = comp_snaps[label][global_frame_idx]["atoms"]
+            if animate_framework:
+                atoms = _strip_framework_like_atoms(atoms, framework_atoms)
             trace = make_guest_trace(
                 atoms,
                 style={
@@ -2241,9 +2809,22 @@ def make_sparse_multicomponent_movie(
                 trace_id=f"guests_{label}",
             )
             fig.add_trace(trace, frame=local_frame)
+            fig.add_trace(
+                make_guest_bonds_trace(
+                    atoms,
+                    style="guest_bonds",
+                    name=f"Adsorbate bonds ({label})",
+                    trace_id=f"guestbonds_{label}",
+                ),
+                frame=local_frame,
+            )
 
     fig.groups = {
-        "guests": {"traces": [f"guests_{lbl}" for lbl in component_labels], "label": "Adsorbates (all components)"}
+        "guests": {"traces": [f"guests_{lbl}" for lbl in component_labels], "label": "Adsorbates (all components)"},
+        "guest_bonds": {
+            "traces": [f"guestbonds_{lbl}" for lbl in component_labels],
+            "label": "Adsorbate bonds",
+        },
     }
     fig.meta = {
         "workflow": "sparse_multicomponent",
@@ -2336,3 +2917,135 @@ def make_movie_from_raspa_pdb(
         center=center,
         up=up,
     )
+
+
+# ---------------------------------------------------------------------------
+# Public compute helpers (thin wrappers around _serialize_* internals)
+# ---------------------------------------------------------------------------
+
+def compute_framework_mesh(
+    atoms: Atoms,
+    bonds: list[list[int]] | None = None,
+) -> dict[str, Any]:
+    """Compute raw framework mesh data (positions, indices, colors, hover)."""
+    return _serialize_framework_mesh(atoms, bonds=bonds)
+
+
+def compute_cell_lines(atoms: Atoms) -> dict[str, Any]:
+    """Compute unit-cell wireframe line-segment data."""
+    return _serialize_cell_lines(atoms)
+
+
+def compute_surface_mesh(
+    atoms: Atoms,
+    dgrid: np.ndarray,
+    regions: np.ndarray,
+    isovalue: float = 1.0,
+    step_size: int = 1,
+) -> dict[str, Any]:
+    """Compute marching-cubes isosurface mesh from distance grid and region labels."""
+    seg = {"dgrid": dgrid, "regions": regions}
+    return _serialize_segmentation_surface_mesh(
+        atoms=atoms, seg=seg, isovalue=isovalue, step_size=max(step_size, 1),
+    )
+
+
+def compute_maxima_data(
+    seg: dict[str, Any],
+    atoms: Atoms,
+) -> dict[str, Any]:
+    """Compute maxima point-cloud data (positions, sizes, colors, hover)."""
+    return _serialize_maxima_trace(seg, atoms)
+
+
+def compute_windows_data(seg: dict[str, Any]) -> dict[str, Any]:
+    """Compute window-point data from connection list."""
+    return _serialize_windows_trace(seg)
+
+
+def compute_connection_data(
+    seg: dict[str, Any],
+    atoms: Atoms,
+) -> dict[str, Any]:
+    """Compute connection line-segment + node-point data."""
+    return _serialize_connection_traces(seg, atoms)
+
+
+# ---------------------------------------------------------------------------
+# One-shot static scene builder
+# ---------------------------------------------------------------------------
+
+def build_static_scene(
+    atoms: Atoms,
+    dgrid: np.ndarray | None = None,
+    regions: np.ndarray | None = None,
+    seg: dict[str, Any] | None = None,
+    *,
+    isovalue: float = 1.0,
+    hide_periodic: bool = True,
+    spacing: float = 0.25,
+    bonds: str | list | None = "auto",
+    eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    up: tuple[float, float, float] = (0.0, 0.0, 1.0),
+) -> MovieFigure:
+    """Build a static Three.js scene from framework atoms + optional segmentation.
+
+    This is the simplest entry point for the common tutorial pattern:
+    framework + cell + surface + maxima + connections + windows.
+
+    Parameters
+    ----------
+    atoms
+        ASE Atoms with unit cell (framework structure).
+    dgrid
+        Precomputed distance grid.  If *None* and *regions* / *seg* is not given
+        the segmentation traces are skipped.
+    regions
+        Segmentation region labels (from ``do_periodic_segmentation_rust``).
+    seg
+        Full segmentation dict as returned by ``compute_segmentation_for_snapshot``
+        or ``do_periodic_segmentation_rust``.  When provided the maxima, connections
+        and windows traces are added too.
+    isovalue
+        Marching-cubes level for the surface.
+    hide_periodic
+        If True, periodic maxima / connections / windows start hidden.
+    spacing
+        Ignored unless *dgrid* must be computed on-the-fly (not yet implemented).
+    bonds
+        Passed to ``make_framework_trace`` (*"auto"* uses ASE neighbourlist).
+    eye, center, up
+        Initial camera position.
+
+    Returns
+    -------
+    MovieFigure
+        Ready to export via ``.to_html()`` or ``.show()``.
+    """
+    fig = MovieFigure()
+    fig.set_camera(eye=eye, center=center, up=up)
+
+    # --- Framework + cell (always) ---
+    fig.add_framework(atoms, bonds=bonds)
+    fig.add_cell(atoms)
+
+    # --- Surface (if we have dgrid + regions) ---
+    if dgrid is not None and regions is not None:
+        fig.add_surface(dgrid, regions, atoms, isovalue=isovalue)
+
+    # --- Pore graph (if full segmentation available) ---
+    if seg is not None:
+        fig.add_maxima(seg, atoms, hide_periodic=hide_periodic)
+        fig.add_connections(seg, atoms, hide_periodic=hide_periodic)
+        fig.add_windows(seg, hide_periodic=hide_periodic)
+
+    return fig
+
+
+# ---------------------------------------------------------------------------
+# User-friendly alias
+# ---------------------------------------------------------------------------
+
+Figure3D = MovieFigure
+
