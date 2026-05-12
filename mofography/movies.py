@@ -2937,7 +2937,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     ];
 
     // Create extra unit-cell copies for exploded view (one per additional group)
-    const cellObj = objectsById["cell"];
+    // cellObj was already declared above for scene-box expansion
     const _cellCopies = [];
     if (cellObj && cellObj.geometry) {
       const nGroups = _explodeGroups.length;
@@ -3082,6 +3082,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
+    // Initialize visibility so only the selected representation is shown
+    updateFrameworkVisibility();
     showSurface.addEventListener("change", () => {
       const obj = objectsById["surface"];
       if (obj) obj.visible = showSurface.checked;
