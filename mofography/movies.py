@@ -2282,6 +2282,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="pivotOrigin">Pivot: Origin</button>
       <button id="toggleOrtho">Ortho</button>
       <button id="exportPng">Export PNG</button>
+      <button id="recordVideo">Record</button>
       <button id="lightInfo">Lights</button>
     </div>
     <div class="checkrow" id="viewButtons" style="gap:2px;">
@@ -3553,6 +3554,55 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         camera.updateProjectionMatrix();
         updateOrthoFrustum();
       }
+    });
+
+    // Record video (WebM) via MediaRecorder + canvas.captureStream
+    const recordBtn = document.getElementById("recordVideo");
+    let mediaRecorder = null;
+    let recordChunks = [];
+    let recordTimer = null;
+    recordBtn.addEventListener("click", function() {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+        recordBtn.textContent = "Record";
+        recordBtn.style.background = "";
+        recordBtn.style.color = "";
+        if (recordTimer) { clearInterval(recordTimer); recordTimer = null; }
+        return;
+      }
+      let stream;
+      try {
+        stream = renderer.domElement.captureStream(30);
+      } catch(e) {
+        alert("Video recording not supported in this browser.");
+        return;
+      }
+      let options = { mimeType: "video/webm; codecs=vp9" };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: "video/webm" };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        alert("WebM recording not supported in this browser.");
+        return;
+      }
+      mediaRecorder = new MediaRecorder(stream, options);
+      recordChunks = [];
+      mediaRecorder.ondataavailable = function(e) {
+        if (e.data && e.data.size > 0) recordChunks.push(e.data);
+      };
+      mediaRecorder.onstop = function() {
+        const blob = new Blob(recordChunks, { type: options.mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "figure3d_movie.webm";
+        a.click();
+        setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+      };
+      mediaRecorder.start(100);
+      recordBtn.textContent = "Stop";
+      recordBtn.style.background = "#cc3333";
+      recordBtn.style.color = "#fff";
     });
 
     document.getElementById("lightInfo").addEventListener("click", function() {
