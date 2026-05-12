@@ -366,6 +366,7 @@ def _serialize_segmentation_surface_mesh(
     seg: dict[str, Any],
     isovalue: float,
     step_size: int,
+    cscale: list[list[float]] | None = None,
 ) -> dict[str, Any]:
     dgrid = seg["dgrid"]
     regions = seg["regions"]
@@ -389,7 +390,7 @@ def _serialize_segmentation_surface_mesh(
     frac = get_fractional_coordinates(np.asarray(mesh.vertices, dtype=float), atoms)
     interp = interpolate_labels(regions)
     labels = interp(frac % 1).astype(int)
-    cscale = [
+    _DEFAULT_CSCALE = [
         [102, 197, 204],
         [246, 207, 113],
         [248, 156, 116],
@@ -402,6 +403,10 @@ def _serialize_segmentation_surface_mesh(
         [180, 151, 231],
         [179, 179, 179],
     ]
+    if cscale is None:
+        cscale = _DEFAULT_CSCALE
+    else:
+        cscale = [[int(c * 255) for c in rgb] for rgb in cscale]
     uniq = sorted([int(x) for x in np.unique(labels) if int(x) > 0])
     cmap = {rid: cscale[i % len(cscale)] for i, rid in enumerate(uniq)}
     colors = np.asarray(
@@ -417,7 +422,7 @@ def _serialize_segmentation_surface_mesh(
     }
 
 
-def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms) -> dict[str, Any]:
+def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list[float]] | None = None) -> dict[str, Any]:
     dgrid = np.asarray(seg["dgrid"])
     regions = np.asarray(seg.get("regions", np.zeros(dgrid.shape, dtype=int)))
     maxima = np.asarray(seg["all_maxima"], dtype=float)
@@ -441,7 +446,7 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms) -> dict[str, Any]
     frac = maxima / np.asarray(dgrid.shape, dtype=float)
     pos = np.dot(cell, frac.T).T
 
-    cscale = [
+    _DEFAULT_CSCALE = [
         [102, 197, 204],
         [246, 207, 113],
         [248, 156, 116],
@@ -454,6 +459,10 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms) -> dict[str, Any]
         [180, 151, 231],
         [179, 179, 179],
     ]
+    if cscale is None:
+        cscale = _DEFAULT_CSCALE
+    else:
+        cscale = [[int(c * 255) for c in rgb] for rgb in cscale]
 
     # Color maxima by their region label for consistency with the surface mesh.
     # Each maxima is at a grid point; we look up its region in the regions array.
@@ -1060,10 +1069,11 @@ def make_surface_trace(
     style: str | dict | None = "surface",
     name: str = "Surface",
     trace_id: str = "surface",
+    cscale: list[list[float]] | None = None,
 ) -> dict[str, Any]:
     seg = {"dgrid": dgrid, "regions": regions}
     payload = _serialize_segmentation_surface_mesh(
-        atoms=atoms, seg=seg, isovalue=isovalue, step_size=step_size
+        atoms=atoms, seg=seg, isovalue=isovalue, step_size=step_size, cscale=cscale
     )
     return _make_trace(
         trace_id=trace_id,
@@ -1082,8 +1092,9 @@ def make_maxima_trace(
     style: str | dict | None = "internal_maxima",
     name: str = "Maxima",
     trace_id: str = "maxima",
+    cscale: list[list[float]] | None = None,
 ) -> dict[str, Any]:
-    payload = _serialize_maxima_trace(seg, atoms)
+    payload = _serialize_maxima_trace(seg, atoms, cscale=cscale)
     # Internal maxima points
     internal = _make_trace(
         trace_id=f"{trace_id}_internal",
@@ -1443,8 +1454,18 @@ class MovieFigure:
                 t.update(patch)
         return self
 
+    @staticmethod
+    def _deep_merge(base: dict, override: dict) -> dict:
+        out = dict(base)
+        for k, v in override.items():
+            if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+                out[k] = MovieFigure._deep_merge(out[k], v)
+            else:
+                out[k] = v
+        return out
+
     def update_layout(self, patch: dict[str, Any]) -> "MovieFigure":
-        self.layout.update(patch)
+        self.layout = self._deep_merge(self.layout, patch)
         return self
 
     def set_camera(
@@ -1468,6 +1489,57 @@ class MovieFigure:
             cam["projection"] = projection
         if keyframes is not None:
             cam["keyframes"] = keyframes
+        return self
+
+    def set_appearance(
+        self,
+        background: str | None = None,
+        scene_bg: str | int | None = None,
+        font_family: str | None = None,
+        label_font_size: int | None = None,
+    ) -> "MovieFigure":
+        if "appearance" not in self.layout:
+            self.layout["appearance"] = {}
+        ap = self.layout["appearance"]
+        if background is not None:
+            ap["background"] = background
+        if scene_bg is not None:
+            ap["scene_bg"] = scene_bg
+        if font_family is not None:
+            ap["font_family"] = font_family
+        if label_font_size is not None:
+            ap["label_font_size"] = label_font_size
+        return self
+
+    @staticmethod
+    def parse_plotly_colors(colors: list[str] | str) -> list[list[float]]:
+        import re
+        if isinstance(colors, str):
+            import plotly.express as px
+            colors = getattr(px.colors.qualitative, colors, [colors])
+        out = []
+        for s in colors:
+            s = s.strip()
+            if s.startswith("#"):
+                h = s.lstrip("#")
+                out.append([int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4)])
+            elif s.startswith("rgb("):
+                m = re.match(r"rgb\((\d+),\s*(\d+),\s*(\d+)\)", s)
+                if m:
+                    out.append([int(m.group(i)) / 255.0 for i in (1, 2, 3)])
+            else:
+                h = s.lstrip("#")
+                try:
+                    out.append([int(h[i:i+2], 16) / 255.0 for i in (0, 2, 4)])
+                except (ValueError, IndexError):
+                    out.append([0.7, 0.7, 0.7])
+        return out
+
+    def set_colorscale(self, colors: list[str] | str, trace_type: str = "surface") -> "MovieFigure":
+        rgb = self.parse_plotly_colors(colors)
+        if "colorscale" not in self.layout:
+            self.layout["colorscale"] = {}
+        self.layout["colorscale"][trace_type] = rgb
         return self
 
     # ------------------------------------------------------------------
@@ -1529,6 +1601,14 @@ class MovieFigure:
         up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
         projection = str(cam.get("projection", "perspective"))
 
+        ap = scene.get("layout", {}).get("appearance", {})
+        bg_css = ap.get("background", "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
+        scene_bg = ap.get("scene_bg", 0x111111)
+        font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
+        label_font_size = ap.get("label_font_size", 13)
+        if isinstance(scene_bg, int):
+            scene_bg = hex(scene_bg)
+
         html = _THREEJS_TEMPLATE.render(
             payload_json=payload_json,
             fps=fps,
@@ -1537,6 +1617,10 @@ class MovieFigure:
             up=up,
             point_size=point_size,
             projection=projection,
+            bg_css=bg_css,
+            scene_bg=scene_bg,
+            font_family=font_family,
+            label_font_size=label_font_size,
         )
         out.write_text(html, encoding="utf-8")
         return out
@@ -1556,6 +1640,15 @@ class MovieFigure:
         up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
         projection = str(cam.get("projection", "perspective"))
         fps = float(scene.get("layout", {}).get("fps", 20.0))
+
+        ap = scene.get("layout", {}).get("appearance", {})
+        bg_css = ap.get("background", "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
+        scene_bg = ap.get("scene_bg", 0x111111)
+        font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
+        label_font_size = ap.get("label_font_size", 13)
+        if isinstance(scene_bg, int):
+            scene_bg = hex(scene_bg)
+
         return _THREEJS_TEMPLATE.render(
             payload_json=payload_json,
             fps=fps,
@@ -1564,6 +1657,10 @@ class MovieFigure:
             up=up,
             point_size=0.16,
             projection=projection,
+            bg_css=bg_css,
+            scene_bg=scene_bg,
+            font_family=font_family,
+            label_font_size=label_font_size,
         )
 
     def _repr_html_(self) -> str:
@@ -1639,11 +1736,13 @@ class MovieFigure:
         **style: Any,
     ) -> "MovieFigure":
         """Add segmentation isosurface mesh (static)."""
+        cs = self.layout.get("colorscale", {}).get("surface")
         trace = make_surface_trace(
             dgrid, regions, atoms,
             isovalue=isovalue,
             step_size=step_size,
             style=style if style else "surface",
+            cscale=cs,
         )
         self.add_trace(trace)
         return self
@@ -1656,7 +1755,8 @@ class MovieFigure:
         **style: Any,
     ) -> "MovieFigure":
         """Add pore-centre maxima points (internal always visible, periodic optionally hidden)."""
-        maxima = make_maxima_trace(seg, atoms, style=style if style else "internal_maxima")
+        cs = self.layout.get("colorscale", {}).get("surface")
+        maxima = make_maxima_trace(seg, atoms, style=style if style else "internal_maxima", cscale=cs)
         self.add_trace(maxima["internal"])
         if hide_periodic:
             maxima["outside"]["visible"] = False
@@ -1857,8 +1957,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
   <title>Framework + Segmentation + MD Snapshots</title>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
-      background: radial-gradient(circle at center, #7a7a7a 0%, #111111 100%);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #efefef; }
+      background: {{bg_css}};
+      font-family: {{font_family}}; color: #efefef; }
     #app { position: fixed; inset: 0; }
     #hud { position: fixed; left: 12px; top: 12px; width: min(320px, calc(100vw - 24px));
       max-height: calc(100vh - 24px); overflow: auto;
@@ -1867,7 +1967,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     #row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
     #frameSlider { width: 100%; }
     .checkrow { display: grid; gap: 6px; align-items: start; }
-    label { user-select: none; font-size: 13px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+    label { user-select: none; font-size: {{label_font_size}}px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
     #tooltip { position: fixed; pointer-events: none; display: none;
       background: rgba(0,0,0,0.85); border: 1px solid #666; border-radius: 8px;
       padding: 6px 8px; font-size: 12px; white-space: pre; }
@@ -1967,7 +2067,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const circleTex = new THREE.CanvasTexture(ptCanvas);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x111111);
+    scene.background = new THREE.Color({{scene_bg}});
 
     const eyeArr = {{eye}};
     const centerArr = {{center}};
@@ -2042,8 +2142,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       var dirScale = isOrtho ? 1.3 : (1.0 / 1.3);
       dirKey.intensity *= dirScale;
       dirFill.intensity *= dirScale;
-      ambient.intensity = isOrtho ? 0.18 : 0.28;
-      hemiLight.intensity = isOrtho ? 0.30 : 0.25;
+      ambient.intensity = isOrtho ? 0.07 : 0.28;
+      hemiLight.intensity = isOrtho ? 0.11 : 0.25;
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
@@ -2086,8 +2186,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     if (isOrtho) {
       dirKey.intensity *= 1.3;
       dirFill.intensity *= 1.3;
-      ambient.intensity = 0.18;
-      hemiLight.intensity = 0.30;
+      ambient.intensity = 0.07;
+      hemiLight.intensity = 0.11;
     }
 
     // SSAO post-processing (perspective only — orthographic produces black output)

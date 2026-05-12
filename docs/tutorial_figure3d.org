@@ -1,0 +1,345 @@
+#+TITLE: Figure3D Tutorial — Building & Styling Interactive 3D MOF Visualizations
+#+AUTHOR: mofography
+#+OPTIONS: toc:2
+
+* Overview
+
+=Figure3D= (alias =MovieFigure=) is a Plotly-inspired API for rendering
+interactive 3D scenes of metal-organic frameworks using Three.js.  This
+tutorial walks through building a CuBTC visualization from scratch and
+shows every tunable knob.
+
+** Quick Start
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(
+    atoms,
+    dgrid=dgrid,
+    regions=seg["regions"],
+    seg=seg,
+)
+fig.to_html("my_cubtc.html")
+#+end_src
+
+** One-liner with =build_static_scene=
+
+#+begin_src python
+from mofography.movies import build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.to_html("cubtc_quick.html")
+#+end_src
+
+* Appearance — Background, Fonts, Labels
+
+Use =set_appearance()= to control the visual chrome around the 3D scene.
+
+** CSS Background
+
+Any valid CSS =background= value works: solid colors, gradients, or URLs.
+
+#+begin_src python :exports both
+fig = Figure3D()
+
+# Solid dark background
+fig.set_appearance(background="#1a1a2e")
+
+# Radial gradient (default)
+fig.set_appearance(
+    background="radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)"
+)
+
+# Linear gradient
+fig.set_appearance(
+    background="linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)"
+)
+#+end_src
+
+** Scene Background (3D viewport)
+
+Controls the Three.js scene background behind all 3D objects.  Accepts hex
+integers or hex strings.
+
+#+begin_src python
+fig.set_appearance(scene_bg=0x0a0a1a)       # dark blue-black (hex int)
+fig.set_appearance(scene_bg=0xffffff)        # white
+fig.set_appearance(scene_bg=0x1c1c2e)       # deep indigo
+#+end_src
+
+** Font Family & Label Size
+
+#+begin_src python
+fig.set_appearance(
+    font_family='"Helvetica Neue", Arial, sans-serif',
+    label_font_size=14,     # px — controls HUD checkbox labels
+)
+#+end_src
+
+** Combined Example
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.set_camera(eye=(2.5, 0.0, 1.35))
+fig.set_appearance(
+    background="linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+    scene_bg=0x1c1c2e,
+    font_family='"Fira Code", monospace',
+    label_font_size=15,
+)
+fig.to_html("cubtc_styled.html")
+print("Saved cubtc_styled.html")
+#+end_src
+
+* Color Schemes — Using Plotly Color Palettes
+
+The =set_colorscale()= method accepts any =px.colors.qualitative.*= palette
+name or a list of color strings in Plotly format.
+
+** Using a Plotly Palette by Name
+
+Pass the palette name as a string — it will be resolved via
+=px.colors.qualitative.<name>=.
+
+#+begin_src python
+import plotly.express as px
+
+fig.set_colorscale("Pastel")          # px.colors.qualitative.Pastel
+fig.set_colorscale("Dark24")          # px.colors.qualitative.Dark24
+fig.set_colorscale("Set1")            # px.colors.qualitative.Set1
+fig.set_colorscale("Bold")            # px.colors.qualitative.Bold
+#+end_src
+
+** Passing Color Lists Directly
+
+You can also pass a list of color strings in any format Plotly uses:
+
+#+begin_src python
+fig.set_colorscale([
+    "rgb(102, 197, 204)",
+    "rgb(246, 207, 113)",
+    "rgb(248, 156, 116)",
+    "#8b5cf6",                         # hex also works
+    "#22d3ee",
+])
+
+# Or pass an actual px.colors list
+fig.set_colorscale(px.colors.qualitative.Vivid)
+#+end_src
+
+** Full Example — Dark Theme with Vivid Colors
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.set_camera(eye=(2.5, 0.0, 1.35))
+
+fig.set_appearance(
+    background="linear-gradient(180deg, #0d1117 0%, #161b22 100%)",
+    scene_bg=0x0d1117,
+    font_family='"JetBrains Mono", monospace',
+    label_font_size=14,
+)
+
+fig.set_colorscale("Vivid")
+fig.to_html("cubtc_vivid.html")
+print("Saved cubtc_vivid.html")
+#+end_src
+
+* Styling Individual Traces
+
+Each =add_*= method accepts keyword arguments that override the default style.
+You can also use =update_traces()= with a selector to patch existing traces.
+
+** Framework Colors (CPK by Default)
+
+Framework atoms use CPK coloring by default. Override with style kwargs:
+
+#+begin_src python
+# Silver metallic framework
+fig.add_framework(atoms, color=[0.85, 0.85, 0.85], opacity=0.8, roughness=0.5, metalness=0.3)
+
+# Custom per-element colors via the style dict
+fig.add_framework(atoms, color=[0.9, 0.9, 0.9])
+#+end_src
+
+** Batch Updates with =update_traces=
+
+#+begin_src python
+fig.update_traces({"opacity": 0.5}, selector={"type": "mesh"})
+fig.update_traces({"visible": False}, selector={"id": "surface"})
+#+end_src
+
+** Layout Deep Merge
+
+=update_layout()= now does recursive deep merge, so nested keys are safe:
+
+#+begin_src python
+fig.update_layout({
+    "scene": {
+        "camera": {"eye": [3.0, 0.0, 2.0]},
+    },
+    "fps": 30,
+})
+#+end_src
+
+* Named Style Registry
+
+=DEFAULT_STYLES= provides named presets.  You can override at init or per-trace.
+
+#+begin_src python
+from mofography.movies import DEFAULT_STYLES
+import json
+print(json.dumps(DEFAULT_STYLES, indent=2, default=str))
+#+end_src
+
+Override at figure creation:
+
+#+begin_src python
+fig = Figure3D(styles={
+    "framework": {"color": [0.9, 0.9, 0.9], "opacity": 0.8, "roughness": 0.5},
+    "surface": {"opacity": 0.75, "roughness": 0.3},
+    "internal_maxima": {"color": [1.0, 0.2, 0.2], "size": 5.0},
+})
+#+end_src
+
+* Camera & Projection
+
+** Perspective (default)
+
+#+begin_src python
+fig.set_camera(
+    eye=(2.5, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    projection="perspective",
+)
+#+end_src
+
+** Orthographic
+
+#+begin_src python
+fig.set_camera(
+    eye=(2.5, 0.0, 1.35),
+    projection="orthographic",
+)
+#+end_src
+
+Users can toggle between perspective and orthographic in the viewer via the
+"Toggle Orthographic" button.  Ortho mode automatically adjusts lighting,
+mesh roughness, and point marker sizes for best appearance.
+
+* Groups & Visibility
+
+Groups let users toggle sets of traces via checkboxes in the HUD.
+
+** Basic Groups
+
+#+begin_src python
+fig.groups["internal_pore_graph"] = {
+    "traces": ["maxima_internal", "windows_internal", "connections_internal"],
+    "label": "Internal Pore Graph",
+}
+#+end_src
+
+** Groups that Start Hidden
+
+Add =default_off: True= to hide a group at startup:
+
+#+begin_src python
+fig.groups["periodic_pore_graph"] = {
+    "traces": ["maxima_outside", "windows_periodic", "connections_periodic"],
+    "label": "Periodic Pore Graph",
+    "default_off": True,
+}
+#+end_src
+
+* Jupyter Integration
+
+#+begin_src python
+from mofography.movies import Figure3D
+
+fig = Figure3D()
+fig.add_framework(atoms)
+fig  # auto-renders via _repr_html_
+#+end_src
+
+Or explicitly:
+
+#+begin_src python
+fig.show(renderer="notebook")  # inline
+fig.show(renderer="browser")   # opens in default browser
+#+end_src
+
+* API Reference Summary
+
+| Method                  | Description                                       |
+|-------------------------+---------------------------------------------------|
+| =add_trace(trace)=       | Add a trace dict                                  |
+| =add_traces(traces)=     | Batch add traces                                  |
+| =update_traces(patch, selector)= | Merge patch into matching traces       |
+| =update_layout(patch)=   | Deep-merge layout dict                            |
+| =set_camera(...)=        | Set eye, center, up, projection                   |
+| =set_appearance(...)=    | Set background, scene_bg, font_family, label_size |
+| =set_colorscale(colors)= | Set surface colors from px.colors or color list   |
+| =add_framework(atoms)=   | Add framework mesh                                |
+| =add_cell(atoms)=        | Add unit cell wireframe                           |
+| =add_surface(...)=       | Add segmentation isosurface                       |
+| =add_maxima(seg, atoms)= | Add pore center markers                           |
+| =add_connections(...)=   | Add pore graph edges                              |
+| =add_windows(seg)=       | Add window markers                                |
+| =add_guests(atoms)=      | Add adsorbate spheres                             |
+| =to_html(path)=          | Save self-contained HTML                          |
+| =show(renderer)=         | Display in notebook or browser                    |
