@@ -1956,8 +1956,9 @@ def batched_mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array
                                             theta_resolution=sphere_sections * 4,
                                             phi_resolution=sphere_sections * 4)
     elif representation == "space_filling":
-        # Large spheres that touch each other (CPK)
-        radii = covalent_radii[atomic_numbers] * scale
+        # Van der Waals radii for true space-filling (CPK) representation
+        from ase.data import vdw_radii
+        radii = vdw_radii[atomic_numbers].copy()
         sphere_mesh = _batched_spheres_mesh(positions, radii, sphere_colors,
                                             theta_resolution=sphere_sections * 4,
                                             phi_resolution=sphere_sections * 4)

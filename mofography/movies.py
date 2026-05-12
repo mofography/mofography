@@ -2928,30 +2928,27 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     controls.target.copy(sceneCenter);
     controls.update();
 
-    // Exploded view: move trace groups horizontally apart
+    // Exploded view: two groups
+    //   Group 0 (stays): framework + surface + original cell
+    //   Group 1 (moves): all pore graph traces + a single cell copy
     const _explodeGroups = [
-      ["cell", "framework"],
-      ["surface"],
-      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"],
-      ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"],
+      ["cell", "framework", "surface"],
+      ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
+       "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
+       "cell_copy"],
     ];
 
-    // Create extra unit-cell copies for exploded view (one per additional group)
-    // cellObj was already declared above for scene-box expansion
-    const _cellCopies = [];
+    // Create ONE unit-cell copy that moves with the pore graph group
+    let cellCopy = null;
     if (cellObj && cellObj.geometry) {
-      const nGroups = _explodeGroups.length;
-      for (let i = 1; i < nGroups; i++) {
-        const copy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-        copy.name = "cell_copy_" + i;
-        copy.visible = false;
-        scene.add(copy);
-        _cellCopies.push(copy);
-        objectsById["cell_copy_" + i] = copy;
-      }
+      cellCopy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      cellCopy.name = "cell_copy";
+      cellCopy.visible = false;
+      scene.add(cellCopy);
+      objectsById["cell_copy"] = cellCopy;
     }
 
-    // Populate per-mesh opacity controls
+    // Populate per-mesh opacity controls (skip alt-representation meshes)
     const meshOpacityContainer = document.getElementById("meshOpacityContainer");
     if (meshOpacityContainer) {
       const meshTraces = [];
@@ -2962,6 +2959,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         });
       }
       meshTraces.forEach(trace => {
+        // Skip alternate-representation meshes — their opacity is controlled by the main slider
+        if (trace.id === "framework_stick" || trace.id === "framework_spacefill") return;
         const wrapper = document.createElement("div");
         wrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
         const label = document.createElement("label");
@@ -2978,12 +2977,19 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         slider.dataset.traceId = trace.id;
         slider.addEventListener("input", () => {
           const val = parseFloat(slider.value);
-          const obj = objectsById[trace.id];
-          if (obj && obj.material) {
-            obj.material.opacity = val;
-            obj.material.transparent = val < 1.0;
-            obj.material.needsUpdate = true;
+          const targetIds = [trace.id];
+          // If this is the main framework slider, also update alternate representations
+          if (trace.id === "framework") {
+            targetIds.push("framework_stick", "framework_spacefill");
           }
+          targetIds.forEach(tid => {
+            const obj = objectsById[tid];
+            if (obj && obj.material) {
+              obj.material.opacity = val;
+              obj.material.transparent = val < 1.0;
+              obj.material.needsUpdate = true;
+            }
+          });
         });
         wrapper.appendChild(label);
         wrapper.appendChild(slider);
@@ -3067,9 +3073,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const obj = objectsById["cell"];
       if (obj) obj.visible = showCell.checked;
       scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
-      _cellCopies.forEach(copy => {
-        copy.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
-      });
+      if (cellCopy) {
+        cellCopy.visible = showCell.checked && parseFloat(explodeSlider.value) > 0;
+      }
     });
     function updateFrameworkVisibility() {
       const val = reprSelect.value;
@@ -3194,13 +3200,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(idx * spacing, 0, 0));
         });
       });
-      // Update unit-cell copies to follow each additional group position
-      if (_cellCopies.length > 0 && cellObj) {
-        const cellOrig = _explodeOrig["cell"] || cellObj.position.clone();
-        _cellCopies.forEach((copy, idx) => {
-          copy.visible = dist > 0 && showCell.checked;
-          copy.position.copy(cellOrig).add(new THREE.Vector3((idx + 1) * spacing, 0, 0));
-        });
+      // Show/hide the cell copy when exploded
+      if (cellCopy) {
+        cellCopy.visible = dist > 0 && showCell.checked;
       }
     });
 
