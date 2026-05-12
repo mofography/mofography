@@ -1716,6 +1716,8 @@ class MovieFigure:
         scene_bg: str | int | None = None,
         font_family: str | None = None,
         label_font_size: int | None = None,
+        title: str | None = None,
+        theme: str | None = None,
     ) -> "MovieFigure":
         if "appearance" not in self.layout:
             self.layout["appearance"] = {}
@@ -1728,6 +1730,10 @@ class MovieFigure:
             ap["font_family"] = font_family
         if label_font_size is not None:
             ap["label_font_size"] = label_font_size
+        if title is not None:
+            ap["title"] = title
+        if theme is not None:
+            ap["theme"] = theme
         return self
 
     @staticmethod
@@ -1825,10 +1831,15 @@ class MovieFigure:
         projection = str(cam.get("projection", "perspective"))
 
         ap = scene.get("layout", {}).get("appearance", {})
-        bg_css = ap.get("background", "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
-        scene_bg = ap.get("scene_bg", 0x111111)
+        theme = ap.get("theme", "dark")
+        is_light = theme == "light"
+        bg_css = ap.get("background", "#ffffff" if is_light else "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
+        scene_bg = ap.get("scene_bg", 0xffffff if is_light else 0x111111)
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
-        label_font_size = ap.get("label_font_size", 13)
+        label_font_size = ap.get("label_font_size", 11)
+        title = ap.get("title", "")
+        text_color = "#222222" if is_light else "#efefef"
+        panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
             scene_bg = hex(scene_bg)
 
@@ -1844,6 +1855,9 @@ class MovieFigure:
             scene_bg=scene_bg,
             font_family=font_family,
             label_font_size=label_font_size,
+            title=title,
+            text_color=text_color,
+            panel_bg=panel_bg,
         )
         out.write_text(html, encoding="utf-8")
         return out
@@ -1865,10 +1879,15 @@ class MovieFigure:
         fps = float(scene.get("layout", {}).get("fps", 20.0))
 
         ap = scene.get("layout", {}).get("appearance", {})
-        bg_css = ap.get("background", "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
-        scene_bg = ap.get("scene_bg", 0x111111)
+        theme = ap.get("theme", "dark")
+        is_light = theme == "light"
+        bg_css = ap.get("background", "#ffffff" if is_light else "radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)")
+        scene_bg = ap.get("scene_bg", 0xffffff if is_light else 0x111111)
         font_family = ap.get("font_family", '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif')
-        label_font_size = ap.get("label_font_size", 13)
+        label_font_size = ap.get("label_font_size", 11)
+        title = ap.get("title", "")
+        text_color = "#222222" if is_light else "#efefef"
+        panel_bg = "rgba(240, 240, 240, 0.9)" if is_light else "rgba(20, 20, 20, 0.85)"
         if isinstance(scene_bg, int):
             scene_bg = hex(scene_bg)
 
@@ -1884,6 +1903,9 @@ class MovieFigure:
             scene_bg=scene_bg,
             font_family=font_family,
             label_font_size=label_font_size,
+            title=title,
+            text_color=text_color,
+            panel_bg=panel_bg,
         )
 
     def _repr_html_(self) -> str:
@@ -2181,39 +2203,44 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
       background: {{bg_css}};
-      font-family: {{font_family}}; color: #efefef;
+      font-family: {{font_family}}; color: {{text_color}};
       -webkit-text-size-adjust: 100%; touch-action: none; }
-    #app { position: fixed; inset: 0; }
-    #hud { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
-      width: min(720px, calc(100vw - 24px));
-      background: rgba(16, 16, 16, 0.55); border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px;
-      backdrop-filter: blur(4px); z-index: 10; max-height: 40vh; overflow-y: auto; }
-    #row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    #app { position: fixed; inset: 0; right: 200px; }
+    #hud { position: fixed; right: 0; top: 0; width: 200px; height: 100vh;
+      background: {{panel_bg}}; border-left: 1px solid rgba(128,128,128,0.2);
+      padding: 10px; display: flex; flex-direction: column; gap: 4px;
+      overflow-y: auto; z-index: 10; font-size: 11px; }
+    #figTitle { font-size: 14px; font-weight: 600; margin-bottom: 4px; text-align: center; }
+    #row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     #frameSlider { width: 100%; }
-    .checkrow { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; justify-content: center; }
-    label { user-select: none; font-size: {{label_font_size}}px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-      white-space: nowrap; }
+    .checkrow { display: flex; flex-direction: column; gap: 3px; }
+    label { user-select: none; font-size: 11px; white-space: nowrap; cursor: pointer; }
     #tooltip { position: fixed; pointer-events: none; display: none; z-index: 20;
       background: rgba(0,0,0,0.85); border: 1px solid #666; border-radius: 8px;
-      padding: 6px 8px; font-size: 12px; white-space: pre; }
-    button { background: rgba(0,0,0,0.0); color: #f1f1f1; border: 1px solid rgba(255,255,255,0.4);
-      border-radius: 6px; padding: 4px 8px; cursor: pointer; text-shadow: 0 1px 2px rgba(0,0,0,0.65); }
-    button:hover { background: rgba(255,255,255,0.1); }
-    #status, #meta { font-size: 12px; text-shadow: 0 1px 2px rgba(0,0,0,0.65); }
-    #meta { display: block; opacity: 0.92; line-height: 1.35; text-align: center; }
-    input[type="checkbox"] { accent-color: #b9d7ff; }
+      padding: 6px 8px; font-size: 12px; white-space: pre; color: #efefef; }
+    button { background: rgba(128,128,128,0.15); color: {{text_color}}; border: 1px solid rgba(128,128,128,0.3);
+      border-radius: 4px; padding: 3px 6px; cursor: pointer; font-size: 11px; }
+    button:hover { background: rgba(128,128,128,0.3); }
+    #status, #meta { font-size: 11px; }
+    #meta { display: block; opacity: 0.85; line-height: 1.3; }
+    input[type="checkbox"] { accent-color: #b9d7ff; vertical-align: middle; }
+    #axisLabels { position: fixed; bottom: 60px; left: 20px; z-index: 15; pointer-events: none; }
+    #axisLabels span { font-size: 14px; font-weight: 700; text-shadow: 0 0 4px rgba(0,0,0,0.8); }
     @media (max-width: 600px) {
-      #hud { width: calc(100vw - 16px); padding: 6px 8px; border-radius: 8px; bottom: 8px; }
-      label { font-size: 12px; }
-      button { padding: 6px 10px; font-size: 14px; }
+      #app { right: 0; bottom: 140px; }
+      #hud { position: fixed; bottom: 0; left: 0; right: 0; top: auto;
+        width: 100%; height: 140px; border-left: none; border-top: 1px solid rgba(128,128,128,0.2);
+        flex-direction: row; flex-wrap: wrap; overflow-x: auto; overflow-y: hidden; }
+      .checkrow { flex-direction: row; flex-wrap: wrap; gap: 2px 8px; }
     }
   </style>
 </head>
 <body>
   <div id="app"></div>
   <div id="tooltip"></div>
+  <div id="axisLabels"></div>
   <div id="hud">
+    <div id="figTitle">{{title}}</div>
     <div id="row">
       <button id="playPause">Play</button>
       <button id="prevFrame">Prev</button>
@@ -2222,9 +2249,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     </div>
     <span id="meta"></span>
     <div class="checkrow">
-      <button id="pivotScene">Pivot: Scene center</button>
-      <button id="pivotOrigin">Pivot: Origin (0,0,0)</button>
-      <button id="toggleOrtho">Toggle Orthographic</button>
+      <button id="pivotScene">Pivot: Center</button>
+      <button id="pivotOrigin">Pivot: Origin</button>
+      <button id="toggleOrtho">Ortho</button>
+      <button id="exportPng">Export PNG</button>
     </div>
     <div class="checkrow">
       <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
@@ -2283,7 +2311,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const pivotSceneBtn = document.getElementById("pivotScene");
     const pivotOriginBtn = document.getElementById("pivotOrigin");
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputEncoding = THREE.sRGBEncoding;
@@ -3050,13 +3078,68 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     window.addEventListener("resize", () => {
-      const aspect = window.innerWidth / window.innerHeight;
-      perspectiveCam.aspect = aspect;
+      const hudW = document.getElementById("hud").offsetWidth || 200;
+      const w = window.innerWidth - hudW;
+      const h = window.innerHeight;
+      perspectiveCam.aspect = w / h;
       perspectiveCam.updateProjectionMatrix();
-      updateOrthoFrustum();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setSize(w, h);
+      document.getElementById("app").style.right = hudW + "px";
+      if (composer) composer.setSize(w, h);
     });
+    window.dispatchEvent(new Event("resize"));
+
+    // Export PNG button
+    document.getElementById("exportPng").addEventListener("click", function() {
+      if (composer) { composer.render(); } else { renderer.render(scene, camera); }
+      const link = document.createElement("a");
+      link.download = "figure3d_export.png";
+      link.href = renderer.domElement.toDataURL("image/png");
+      link.click();
+    });
+
+    // Axis labels — project lattice vectors to screen
+    const cell = DATA.static && DATA.static.traces ? DATA.static.traces.find(t => t.id === "cell") : null;
+    if (cell && cell.data && cell.data.positions && cell.data.positions.length >= 18) {
+      const p = cell.data.positions;
+      const origin = new THREE.Vector3(p[0], p[1], p[2]);
+      const aEnd = new THREE.Vector3(p[3], p[4], p[5]);
+      const bEnd = new THREE.Vector3(p[9], p[10], p[11]);
+      const cEnd = new THREE.Vector3(p[15], p[16], p[17]);
+      const aVec = aEnd.clone().sub(origin);
+      const bVec = bEnd.clone().sub(origin);
+      const cVec = cEnd.clone().sub(origin);
+      const axDiv = document.getElementById("axisLabels");
+      function updateAxisLabels() {
+        const w = renderer.domElement.clientWidth;
+        const h = renderer.domElement.clientHeight;
+        function proj(v) {
+          const p = v.clone().project(camera);
+          return { x: (p.x * 0.5 + 0.5) * w, y: (-p.y * 0.5 + 0.5) * h };
+        }
+        const o = proj(origin);
+        const labels = [
+          { text: "O", pos: o },
+          { text: "a", pos: proj(origin.clone().add(aVec)) },
+          { text: "b", pos: proj(origin.clone().add(bVec)) },
+          { text: "c", pos: proj(origin.clone().add(cVec)) },
+        ];
+        axDiv.innerHTML = "";
+        labels.forEach(l => {
+          if (l.pos.x < 0 || l.pos.x > w || l.pos.y < 0 || l.pos.y > h) return;
+          const span = document.createElement("span");
+          span.textContent = l.text;
+          span.style.position = "absolute";
+          span.style.left = l.pos.x + "px";
+          span.style.top = l.pos.y + "px";
+          span.style.color = l.text === "O" ? "#aaa" : (l.text === "a" ? "#ff6666" : l.text === "b" ? "#66ff66" : "#6688ff");
+          axDiv.appendChild(span);
+        });
+      }
+      const origAnimate = animate;
+      const wrappedAnimate = function(t) { origAnimate(t); updateAxisLabels(); };
+      animate = wrappedAnimate;
+    }
 
     if (FRAMES.length <= 0) {
       slider.disabled = true;
