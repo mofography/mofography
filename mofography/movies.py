@@ -100,6 +100,7 @@ JavaScript viewer fetches chunks on demand rather than embedding everything.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import warnings
@@ -265,6 +266,52 @@ def _serialize_trimesh(mesh: trimesh.Trimesh) -> dict[str, Any]:
         "n_vertices": int(len(v)),
         "n_triangles": int(len(f)),
     }
+
+
+# Keys in trace.data that are large numerical arrays eligible for binary packing.
+_BINARY_PACK_KEYS = frozenset({"positions", "indices", "colors", "radii", "sizes"})
+
+
+def _pack_frame_data(frame: dict[str, Any]) -> dict[str, Any]:
+    """Pack numerical arrays in frame trace data as base64-encoded binary blobs.
+
+    Replaces large float/int lists with compact base64 strings (roughly 2x
+    smaller than JSON text).  The JS viewer unpacks them back into typed
+    arrays on demand.
+    """
+    if not frame or "traces" not in frame:
+        return frame
+    packed_traces: list[dict[str, Any]] = []
+    for trace in frame["traces"]:
+        packed_trace = dict(trace)
+        data = trace.get("data")
+        if isinstance(data, dict):
+            packed_data: dict[str, Any] = {}
+            for key, value in data.items():
+                if key in _BINARY_PACK_KEYS and isinstance(value, list) and len(value) > 0:
+                    if key == "indices":
+                        max_val = max(value) if value else 0
+                        dtype = np.uint16 if max_val < 65536 else np.uint32
+                        arr = np.asarray(value, dtype=dtype)
+                        packed_data[key] = {
+                            "__binary__": True,
+                            "dtype": "uint16" if dtype == np.uint16 else "uint32",
+                            "count": len(value),
+                            "data": base64.b64encode(arr.tobytes()).decode("ascii"),
+                        }
+                    else:
+                        arr = np.asarray(value, dtype=np.float32)
+                        packed_data[key] = {
+                            "__binary__": True,
+                            "dtype": "float32",
+                            "count": len(value),
+                            "data": base64.b64encode(arr.tobytes()).decode("ascii"),
+                        }
+                else:
+                    packed_data[key] = value
+            packed_trace["data"] = packed_data
+        packed_traces.append(packed_trace)
+    return {"frame_index": frame.get("frame_index"), "traces": packed_traces}
 
 
 def _framework_vertex_hovertext(
@@ -1822,7 +1869,7 @@ class MovieFigure:
             sidecar_path = out.with_suffix(".frames.jsonl")
             with open(sidecar_path, "w", encoding="utf-8") as fh:
                 for fr in frames_data:
-                    fh.write(json.dumps(fr) + "\n")
+                    fh.write(json.dumps(_pack_frame_data(fr)) + "\n")
             scene["sidecar"] = str(sidecar_path.name)
 
         payload_json = json.dumps(scene)
@@ -2376,13 +2423,46 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (DATA.sidecar) {
         if (i < 0 || i >= sidecarLines.length) return null;
         if (parsedFrameCache.has(i)) return parsedFrameCache.get(i);
-        const data = JSON.parse(sidecarLines[i]);
-        parsedFrameCache.set(i, data);
+        const raw = JSON.parse(sidecarLines[i]);
+        // Unpack base64-encoded binary arrays back into regular Arrays
+        // (THREE.js r128 is most compatible with plain Arrays for setAttribute/setIndex)
+        if (raw.traces) {
+          raw.traces.forEach(trace => {
+            if (trace.data) {
+              for (const key in trace.data) {
+                const val = trace.data[key];
+                if (val && val.__binary__) {
+                  const binaryString = atob(val.data);
+                  const len = binaryString.length;
+                  const bytes = new Uint8Array(len);
+                  for (let j = 0; j < len; j++) bytes[j] = binaryString.charCodeAt(j);
+                  const view = new DataView(bytes.buffer);
+                  if (val.dtype === 'float32') {
+                    const out = new Array(len / 4);
+                    for (let j = 0; j < len / 4; j++) out[j] = view.getFloat32(j * 4, true);
+                    trace.data[key] = out;
+                  } else if (val.dtype === 'uint32') {
+                    const out = new Array(len / 4);
+                    for (let j = 0; j < len / 4; j++) out[j] = view.getUint32(j * 4, true);
+                    trace.data[key] = out;
+                  } else if (val.dtype === 'uint16') {
+                    const out = new Array(len / 2);
+                    for (let j = 0; j < len / 2; j++) out[j] = view.getUint16(j * 2, true);
+                    trace.data[key] = out;
+                  } else {
+                    trace.data[key] = Array.from(bytes);
+                  }
+                }
+              }
+            }
+          });
+        }
+        parsedFrameCache.set(i, raw);
         while (parsedFrameCache.size > FRAME_CACHE_SIZE) {
           const firstKey = parsedFrameCache.keys().next().value;
           parsedFrameCache.delete(firstKey);
         }
-        return data;
+        return raw;
       }
       return FRAMES[i] || null;
     }
