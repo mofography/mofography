@@ -527,13 +527,14 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     cycles_edges = [list(zip(cycle,(cycle[1:]+cycle[:1]))) for cycle in small_cycles]
     cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
     selected_cycles = [np.all(np.array(cycle_bonds) == 'double') for cycle_bonds in cycle_bond_types]
-    aromatic_cycles = np.array(small_cycles)[selected_cycles]
+    aromatic_cycles = [c for c, s in zip(small_cycles, selected_cycles) if s]
     ic(aromatic_cycles)
     
     cycle_graphs = [sgraph.subgraph(cycle) for cycle in aromatic_cycles]
     unique_cycles = set(tuple(sorted(a)) for a in aromatic_cycles)
     unique_cycles = [list(u) for u in unique_cycles]
-    chemically_unique_cycles = np.array(unique_cycles)[find_chemically_unique_cycles(unique_cycles, sgraph)]
+    _unique_indices = find_chemically_unique_cycles(unique_cycles, sgraph)
+    chemically_unique_cycles = [unique_cycles[i] for i in _unique_indices]
     # unique_cycle_indices = find_unique_cycles(aromatic_cycles, sgraph) #np.unique([ps.write_smiles(cycle) for cycle in cycle_graphs], return_index=True)[1]
     # unique_aromatic_cycles = np.array(cycle_graphs)[unique_cycle_indices]
     ic(chemically_unique_cycles)

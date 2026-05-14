@@ -128,7 +128,7 @@ from .helper import get_fractional_coordinates, interpolate_labels
 DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     "framework": {
         "color": [0.7, 0.7, 0.7],
-        "opacity": 0.95,
+        "opacity": 1.0,
         "roughness": 0.38,
         "metalness": 0.0,
         "side": "DoubleSide",
@@ -144,7 +144,7 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
         "linewidth": 2,
     },
     "surface": {
-        "opacity": 0.92,
+        "opacity": 1.0,
         "roughness": 0.15,
         "metalness": 0.05,
         "side": "FrontSide",
@@ -183,11 +183,21 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_nodes": {
         "color": 0x66CCFF,
-        "size": 1.10,
+        "size": 2.5,
     },
     "periodic_nodes": {
         "color": 0xFF9966,
         "size": 1.10,
+    },
+    "aromatic_rings": {
+        "color": 0xFFFFFF,
+        "linewidth": 2,
+    },
+    "aromatic_highlights": {
+        "color": [0.12, 0.44, 0.85],
+        "opacity": 0.3,
+        "roughness": 0.5,
+        "side": "DoubleSide",
     },
 }
 
@@ -412,12 +422,38 @@ def _serialize_cell_lines(atoms: Atoms) -> dict[str, Any]:
     return {"positions": arr.reshape(-1).tolist(), "n_segments": len(edges)}
 
 
+def _apply_taubin_smoothing(
+    mesh: trimesh.Trimesh,
+    enabled: bool = False,
+    iterations: int = 10,
+    lamb: float = 0.5,
+    nu: float = -0.53,
+) -> trimesh.Trimesh:
+    if not enabled or mesh.vertices.size == 0 or mesh.faces.size == 0:
+        return mesh
+    try:
+        trimesh.smoothing.filter_taubin(
+            mesh,
+            lamb=float(lamb),
+            nu=float(nu),
+            iterations=max(int(iterations), 1),
+        )
+    except Exception:
+        return mesh
+    return mesh
+
+
+
 def _serialize_segmentation_surface_mesh(
     atoms: Atoms,
     seg: dict[str, Any],
     isovalue: float,
     step_size: int,
     cscale: list[list[float]] | None = None,
+    taubin_smooth: bool = False,
+    taubin_iterations: int = 10,
+    taubin_lambda: float = 0.5,
+    taubin_nu: float = -0.53,
 ) -> dict[str, Any]:
     dgrid = seg["dgrid"]
     regions = seg["regions"]
@@ -435,12 +471,37 @@ def _serialize_segmentation_surface_mesh(
         }
     cell = atoms.get_cell().array.T
     shape = np.asarray(dgrid.shape, dtype=float)
-    verts_cart = np.dot(cell, (verts / shape).T).T
+    # dgrid is sampled on inclusive [0, 1] fractional endpoints, so
+    # voxel indices map with (n-1), not n.
+    shape_den = np.maximum(shape - 1.0, 1.0)
+    verts_cart = np.dot(cell, (verts / shape_den).T).T
     mesh = trimesh.Trimesh(vertices=verts_cart, faces=faces, process=False)
+    mesh = _apply_taubin_smoothing(
+        mesh,
+        enabled=taubin_smooth,
+        iterations=taubin_iterations,
+        lamb=taubin_lambda,
+        nu=taubin_nu,
+    )
 
     frac = get_fractional_coordinates(np.asarray(mesh.vertices, dtype=float), atoms)
     interp = interpolate_labels(regions)
     labels = interp(frac % 1).astype(int)
+
+    # Clamp negative labels to 0 (can arise from regions_cluster - 1 in pocket types)
+    labels = np.maximum(labels, 0)
+
+    # Backfill label-0 vertices with nearest non-zero label to prevent
+    # uncolored gray patches on the mesh surface (k-NN via cKDTree).
+    zero_mask = labels == 0
+    if zero_mask.any() and not zero_mask.all():
+        nonzero_idx = np.where(~zero_mask)[0]
+        zero_idx = np.where(zero_mask)[0]
+        from scipy.spatial import cKDTree
+        tree = cKDTree(verts_cart[nonzero_idx])
+        _, nn = tree.query(verts_cart[zero_idx], k=1)
+        labels[zero_idx] = labels[nonzero_idx[nn]]
+
     _DEFAULT_CSCALE = [
         [102, 197, 204],
         [246, 207, 113],
@@ -489,12 +550,18 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
             "outside_colors": [],
             "outside_hover": [],
             "outside_n_points": 0,
+            "pbc_positions": [],
+            "pbc_sizes": [],
+            "pbc_colors": [],
+            "pbc_hover": [],
+            "pbc_n_points": 0,
             "n_points": 0,
         }
     maxima_wrapped = np.mod(maxima, np.asarray(dgrid.shape, dtype=int)).astype(int)
     cage_radii = dgrid[tuple(maxima_wrapped.T)]
     cell = atoms.get_cell().array.T
-    frac = maxima / np.asarray(dgrid.shape, dtype=float)
+    grid_shape = np.maximum(np.asarray(dgrid.shape, dtype=float) - 1.0, 1.0)
+    frac = maxima / grid_shape
     pos = np.dot(cell, frac.T).T
 
     _DEFAULT_CSCALE = [
@@ -529,14 +596,48 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     denom = max(vmax - vmin, 1e-12)
     norm = (vals - vmin) / denom
     sizes = (3.0 + 2.5 * norm).astype(float).tolist()
+    maxima_info = np.asarray(seg.get("maxima_info", []), dtype=int)
+    maxima_pbc_dict_raw = seg.get("maxima_pbc_dict", {}) or {}
+
+    def _lookup_pbc_label(coord: tuple[int, int, int]) -> int | None:
+        # Preferred path: tuple-indexed mapping from base maxima coords -> pbc label.
+        if coord in maxima_pbc_dict_raw:
+            return int(maxima_pbc_dict_raw[coord])
+        # Defensive fallbacks for stringified dict keys.
+        key_csv = f"{coord[0]},{coord[1]},{coord[2]}"
+        if key_csv in maxima_pbc_dict_raw:
+            return int(maxima_pbc_dict_raw[key_csv])
+        key_tuple_str = str(coord)
+        if key_tuple_str in maxima_pbc_dict_raw:
+            return int(maxima_pbc_dict_raw[key_tuple_str])
+        return None
+
+    def _maxima_info_for_idx(i: int) -> tuple[int | None, list[int] | None]:
+        if maxima_info.ndim != 2 or maxima_info.shape[1] < 7 or i >= maxima_info.shape[0]:
+            return None, None
+        row = maxima_info[i]
+        base_coord = (int(row[1]), int(row[2]), int(row[3]))
+        pbc_label = _lookup_pbc_label(base_coord)
+        offset = [int(row[4]), int(row[5]), int(row[6])]
+        return pbc_label, offset
+
     hover = []
-    for i, (g, p, r, rid) in enumerate(zip(maxima, pos, cage_radii, region_labels, strict=False)):
+    for i, (g, p, r, rid, s) in enumerate(zip(maxima, pos, cage_radii, region_labels, sizes, strict=False)):
+        pbc_label, offset = _maxima_info_for_idx(i)
+        extra = ""
+        if pbc_label is not None:
+            extra += f"\nmaxima pbc label: {pbc_label}"
+        if offset is not None:
+            extra += f"\noffset: [{offset[0]}, {offset[1]}, {offset[2]}]"
         hover.append(
             f"trace: local maxima\n"
             f"index: {i + 1}\n"
+            f"maxima label: {i + 1}"
+            f"{extra}\n"
             f"grid: [{int(g[0])}, {int(g[1])}, {int(g[2])}]\n"
             f"xyz: ({float(p[0]):.3f}, {float(p[1]):.3f}, {float(p[2]):.3f})\n"
             f"pore radius (dgrid): {float(r):.3f} A\n"
+            f"maxima size: {float(s):.3f}\n"
             f"region: {int(rid)}"
         )
 
@@ -564,6 +665,43 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
         h = [hover[i] for i in idx]
         return p.reshape(-1).tolist(), s.tolist(), c.reshape(-1).tolist(), h, int(len(ids))
 
+    maxima_pbc = np.asarray(seg.get("maxima_pbc", []), dtype=float)
+    if maxima_pbc.size == 0 and maxima_info.ndim == 2 and maxima_info.shape[1] >= 7:
+        zero_mask = np.all(maxima_info[:, 4:7] == 0, axis=1)
+        maxima_pbc = np.asarray(maxima_info[zero_mask, 1:4], dtype=float)
+    if maxima_pbc.ndim == 1:
+        maxima_pbc = maxima_pbc.reshape(-1, 3) if maxima_pbc.size else np.zeros((0, 3), dtype=float)
+    pbc_pos = []
+    pbc_sizes = []
+    pbc_cols = []
+    pbc_hover = []
+    pbc_n = 0
+    if maxima_pbc.size:
+        pbc_wrapped = np.mod(maxima_pbc, np.asarray(dgrid.shape, dtype=int)).astype(int)
+        pbc_radii = dgrid[tuple(pbc_wrapped.T)]
+        pbc_frac = maxima_pbc / grid_shape
+        pbc_cart = np.dot(cell, pbc_frac.T).T
+        pbc_regions = regions[tuple(pbc_wrapped.T)]
+        pbc_colors = [list(np.asarray(cmap.get(int(r), [180, 180, 180]), dtype=float) / 255.0) for r in pbc_regions]
+        pbc_norm = (np.asarray(pbc_radii, dtype=float) - vmin) / denom
+        pbc_sizes_arr = (3.0 + 2.5 * pbc_norm).astype(float)
+        pbc_hover = [
+            (
+                f"trace: maxima pbc\n"
+                f"pbc index: {i + 1}\n"
+                f"grid: [{int(g[0])}, {int(g[1])}, {int(g[2])}]\n"
+                f"xyz: ({float(p[0]):.3f}, {float(p[1]):.3f}, {float(p[2]):.3f})\n"
+                f"pore radius (dgrid): {float(r):.3f} A\n"
+                f"maxima size: {float(s):.3f}\n"
+                f"region: {int(rid)}"
+            )
+            for i, (g, p, r, rid, s) in enumerate(zip(maxima_pbc, pbc_cart, pbc_radii, pbc_regions, pbc_sizes_arr, strict=False))
+        ]
+        pbc_pos = pbc_cart.reshape(-1).tolist()
+        pbc_sizes = pbc_sizes_arr.tolist()
+        pbc_cols = np.asarray(pbc_colors, dtype=float).reshape(-1).tolist()
+        pbc_n = int(len(maxima_pbc))
+
     in_pos, in_sizes, in_cols, in_hover, in_n = _pack(inside_nodes)
     out_pos, out_sizes, out_cols, out_hover, out_n = _pack(outside_nodes)
     return {
@@ -577,6 +715,11 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
         "outside_colors": out_cols,
         "outside_hover": out_hover,
         "outside_n_points": out_n,
+        "pbc_positions": pbc_pos,
+        "pbc_sizes": pbc_sizes,
+        "pbc_colors": pbc_cols,
+        "pbc_hover": pbc_hover,
+        "pbc_n_points": pbc_n,
         "n_points": int(len(pos)),
     }
 
@@ -643,7 +786,7 @@ def _serialize_connection_traces(
             "periodic_points": [],
             "periodic_points_hover": [],
         }
-    shape = np.asarray(seg["dgrid"].shape, dtype=float)
+    shape = np.maximum(np.asarray(seg["dgrid"].shape, dtype=float) - 1.0, 1.0)
     cell = atoms.get_cell().array.T
     node_positions: dict[int, np.ndarray] = {}
     nodes: set[int] = set()
@@ -1123,20 +1266,160 @@ def make_surface_trace(
     name: str = "Surface",
     trace_id: str = "surface",
     cscale: list[list[float]] | None = None,
+    hover_prefix: str | None = None,
+    taubin_smooth: bool = False,
+    taubin_iterations: int = 10,
+    taubin_lambda: float = 0.5,
+    taubin_nu: float = -0.53,
 ) -> dict[str, Any]:
     seg = {"dgrid": dgrid, "regions": regions}
     payload = _serialize_segmentation_surface_mesh(
-        atoms=atoms, seg=seg, isovalue=isovalue, step_size=step_size, cscale=cscale
+        atoms=atoms,
+        seg=seg,
+        isovalue=isovalue,
+        step_size=step_size,
+        cscale=cscale,
+        taubin_smooth=taubin_smooth,
+        taubin_iterations=taubin_iterations,
+        taubin_lambda=taubin_lambda,
+        taubin_nu=taubin_nu,
     )
+    hover = None
+    if hover_prefix and payload.get("labels"):
+        hover = [f"{hover_prefix} {int(l)}" if int(l) > 0 else hover_prefix for l in payload["labels"]]
     return _make_trace(
         trace_id=trace_id,
         trace_type="mesh",
         name=name,
         data=payload,
         style=style,
-        hover=None,
+        hover=hover,
         visible=True,
     )
+
+
+def make_aromatic_rings_trace(
+    atoms: Atoms,
+    cycles: list[list[int]] | None = None,
+    style_circles: str | dict | None = "aromatic_rings",
+    style_highlights: str | dict | None = "aromatic_highlights",
+    n_circle_points: int = 72,
+) -> dict[str, dict[str, Any]]:
+    """Build aromatic ring circle outlines (line_segments) + fill discs (mesh).
+
+    Parameters
+    ----------
+    atoms
+        ASE Atoms with covalent bonds (calls ``update_with_covalent_bonds`` if missing).
+    cycles
+        Precomputed aromatic cycles as list of atom-index lists.  If *None* the
+        function detects them via ``analyze.find_aromatic_cycles_in_sgraph``.
+    style_circles, style_highlights
+        Style name from ``DEFAULT_STYLES`` or a raw style dict.
+    n_circle_points
+        Number of vertices per circle outline and per fill disc polygon.
+
+    Returns
+    -------
+    dict  {"circles": trace_dict, "highlights": trace_dict}
+    """
+    from .analyze import find_aromatic_cycles_in_sgraph, sgraph_from_atoms
+    from scipy.spatial.transform import Rotation as _Rot
+
+    if "covalent_bonds" not in atoms.info:
+        from .analyze import update_with_covalent_bonds
+        atoms = update_with_covalent_bonds(atoms)
+
+    if cycles is None:
+        cycles = find_aromatic_cycles_in_sgraph(sgraph_from_atoms(atoms))
+
+    if not cycles:
+        empty_circles = _make_trace("aromatic_rings", "line_segments", "Aromatic rings",
+                                   {"positions": [], "n_segments": 0}, style=style_circles)
+        empty_highlights = _make_trace("aromatic_highlights", "mesh", "Aromatic highlights",
+                                       {"positions": [], "indices": [],
+                                        "n_vertices": 0, "n_triangles": 0}, style=style_highlights)
+        return {"circles": empty_circles, "highlights": empty_highlights}
+
+    positions = atoms.get_positions()
+    theta = np.linspace(0, 2 * np.pi, n_circle_points, endpoint=False)
+    unit_circle = np.column_stack([np.cos(theta), np.sin(theta), np.zeros_like(theta)])
+
+    line_positions: list[float] = []
+    all_verts: list[np.ndarray] = []
+    all_faces: list[np.ndarray] = []
+
+    for ring in cycles:
+        ring_pos = positions[ring]
+        center = ring_pos.mean(axis=0)
+        edge1 = ring_pos[1] - ring_pos[0]
+        edge2 = ring_pos[2] - ring_pos[1]
+        normal = np.cross(edge1, edge2)
+        norm_len = np.linalg.norm(normal)
+        if norm_len < 1e-10:
+            continue
+        normal /= norm_len
+        radius = np.mean(np.linalg.norm(ring_pos - center, axis=1))
+
+        rot, _ = _Rot.align_vectors(normal.reshape(-1, 3), np.array([[0.0, 0.0, 1.0]]))
+
+        # Circle outline at ~40% of ring radius (chemistry textbook style)
+        inner_radius = radius * 0.4
+        circle_3d = rot.apply(unit_circle * inner_radius) + center
+        for i in range(n_circle_points):
+            j = (i + 1) % n_circle_points
+            line_positions.extend(circle_3d[i].tolist())
+            line_positions.extend(circle_3d[j].tolist())
+
+        # Fill polygon — regular n-gon in the ring plane, matching Plotly's
+        # pv.Polygon(center=c, radius=np.linalg.norm(r[0]-c)*0.95,
+        #            normal=..., n_sides=len(r)).delaunay_2d()
+        n_sides = len(ring)
+        radius = np.mean(np.linalg.norm(ring_pos - center, axis=1)) * 0.95
+        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
+        poly_local = np.column_stack([
+            radius * np.cos(angles),
+            radius * np.sin(angles),
+            np.zeros(n_sides),
+        ])
+        poly_3d = rot.apply(poly_local) + center
+
+        # Center point + fan triangulation (convex regular polygon)
+        verts = np.vstack([poly_3d, center.reshape(1, -1)])
+        faces = np.array(
+            [[n_sides, i, (i + 1) % n_sides] for i in range(n_sides)],
+            dtype=int,
+        )
+        all_verts.append(verts)
+        all_faces.append(faces)
+
+    circles_trace = _make_trace(
+        "aromatic_rings", "line_segments", "Aromatic rings",
+        {"positions": line_positions, "n_segments": len(cycles) * n_circle_points},
+        style=style_circles,
+    )
+
+    if all_verts:
+        v_offsets = np.cumsum([0] + [len(v) for v in all_verts[:-1]])
+        merged_verts = np.vstack(all_verts)
+        merged_faces = np.vstack([
+            f + off for f, off in zip(all_faces, v_offsets)
+        ])
+        payload = {
+            "positions": merged_verts.reshape(-1).tolist(),
+            "indices": merged_faces.reshape(-1).tolist(),
+            "n_vertices": int(len(merged_verts)),
+            "n_triangles": int(len(merged_faces)),
+        }
+    else:
+        payload = {"positions": [], "indices": [], "n_vertices": 0, "n_triangles": 0}
+
+    highlights_trace = _make_trace(
+        "aromatic_highlights", "mesh", "Aromatic highlights",
+        payload, style=style_highlights,
+    )
+
+    return {"circles": circles_trace, "highlights": highlights_trace}
 
 
 def make_maxima_trace(
@@ -1148,6 +1431,14 @@ def make_maxima_trace(
     cscale: list[list[float]] | None = None,
 ) -> dict[str, Any]:
     payload = _serialize_maxima_trace(seg, atoms, cscale=cscale)
+    # Some systems classify all maxima as periodic; keep a visible local-maxima
+    # scatter by mirroring periodic points into the internal trace as fallback.
+    if payload["internal_n_points"] == 0 and payload["outside_n_points"] > 0:
+        payload["internal_positions"] = payload["outside_positions"]
+        payload["internal_colors"] = payload["outside_colors"]
+        payload["internal_sizes"] = payload["outside_sizes"]
+        payload["internal_n_points"] = payload["outside_n_points"]
+        payload["internal_hover"] = payload["outside_hover"]
     # Internal maxima points
     internal = _make_trace(
         trace_id=f"{trace_id}_internal",
@@ -1178,7 +1469,21 @@ def make_maxima_trace(
         hover=payload["outside_hover"],
         visible=True,
     )
-    return {"internal": internal, "outside": outside, "payload": payload}
+    pbc = _make_trace(
+        trace_id=f"{trace_id}_pbc",
+        trace_type="points",
+        name=f"{name} (PBC reps)",
+        data={
+            "positions": payload["pbc_positions"],
+            "colors": payload["pbc_colors"],
+            "sizes": payload["pbc_sizes"],
+            "n_points": payload["pbc_n_points"],
+        },
+        style=style,
+        hover=payload["pbc_hover"],
+        visible=True,
+    )
+    return {"internal": internal, "outside": outside, "pbc": pbc, "payload": payload}
 
 
 def make_windows_trace(
@@ -2079,6 +2384,17 @@ class MovieFigure:
         self.add_trace(trace)
         return self
 
+    def add_aromatic_rings(
+        self,
+        atoms: Atoms,
+        cycles: list[list[int]] | None = None,
+        **style: Any,
+    ) -> "MovieFigure":
+        traces = make_aromatic_rings_trace(atoms, cycles=cycles)
+        self.add_trace(traces["circles"])
+        self.add_trace(traces["highlights"])
+        return self
+
     def add_maxima(
         self,
         seg: dict[str, Any],
@@ -2093,6 +2409,7 @@ class MovieFigure:
         if hide_periodic:
             maxima["outside"]["visible"] = False
         self.add_trace(maxima["outside"])
+        self.add_trace(maxima["pbc"])
         return self
 
     def add_connections(
@@ -2294,8 +2611,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       background: {{bg_css}};
       font-family: {{font_family}}; color: {{text_color}};
       -webkit-text-size-adjust: 100%; touch-action: none; }
-    #app { position: fixed; inset: 0; right: 260px; }
-    #hud { position: fixed; right: 0; top: 0; width: 260px; height: 100vh;
+    #app { position: fixed; inset: 0; right: 200px; }
+    #hud { position: fixed; right: 0; top: 0; width: 200px; height: 100vh;
       background: {{panel_bg}}; border-left: 1px solid rgba(128,128,128,0.2);
       padding: 10px; display: flex; flex-direction: column; gap: 4px;
       overflow-y: auto; overflow-x: hidden; resize: horizontal; z-index: 10; font-size: 11px; }
@@ -2329,6 +2646,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
   <div id="tooltip"></div>
   <div id="axisLabels"></div>
   <div id="hud">
+    <button id="toggleHud" style="position:absolute;top:4px;right:4px;font-size:16px;padding:0 4px;line-height:1;cursor:pointer;background:none;border:1px solid #666;border-radius:2px;color:inherit;" title="Toggle HUD panel">◧</button>
     <div id="figTitle">{{title}}</div>
     <div id="row">
       <button id="playPause">Play</button>
@@ -2366,18 +2684,46 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <button id="toggleRotate">Auto-Rotate</button>
       <button id="measureTool">Measure</button>
     </div>
+    <div class="checkrow">
+      <label>Rotate axis:
+        <input id="rotAxisX" type="number" step="0.1" value="0" style="width:42px;vertical-align:middle;" />
+        <input id="rotAxisY" type="number" step="0.1" value="0" style="width:42px;vertical-align:middle;" />
+        <input id="rotAxisZ" type="number" step="0.1" value="1" style="width:42px;vertical-align:middle;" />
+      </label>
+    </div>
     <div class="checkrow" id="advancedControls" style="flex-direction:column;gap:6px;">
       <label>Representation:
         <select id="reprSelect" style="font-size:10px;width:100%;"><option value="ball_and_stick">Ball-and-stick</option><option value="stick">Stick</option><option value="space_filling">Space-filling</option></select>
       </label>
       <div id="meshOpacityContainer" style="display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto;font-size:10px;"></div>
-      <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="3" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="4.5" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
       <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label><input id="screenDoorToggle" type="checkbox" /> Screen-door transparency</label>
+      <label>Dir light xyz:
+        <input id="lightDirX" type="number" step="0.1" value="5" style="width:40px;vertical-align:middle;" />
+        <input id="lightDirY" type="number" step="0.1" value="10" style="width:40px;vertical-align:middle;" />
+        <input id="lightDirZ" type="number" step="0.1" value="7.5" style="width:40px;vertical-align:middle;" />
+        <button id="applyLightDir" type="button" style="font-size:9px;padding:1px 4px;">Set</button>
+      </label>
+      <label>View dir xyz:
+        <input id="viewDirX" type="number" step="0.1" value="1" style="width:40px;vertical-align:middle;" />
+        <input id="viewDirY" type="number" step="0.1" value="1" style="width:40px;vertical-align:middle;" />
+        <input id="viewDirZ" type="number" step="0.1" value="1" style="width:40px;vertical-align:middle;" />
+        <button id="applyViewDir" type="button" style="font-size:9px;padding:1px 4px;">Set</button>
+      </label>
       <label>Exploded: <input id="explodeSlider" type="range" min="0" max="6" step="0.05" value="0" style="width:140px;vertical-align:middle;" /></label>
       <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
+      <div style="margin-top:2px;display:flex;gap:2px;">
+        <button id="bgGradientNone" title="Solid" style="font-size:8px;padding:1px 3px;">■</button>
+        <button id="bgGradientLR" title="L→R gradient" style="font-size:8px;padding:1px 3px;">⬌</button>
+        <button id="bgGradientTB" title="T→B gradient" style="font-size:8px;padding:1px 3px;">⬍</button>
+        <button id="bgGradientRadial" title="Radial gradient" style="font-size:8px;padding:1px 3px;">◎</button>
+        <button id="bgGradientTransparent" title="Transparent background" style="font-size:8px;padding:1px 3px;">⊡</button>
+      </div>
       <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
+      <label>REC: <select id="recRes" style="font-size:10px;vertical-align:middle;"><option value="1" selected>1x</option><option value="2">2x</option><option value="3">3x</option></select></label>
     </div>
     <div class="checkrow">
       <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
@@ -2391,8 +2737,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label id="labelShowPeriodicConnections"><input type="checkbox" id="showPeriodicConnections" /> Periodic connections</label>
     </div>
     <div class="checkrow" id="groupChecks"></div>
+    <button id="toggleLegend" style="font-size:10px;margin-top:2px;" title="Fold/unfold legend entries">Fold Legend ▲</button>
     <input id="frameSlider" type="range" min="0" max="0" step="1" value="0" />
   </div>
+  <button id="showHudTab" style="display:none;position:fixed;top:8px;right:8px;z-index:30;background:rgba(20,20,20,0.85);color:{{text_color}};border:1px solid rgba(128,128,128,0.45);border-radius:6px;padding:5px 8px;font-size:11px;" title="Show controls">Controls</button>
 
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -2582,19 +2930,49 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const pivotOriginBtn = document.getElementById("pivotOrigin");
     const resetCamBtn = document.getElementById("resetCam");
     const toggleRotateBtn = document.getElementById("toggleRotate");
+    const rotAxisXInput = document.getElementById("rotAxisX");
+    const rotAxisYInput = document.getElementById("rotAxisY");
+    const rotAxisZInput = document.getElementById("rotAxisZ");
     const measureBtn = document.getElementById("measureTool");
     const ptSizeSlider = document.getElementById("ptSizeSlider");
     const speedSlider = document.getElementById("speedSlider");
     const ambSlider = document.getElementById("ambSlider");
     const dirSlider = document.getElementById("dirSlider");
+    const screenDoorToggle = document.getElementById("screenDoorToggle");
+    const lightDirXInput = document.getElementById("lightDirX");
+    const lightDirYInput = document.getElementById("lightDirY");
+    const lightDirZInput = document.getElementById("lightDirZ");
+    const applyLightDirBtn = document.getElementById("applyLightDir");
+    const viewDirXInput = document.getElementById("viewDirX");
+    const viewDirYInput = document.getElementById("viewDirY");
+    const viewDirZInput = document.getElementById("viewDirZ");
+    const applyViewDirBtn = document.getElementById("applyViewDir");
     const explodeSlider = document.getElementById("explodeSlider");
     const bgPicker = document.getElementById("bgPicker");
     const pngResSelect = document.getElementById("pngRes");
+    const recResSelect = document.getElementById("recRes");
+    let pointSizeMult = 1.0;
+    pointSizeMult = parseFloat(ptSizeSlider.value) || 1.0;
+    const screenDoorDefault = !!(DATA.layout && DATA.layout.surface_screen_door === true);
+    if (screenDoorToggle) screenDoorToggle.checked = screenDoorDefault;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+    function getRenderViewport() {
+      const hudEl = document.getElementById("hud");
+      const hudVisible = !!(hudEl && hudEl.style.display !== "none");
+      const hudW = hudVisible ? (hudEl.offsetWidth || 200) : 0;
+      const w = Math.max(window.innerWidth - hudW, 1);
+      const h = Math.max(window.innerHeight, 1);
+      return { w, h, hudW };
+    }
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    {
+      const vp = getRenderViewport();
+      renderer.setSize(vp.w, vp.h);
+    }
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.setClearColor(0x000000, 1.0);
     app.appendChild(renderer.domElement);
     function makeSprite(drawFn) {
       const c = document.createElement('canvas');
@@ -2629,7 +3007,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const scaledEyeArr = eyeArr;
 
     let camera, perspectiveCam, orthoCam, frustumSize, isOrtho;
-    const aspect = window.innerWidth / window.innerHeight;
+    const vp0 = getRenderViewport();
+    const aspect = vp0.w / vp0.h;
 
     perspectiveCam = new THREE.PerspectiveCamera(45, aspect, 0.01, 2000);
     orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 2000);
@@ -2637,7 +3016,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function updateOrthoFrustum() {
       var dist = camera.position.distanceTo(controls.target);
       frustumSize = 2 * dist * Math.tan(THREE.MathUtils.degToRad(22.5));
-      var asp = window.innerWidth / window.innerHeight;
+      var vp = getRenderViewport();
+      var asp = vp.w / vp.h;
       orthoCam.left = frustumSize * asp / -2;
       orthoCam.right = frustumSize * asp / 2;
       orthoCam.top = frustumSize / 2;
@@ -2674,11 +3054,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         try {
           composer = new THREE.EffectComposer(renderer);
           composer.addPass(new THREE.RenderPass(scene, camera));
-          ssaoPass = new THREE.SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
-          ssaoPass.kernelRadius = 0.8;
+          var vp = getRenderViewport();
+          ssaoPass = new THREE.SSAOPass(scene, camera, vp.w, vp.h);
+          ssaoPass.kernelRadius = 0.45;
           ssaoPass.kernelSize = 24;
-          ssaoPass.minDistance = 0.001;
-          ssaoPass.maxDistance = 0.05;
+          ssaoPass.minDistance = 0.003;
+          ssaoPass.maxDistance = 0.03;
           composer.addPass(ssaoPass);
         } catch(e) { console.warn('SSAO unavailable:', e); composer = null; }
       }
@@ -2686,6 +3067,23 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
     // Store original light intensities for reversible ortho toggle
     const _lightOrig = {};
+    const _defaultLightDir = new THREE.Vector3(5, 10, 7.5);
+
+    function parseNormalizedVector(xInput, yInput, zInput, fallbackVec) {
+      const x = parseFloat(xInput.value);
+      const y = parseFloat(yInput.value);
+      const z = parseFloat(zInput.value);
+      if (!isFinite(x) || !isFinite(y) || !isFinite(z)) return fallbackVec.clone().normalize();
+      const v = new THREE.Vector3(x, y, z);
+      if (v.lengthSq() < 1e-12) return fallbackVec.clone().normalize();
+      return v.normalize();
+    }
+
+    function applyDirectionalLightVector() {
+      const dirNorm = parseNormalizedVector(lightDirXInput, lightDirYInput, lightDirZInput, _defaultLightDir);
+      const mag = Math.max(dirKey.position.length(), 1e-6);
+      dirKey.position.copy(dirNorm.multiplyScalar(mag));
+    }
 
     toggleOrthoBtn.addEventListener("click", function() {
       isOrtho = !isOrtho;
@@ -2705,10 +3103,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         _lightOrig.hemi = hemiLight.intensity;
         _lightOrig.key = dirKey.intensity;
         _lightOrig.fill = dirFill.intensity;
-        ambient.intensity = 0.04;
-        hemiLight.intensity = 0.18;
-        dirKey.intensity = _lightOrig.key * 2.1;
-        dirFill.intensity = _lightOrig.fill * 0.4;
+        ambient.intensity = 0.015;
+        hemiLight.intensity = 0.10;
+        dirKey.intensity = _lightOrig.key * 1.2;
+        dirFill.intensity = _lightOrig.fill * 0.22;
       } else {
         ambient.intensity = _lightOrig.ambient;
         hemiLight.intensity = _lightOrig.hemi;
@@ -2716,16 +3114,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         dirFill.intensity = _lightOrig.fill;
       }
 
-      renderer.domElement.style.filter = isOrtho ? "contrast(1.15) saturate(1.2)" : "";
+      renderer.domElement.style.filter = "";
       toggleOrthoBtn.textContent = isOrtho ? "Perspective" : "Ortho";
 
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
-          obj.material.depthTest = !isOrtho;
+          obj.material.depthTest = true;
           obj.material.depthWrite = false;
           var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
-          obj.material.size = base * (isOrtho ? 2.0 : 1.0);
-          obj.material.needsUpdate = true;
+          applyPointSize(obj, base);
         }
       });
     });
@@ -2740,6 +3137,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const dirFill = new THREE.DirectionalLight(0xffffff, 0.32);
     dirFill.position.set(-5, -9, -7.5);
     scene.add(dirFill);
+    // Initialize directional-light input fields from current key-light vector.
+    lightDirXInput.value = String(dirKey.position.x.toFixed(2));
+    lightDirYInput.value = String(dirKey.position.y.toFixed(2));
+    lightDirZInput.value = String(dirKey.position.z.toFixed(2));
 
     // Ortho init: compensate for lack of SSAO with stronger directional contrast
     if (isOrtho) {
@@ -2747,12 +3148,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       _lightOrig.hemi = hemiLight.intensity;
       _lightOrig.key = dirKey.intensity;
       _lightOrig.fill = dirFill.intensity;
-      ambient.intensity = 0.04;
-      hemiLight.intensity = 0.18;
-      dirKey.intensity = _lightOrig.key * 3.0;
-      dirFill.intensity = _lightOrig.fill * 0.4;
+      ambient.intensity = 0.015;
+      hemiLight.intensity = 0.10;
+      dirKey.intensity = _lightOrig.key * 1.2;
+      dirFill.intensity = _lightOrig.fill * 0.22;
     }
-    renderer.domElement.style.filter = isOrtho ? "contrast(1.15) saturate(1.2)" : "";
+    renderer.domElement.style.filter = "";
 
     // Post-processing: SSAO in perspective, contrast boost in ortho
     let composer, ssaoPass;
@@ -2792,6 +3193,108 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       return size;
     }
 
+    function applyPointSize(pointsObj, baseSize) {
+      if (!pointsObj || !pointsObj.material || !pointsObj.material.isPointsMaterial) return;
+      const base = baseSize !== undefined ? baseSize : (
+        pointsObj.material.userData && pointsObj.material.userData.baseSize
+          ? pointsObj.material.userData.baseSize
+          : pointsObj.material.size
+      );
+      pointsObj.material.size = base * pointSizeMult * (isOrtho ? 2.0 : 1.0);
+      pointsObj.material.needsUpdate = true;
+    }
+
+    function isSurfaceMeshId(traceId) {
+      return !!traceId && (
+        traceId === "surface" ||
+        traceId === "surface_pbc" ||
+        traceId === "surface_pocket" ||
+        traceId.indexOf("surface_") === 0
+      );
+    }
+
+    function applySurfaceScreenDoorForObject(obj) {
+      if (!obj || !obj.material) return;
+      const mat = obj.material;
+      if (!obj.userData) obj.userData = {};
+      if (mat.userData.screenDoorOriginalOnBeforeCompile === undefined) {
+        mat.userData.screenDoorOriginalOnBeforeCompile = mat.onBeforeCompile;
+        mat.userData.screenDoorOriginalProgramKey = mat.customProgramCacheKey;
+      }
+      const enabled = !!(screenDoorToggle && screenDoorToggle.checked);
+      if (enabled) {
+        const clampedOpacity = Math.max(0.0, Math.min(1.0, mat.opacity !== undefined ? mat.opacity : 1.0));
+        mat.userData.screenDoorOpacity = clampedOpacity;
+        mat.transparent = false;
+        mat.depthWrite = true;
+        mat.alphaTest = 0.0;
+        mat.dithering = true;
+        mat.onBeforeCompile = function(shader) {
+          const orig = mat.userData.screenDoorOriginalOnBeforeCompile;
+          if (typeof orig === "function") orig(shader);
+          shader.uniforms.uScreenDoorOpacity = { value: mat.userData.screenDoorOpacity !== undefined ? mat.userData.screenDoorOpacity : 1.0 };
+          if (shader.fragmentShader.indexOf("uScreenDoorOpacity") === -1) {
+            shader.fragmentShader = shader.fragmentShader.replace(
+              "void main() {",
+              "uniform float uScreenDoorOpacity;\nvoid main() {"
+            );
+            shader.fragmentShader = shader.fragmentShader.replace(
+              "#include <dithering_fragment>",
+              "float sdOpacity = clamp(uScreenDoorOpacity, 0.0, 1.0);\n" +
+              "if (sdOpacity < 1.0) {\n" +
+              "  vec2 p = mod(gl_FragCoord.xy, 4.0);\n" +
+              "  float x = p.x;\n" +
+              "  float y = p.y;\n" +
+              "  float threshold = 0.0;\n" +
+              "  if (y < 1.0) {\n" +
+              "    threshold = (x < 1.0) ? 0.0/16.0 : ((x < 2.0) ? 8.0/16.0 : ((x < 3.0) ? 2.0/16.0 : 10.0/16.0));\n" +
+              "  } else if (y < 2.0) {\n" +
+              "    threshold = (x < 1.0) ? 12.0/16.0 : ((x < 2.0) ? 4.0/16.0 : ((x < 3.0) ? 14.0/16.0 : 6.0/16.0));\n" +
+              "  } else if (y < 3.0) {\n" +
+              "    threshold = (x < 1.0) ? 3.0/16.0 : ((x < 2.0) ? 11.0/16.0 : ((x < 3.0) ? 1.0/16.0 : 9.0/16.0));\n" +
+              "  } else {\n" +
+              "    threshold = (x < 1.0) ? 15.0/16.0 : ((x < 2.0) ? 7.0/16.0 : ((x < 3.0) ? 13.0/16.0 : 5.0/16.0));\n" +
+              "  }\n" +
+              "  if (sdOpacity <= threshold) discard;\n" +
+              "}\n" +
+              "#include <dithering_fragment>"
+            );
+          }
+          mat.userData.screenDoorUniform = shader.uniforms.uScreenDoorOpacity;
+        };
+        mat.customProgramCacheKey = function() {
+          const orig = mat.userData.screenDoorOriginalProgramKey;
+          const base = (typeof orig === "function") ? orig.call(this) : "";
+          return base + "|screenDoorV1";
+        };
+        if (!mat.userData.screenDoorEnabled) mat.needsUpdate = true;
+        mat.userData.screenDoorEnabled = true;
+        if (mat.userData.screenDoorUniform) {
+          mat.userData.screenDoorUniform.value = clampedOpacity;
+        }
+      } else {
+        mat.transparent = mat.opacity < 1.0;
+        mat.depthWrite = mat.opacity >= 0.999;
+        mat.alphaTest = 0.0;
+        mat.dithering = false;
+        if (mat.userData.screenDoorEnabled) {
+          mat.onBeforeCompile = mat.userData.screenDoorOriginalOnBeforeCompile || function(shader) {};
+          mat.customProgramCacheKey = mat.userData.screenDoorOriginalProgramKey || function() { return ""; };
+          mat.userData.screenDoorUniform = null;
+          mat.userData.screenDoorEnabled = false;
+          mat.needsUpdate = true;
+        }
+      }
+    }
+
+    function applySurfaceScreenDoorAll() {
+      Object.entries(objectsById).forEach(function(entry) {
+        const tid = entry[0];
+        const obj = entry[1];
+        if (isSurfaceMeshId(tid)) applySurfaceScreenDoorForObject(obj);
+      });
+    }
+
     function addMesh(trace) {
       if (!trace.data.positions || !trace.data.positions.length || !trace.data.indices || !trace.data.indices.length) {
         console.warn("Skipping empty mesh trace:", trace.id);
@@ -2807,7 +3310,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const style = styleFor(trace);
       const hasColors = !!(trace.data.colors && trace.data.colors.length);
       const clearcoat = style.clearcoat !== undefined ? style.clearcoat : 0.0;
-      const opacity = style.opacity !== undefined ? style.opacity : 0.95;
+      const opacity = style.opacity !== undefined ? style.opacity : 1.0;
       const isOpaque = opacity >= 1.0;
       let mat;
       if (typeof THREE.MeshPhysicalMaterial !== "undefined" && clearcoat > 0) {
@@ -2820,7 +3323,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
           clearcoat: clearcoat,
           clearcoatRoughness: style.clearcoatRoughness !== undefined ? style.clearcoatRoughness : 0.1,
-          depthWrite: true,
+          depthWrite: isOpaque,
         });
       } else {
         mat = new THREE.MeshStandardMaterial({
@@ -2830,11 +3333,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           roughness: style.roughness !== undefined ? style.roughness : 0.38,
           metalness: style.metalness !== undefined ? style.metalness : 0.0,
           side: style.side === "FrontSide" ? THREE.FrontSide : THREE.DoubleSide,
-          depthWrite: true,
+          depthWrite: isOpaque,
         });
       }
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = trace.id;
+      mesh.userData.originalSide = mat.side;
+      if (isSurfaceMeshId(trace.id)) applySurfaceScreenDoorForObject(mesh);
       scene.add(mesh);
       objectsById[trace.id] = mesh;
       return mesh;
@@ -2877,14 +3382,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
       const style = styleFor(trace);
       const baseSize = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
-      const size = baseSize * (isOrtho ? 2.0 : 1.0);
+      const size = baseSize * pointSizeMult * (isOrtho ? 2.0 : 1.0);
       const sym = style.symbol || "circle";
       const tex = spriteTextures[sym] || spriteTextures["circle"];
       const mat = new THREE.PointsMaterial({
         size: size,
         map: tex,
         vertexColors: !!(trace.data.colors && trace.data.colors.length),
-        sizeAttenuation: true,
+        sizeAttenuation: false,
         transparent: true,
         opacity: 0.95,
       });
@@ -2947,6 +3452,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       geo.computeVertexNormals();
       mesh.geometry = geo;
       if (oldGeo) oldGeo.dispose();
+      if (isSurfaceMeshId(trace.id)) applySurfaceScreenDoorForObject(mesh);
     }
 
     function replaceLineGeometry(lines, trace) {
@@ -2971,9 +3477,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (oldGeo) oldGeo.dispose();
       const style = styleFor(trace);
       const baseSize = pointsBaseSize(trace) * 1.3;
-      points.material.size = baseSize * (isOrtho ? 2.0 : 1.0);
       points.material.userData.baseSize = baseSize;
+      applyPointSize(points, baseSize);
       points.material.vertexColors = !!(trace.data.colors && trace.data.colors.length);
+      points.material.sizeAttenuation = false;
       if (!trace.data.colors || !trace.data.colors.length) {
         points.material.color.copy(threeColorFromStyle(style.color, 0xffffff));
       }
@@ -3090,9 +3597,36 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     // Populate dynamic group checkboxes from DATA.groups
     const groupChecksDiv = document.getElementById("groupChecks");
     const groups = DATA.groups || {};
-    Object.entries(groups).forEach(function(entry) {
+    const mergedGroups = Object.assign({}, groups);
+    const groupedTraceIds = new Set();
+    Object.values(groups).forEach(function(g) {
+      (g && g.traces ? g.traces : []).forEach(function(tid) { groupedTraceIds.add(tid); });
+    });
+    // Fallback: if surface traces exist but caller did not declare groups,
+    // auto-register legend entries so legend and mesh-opacity controls stay in sync.
+    [
+      ["surface", "Surface"],
+      ["surface_regions_raw", "Regions (raw)"],
+      ["surface_pbc", "Surface (PBC)"],
+      ["surface_regions_pbc", "Regions (PBC merged)"],
+      ["surface_pocket", "Pocket types"],
+      ["surface_regions_cluster", "Pocket types (cluster)"],
+    ].forEach(function(defn) {
+      const tid = defn[0];
+      const label = defn[1];
+      if (objectsById[tid] && !groupedTraceIds.has(tid)) {
+        mergedGroups["__auto_" + tid] = { traces: [tid], label: label };
+      }
+    });
+    const seenGroupKeys = new Set();
+    Object.entries(mergedGroups).forEach(function(entry) {
       const groupId = entry[0];
       const group = entry[1];
+      const traces = group.traces || [];
+      if (!traces.some(function(tid) { return objectsById[tid]; })) return;
+      const groupKey = (group.label || groupId) + "::" + traces.join(",");
+      if (seenGroupKeys.has(groupKey)) return;
+      seenGroupKeys.add(groupKey);
       const label = document.createElement("label");
       const cb = document.createElement("input");
       cb.type = "checkbox";
@@ -3115,6 +3649,64 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       });
       label.appendChild(cb);
       label.appendChild(document.createTextNode(" " + (group.label || groupId)));
+      // Isolate button — shows only this group, hides everything else
+      const isoBtn = document.createElement("button");
+      isoBtn.type = "button";
+      isoBtn.textContent = "⊕";
+      isoBtn.title = "Isolate: show only this, hide everything else. Click again to restore.";
+      isoBtn.style.cssText = "font-size:10px;padding:0 3px;margin-left:4px;cursor:pointer;background:none;border:1px solid #666;border-radius:2px;color:inherit;";
+      (function(gid, traces) {
+        var isoActive = false;
+        var savedVisibility = null;
+        function deactivateIsolate() {
+          if (!isoActive) return;
+          if (savedVisibility) {
+            Object.entries(savedVisibility).forEach(function(e2) {
+              var obj = objectsById[e2[0]];
+              if (obj) obj.visible = e2[1];
+            });
+            savedVisibility = null;
+          }
+          isoActive = false;
+          isoBtn.textContent = "⊕";
+          updateCellCopyVisibility();
+          updateSurfaceCellVisibility();
+          updateFrameworkCellVisibility();
+        }
+        isoBtn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          if (isoActive) {
+            deactivateIsolate();
+          } else {
+            // Deactivate any other active isolate button
+            var others = document.querySelectorAll("#groupChecks button.isolateActive");
+            others.forEach(function(b) { b.click(); });
+            // Save current visibility of all objects
+            savedVisibility = {};
+            Object.entries(objectsById).forEach(function(e2) {
+              if (e2[1]) savedVisibility[e2[0]] = e2[1].visible;
+            });
+            // Hide everything
+            Object.values(objectsById).forEach(function(obj) {
+              if (obj) obj.visible = false;
+            });
+            // Show only this group
+            (traces || []).forEach(function(tid) {
+              var obj = objectsById[tid];
+              if (obj) obj.visible = true;
+            });
+            isoActive = true;
+            isoBtn.textContent = "⊖";
+            isoBtn.classList.add("isolateActive");
+            updateCellCopyVisibility();
+            updateSurfaceCellVisibility();
+            updateFrameworkCellVisibility();
+          }
+        });
+        // Store deactivate ref for cross-button coordination
+        isoBtn._deactivate = deactivateIsolate;
+      })(groupId, group.traces || []);
+      label.appendChild(isoBtn);
       groupChecksDiv.appendChild(label);
     });
 
@@ -3172,14 +3764,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     // Exploded view: multi-directional separation
     //   X-axis: framework+cell_framework left, pore graph+cell_copy right
     //   Y-axis (perpendicular): PBC surface+cell_pbc up, cluster surface+cell_pocket down, raw surface middle
+    //   Keep local maxima in the central cell with raw surface (not in pore-graph copy).
     //   Original cell stays at center and is controlled independently by showCell.
     const _explodeGroups = [
-      { ids: ["framework", "framework_stick", "framework_spacefill", "cell_framework"], x: -1, y: 0 },
-      { ids: ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
+      { ids: ["framework", "framework_stick", "framework_spacefill", "aromatic_rings", "aromatic_highlights", "cell_framework"], x: -1, y: 0 },
+      { ids: ["windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
-      { ids: ["surface", "surface_regions_raw"], x: 0, y: 0 },
-      { ids: ["surface_pbc", "surface_regions_pbc", "cell_pbc"], x: 0, y: 1 },
+      { ids: ["surface", "surface_regions_raw", "maxima_internal"], x: 0, y: 0 },
+      { ids: ["surface_pbc", "surface_regions_pbc", "maxima_pbc", "cell_pbc"], x: 0, y: 1 },
       { ids: ["surface_pocket", "surface_regions_cluster", "cell_pocket"], x: 0, y: -1 },
     ];
 
@@ -3227,38 +3820,83 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       meshTraces.forEach(trace => {
         // Skip alternate-representation meshes — their opacity is controlled by the main slider
         if (trace.id === "framework_stick" || trace.id === "framework_spacefill") return;
+        // Skip percolation cluster meshes — grouped by direction in legend
+        if (trace.id && trace.id.startsWith("percolation_clusters_")) return;
+        // Skip aromatic traces — opacity is hard-coded in style
+        if (trace.id === "aromatic_rings" || trace.id === "aromatic_highlights") return;
         const wrapper = document.createElement("div");
         wrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
         const label = document.createElement("label");
         label.style.cssText = "font-size:10px;white-space:nowrap;width:70px;overflow:hidden;text-overflow:ellipsis;";
         label.textContent = (trace.name || trace.id);
-        const slider = document.createElement("input");
-        slider.type = "range";
-        slider.min = "0";
-        slider.max = "1";
-        slider.step = "0.05";
+        const opacitySlider = document.createElement("input");
+        opacitySlider.type = "range";
+        opacitySlider.min = "0";
+        opacitySlider.max = "1";
+        opacitySlider.step = "0.05";
         const st = styleFor(trace);
-        slider.value = st.opacity !== undefined ? st.opacity : 0.95;
-        slider.style.cssText = "flex:1;";
-        slider.dataset.traceId = trace.id;
-        slider.addEventListener("input", () => {
-          const val = parseFloat(slider.value);
+        var initOpacity = (st && st.opacity !== undefined) ? st.opacity : 1.0;
+        opacitySlider.value = initOpacity;
+        opacitySlider.style.cssText = "flex:1;";
+        opacitySlider.dataset.traceId = trace.id;
+        opacitySlider.addEventListener("input", () => {
+          const val = parseFloat(opacitySlider.value);
           const targetIds = [trace.id];
           // If this is the main framework slider, also update alternate representations
           if (trace.id === "framework") {
-            targetIds.push("framework_stick", "framework_spacefill");
+            targetIds.push("framework_stick", "framework_spacefill", "aromatic_rings", "aromatic_highlights");
           }
           targetIds.forEach(tid => {
             const obj = objectsById[tid];
             if (obj && obj.material) {
-              obj.material.opacity = val;
-              obj.material.transparent = val < 1.0;
+              var isFw = tid === "framework" || tid === "framework_stick" || tid === "framework_spacefill";
+              var hiddenByOpacity = val <= 0.001;
+              if (obj.userData && obj.userData.originalCastShadow === undefined) {
+                obj.userData.originalCastShadow = obj.castShadow;
+                obj.userData.originalReceiveShadow = obj.receiveShadow;
+              }
+              const opaqueEnough = val >= 0.999;
+              if (isFw) {
+                // Opacity only — visibility follows Representation + Framework checkbox.
+                // At exactly zero, hide to avoid ghost/shadow outlines from postprocessing.
+                obj.material.opacity = val;
+                obj.material.transparent = val < 1.0;
+                // Keep framework depth writes on while fading so bonds remain occluded
+                // by atom surfaces and do not appear to poke through.
+                obj.material.depthWrite = true;
+                obj.material.depthTest = true;
+                obj.material.side = THREE.FrontSide;
+                obj.visible = val > 0.001;
+                obj.castShadow = val > 0.999;
+                obj.receiveShadow = val > 0.999;
+              } else {
+                obj.visible = !hiddenByOpacity;
+                obj.castShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalCastShadow);
+                obj.receiveShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalReceiveShadow);
+                obj.material.opacity = val;
+                obj.material.transparent = val < 1.0;
+                obj.material.depthWrite = opaqueEnough;
+              }
+              if (obj.userData && obj.userData.originalSide !== undefined) {
+                obj.material.side = obj.userData.originalSide;
+              }
+              if (isSurfaceMeshId(tid)) {
+                applySurfaceScreenDoorForObject(obj);
+              }
               obj.material.needsUpdate = true;
             }
           });
+          if (trace.id === "framework") {
+            updateFrameworkVisibility();
+            const activeId = reprSelect.value === "stick"
+              ? "framework_stick"
+              : (reprSelect.value === "space_filling" ? "framework_spacefill" : "framework");
+            const active = objectsById[activeId];
+            if (active) active.visible = showFramework.checked && val > 0.001;
+          }
         });
         wrapper.appendChild(label);
-        wrapper.appendChild(slider);
+        wrapper.appendChild(opacitySlider);
         meshOpacityContainer.appendChild(wrapper);
       });
       // Stacking-order note for overlapping mesh traces (e.g. multiple surfaces)
@@ -3352,9 +3990,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const fw = objectsById["framework"];
       const stick = objectsById["framework_stick"];
       const sf = objectsById["framework_spacefill"];
+      const arRings = objectsById["aromatic_rings"];
+      const arHigh = objectsById["aromatic_highlights"];
       if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
       if (stick) stick.visible = showFramework.checked && val === "stick";
       if (sf) sf.visible = showFramework.checked && val === "space_filling";
+      if (arRings) arRings.visible = showFramework.checked;
+      if (arHigh) arHigh.visible = showFramework.checked;
       updateFrameworkCellVisibility();
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
@@ -3362,7 +4004,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     // Initialize visibility so only the selected representation is shown
     updateFrameworkVisibility();
     showSurface.addEventListener("change", () => {
-      ["surface", "surface_regions_raw", "surface_regions_pbc", "surface_regions_cluster"].forEach(function(id) {
+      // "Segmentation surface" checkbox controls only the non-PBC/raw surface.
+      // PBC/cluster overlays are controlled by their own legend group toggles.
+      ["surface", "surface_regions_raw"].forEach(function(id) {
         const obj = objectsById[id];
         if (obj) obj.visible = showSurface.checked;
       });
@@ -3385,7 +4029,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellCopy) {
         const poreGraphIds = [
-          "maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes",
+          "windows_internal", "connections_internal", "connections_internal_nodes",
           "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"
         ];
         const anyVisible = poreGraphIds.some(id => {
@@ -3398,7 +4042,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function updateSurfaceCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellPbc) {
-        const ids = ["surface_pbc", "surface_regions_pbc"];
+        const ids = ["surface_pbc", "surface_regions_pbc", "maxima_pbc"];
         const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
         cellPbc.visible = exploded && anyVisible;
       }
@@ -3475,33 +4119,87 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       controls.update();
       updateOrthoFrustum();
     }
+    function setViewDirectionFromInputs() {
+      const dirNorm = parseNormalizedVector(viewDirXInput, viewDirYInput, viewDirZInput, new THREE.Vector3(1, 1, 1));
+      setViewAxis(dirNorm);
+    }
     document.getElementById("viewX").addEventListener("click", () => setViewAxis(new THREE.Vector3(1, 0, 0)));
     document.getElementById("viewNegX").addEventListener("click", () => setViewAxis(new THREE.Vector3(-1, 0, 0)));
     document.getElementById("viewY").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 1, 0)));
     document.getElementById("viewNegY").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, -1, 0)));
     document.getElementById("viewZ").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 0, 1)));
     document.getElementById("viewNegZ").addEventListener("click", () => setViewAxis(new THREE.Vector3(0, 0, -1)));
+    applyLightDirBtn.addEventListener("click", applyDirectionalLightVector);
+    applyViewDirBtn.addEventListener("click", setViewDirectionFromInputs);
+
+    // HUD toggle — hide/show the legend sidebar
+    var _hudVisible = true;
+    var _hud = document.getElementById("hud");
+    var _app = document.getElementById("app");
+    var _showHudTab = document.getElementById("showHudTab");
+    function setHudVisible(visible) {
+      _hudVisible = visible;
+      _hud.style.display = visible ? "" : "none";
+      _app.style.right = visible ? "200px" : "0";
+      if (_showHudTab) _showHudTab.style.display = visible ? "none" : "block";
+      try { resizeRenderer(); } catch (e) {}
+    }
+    document.getElementById("toggleHud").addEventListener("click", function() {
+      setHudVisible(!_hudVisible);
+    });
+    if (_showHudTab) {
+      _showHudTab.addEventListener("click", function() {
+        setHudVisible(true);
+      });
+    }
+
+    // Legend fold/unfold
+    var _legendVisible = true;
+    var _legendSection = document.getElementById("groupChecks");
+    var _legendToggleBtn = document.getElementById("toggleLegend");
+    if (_legendToggleBtn && _legendSection) {
+      _legendToggleBtn.addEventListener("click", function() {
+        _legendVisible = !_legendVisible;
+        _legendSection.style.display = _legendVisible ? "" : "none";
+        _legendToggleBtn.textContent = _legendVisible ? "Fold Legend \u25B2" : "Show Legend \u25BC";
+      });
+    }
 
     let autoRotating = false;
+    function getAutoRotateAxis() {
+      var x = parseFloat(rotAxisXInput && rotAxisXInput.value);
+      var y = parseFloat(rotAxisYInput && rotAxisYInput.value);
+      var z = parseFloat(rotAxisZInput && rotAxisZInput.value);
+      if (!isFinite(x)) x = 0;
+      if (!isFinite(y)) y = 0;
+      if (!isFinite(z)) z = 1;
+      var axis = new THREE.Vector3(x, y, z);
+      if (axis.lengthSq() < 1e-8) axis.set(0, 0, 1);
+      axis.normalize();
+      return axis;
+    }
     toggleRotateBtn.addEventListener("click", () => {
       autoRotating = !autoRotating;
-      controls.autoRotate = autoRotating;
-      controls.autoRotateSpeed = 2.0;
+      controls.autoRotate = false;
       toggleRotateBtn.textContent = autoRotating ? "Stop Rotate" : "Auto-Rotate";
     });
 
     // Per-mesh opacity sliders are populated dynamically after scene init
 
     ptSizeSlider.addEventListener("input", () => {
-      const mult = parseFloat(ptSizeSlider.value);
+      pointSizeMult = parseFloat(ptSizeSlider.value) || 1.0;
       Object.values(objectsById).forEach(function(obj) {
         if (obj && obj.material && obj.material.isPointsMaterial) {
           var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
-          obj.material.size = base * mult * (isOrtho ? 2.0 : 1.0);
-          obj.material.needsUpdate = true;
+          applyPointSize(obj, base);
         }
       });
     });
+    if (screenDoorToggle) {
+      screenDoorToggle.addEventListener("change", () => {
+        applySurfaceScreenDoorAll();
+      });
+    }
 
     let speedMult = 1.0;
     speedSlider.addEventListener("input", () => {
@@ -3543,8 +4241,68 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     bgPicker.addEventListener("input", () => {
-      scene.background = new THREE.Color(bgPicker.value);
+      updateSceneBackground();
     });
+
+    // Gradient background modes
+    var _bgGradientMode = "none";
+    function setCheckerboardBackground(enabled) {
+      if (enabled) {
+        _app.style.backgroundImage =
+          "linear-gradient(45deg, #d8d8d8 25%, transparent 25%), " +
+          "linear-gradient(-45deg, #d8d8d8 25%, transparent 25%), " +
+          "linear-gradient(45deg, transparent 75%, #d8d8d8 75%), " +
+          "linear-gradient(-45deg, transparent 75%, #d8d8d8 75%)";
+        _app.style.backgroundSize = "20px 20px";
+        _app.style.backgroundPosition = "0 0, 0 10px, 10px -10px, -10px 0px";
+      } else {
+        _app.style.backgroundImage = "";
+      }
+    }
+    function updateSceneBackground() {
+      var color = new THREE.Color(bgPicker.value);
+      if (_bgGradientMode === "transparent") {
+        scene.background = null;
+        renderer.setClearColor(0x000000, 0.0);
+        setCheckerboardBackground(true);
+        return;
+      }
+      renderer.setClearColor(0x000000, 1.0);
+      setCheckerboardBackground(false);
+      if (_bgGradientMode === "none") {
+        scene.background = color;
+        return;
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = 256; canvas.height = 256;
+      var ctx = canvas.getContext("2d");
+      var dark = color.clone().multiplyScalar(0.3);
+      var grad;
+      if (_bgGradientMode === "lr") {
+        grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        grad.addColorStop(0, dark.getStyle());
+        grad.addColorStop(0.5, color.getStyle());
+        grad.addColorStop(1, dark.getStyle());
+      } else if (_bgGradientMode === "tb") {
+        grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, dark.getStyle());
+        grad.addColorStop(0.5, color.getStyle());
+        grad.addColorStop(1, dark.getStyle());
+      } else if (_bgGradientMode === "radial") {
+        grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 180);
+        grad.addColorStop(0, color.getStyle());
+        grad.addColorStop(1, dark.getStyle());
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      var tex = new THREE.CanvasTexture(canvas);
+      scene.background = tex;
+    }
+    document.getElementById("bgGradientNone").addEventListener("click", () => { _bgGradientMode = "none"; updateSceneBackground(); });
+    document.getElementById("bgGradientLR").addEventListener("click", () => { _bgGradientMode = "lr"; updateSceneBackground(); });
+    document.getElementById("bgGradientTB").addEventListener("click", () => { _bgGradientMode = "tb"; updateSceneBackground(); });
+    document.getElementById("bgGradientRadial").addEventListener("click", () => { _bgGradientMode = "radial"; updateSceneBackground(); });
+    document.getElementById("bgGradientTransparent").addEventListener("click", () => { _bgGradientMode = "transparent"; updateSceneBackground(); });
 
     // Measurement tool
     let measuring = false;
@@ -3714,11 +4472,24 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
     });
 
+    let isRecordingVideo = false;
     function animate(t) {
       requestAnimationFrame(animate);
+      const nowSec = (t || 0) * 0.001;
+      const dt = Math.max(0.0, Math.min(0.1, nowSec - (animate._lastSec || nowSec)));
+      animate._lastSec = nowSec;
       if (playing && getFrameCount() > 1 && (t - lastT) >= frameDtMs) {
         setFrame((frame + 1) % getFrameCount());
         lastT = t;
+      }
+      if (autoRotating) {
+        const target = controls.target.clone();
+        const axis = getAutoRotateAxis();
+        const omega = 0.8 * (isRecordingVideo ? 0.55 : 1.0); // rad/s (slow slightly while recording)
+        const rel = camera.position.clone().sub(target);
+        rel.applyAxisAngle(axis, omega * dt);
+        camera.position.copy(target.clone().add(rel));
+        camera.lookAt(target);
       }
       controls.update();
       if (composer) {
@@ -3729,13 +4500,14 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     window.addEventListener("resize", () => {
-      const hudW = document.getElementById("hud").offsetWidth || 200;
-      const w = window.innerWidth - hudW;
-      const h = window.innerHeight;
+      const vp = getRenderViewport();
+      const w = vp.w;
+      const h = vp.h;
       perspectiveCam.aspect = w / h;
       perspectiveCam.updateProjectionMatrix();
       renderer.setSize(w, h);
-      document.getElementById("app").style.right = hudW + "px";
+      document.getElementById("app").style.right = vp.hudW + "px";
+      updateOrthoFrustum();
       if (composer) composer.setSize(w, h);
     });
     window.dispatchEvent(new Event("resize"));
@@ -3743,6 +4515,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     // Export PNG button
     document.getElementById("exportPng").addEventListener("click", function() {
       const resMult = parseInt(pngResSelect.value, 10) || 1;
+      // Screen-door (shader-discard) can produce moire-like export artifacts
+      // at high-resolution readback. Export with standard alpha path, then restore.
+      const restoreScreenDoor = !!(screenDoorToggle && screenDoorToggle.checked);
+      if (restoreScreenDoor) {
+        screenDoorToggle.checked = false;
+        applySurfaceScreenDoorAll();
+      }
       const oldW = renderer.domElement.width;
       const oldH = renderer.domElement.height;
       if (resMult > 1) {
@@ -3762,6 +4541,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         camera.updateProjectionMatrix();
         updateOrthoFrustum();
       }
+      if (restoreScreenDoor) {
+        screenDoorToggle.checked = true;
+        applySurfaceScreenDoorAll();
+        if (composer) { composer.render(); } else { renderer.render(scene, camera); }
+      }
     });
 
     // Record video (WebM) via MediaRecorder + canvas.captureStream
@@ -3769,36 +4553,73 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let mediaRecorder = null;
     let recordChunks = [];
     let recordTimer = null;
+    let recordRenderState = null;
+    function beginRecordingRenderScale() {
+      const resMult = parseInt(recResSelect.value, 10) || 1;
+      const oldW = renderer.domElement.width;
+      const oldH = renderer.domElement.height;
+      recordRenderState = { oldW, oldH };
+      if (resMult > 1) {
+        const newW = oldW * resMult;
+        const newH = oldH * resMult;
+        renderer.setSize(newW, newH, false);
+        perspectiveCam.aspect = newW / newH;
+        perspectiveCam.updateProjectionMatrix();
+        updateOrthoFrustum();
+        if (composer) composer.setSize(newW, newH);
+      }
+    }
+    function restoreRecordingRenderScale() {
+      if (!recordRenderState) return;
+      const oldW = recordRenderState.oldW;
+      const oldH = recordRenderState.oldH;
+      renderer.setSize(oldW, oldH, false);
+      perspectiveCam.aspect = oldW / oldH;
+      perspectiveCam.updateProjectionMatrix();
+      updateOrthoFrustum();
+      if (composer) composer.setSize(oldW, oldH);
+      recordRenderState = null;
+    }
     recordBtn.addEventListener("click", function() {
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
+        isRecordingVideo = false;
         recordBtn.textContent = "Record";
         recordBtn.style.background = "";
         recordBtn.style.color = "";
         if (recordTimer) { clearInterval(recordTimer); recordTimer = null; }
         return;
       }
+      beginRecordingRenderScale();
       let stream;
       try {
         stream = renderer.domElement.captureStream(30);
       } catch(e) {
+        restoreRecordingRenderScale();
         alert("Video recording not supported in this browser.");
         return;
       }
-      let options = { mimeType: "video/webm; codecs=vp9" };
+      let options = { mimeType: "video/webm;codecs=vp9", videoBitsPerSecond: 22000000 };
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-        options = { mimeType: "video/webm" };
+        options = { mimeType: "video/webm;codecs=vp8", videoBitsPerSecond: 16000000 };
       }
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: "video/webm", videoBitsPerSecond: 12000000 };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        restoreRecordingRenderScale();
         alert("WebM recording not supported in this browser.");
         return;
       }
       mediaRecorder = new MediaRecorder(stream, options);
+      isRecordingVideo = true;
       recordChunks = [];
       mediaRecorder.ondataavailable = function(e) {
         if (e.data && e.data.size > 0) recordChunks.push(e.data);
       };
       mediaRecorder.onstop = function() {
+        isRecordingVideo = false;
+        restoreRecordingRenderScale();
         const blob = new Blob(recordChunks, { type: options.mimeType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -3806,6 +4627,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         a.download = "figure3d_movie.webm";
         a.click();
         setTimeout(function() { URL.revokeObjectURL(url); }, 2000);
+      };
+      mediaRecorder.onerror = function() {
+        isRecordingVideo = false;
+        restoreRecordingRenderScale();
       };
       mediaRecorder.start(100);
       recordBtn.textContent = "Stop";
@@ -4322,6 +5147,7 @@ def build_static_scene(
     hide_periodic: bool = True,
     spacing: float = 0.25,
     bonds: str | list | None = "auto",
+    show_aromatics: bool = True,
     eye: tuple[float, float, float] = (2.0, 0.0, 1.35),
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
     up: tuple[float, float, float] = (0.0, 0.0, 1.0),
@@ -4352,6 +5178,8 @@ def build_static_scene(
         Ignored unless *dgrid* must be computed on-the-fly (not yet implemented).
     bonds
         Passed to ``make_framework_trace`` (*"auto"* uses ASE neighbourlist).
+    show_aromatics
+        If True, detect and render aromatic ring outlines + fill discs.
     eye, center, up
         Initial camera position.
 
@@ -4366,6 +5194,10 @@ def build_static_scene(
     # --- Framework + cell (always) ---
     fig.add_framework(atoms, bonds=bonds)
     fig.add_cell(atoms)
+
+    # --- Aromatic rings (grouped with framework) ---
+    if show_aromatics:
+        fig.add_aromatic_rings(atoms)
 
     # --- Surface (if we have dgrid + regions) ---
     if dgrid is not None and regions is not None:

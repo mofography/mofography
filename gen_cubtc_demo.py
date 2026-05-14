@@ -18,7 +18,7 @@ def make_surface_trace_smooth(
     opacity=1.0, roughness=0.15, metalness=0.05,
     smooth_iters=5,
 ):
-    """Create a surface trace with unique per-region colors, label-0 fix, and Laplacian smoothing."""
+    """Create a surface trace with unique per-region colors and optional Taubin smoothing."""
     import trimesh
     from mofography.movies import _make_trace as _mt
 
@@ -29,12 +29,12 @@ def make_surface_trace_smooth(
     labels = np.array(mesh_data["labels"], dtype=int)
     n_v = len(verts)
 
-    # --- Step 2: Laplacian smoothing ---
+    # --- Step 2: smoothing (Taubin to avoid volume shrink near cell walls) ---
     if smooth_iters > 0 and n_v > 0:
         mesh_s = trimesh.Trimesh(vertices=verts.copy(), faces=faces.copy(), process=False)
         try:
-            from trimesh.smoothing import filter_laplacian
-            mesh_s = filter_laplacian(mesh_s, iterations=smooth_iters, lamb=0.5)
+            from trimesh.smoothing import filter_taubin
+            mesh_s = filter_taubin(mesh_s, iterations=smooth_iters, lamb=0.5, nu=-0.53)
             verts = np.asarray(mesh_s.vertices, dtype=float)
         except Exception:
             pass  # smoothing is best-effort
@@ -162,6 +162,7 @@ fig = (
     .set_camera(eye=(1.5, 0.8, 1.2), center=(0, 0, 0), up=(0, 0, 1))
     .add_framework(atoms)
     .add_cell(atoms)
+    .add_aromatic_rings(atoms)
 )
 
 # Three surfaces — each with unique per-region colors + hover + smoothing
@@ -224,7 +225,42 @@ print(f"  {n_frames} frames, {len(framework)} atoms, {n_bonds_lta} bonds (covale
 
 print("Computing segmentation...")
 t0 = time.time()
-seg_lta = mgr.compute_segmentation_for_snapshot({"atoms": framework}, spacing=0.5)
+spacing_lta = 0.5
+dgrid_lta = mgr.dgrid_from_atoms_cpu(framework, spacing=spacing_lta, block_size=20000).astype(np.float32)
+seg_lta = mgr.do_periodic_segmentation_rust(
+    dgrid_lta, framework, spacing=spacing_lta, mask_thickness=0.5, h=0.2,
+    threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=True, extra_padding=5,
+)
+regions_lta = seg_lta["regions"]
+regions_pbc_lta = seg_lta["regions_pbc"]
+connections_lta = seg_lta["connections"]
+all_maxima_lta = seg_lta["all_maxima"]
+unique_regions_lta = seg_lta["unique_regions"]
+pbc_groups_lta = seg_lta["pbc_groups"]
+
+# Compute pocket-type clustering once (rigid framework movie).
+maxima_in_cell_lta = all_maxima_lta[:regions_lta.max()]
+maxima_wrapped_lta = np.mod(maxima_in_cell_lta, np.asarray(dgrid_lta.shape, dtype=int)).astype(int)
+maxima_radii_lta = dgrid_lta[tuple(maxima_wrapped_lta.T)]
+n_max_lta = len(maxima_in_cell_lta)
+connections_trimmed_lta = np.array(
+    [c for c in connections_lta if np.any(np.isin(c[0], unique_regions_lta))],
+    dtype=object,
+)
+conn_filtered_lta = [
+    c for c in connections_trimmed_lta if 1 <= int(c[0][0]) <= n_max_lta and 1 <= int(c[0][1]) <= n_max_lta
+]
+rag_lta = mgr.rag_from_connections(conn_filtered_lta, maxima_in_cell_lta, only_use_internal=False)
+rag_lta = mgr.add_maxima_to_rag(rag_lta, maxima_in_cell_lta, maxima_radii_lta, dgrid_lta.shape, framework)
+props_lta = regionprops(regions_lta)
+rag_lta = mgr.add_pbc_to_rag(rag_lta, pbc_groups_lta)
+rag_lta = mgr.add_centroids_to_rag_with_pbc(rag_lta, props_lta, pbc_groups_lta, framework, regions_lta.shape)
+rag_lta = mgr.add_psd_to_rag_with_pbc(rag_lta, props_lta, pbc_groups_lta, bins=50, ase_atoms=framework, shape=regions_lta.shape)
+rag_lta = mgr.add_clustering_to_rag_geometry_js(rag_lta, props_lta, pbc_groups_lta, framework, dgrid_lta.shape, use_pbc=True, js_threshold=0.15)
+regions_cluster_lta = mgr.clustering_grid_from_regions(regions_lta, rag_lta, cluster_key='cluster_geom_pbc')
+
+seg_lta["regions_cluster"] = regions_cluster_lta
 print(f"  {time.time()-t0:.1f}s")
 
 from mofography.movies import _make_trace as _mt
@@ -245,13 +281,26 @@ movie_fig.add_cell(framework)
 movie_fig.add_trace(make_surface_trace_smooth(
     framework, seg_lta["dgrid"], seg_lta["regions"],
     isovalue=1.0, step_size=1,
-    trace_id="surface", name="Surface", hover_prefix="Region",
+    trace_id="surface", name="Regions (raw)", hover_prefix="Region",
+    smooth_iters=5,
+))
+movie_fig.add_trace(make_surface_trace_smooth(
+    framework, seg_lta["dgrid"], regions_pbc_lta,
+    isovalue=1.0, step_size=1,
+    trace_id="surface_regions_pbc", name="Regions (PBC merged)", hover_prefix="PBC group",
+    smooth_iters=5,
+))
+movie_fig.add_trace(make_surface_trace_smooth(
+    framework, seg_lta["dgrid"], regions_cluster_lta,
+    isovalue=1.0, step_size=1,
+    trace_id="surface_regions_cluster", name="Pocket types (cluster)", hover_prefix="Cluster",
     smooth_iters=5,
 ))
 
 maxima_lta = mgr.make_maxima_trace(seg_lta, framework)
 movie_fig.add_trace(maxima_lta["internal"])
 movie_fig.add_trace(maxima_lta["outside"])
+movie_fig.add_trace(maxima_lta["pbc"])
 windows_lta = mgr.make_windows_trace(seg_lta)
 movie_fig.add_trace(windows_lta["internal"])
 movie_fig.add_trace(windows_lta["periodic"])
@@ -262,6 +311,9 @@ movie_fig.add_trace(conns_lta["periodic_lines"])
 movie_fig.add_trace(conns_lta["periodic_nodes"])
 
 movie_fig.groups = {
+    "surface_regions_pbc": {"traces": ["surface_regions_pbc"], "label": "Regions (PBC merged)"},
+    "surface_regions_cluster": {"traces": ["surface_regions_cluster"], "label": "Pocket types (cluster)"},
+    "maxima_pbc": {"traces": ["maxima_pbc"], "label": "Maxima (PBC reps)"},
     "internal_pore_graph": {"traces": ["maxima_internal", "windows_internal", "connections_internal", "connections_internal_nodes"], "label": "Internal Pore Graph"},
     "periodic_pore_graph": {"traces": ["maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"], "label": "Periodic Pore Graph", "default_off": True},
     "guests": {"traces": ["guests"], "label": "K+ Adsorbates"},
@@ -284,13 +336,21 @@ for i, snap in enumerate(snapshots):
 
 movie_fig.meta["description"] = "LTA96 — K+ movie with smoothed surface + unique region colors"
 
-out_movie = "lta96_k_movie_v2.html"
-movie_fig.to_html(out_movie)
-mb = Path(out_movie).stat().st_size / (1024 * 1024)
-print(f"\nSaved: {out_movie} ({mb:.1f} MB)")
+out_movie_anti = "lta96_k_movie_v2_screen_door_on.html"
+movie_fig.update_layout({"surface_screen_door": True})
+movie_fig.to_html(out_movie_anti)
+mb_anti = Path(out_movie_anti).stat().st_size / (1024 * 1024)
+print(f"\nSaved: {out_movie_anti} ({mb_anti:.1f} MB)")
+
+out_movie_noanti = "lta96_k_movie_v2_screen_door_off.html"
+movie_fig.update_layout({"surface_screen_door": False})
+movie_fig.to_html(out_movie_noanti)
+mb_noanti = Path(out_movie_noanti).stat().st_size / (1024 * 1024)
+print(f"Saved: {out_movie_noanti} ({mb_noanti:.1f} MB)")
 
 print("\n" + "=" * 60)
 print("DONE")
 print(f"  Static: {out_static}")
-print(f"  Movie:  {out_movie}")
+print(f"  Movie:  {out_movie_anti}")
+print(f"  Movie:  {out_movie_noanti}")
 print("=" * 60)
