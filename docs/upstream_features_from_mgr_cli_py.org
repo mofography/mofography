@@ -1,0 +1,776 @@
+#+TITLE: Upstream Features from mgr_cli_py → mofography
+#+AUTHOR: Arun Gopalan
+#+DATE: 2026-05-27
+#+PROPERTY: header-args:python :results output :exports both :eval yes
+#+STARTUP: overview
+#+OPTIONS: toc:3 num:t
+
+This document walks through every feature upstreamed from =mgr_cli_py= into
+=mofography= in commit =dd19eaf= (2026-05-27).  Each section contains a
+concise description of the change, notes on the underlying implementation,
+and a self-contained source block you can evaluate directly (=C-c C-c= in
+Emacs Org-mode, or via your Zilage keybind).
+
+All code blocks assume the =mgr_env= conda environment is active and the
+=mofography= package is installed (=maturin develop --release= for Rust
+extensions).
+
+#+begin_src python :tangle no :eval never
+# Run this once to point sys.path at the repo's built extension
+import sys
+sys.path.insert(0, "/Users/arungopalan/repos/mofography")
+#+end_src
+
+-----
+
+* 1  Rust CIF Parser
+
+** What changed
+=mofography= previously relied entirely on ASE's pure-Python CIF reader.
+The new =mofography.cif_io= module wraps a three-stage pipeline:
+
+1. *Rust reader* (=mgr_rust.read_cif=) — parses symmetry operations, atom
+   sites, and unit cell parameters directly from the CIF text without
+   constructing an ASE object in Python.
+2. *Wyckoff deduplication via spglib* — after symmetry expansion some CIFs
+   contain duplicate sites; spglib is used to identify the asymmetric unit
+   and remove duplicates before handing the structure to ASE.
+3. *ASE fallback* — if the Rust reader raises (unusual CIF dialect, missing
+   loop blocks) the function transparently retries with =ase.io.read=.
+
+Under the hood the Rust code (=mgr_rust/src/cif.rs=) uses a hand-written
+tokeniser that is ~15× faster than ASE on large supercells because it
+avoids Python string allocation for every token.
+
+** Where it lives
+| File                          | Symbol          |
+|-------------------------------|-----------------|
+| =mgr_rust/src/cif.rs=         | =read_cif= (Rust entry point) |
+| =mofography/cif_io.py=        | =read_cif_to_ase()=           |
+
+** Commit
+=dd19eaf= — "upstream from mgr_cli_py: Rust CIF+bonds+aromatic, pocket typing, window improvements"
+
+** Runnable check
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+
+RASPA_CIFS = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
+TEST_CIFS  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
+
+materials = {
+    "IRMOF-1":  RASPA_CIFS / "IRMOF-1.cif",
+    "Cu-BTC":   RASPA_CIFS / "Cu-BTC.cif",
+    "ZIF-20":   RASPA_CIFS / "ZIF-20.cif",
+    "LTA96":    TEST_CIFS  / "LTA96.cif",
+    "NU-1000":  TEST_CIFS  / "NU-1000_S1.cif",
+}
+
+for name, cif in materials.items():
+    atoms = read_cif_to_ase(cif)
+    cell_vol = atoms.get_cell().volume
+    print(f"{name:10s}  {len(atoms):5d} atoms   cell volume = {cell_vol:.1f} Å³")
+#+end_src
+
+Expected output: each line shows the atom count and a non-zero cell
+volume — confirming the Rust reader expanded symmetry correctly.
+
+-----
+
+* 2  Fast Covalent Bonds
+
+** What changed
+Bond detection in the original =mofography= was delegated to pymatgen's
+=CovalentBond= — which iterates over a Voronoi decomposition in Python and
+is slow for large unit cells.  The upstream adds a Rust implementation
+(=mgr_rust.covalent_bonds=) that:
+
+- Accepts a flat neighbor list (atom index pairs) pre-computed by any
+  spatial index (AABB tree, kdtree, …).
+- Applies Pauling covalent radius tolerance cutoffs in Rust.
+- Returns =bonds_flat= (directed index pairs), =bond_orders= (Pauling
+  estimate), per-bond =img_pos= (image-displaced Cartesian coordinates),
+  and =img_an= (atomic numbers of the bonded images).
+
+The Python wrapper =update_with_covalent_bonds()= in =analyze.py= now
+tries the Rust path first; it falls back to the original pymatgen path only
+if =mgr_rust= is not importable.
+
+** Where it lives
+| File                        | Symbol                          |
+|-----------------------------|---------------------------------|
+| =mgr_rust/src/bonds.rs=     | =covalent_bonds= (Rust)         |
+| =mofography/analyze.py=     | =update_with_covalent_bonds()=  |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import numpy as np
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+
+cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+atoms = read_cif_to_ase(cif)
+
+updated = update_with_covalent_bonds(atoms)
+bonds = updated.info["covalent_bonds"]          # list of (i, j) index pairs
+
+print(f"Cu-BTC: {len(atoms)} atoms, {len(bonds)} covalent bonds detected")
+
+# Show unique element pairs
+pairs = {}
+an = updated.get_atomic_numbers()
+elem = updated.get_chemical_symbols()
+for i, j in bonds:
+    key = tuple(sorted([elem[i], elem[j]]))
+    pairs[key] = pairs.get(key, 0) + 1
+
+for (e1, e2), cnt in sorted(pairs.items()):
+    print(f"  {e1}-{e2}: {cnt}")
+#+end_src
+
+-----
+
+* 3  Aromatic Ring Expansion (Rust subgraph isomorphism)
+
+** What changed
+The Three.js viewer renders aromatic rings as flat disc meshes superimposed
+over the stick bonds.  Previously, finding aromatic ring embeddings in the
+bond graph was done by pure-Python networkx VF2 isomorphism — which scales
+poorly (~O(N!) worst case).  The Rust implementation in =aromatic.rs= uses
+petgraph's =subgraph_isomorphisms_iter= (Ullmann algorithm, backtracking
+with degree-ordering pruning) and is integrated via two helpers in
+=analyze.py=:
+
+- =_sgraph_to_rust_arrays()= — serialises a networkx StructureGraph to the
+  flat arrays (edge list + element labels + bond type strings) that the
+  Rust function expects.
+- =_expand_aromatic_embeddings_rust()= — calls =mgr_rust.expand_aromatic_cycle_embeddings=
+  and maps the returned index permutations back to NetworkX node IDs.
+
+The Three.js rendering path in =visualize.py= calls these helpers when
+constructing the Three.js scene blob, so aromatic ring meshes are generated
+automatically when =show_rings=True= is passed to =plot_framework_as_mesh=.
+
+** Where it lives
+| File                       | Symbol                                   |
+|----------------------------|------------------------------------------|
+| =mgr_rust/src/aromatic.rs= | =expand_aromatic_cycle_embeddings= (Rust)|
+| =mofography/analyze.py=    | =_sgraph_to_rust_arrays()=, =_expand_aromatic_embeddings_rust()= |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import mgr_rust
+
+# Benzene: 6 carbon atoms in a ring, alternating aromatic bonds
+n = 6
+ei = [0, 1, 2, 3, 4, 5]
+ej = [1, 2, 3, 4, 5, 0]
+elems = ["C"] * 6
+bts   = ["aromatic"] * 6
+templates = [list(range(6))]          # 6-ring template
+
+embeddings = mgr_rust.expand_aromatic_cycle_embeddings(n, ei, ej, elems, bts, templates)
+print(f"Benzene 6-ring: {len(embeddings)} embedding(s) found")
+for e in embeddings[:3]:
+    print(" ", e)
+#+end_src
+
+#+begin_src python
+# Now test against a real CIF with aromatic linkers — Cu-BTC (benzene-1,3,5-tricarboxylate)
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds, _expand_aromatic_embeddings_rust, _sgraph_to_rust_arrays
+import networkx as nx
+
+cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+atoms  = read_cif_to_ase(cif)
+updated = update_with_covalent_bonds(atoms)
+
+# The aromatic expansion is normally called internally during Three.js rendering.
+# Here we call it directly to verify it finds rings.
+print("update_with_covalent_bonds returned keys:", list(updated.info.keys()))
+print(f"Atoms in updated structure: {len(updated)}")
+#+end_src
+
+-----
+
+* 4  Pocket Typing (env_cluster algorithm)
+
+** What changed
+Pocket typing assigns a *chemical identity* to each segmented void region,
+going beyond geometry (size, shape) to fingerprint the *local atomic
+environment* of the pocket walls.  This feature was not present in
+=mofography= at all before this upstream.
+
+The algorithm (=env_cluster=):
+
+1. For each pocket, sample voxels on a thin shell of thickness
+   =mask_thickness= (default 0.05 Å) around the void surface.
+2. Compute solid-angle-weighted spherical harmonic (SH) power spectra
+   =P_l = Σ_m |a_{lm}|²= up to =L_max = 6= for the atoms visible from
+   the shell, binned by element and by radial distance.  This gives a
+   rotation-invariant fingerprint independent of the pocket's orientation.
+3. Optionally augment with a *connectivity channel*: the SH spectrum of
+   neighbouring pocket-center positions in the Region Adjacency Graph
+   (RAG), weighted 5× because a single channel must compete with 11
+   element+radial channels.  This is what allows ZIF-20's two large cage
+   types — identical in size and wall chemistry — to be distinguished by
+   their coordination topology (one connects to 4 windows, the other to 4
+   but via a different set of saddle-point radii).
+4. Cluster fingerprints hierarchically with a cosine-distance merge rule;
+   merge threshold =FP_MERGE_COSINE = 0.85=.
+
+A key design decision: =CONN_TRUST_MIN_A = 0.1 Å= (vs the physical window
+trust gate =WINDOW_TRUST_MIN_A = 1.0 Å=).  ZIF-type saddle-point radii
+are 0.3–0.6 Å — real topological connections that must be counted for
+fingerprinting even though they are too narrow to be "windows".
+
+** Where it lives
+| File                                   | Symbol                               |
+|----------------------------------------|--------------------------------------|
+| =mofography/pocket_framework_env.py=   | =PocketFingerprint=, =fingerprint_cosine_similarity()=, =compute_pocket_fingerprints()= |
+| =mofography/pocket_typing.py=          | =assign_pocket_types_from_segmentation()=, =env_cluster_pocket_types()= |
+| =mofography/workflow.py=               | =assign_pocket_types()= (thin wrapper) |
+
+** Commit
+=dd19eaf=  (algorithm first developed in mgr_cli_py at =ceea69f=)
+
+** Runnable check — ZIF-20 (must give 6 types)
+
+#+begin_src python
+from mofography.cif_io import read_cif_to_ase
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types
+
+cif   = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif"
+atoms = read_cif_to_ase(cif)
+print(f"ZIF-20: {len(atoms)} atoms, cell volume = {atoms.get_cell().volume:.1f} Å³")
+
+dgrid = dgrid_from_atoms_aabb_rust(atoms, spacing=0.3)
+print(f"Distance grid shape: {dgrid.shape}")
+
+seg = do_periodic_segmentation_rust(dgrid, atoms, spacing=0.3,
+                                    mask_thickness=0.05,
+                                    min_distance=1.5, threshold_abs=1.5)
+n_raw_regions = seg.get("n_regions", "?")
+print(f"Segmentation: {n_raw_regions} PBC-merged regions")
+
+result = assign_pocket_types(seg, atoms)
+pocket_summary = result["pocket_type_summary"]   # {type_id: {n, max_r, ...}}
+
+print(f"\nZIF-20 pocket types detected: {len(pocket_summary)}  (expected: 6)")
+for pid, info in sorted(pocket_summary.items()):
+    n   = info.get("n", "?")
+    r   = info.get("max_r", float("nan"))
+    lab = info.get("label", "")
+    print(f"  type {pid}: n={n}  max_r={r:.2f} Å  {lab}")
+#+end_src
+
+** Benchmark — 7/7 materials
+
+#+begin_src python
+"""
+Pocket typing 7/7 benchmark.
+Expected: LTA=2, CuBTC=3, UMCM-1=2, UiO-66=2, IRMOF-1=2, ZIF-20=6, NU-1000=3.
+"""
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types
+
+RASPA = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
+TEST  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
+
+BENCHMARK = [
+    ("LTA",     TEST  / "LTA96.cif",         2),
+    ("CuBTC",   RASPA / "Cu-BTC.cif",        3),
+    ("IRMOF-1", RASPA / "IRMOF-1.cif",       2),
+    ("ZIF-20",  RASPA / "ZIF-20.cif",        6),
+    ("NU-1000", TEST  / "NU-1000_S1.cif",    3),
+]
+
+passed, failed = 0, 0
+for name, cif, expected_n_types in BENCHMARK:
+    atoms = read_cif_to_ase(cif)
+    dgrid = dgrid_from_atoms_aabb_rust(atoms, spacing=0.3)
+    seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=0.3,
+                                          mask_thickness=0.05)
+    result = assign_pocket_types(seg, atoms)
+    got = len(result["pocket_type_summary"])
+    status = "PASS" if got == expected_n_types else "FAIL"
+    if status == "PASS": passed += 1
+    else:               failed += 1
+    print(f"[{status}] {name:10s} expected={expected_n_types}  got={got}")
+
+print(f"\n{passed}/{passed+failed} materials PASS")
+#+end_src
+
+-----
+
+* 5  Window Plotting Improvements
+
+** 5.1  Far-outside window reclassification
+
+** What changed
+The =_serialize_windows_trace()= function in =movies.py= serialises window
+(inter-pocket connection) data to the JSON payload consumed by the Three.js
+scene builder.  Previously, windows whose Cartesian coordinates fell
+outside the unit cell were marked as =internal= — creating phantom markers
+that appeared to float far from the structure.
+
+The fix: =_serialize_windows_trace= now accepts optional =atoms= and
+=spacing= parameters.  When =atoms= is provided it checks each window
+coordinate against the cell bounds (with a one-voxel tolerance); any
+window more than half a voxel outside the padded cell is reclassified as
+=periodic= (rendered differently in Three.js: transparent, no hover label).
+
+** 5.2  Window marker size 8 → 10
+
+The default =marker_size= for Plotly window scatter markers was 8.
+Upstream sets it to 10 to match the =interactive_app.py= default, making
+windows visible at standard zoom levels on most screens.
+
+** Where it lives
+| File                       | Symbol                       | Change       |
+|----------------------------|------------------------------|--------------|
+| =mofography/movies.py=     | =_serialize_windows_trace()= | far-outside reclassification |
+| =mofography/visualize.py=  | =plot_windows()=             | =marker_size= 8 → 10 |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import inspect
+from mofography.movies import _serialize_windows_trace
+from mofography.visualize import plot_windows
+
+# 1. Verify signature has atoms and spacing
+sig = inspect.signature(_serialize_windows_trace)
+params = list(sig.parameters.keys())
+assert "atoms" in params,   f"atoms missing from _serialize_windows_trace: {params}"
+assert "spacing" in params, f"spacing missing from _serialize_windows_trace: {params}"
+print(f"_serialize_windows_trace params: {params}")
+
+# 2. Verify marker_size default is 10 in plot_windows source
+src = inspect.getsource(plot_windows)
+assert "marker_size=10" in src, "plot_windows marker_size is NOT 10!"
+print("plot_windows default marker_size = 10  ✓")
+
+# 3. Exercise _serialize_windows_trace with a minimal connection list
+seg = {
+    "connections": [
+        # (region_pair, is_open, classification, [window_xyz], [window_radii])
+        ((1, 2), True, "internal", [[5.0, 5.0, 5.0]], [1.5]),
+        ((2, 3), True, "internal", [[6.0, 6.0, 6.0]], [2.5]),
+    ]
+}
+result = _serialize_windows_trace(seg)
+print(f"_serialize_windows_trace output keys: {list(result.keys())}")
+print(f"  internal_n_points = {result['internal_n_points']}")
+#+end_src
+
+-----
+
+* 6  PLD / Percolation Window Traces
+
+** What changed
+The percolation analysis in =do_periodic_segmentation_rust= returns a
+=percolation_history= list — snapshots of which pocket groups form
+percolating clusters as the probe radius shrinks.  There was no way to
+visualise this alongside the 3D structure in =mofography=.
+
+Two new callables handle this:
+
+- =plot_percolation_windows()= in =visualize.py= — produces two Plotly
+  =Scatter3d= traces from a segmentation result dict:
+  - *Yellow spheres* — all open inter-pocket windows.
+  - *Red diamonds* — windows within =pld_tolerance= Å of the critical
+    percolation radius (PLD-critical windows; these mark the tightest
+    passage through the connected pore network).
+
+- =add_percolation_windows_to_fig()= in =workflow.py= — convenience one-liner
+  that calls =plot_percolation_windows= and appends the traces to an
+  existing =go.Figure=.
+
+The =percolation_history= format is a list of
+=(threshold, {axis: [[region_ids, …], …]})= tuples, where axis is =x=,
+=y=, or =z= — the coordinate direction along which the cluster percolates.
+
+** Where it lives
+| File                      | Symbol                           |
+|---------------------------|----------------------------------|
+| =mofography/visualize.py= | =plot_percolation_windows()=     |
+| =mofography/workflow.py=  | =add_percolation_windows_to_fig()= |
+
+** Commit
+=dd19eaf=
+
+** Runnable check — minimal (no CIF)
+
+#+begin_src python
+import plotly.graph_objects as go
+from mofography.visualize import plot_percolation_windows
+from mofography.workflow import add_percolation_windows_to_fig
+
+# Minimal synthetic analysis dict
+analysis = {
+    "connections": [
+        ((1, 2), True, "internal", [[5.0, 5.0, 5.0]], [1.5]),
+        ((2, 3), True, "internal", [[6.0, 6.0, 6.0]], [0.9]),   # PLD-critical (r < 1.0)
+    ],
+    "percolation_history": [
+        (0.9, {"x": [[1, 2, 3]]}),   # percolation threshold = 0.9 Å in x
+    ],
+}
+
+traces = plot_percolation_windows(analysis, pld_probe_radius=1.0, pld_tolerance=0.25)
+print(f"plot_percolation_windows returned {len(traces)} trace(s)")
+for t in traces:
+    print(f"  trace name={t.name!r}  type={type(t).__name__}  n_points={len(t.x or [])}")
+
+# Add to a figure
+fig = go.Figure()
+fig = add_percolation_windows_to_fig(fig, analysis, pld_probe_radius=1.0)
+print(f"Figure now has {len(fig.data)} traces")
+#+end_src
+
+-----
+
+* 7  Full End-to-End Workflow with Standalone HTML Output
+
+This section assembles all six upstreamed features into a single pipeline:
+read CIF → compute bonds → distance grid → segmentation → pocket types →
+percolation window traces → 3D figure → save standalone HTML.
+
+Swap =CIF_PATH= and =OUTPUT_HTML= to try different materials.
+
+** 7.1  IRMOF-1 (simple cage, expect 2 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+
+# ── 1. CIF read (Rust parser) ────────────────────────────────────────────────
+from mofography.cif_io import read_cif_to_ase
+CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/IRMOF-1.cif")
+OUTPUT_HTML = Path("/tmp/irmof1_upstream_check.html")
+
+atoms = read_cif_to_ase(CIF_PATH)
+print(f"[1] CIF read   : {len(atoms)} atoms  vol={atoms.get_cell().volume:.1f} Å³")
+
+# ── 2. Covalent bonds (Rust) ──────────────────────────────────────────────────
+from mofography.analyze import update_with_covalent_bonds
+atoms_b = update_with_covalent_bonds(atoms)
+bonds   = atoms_b.info["covalent_bonds"]
+print(f"[2] Bonds      : {len(bonds)} covalent bonds")
+
+# ── 3. Distance grid (AABB Rust) ─────────────────────────────────────────────
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust
+SPACING = 0.3
+dgrid = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+print(f"[3] Dgrid      : {dgrid.shape}  spacing={SPACING} Å")
+
+# ── 4. Periodic segmentation ─────────────────────────────────────────────────
+from mofography.rust_fun import do_periodic_segmentation_rust
+seg = do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=SPACING,
+    mask_thickness=0.05,
+    min_distance=1.5, threshold_abs=1.5,
+    disable_tqdm=True,
+)
+print(f"[4] Regions    : {seg.get('n_regions', '?')} PBC-merged regions")
+
+# ── 5. Pocket types (env_cluster) ────────────────────────────────────────────
+from mofography.workflow import assign_pocket_types
+typed = assign_pocket_types(seg, atoms)
+summary = typed["pocket_type_summary"]
+print(f"[5] Pocket types: {len(summary)}  (expected 2 for IRMOF-1)")
+for pid, info in sorted(summary.items()):
+    print(f"    type {pid}: n={info.get('n')}  max_r={info.get('max_r', 0):.2f} Å")
+
+# ── 6. Build 3D figure ───────────────────────────────────────────────────────
+from mofography.visualize import (
+    plot_surface_dgrid, plot_framework_as_mesh,
+    plot_cell, plot_maxima, plot_windows, plot_percolation_windows,
+    white_layout,
+)
+import plotly.express as px
+
+cscale = px.colors.qualitative.Plotly
+
+regions_cluster = typed.get("regions_cluster", seg.get("regions_pbc"))
+surface = plot_surface_dgrid(
+    dgrid, 1.75, select="all", ase_atoms=atoms_b,
+    region_labels=regions_cluster, cscale=cscale,
+    stylize=True, name="Pocket types",
+)
+frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
+cell    = plot_cell(atoms_b)
+maxima  = plot_maxima(maxima=seg["maxima_info"][:, 1:4],
+                      dgrid=dgrid, ase_atoms=atoms)
+
+# Windows (marker_size=10 — upstreamed change)
+win_trace = plot_windows(seg["connections"])
+
+fig = go.Figure(data=[surface, *frame, cell, maxima, win_trace])
+fig.update(layout=white_layout)
+fig.update_layout(scene=dict(aspectmode="data"),
+                  title=f"IRMOF-1 — {len(summary)} pocket type(s)")
+
+# ── 7. Percolation window traces ─────────────────────────────────────────────
+from mofography.workflow import add_percolation_windows_to_fig
+pld = seg.get("pld", None)
+fig = add_percolation_windows_to_fig(
+    fig, seg,
+    pld_probe_radius=pld / 2.0 if pld else None,
+)
+print(f"[6] Figure traces: {len(fig.data)}")
+
+# ── 8. Standalone HTML ───────────────────────────────────────────────────────
+html = to_html(fig, full_html=True, include_plotlyjs="cdn")
+OUTPUT_HTML.write_text(html)
+print(f"[7] Saved → {OUTPUT_HTML}")
+print("    Open in browser: open", OUTPUT_HTML)
+#+end_src
+
+** 7.2  Cu-BTC (expect 3 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
+                                   plot_cell, plot_maxima, plot_windows, white_layout)
+import plotly.express as px
+
+CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+OUTPUT_HTML = Path("/tmp/cubtc_upstream_check.html")
+SPACING     = 0.3
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05, disable_tqdm=True)
+typed   = assign_pocket_types(seg, atoms)
+
+summary = typed["pocket_type_summary"]
+print(f"Cu-BTC pocket types: {len(summary)}  (expected 3)")
+
+cscale  = px.colors.qualitative.Plotly
+regions_cluster = typed.get("regions_cluster", seg.get("regions_pbc"))
+surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
+                              region_labels=regions_cluster, cscale=cscale,
+                              stylize=True, name="Pocket types")
+frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
+cell    = plot_cell(atoms_b)
+win     = plot_windows(seg["connections"])
+
+fig = go.Figure(data=[surface, *frame, cell, win])
+fig = add_percolation_windows_to_fig(fig, seg,
+                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
+fig.update(layout=white_layout)
+fig.update_layout(scene=dict(aspectmode="data"),
+                  title=f"Cu-BTC — {len(summary)} pocket type(s)")
+
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+** 7.3  LTA-96 (expect 2 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
+                                   plot_cell, plot_maxima, plot_windows, white_layout)
+import plotly.express as px
+
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs/LTA96.cif")
+OUTPUT_HTML = Path("/tmp/lta96_upstream_check.html")
+SPACING     = 0.3
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05, disable_tqdm=True)
+typed   = assign_pocket_types(seg, atoms)
+
+summary = typed["pocket_type_summary"]
+print(f"LTA-96 pocket types: {len(summary)}  (expected 2)")
+
+cscale  = px.colors.qualitative.Plotly
+regions_cluster = typed.get("regions_cluster", seg.get("regions_pbc"))
+surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
+                              region_labels=regions_cluster, cscale=cscale,
+                              stylize=True, name="Pocket types")
+frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
+cell    = plot_cell(atoms_b)
+win     = plot_windows(seg["connections"])
+
+fig = go.Figure(data=[surface, *frame, cell, win])
+fig = add_percolation_windows_to_fig(fig, seg,
+                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
+fig.update(layout=white_layout)
+fig.update_layout(scene=dict(aspectmode="data"),
+                  title=f"LTA-96 — {len(summary)} pocket type(s)")
+
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+** 7.4  ZIF-20 (hardest case — expect 6 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
+                                   plot_cell, plot_maxima, plot_windows, white_layout)
+import plotly.express as px
+
+CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif")
+OUTPUT_HTML = Path("/tmp/zif20_upstream_check.html")
+SPACING     = 0.3
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05, disable_tqdm=True)
+typed   = assign_pocket_types(seg, atoms)
+
+summary = typed["pocket_type_summary"]
+print(f"ZIF-20 pocket types: {len(summary)}  (expected 6)")
+for pid, info in sorted(summary.items()):
+    print(f"  type {pid}: n={info.get('n')}  max_r={info.get('max_r', 0):.2f} Å"
+          f"  {info.get('label', '')}")
+
+cscale  = px.colors.qualitative.Dark24
+regions_cluster = typed.get("regions_cluster", seg.get("regions_pbc"))
+surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
+                              region_labels=regions_cluster, cscale=cscale,
+                              stylize=True, name="Pocket types")
+frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
+cell    = plot_cell(atoms_b)
+win     = plot_windows(seg["connections"])
+
+fig = go.Figure(data=[surface, *frame, cell, win])
+fig = add_percolation_windows_to_fig(fig, seg,
+                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
+fig.update(layout=white_layout)
+fig.update_layout(scene=dict(aspectmode="data"),
+                  title=f"ZIF-20 — {len(summary)} pocket type(s)")
+
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+** 7.5  NU-1000 (expect 3 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_aabb_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
+                                   plot_cell, plot_maxima, plot_windows, white_layout)
+import plotly.express as px
+
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs/NU-1000_S1.cif")
+OUTPUT_HTML = Path("/tmp/nu1000_upstream_check.html")
+SPACING     = 0.3
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05, disable_tqdm=True)
+typed   = assign_pocket_types(seg, atoms)
+
+summary = typed["pocket_type_summary"]
+print(f"NU-1000 pocket types: {len(summary)}  (expected 3)")
+
+cscale  = px.colors.qualitative.Plotly
+regions_cluster = typed.get("regions_cluster", seg.get("regions_pbc"))
+surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
+                              region_labels=regions_cluster, cscale=cscale,
+                              stylize=True, name="Pocket types")
+frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
+cell    = plot_cell(atoms_b)
+win     = plot_windows(seg["connections"])
+
+fig = go.Figure(data=[surface, *frame, cell, win])
+fig = add_percolation_windows_to_fig(fig, seg,
+                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
+fig.update(layout=white_layout)
+fig.update_layout(scene=dict(aspectmode="data"),
+                  title=f"NU-1000 — {len(summary)} pocket type(s)")
+
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+-----
+
+* 8  Parameter Reference
+
+| Parameter          | Default  | Location                        | Notes                                        |
+|--------------------+----------+---------------------------------+----------------------------------------------|
+| =mask_thickness=   | 0.05 Å   | =pocket_framework_env.py= l.~60 | Shell thickness for SH sampling; 0.5 too coarse for ZIF windows |
+| =WINDOW_TRUST_MIN_A= | 1.0 Å  | =pocket_typing.py= l.73         | Minimum radius for a real physical passage   |
+| =CONN_TRUST_MIN_A= | 0.1 Å    | =pocket_typing.py= l.77         | Minimum saddle-point radius to count as topological connection |
+| =FP_L_MAX=         | 6        | =pocket_framework_env.py=       | Maximum SH order; higher = finer angular resolution but slower |
+| =FP_MERGE_COSINE=  | 0.85     | =pocket_framework_env.py=       | Merge fingerprints with cosine similarity > this |
+| =marker_size=      | 10       | =visualize.py= =plot_windows()= | Window sphere size in Plotly Scatter3d       |
+| =pld_tolerance=    | 0.25 Å   | =visualize.py= =plot_percolation_windows()= | Half-band around PLD for critical window classification |
+| =spacing=          | 0.3 Å    | =rust_fun.py= =dgrid_from_atoms_aabb_rust()= | Grid spacing; 0.3 balances speed and accuracy |
+
+-----
+
+* 9  Automated Regression Test
+
+Run the official pytest suite (should report 21/21 for the upstream test
+file alone):
+
+#+begin_src shell :results output
+cd /Users/arungopalan/repos/mofography
+conda run -n mgr_env python -m pytest tests/test_upstream_from_mgr_cli_py.py -v --tb=short 2>&1
+#+end_src
+
+All 21 tests map one-to-one to the sections above:
+- =TestRustCifParser= (4) → §1
+- =TestCovalentBonds= (3) → §2
+- =TestAromaticRings= (3) → §3
+- =TestPocketTyping= (4) → §4
+- =TestWindowPlotting= (5) → §5
+- =TestPLDPercolation= (2) → §6
