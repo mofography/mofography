@@ -131,7 +131,7 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
         "opacity": 1.0,
         "roughness": 0.38,
         "metalness": 0.0,
-        "side": "DoubleSide",
+        "side": "FrontSide",
     },
     "guests": {
         "color": [1.0, 0.41, 0.71],
@@ -147,7 +147,7 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
         "opacity": 1.0,
         "roughness": 0.15,
         "metalness": 0.05,
-        "side": "FrontSide",
+        "side": "DoubleSide",
         "clearcoat": 0.8,
         "clearcoatRoughness": 0.05,
     },
@@ -157,19 +157,19 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 2.5,
+        "size": 5.0,
     },
     "periodic_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 2.5,
+        "size": 5.0,
     },
     "internal_windows": {
         "color": 0xFFE600,
-        "size": 2.5,
+        "size": 5.0,
     },
     "periodic_windows": {
         "color": 0xFFE600,
-        "size": 2.5,
+        "size": 5.0,
     },
     "internal_connections": {
         "color": 0xFF0000,
@@ -183,18 +183,28 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_nodes": {
         "color": 0x66CCFF,
-        "size": 2.5,
+        "size": 5.0,
     },
     "periodic_nodes": {
         "color": 0xFF9966,
-        "size": 1.10,
+        "size": 2.20,
     },
     "aromatic_rings": {
         "color": 0xFFFFFF,
-        "linewidth": 2,
+        "linewidth": 4,
     },
     "aromatic_highlights": {
-        "color": [0.12, 0.44, 0.85],
+        "color": [0.20, 0.55, 0.95],
+        "opacity": 0.3,
+        "roughness": 0.5,
+        "side": "DoubleSide",
+    },
+    "instanced_ring_outlines": {
+        "color": 0xFFFFFF,
+        "opacity": 1.0,
+    },
+    "instanced_ring_fills": {
+        "color": [0.20, 0.55, 0.95],
         "opacity": 0.3,
         "roughness": 0.5,
         "side": "DoubleSide",
@@ -1332,41 +1342,418 @@ def make_surface_trace(
         visible=True,
     )
 
+def make_framework_scatter_trace(
+    atoms,
+    bonds="auto",
+    style=None,
+    name: str = "Framework",
+    trace_id: str = "framework",
+    atom_scale: float = 0.65,
+    bond_color=None,
+    bond_linewidth: float = 8.0,
+    depth_test: bool = True,
+):
+    """Framework as scatter points + line segments (fast, no mesh geometry).
+
+    Returns {"atoms": trace, "bonds": trace} — suitable for MovieFigure.add_trace().
+    When *depth_test* is False the framework is always rendered on top.
+    """
+    from ase.data import covalent_radii as _cr
+    from ase.data.colors import cpk_colors
+    from ase.data import atomic_masses as atomic_masses_table
+    from ase.neighborlist import natural_cutoffs, neighbor_list
+
+    if style is None:
+        style = "framework"
+
+    # Resolve bonds
+    if bonds == "auto":
+        if "covalent_bonds" in atoms.info and atoms.info["covalent_bonds"]:
+            bond_list = atoms.info["covalent_bonds"]
+        else:
+            cutoffs = np.asarray(natural_cutoffs(atoms, mult=1.05), dtype=float)
+            i_idx, j_idx = neighbor_list("ij", atoms, cutoffs, self_interaction=False)
+            seen: set = set()
+            bond_list = []
+            for i, j in zip(i_idx.tolist(), j_idx.tolist()):
+                x, y = min(int(i), int(j)), max(int(i), int(j))
+                if x == y or (x, y) in seen:
+                    continue
+                seen.add((x, y))
+                bond_list.append([x, y])
+            atoms.info["covalent_bonds"] = bond_list
+    elif bonds is None:
+        bond_list = []
+    else:
+        bond_list = list(bonds)
+
+    n_atoms = int(len(atoms))
+    atomic_numbers = atoms.get_atomic_numbers()
+    symbols = atoms.get_chemical_symbols()
+    positions = atoms.get_positions()
+    masses = np.asarray([atomic_masses_table[an] for an in atomic_numbers])
+
+    atom_colors_rgb = np.array([cpk_colors[an] for an in atomic_numbers], dtype=float)
+    radii = _cr[atomic_numbers] * atom_scale
+    sizes = (radii * 14.0).tolist()
+    hover = [
+        f"Id: {i}\nElement: {s}\nMass: {m:.3f}\nPosition: {p[0]:.4f} {p[1]:.4f} {p[2]:.4f}"
+        for i, (s, m, p) in enumerate(zip(symbols, masses.tolist(), positions.tolist()))
+    ]
+    atom_trace = _make_trace(
+        trace_id=f"{trace_id}_atoms",
+        trace_type="points",
+        name=f"{name} (atoms)",
+        data={
+            "positions": positions.reshape(-1).tolist(),
+            "colors": atom_colors_rgb.reshape(-1).tolist(),
+            "sizes": sizes,
+            "n_points": n_atoms,
+        },
+        style={"color": [0.7, 0.7, 0.7], "size": float(max(sizes)) if sizes else 2.5,
+               "depthTest": depth_test, "opacity": 0.95},
+        hover=hover,
+        visible=True,
+    )
+
+    _bond_color = bond_color if bond_color is not None else [0.5, 0.5, 0.5]
+    if bond_list:
+        bond_positions_flat: list = []
+        for a_idx, b_idx in bond_list:
+            if a_idx < n_atoms and b_idx < n_atoms:
+                pa, pb = positions[a_idx], positions[b_idx]
+                bond_positions_flat.extend([float(pa[0]), float(pa[1]), float(pa[2])])
+                bond_positions_flat.extend([float(pb[0]), float(pb[1]), float(pb[2])])
+        n_bond_segments = len(bond_list)
+    else:
+        bond_positions_flat, n_bond_segments = [], 0
+
+    bond_hex = (int(round(_bond_color[0]*255))<<16) | (int(round(_bond_color[1]*255))<<8) | int(round(_bond_color[2]*255))
+    bond_trace = _make_trace(
+        trace_id=f"{trace_id}_bonds",
+        trace_type="line_segments",
+        name=f"{name} (bonds)",
+        data={"positions": bond_positions_flat, "n_segments": n_bond_segments},
+        style={"color": bond_hex, "linewidth": bond_linewidth, "depthTest": depth_test},
+        hover=None,
+        visible=True,
+    )
+    return {"atoms": atom_trace, "bonds": bond_trace}
+
+
+def make_framework_instanced_trace(
+    atoms,
+    bonds="auto",
+    style=None,
+    name: str = "Framework",
+    trace_id: str = "framework",
+    atom_scale: float = 0.65,
+    bond_color=None,
+    representation: str = "ball_and_stick",
+):
+    """Framework as InstancedMesh spheres + cylinder mesh bonds.
+
+    Sends compact atom data for instanced spheres; browser builds sphere geometry.
+    representation: "ball_and_stick" (default) or "stick" (two-tone CPK bonds).
+    """
+    from ase.data import covalent_radii as _cr
+    from ase.data.colors import cpk_colors
+    from ase.data import atomic_masses as atomic_masses_table
+    from ase.neighborlist import natural_cutoffs, neighbor_list
+
+    if style is None:
+        style = "framework"
+
+    if bonds == "auto":
+        if "covalent_bonds" in atoms.info and atoms.info["covalent_bonds"]:
+            bond_list = atoms.info["covalent_bonds"]
+        else:
+            cutoffs = np.asarray(natural_cutoffs(atoms, mult=1.05), dtype=float)
+            i_idx, j_idx = neighbor_list("ij", atoms, cutoffs, self_interaction=False)
+            seen: set = set()
+            bond_list = []
+            for i, j in zip(i_idx.tolist(), j_idx.tolist()):
+                x, y = min(int(i), int(j)), max(int(i), int(j))
+                if x == y or (x, y) in seen:
+                    continue
+                seen.add((x, y))
+                bond_list.append([x, y])
+            atoms.info["covalent_bonds"] = bond_list
+    elif bonds is None:
+        bond_list = []
+    else:
+        bond_list = list(bonds)
+
+    n_atoms = int(len(atoms))
+    atomic_numbers = atoms.get_atomic_numbers()
+    symbols = atoms.get_chemical_symbols()
+    positions = atoms.get_positions()
+    atom_colors = np.array([cpk_colors[an] for an in atomic_numbers], dtype=float)
+    radii = _cr[atomic_numbers] * atom_scale
+    masses = np.asarray([atomic_masses_table[an] for an in atomic_numbers])
+
+    atom_hover = [
+        f"Id: {i}\nElement: {s}\nMass: {m:.3f}\nPosition: {p[0]:.4f} {p[1]:.4f} {p[2]:.4f}"
+        for i, (s, m, p) in enumerate(zip(symbols, masses.tolist(), positions.tolist()))
+    ]
+    atom_trace = _make_trace(
+        trace_id=f"{trace_id}_atoms",
+        trace_type="instanced_spheres",
+        name=f"{name} (atoms)",
+        data={
+            "positions": positions.reshape(-1).tolist(),
+            "symbols": list(symbols),
+            "colors": atom_colors.reshape(-1).tolist(),
+            "radii": radii.astype(float).tolist(),
+            "n_atoms": n_atoms,
+        },
+        style=style,
+        hover=atom_hover,
+        visible=True,
+    )
+
+    cyl_radius = 0.08 if representation == "stick" else 0.15
+    atom_radii_vals = _cr[atomic_numbers] * (0.15 if representation == "stick" else atom_scale)
+    if bond_list:
+        bond_starts: list = []; bond_ends: list = []
+        bond_colors_l: list = []; bond_hover: list = []
+        for a_idx, b_idx in bond_list:
+            if a_idx >= n_atoms or b_idx >= n_atoms:
+                continue
+            pa, pb = positions[a_idx], positions[b_idx]
+            d = pb - pa; length = float(np.linalg.norm(d))
+            if length < 1e-8:
+                continue
+            unit_d = d / length
+            start = pa + unit_d * atom_radii_vals[a_idx] * 0.98
+            end = pb - unit_d * atom_radii_vals[b_idx] * 0.98
+            ht = f"Bond: {symbols[a_idx]}({a_idx}) ↔ {symbols[b_idx]}({b_idx})\nLength: {length:.3f} Å"
+            if representation == "stick":
+                mid = (start + end) / 2.0
+                bond_starts.extend(start.tolist()); bond_ends.extend(mid.tolist())
+                bond_colors_l.extend(atom_colors[a_idx].tolist())
+                bond_starts.extend(mid.tolist()); bond_ends.extend(end.tolist())
+                bond_colors_l.extend(atom_colors[b_idx].tolist())
+                bond_hover.extend([ht, ht])
+            else:
+                bond_starts.extend(start.tolist()); bond_ends.extend(end.tolist())
+                bond_colors_l.extend([0.5, 0.5, 0.5])
+                bond_hover.append(ht)
+        n_bonds = len(bond_colors_l) // 3
+    else:
+        bond_starts, bond_ends, bond_colors_l, bond_hover, n_bonds = [], [], [], [], 0
+
+    bond_trace = _make_trace(
+        trace_id=f"{trace_id}_bonds",
+        trace_type="instanced_cylinders",
+        name=f"{name} (bonds)",
+        data={
+            "start_positions": bond_starts,
+            "end_positions": bond_ends,
+            "colors": bond_colors_l,
+            "radius": cyl_radius,
+            "n_bonds": n_bonds,
+        },
+        style=style,
+        hover=bond_hover if bond_hover else None,
+        visible=True,
+    )
+    return {"atoms": atom_trace, "bonds": bond_trace}
+
+
+
+def _aromatic_render_mode() -> str:
+    import os
+    return os.environ.get("MGR_AROMATIC_RENDER", "auto").lower()
+
+
+def _ring_pose_from_positions(ring_pos) -> tuple:
+    """Best-fit plane pose: center, unit normal, mean in-plane radius, inner outline radius."""
+    n = int(len(ring_pos))
+    if n < 3:
+        return None
+    center = ring_pos.mean(axis=0)
+    centered = ring_pos - center
+    normal = np.cross(centered[1] - centered[0], centered[min(2, n - 1)] - centered[0])
+    norm_len = float(np.linalg.norm(normal))
+    if norm_len < 1e-10 and n >= 3:
+        normal = np.cross(centered[2] - centered[0], centered[1] - centered[0])
+        norm_len = float(np.linalg.norm(normal))
+    if norm_len < 1e-10:
+        return None
+    normal = normal / norm_len
+    ring_proj = centered - np.outer(np.dot(centered, normal), normal)
+    radii = np.linalg.norm(ring_proj, axis=1)
+    radius = float(np.mean(radii[radii > 1e-8])) if np.any(radii > 1e-8) else float(np.mean(radii))
+    return center, normal, radius, radius * 0.4
+
+
+def _sorted_ring_vertices(ring_pos, center, normal):
+    from scipy.spatial.transform import Rotation as _Rot
+    centered = ring_pos - center
+    rot, _ = _Rot.align_vectors(normal.reshape(-1, 3), np.array([[0.0, 0.0, 1.0]]))
+    ring_rot = rot.apply(centered)
+    angles = np.arctan2(ring_rot[:, 1], ring_rot[:, 0])
+    return centered[np.argsort(angles)]
+
+
+def _merged_aromatic_highlight_payload(cycles, positions):
+    """Single merged mesh for all ring fills."""
+    all_verts = []
+    all_faces = []
+    for ring in cycles:
+        ring_pos = positions[ring]
+        pose = _ring_pose_from_positions(ring_pos)
+        if pose is None:
+            continue
+        center, normal, _radius, _inner = pose
+        ring_sorted = _sorted_ring_vertices(ring_pos, center, normal)
+        n_sides = len(ring_sorted)
+        verts = np.vstack([ring_sorted + center, center.reshape(1, -1)])
+        faces = np.array([[n_sides, i, (i + 1) % n_sides] for i in range(n_sides)], dtype=int)
+        all_verts.append(verts)
+        all_faces.append(faces)
+    if not all_verts:
+        return {"positions": [], "indices": [], "n_vertices": 0, "n_triangles": 0}
+    v_offsets = np.cumsum([0] + [len(v) for v in all_verts[:-1]])
+    merged_verts = np.vstack(all_verts)
+    merged_faces = np.vstack([f + off for f, off in zip(all_faces, v_offsets)])
+    return {
+        "positions": merged_verts.reshape(-1).tolist(),
+        "indices": merged_faces.reshape(-1).tolist(),
+        "n_vertices": int(len(merged_verts)),
+        "n_triangles": int(len(merged_faces)),
+    }
+
+
+def _make_aromatic_rings_instanced_trace(
+    cycles,
+    positions,
+    *,
+    style_circles,
+    style_highlights,
+    n_template_segments: int = 16,
+):
+    centers_l = []; normals_l = []; inner_l = []
+    pent_centers = []; pent_normals = []; pent_scales = []
+    hex_centers = []; hex_normals = []; hex_scales = []
+    for ring in cycles:
+        ring_pos = positions[ring]
+        pose = _ring_pose_from_positions(ring_pos)
+        if pose is None:
+            continue
+        center, normal, radius, inner = pose
+        centers_l.extend(center.tolist())
+        normals_l.extend(normal.tolist())
+        inner_l.append(float(inner))
+        n_sides = len(ring)
+        if n_sides == 5:
+            pent_centers.extend(center.tolist()); pent_normals.extend(normal.tolist()); pent_scales.append(float(radius))
+        elif n_sides == 6:
+            hex_centers.extend(center.tolist()); hex_normals.extend(normal.tolist()); hex_scales.append(float(radius))
+    n_rings = len(inner_l)
+    outlines = _make_trace(
+        "aromatic_rings", "instanced_ring_outlines", "Aromatic rings",
+        {"centers": centers_l, "normals": normals_l, "inner_radii": inner_l,
+         "n_rings": n_rings, "radial_segments": int(n_template_segments)},
+        style=style_circles if style_circles else "instanced_ring_outlines",
+    )
+    fills_hex = None; fills_pent = None
+    if hex_scales:
+        fills_hex = _make_trace(
+            "aromatic_highlights_hex", "instanced_ring_fills", "Aromatic highlights (hex)",
+            {"sides": 6, "centers": hex_centers, "normals": hex_normals,
+             "scales": hex_scales, "n_instances": len(hex_scales)},
+            style=style_highlights if style_highlights else "instanced_ring_fills",
+        )
+    if pent_scales:
+        fills_pent = _make_trace(
+            "aromatic_highlights_pent", "instanced_ring_fills", "Aromatic highlights (pent)",
+            {"sides": 5, "centers": pent_centers, "normals": pent_normals,
+             "scales": pent_scales, "n_instances": len(pent_scales)},
+            style=style_highlights if style_highlights else "instanced_ring_fills",
+        )
+    if fills_hex is not None:
+        highlights = fills_hex
+    elif fills_pent is not None:
+        highlights = fills_pent
+    else:
+        highlights = _make_trace(
+            "aromatic_highlights", "mesh", "Aromatic highlights",
+            {"positions": [], "indices": [], "n_vertices": 0, "n_triangles": 0},
+            style=style_highlights,
+        )
+    out = {"circles": outlines, "highlights": highlights}
+    if fills_pent is not None: out["fills_pent"] = fills_pent
+    if fills_hex is not None: out["fills_hex"] = fills_hex
+    return out
+
+
+def _make_aromatic_rings_legacy_trace(
+    cycles,
+    positions,
+    *,
+    style_circles,
+    style_highlights,
+    n_circle_points: int,
+):
+    from scipy.spatial.transform import Rotation as _Rot
+    theta = np.linspace(0, 2 * np.pi, n_circle_points, endpoint=False)
+    unit_circle = np.column_stack([np.cos(theta), np.sin(theta), np.zeros_like(theta)])
+    line_positions = []
+    for ring in cycles:
+        ring_pos = positions[ring]
+        pose = _ring_pose_from_positions(ring_pos)
+        if pose is None:
+            continue
+        center, normal, _radius, inner = pose
+        rot, _ = _Rot.align_vectors(normal.reshape(-1, 3), np.array([[0.0, 0.0, 1.0]]))
+        circle_3d = rot.apply(unit_circle * inner) + center
+        for i in range(n_circle_points):
+            j = (i + 1) % n_circle_points
+            line_positions.extend(circle_3d[i].tolist())
+            line_positions.extend(circle_3d[j].tolist())
+    circles_trace = _make_trace(
+        "aromatic_rings", "line_segments", "Aromatic rings",
+        {"positions": line_positions, "n_segments": len(cycles) * n_circle_points},
+        style=style_circles,
+    )
+    payload = _merged_aromatic_highlight_payload(cycles, positions)
+    highlights_trace = _make_trace(
+        "aromatic_highlights", "mesh", "Aromatic highlights",
+        payload, style=style_highlights,
+    )
+    return {"circles": circles_trace, "highlights": highlights_trace}
+
 
 def make_aromatic_rings_trace(
     atoms: Atoms,
-    cycles: list[list[int]] | None = None,
-    style_circles: str | dict | None = "aromatic_rings",
-    style_highlights: str | dict | None = "aromatic_highlights",
+    cycles: list | None = None,
+    style_circles=None,
+    style_highlights=None,
     n_circle_points: int = 72,
-) -> dict[str, dict[str, Any]]:
-    """Build aromatic ring circle outlines (line_segments) + fill discs (mesh).
+    *,
+    use_instanced=None,
+    n_template_segments: int = 16,
+) -> dict:
+    """Build aromatic ring traces (instanced torus/ngon when possible).
 
-    Parameters
-    ----------
-    atoms
-        ASE Atoms with covalent bonds (calls ``update_with_covalent_bonds`` if missing).
-    cycles
-        Precomputed aromatic cycles as list of atom-index lists.  If *None* the
-        function detects them via ``analyze.find_aromatic_cycles_in_sgraph``.
-    style_circles, style_highlights
-        Style name from ``DEFAULT_STYLES`` or a raw style dict.
-    n_circle_points
-        Number of vertices per circle outline and per fill disc polygon.
-
-    Returns
-    -------
-    dict  {"circles": trace_dict, "highlights": trace_dict}
+    Instanced path (5-6 member rings, default): compact instance buffers +
+    shared torus/polygon geometry in the browser.
+    Legacy path: line_segments outlines + merged mesh fills.
     """
-    from .analyze import find_aromatic_cycles_in_sgraph, sgraph_from_atoms
-    from scipy.spatial.transform import Rotation as _Rot
+    from .analyze import compute_aromatic_cycles
 
-    if "covalent_bonds" not in atoms.info:
-        from .analyze import update_with_covalent_bonds
-        atoms = update_with_covalent_bonds(atoms)
+    if style_circles is None:
+        style_circles = "aromatic_rings"
+    if style_highlights is None:
+        style_highlights = "aromatic_highlights"
 
     if cycles is None:
-        cycles = find_aromatic_cycles_in_sgraph(sgraph_from_atoms(atoms))
+        try:
+            cycles = compute_aromatic_cycles(atoms)
+        except Exception:
+            cycles = []
 
     if not cycles:
         empty_circles = _make_trace("aromatic_rings", "line_segments", "Aromatic rings",
@@ -1377,84 +1764,28 @@ def make_aromatic_rings_trace(
         return {"circles": empty_circles, "highlights": empty_highlights}
 
     positions = atoms.get_positions()
-    theta = np.linspace(0, 2 * np.pi, n_circle_points, endpoint=False)
-    unit_circle = np.column_stack([np.cos(theta), np.sin(theta), np.zeros_like(theta)])
+    if use_instanced is None:
+        mode = _aromatic_render_mode()
+        if mode == "legacy":
+            use_instanced = False
+        elif mode == "instanced":
+            use_instanced = True
+        else:
+            use_instanced = all(5 <= len(r) <= 6 for r in cycles)
 
-    line_positions: list[float] = []
-    all_verts: list[np.ndarray] = []
-    all_faces: list[np.ndarray] = []
-
-    for ring in cycles:
-        ring_pos = positions[ring]
-        center = ring_pos.mean(axis=0)
-        edge1 = ring_pos[1] - ring_pos[0]
-        edge2 = ring_pos[2] - ring_pos[1]
-        normal = np.cross(edge1, edge2)
-        norm_len = np.linalg.norm(normal)
-        if norm_len < 1e-10:
-            continue
-        normal /= norm_len
-        radius = np.mean(np.linalg.norm(ring_pos - center, axis=1))
-
-        rot, _ = _Rot.align_vectors(normal.reshape(-1, 3), np.array([[0.0, 0.0, 1.0]]))
-
-        # Circle outline at ~40% of ring radius (chemistry textbook style)
-        inner_radius = radius * 0.4
-        circle_3d = rot.apply(unit_circle * inner_radius) + center
-        for i in range(n_circle_points):
-            j = (i + 1) % n_circle_points
-            line_positions.extend(circle_3d[i].tolist())
-            line_positions.extend(circle_3d[j].tolist())
-
-        # Fill polygon — regular n-gon in the ring plane, matching Plotly's
-        # pv.Polygon(center=c, radius=np.linalg.norm(r[0]-c)*0.95,
-        #            normal=..., n_sides=len(r)).delaunay_2d()
-        n_sides = len(ring)
-        radius = np.mean(np.linalg.norm(ring_pos - center, axis=1)) * 0.95
-        angles = np.linspace(0, 2 * np.pi, n_sides, endpoint=False)
-        poly_local = np.column_stack([
-            radius * np.cos(angles),
-            radius * np.sin(angles),
-            np.zeros(n_sides),
-        ])
-        poly_3d = rot.apply(poly_local) + center
-
-        # Center point + fan triangulation (convex regular polygon)
-        verts = np.vstack([poly_3d, center.reshape(1, -1)])
-        faces = np.array(
-            [[n_sides, i, (i + 1) % n_sides] for i in range(n_sides)],
-            dtype=int,
+    if use_instanced:
+        return _make_aromatic_rings_instanced_trace(
+            cycles, positions,
+            style_circles=style_circles,
+            style_highlights=style_highlights,
+            n_template_segments=n_template_segments,
         )
-        all_verts.append(verts)
-        all_faces.append(faces)
-
-    circles_trace = _make_trace(
-        "aromatic_rings", "line_segments", "Aromatic rings",
-        {"positions": line_positions, "n_segments": len(cycles) * n_circle_points},
-        style=style_circles,
+    return _make_aromatic_rings_legacy_trace(
+        cycles, positions,
+        style_circles=style_circles,
+        style_highlights=style_highlights,
+        n_circle_points=n_circle_points,
     )
-
-    if all_verts:
-        v_offsets = np.cumsum([0] + [len(v) for v in all_verts[:-1]])
-        merged_verts = np.vstack(all_verts)
-        merged_faces = np.vstack([
-            f + off for f, off in zip(all_faces, v_offsets)
-        ])
-        payload = {
-            "positions": merged_verts.reshape(-1).tolist(),
-            "indices": merged_faces.reshape(-1).tolist(),
-            "n_vertices": int(len(merged_verts)),
-            "n_triangles": int(len(merged_faces)),
-        }
-    else:
-        payload = {"positions": [], "indices": [], "n_vertices": 0, "n_triangles": 0}
-
-    highlights_trace = _make_trace(
-        "aromatic_highlights", "mesh", "Aromatic highlights",
-        payload, style=style_highlights,
-    )
-
-    return {"circles": circles_trace, "highlights": highlights_trace}
 
 
 def make_maxima_trace(
@@ -2428,6 +2759,11 @@ class MovieFigure:
         traces = make_aromatic_rings_trace(atoms, cycles=cycles)
         self.add_trace(traces["circles"])
         self.add_trace(traces["highlights"])
+        # Instanced path emits separate hex/pent fill traces
+        if "fills_hex" in traces:
+            self.add_trace(traces["fills_hex"])
+        if "fills_pent" in traces:
+            self.add_trace(traces["fills_pent"])
         return self
 
     def add_maxima(
@@ -3300,7 +3636,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         mat.customProgramCacheKey = function() {
           const orig = mat.userData.screenDoorOriginalProgramKey;
           const base = (typeof orig === "function") ? orig.call(this) : "";
-          return base + "|screenDoorV1";
+          const screenDoorMeshKey = (obj && obj.uuid) ? String(obj.uuid) : String(mat.uuid || "");
+          return base + "|screenDoorV3|" + screenDoorMeshKey;
         };
         if (!mat.userData.screenDoorEnabled) mat.needsUpdate = true;
         mat.userData.screenDoorEnabled = true;
@@ -3802,7 +4139,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     //   Keep local maxima in the central cell with raw surface (not in pore-graph copy).
     //   Original cell stays at center and is controlled independently by showCell.
     const _explodeGroups = [
-      { ids: ["framework", "framework_stick", "framework_spacefill", "aromatic_rings", "aromatic_highlights", "cell_framework"], x: -1, y: 0 },
+      { ids: ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent", "cell_framework"], x: -1, y: 0 },
       { ids: ["windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
@@ -3846,19 +4183,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const meshOpacityContainer = document.getElementById("meshOpacityContainer");
     if (meshOpacityContainer) {
       const meshTraces = [];
-      staticTraces.forEach(t => { if (t.type === "mesh") meshTraces.push(t); });
+      const _opacityTypes = ["mesh", "instanced_spheres", "instanced_cylinders", "instanced_ring_outlines", "instanced_ring_fills"];
+      staticTraces.forEach(t => { if (_opacityTypes.indexOf(t.type) >= 0) meshTraces.push(t); });
       if (getFrameCount() > 0 && getFrame(0) && getFrame(0).traces) {
         getFrame(0).traces.forEach(t => {
-          if (t.type === "mesh" && !meshTraces.some(mt => mt.id === t.id)) meshTraces.push(t);
+          if (_opacityTypes.indexOf(t.type) >= 0 && !meshTraces.some(mt => mt.id === t.id)) meshTraces.push(t);
         });
       }
+      // IDs of all framework sub-traces that should NOT get individual sliders
+      const fwSubIds = ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent"];
       meshTraces.forEach(trace => {
-        // Skip alternate-representation meshes — their opacity is controlled by the main slider
-        if (trace.id === "framework_stick" || trace.id === "framework_spacefill") return;
+        // Skip framework sub-traces — they get a single merged slider below
+        if (fwSubIds.indexOf(trace.id) >= 0) return;
         // Skip percolation cluster meshes — grouped by direction in legend
         if (trace.id && trace.id.startsWith("percolation_clusters_")) return;
-        // Skip aromatic traces — opacity is hard-coded in style
-        if (trace.id === "aromatic_rings" || trace.id === "aromatic_highlights") return;
         const wrapper = document.createElement("div");
         wrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
         const label = document.createElement("label");
@@ -3878,26 +4216,30 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           const val = parseFloat(opacitySlider.value);
           const targetIds = [trace.id];
           // If this is the main framework slider, also update alternate representations
-          if (trace.id === "framework") {
-            targetIds.push("framework_stick", "framework_spacefill", "aromatic_rings", "aromatic_highlights");
+          if (trace.id === "framework" || trace.id === "framework_atoms" || trace.id === "framework_bonds") {
+            targetIds.push("framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent");
           }
           targetIds.forEach(tid => {
             const obj = objectsById[tid];
             if (obj && obj.material) {
-              var isFw = tid === "framework" || tid === "framework_stick" || tid === "framework_spacefill";
+              var isFw = tid === "framework" || tid === "framework_stick" || tid === "framework_spacefill" || tid === "framework_atoms" || tid === "framework_bonds" || tid === "framework_stick_atoms" || tid === "framework_stick_bonds" || tid === "aromatic_rings" || tid === "aromatic_highlights" || tid === "aromatic_highlights_hex" || tid === "aromatic_highlights_pent";
               var hiddenByOpacity = val <= 0.001;
               if (obj.userData && obj.userData.originalCastShadow === undefined) {
                 obj.userData.originalCastShadow = obj.castShadow;
                 obj.userData.originalReceiveShadow = obj.receiveShadow;
               }
+              if (obj.userData && obj.userData.originalOpacity === undefined) {
+                obj.userData.originalOpacity = obj.material.opacity;
+              }
+              const baseOp = obj.userData.originalOpacity || 1.0;
               const opaqueEnough = val >= 0.999;
               if (isFw) {
-                // Opacity only — visibility follows Representation + Framework checkbox.
-                // At exactly zero, hide to avoid ghost/shadow outlines from postprocessing.
-                obj.material.opacity = val;
-                obj.material.transparent = val < 1.0;
-                // Keep framework depth writes on while fading so bonds remain occluded
-                // by atom surfaces and do not appear to poke through.
+                const scaledOpacity = val * baseOp;
+                obj.material.opacity = scaledOpacity;
+                obj.material.transparent = scaledOpacity < 1.0;
+                // Keep depth writes on so bonds stay occluded by atoms even when translucent.
+                obj.material.depthWrite = true;
+                obj.material.depthTest = true;
                 obj.material.depthWrite = true;
                 obj.material.depthTest = true;
                 obj.material.side = THREE.FrontSide;
@@ -4027,15 +4369,37 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const sf = objectsById["framework_spacefill"];
       const arRings = objectsById["aromatic_rings"];
       const arHigh = objectsById["aromatic_highlights"];
+      // Scatter / instanced traces (atoms + bonds split across two trace IDs)
+      const scatterAtoms = objectsById["framework_atoms"];
+      const scatterBonds = objectsById["framework_bonds"];
+      const stickAtoms = objectsById["framework_stick_atoms"];
+      const stickBonds = objectsById["framework_stick_bonds"];
       if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
       if (stick) stick.visible = showFramework.checked && val === "stick";
       if (sf) sf.visible = showFramework.checked && val === "space_filling";
+      if (stickAtoms) stickAtoms.visible = showFramework.checked && val === "stick";
+      if (stickBonds) stickBonds.visible = showFramework.checked && val === "stick";
+      // Instanced/scatter ball-and-stick: show atoms+bonds for ball_and_stick selection
+      if (scatterAtoms && !fw) scatterAtoms.visible = showFramework.checked && val === "ball_and_stick";
+      if (scatterBonds && !fw) scatterBonds.visible = showFramework.checked && val === "ball_and_stick";
       if (arRings) arRings.visible = showFramework.checked;
       if (arHigh) arHigh.visible = showFramework.checked;
+      ["aromatic_highlights_hex", "aromatic_highlights_pent"].forEach(function(id) {
+        const o = objectsById[id];
+        if (o) o.visible = showFramework.checked;
+      });
       updateFrameworkCellVisibility();
+      // Re-apply exploded offsets so newly-active representations land in the right cell.
+      if (typeof applyExplodeOffsets === "function") applyExplodeOffsets();
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
+    // Hide representation selector when only scatter traces exist (no mesh variants)
+    if (!objectsById["framework"] && !objectsById["framework_stick"] && !objectsById["framework_spacefill"]
+        && !objectsById["framework_stick_atoms"]) {
+      const reprLabel = reprSelect.parentNode;
+      if (reprLabel) reprLabel.style.display = "none";
+    }
     // Initialize visibility so only the selected representation is shown
     updateFrameworkVisibility();
     showSurface.addEventListener("change", () => {

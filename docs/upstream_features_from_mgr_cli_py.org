@@ -66,6 +66,7 @@ materials = {
     "ZIF-20":   RASPA_CIFS / "ZIF-20.cif",
     "LTA96":    TEST_CIFS  / "LTA96.cif",
     "NU-1000":  TEST_CIFS  / "NU-1000_S1.cif",
+    "MIL-47":  TEST_CIFS  / "MIL-47-RASPA.cif",
 }
 
 for name, cif in materials.items():
@@ -114,7 +115,8 @@ import numpy as np
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 
-cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+# cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+cif = "/Users/arungopalan/repos/mofography/examples/TestCIFs/MIL-47-RASPA.cif"
 atoms = read_cif_to_ase(cif)
 
 updated = update_with_covalent_bonds(atoms)
