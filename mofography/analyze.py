@@ -411,9 +411,19 @@ def update_with_covalent_bonds(ase_atoms, nlist=None):
                 bond_order.append(bond_test.get_bond_order(default_bl=cov1+cov2, tol=0.1))
 
     ase_atoms_updated = AseAtomsAdaptor.get_atoms(struct)
-    ase_atoms_updated.info['covalent_bonds'] = bonds
-    ase_atoms_updated.info['covalent_bond_orders']=bond_order
-            
+    # Deduplicate bonds (Voronoi nlist gives both directions)
+    seen: set[tuple[int, int]] = set()
+    unique_bonds: list[list[int]] = []
+    unique_orders: list = []
+    for b, o in zip(bonds, bond_order):
+        key = (int(min(b[0], b[1])), int(max(b[0], b[1])))
+        if key not in seen:
+            seen.add(key)
+            unique_bonds.append([key[0], key[1]])
+            unique_orders.append(o)
+    ase_atoms_updated.info['covalent_bonds'] = unique_bonds
+    ase_atoms_updated.info['covalent_bond_orders'] = unique_orders
+
     return ase_atoms_updated
 def get_bonds_and_orders_without_replication(ase_atoms, nlist=None):
     from pymatgen.core.bonds import CovalentBond

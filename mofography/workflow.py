@@ -11,6 +11,23 @@
 """
 
 
+def build_padded_threejs_scene(cif_path, output_path=None, **kwargs):
+    """Build a Three.js HTML scene with padded transparent segmentation surfaces.
+
+    Thin wrapper that delegates to the stand-alone script's builder so it
+    stays in one place.  Any keyword argument is forwarded to the builder
+    (``spacing``, ``isovalue``, ``mask_thickness``, ``h``, ``threshold_abs``,
+    ``min_distance``, ``extra_padding``, ``preserve_threshold``, …).
+    """
+    import sys
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+    from make_padded_threejs_scene import build_padded_threejs_scene as _builder
+    return _builder(cif_path=cif_path, output_path=output_path, **kwargs)
+
+
 def quick_cluster(ase_atoms,
 
                   spacing=0.5,

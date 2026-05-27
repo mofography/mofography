@@ -1238,8 +1238,10 @@ def make_framework_trace(
         if "covalent_bonds" in atoms.info and atoms.info["covalent_bonds"]:
             mesh_bonds = atoms.info["covalent_bonds"]
         else:
-            atoms.info["covalent_bonds"] = _ase_covalent_bonds(atoms, mult=1.05)
-            mesh_bonds = atoms.info["covalent_bonds"]
+            # Use pymatgen/Voronoi covalent bond detection (same as interactive app).
+            from .analyze import update_with_covalent_bonds
+            atoms = update_with_covalent_bonds(atoms)
+            mesh_bonds = atoms.info.get("covalent_bonds", [])
     elif bonds is None:
         mesh_bonds = None
     elif isinstance(bonds, list):

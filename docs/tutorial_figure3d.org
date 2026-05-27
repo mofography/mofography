@@ -431,12 +431,40 @@ automatically boosts directional light intensity and contrast for clean
 Click =+X=, =-X=, =+Y=, =-Y=, =+Z=, =-Z= to snap the camera to an axis
 alignment while preserving zoom distance.
 
+** Custom View / Light / Rotation Vectors
+
+The HUD includes numeric vector controls:
+
+- =View dir xyz= + =Set=: applies a normalized camera view direction while
+  preserving zoom distance.
+- =Dir light xyz= + =Set=: applies a normalized directional-light vector
+  for the key light.
+- =Rotate axis xyz=: controls the auto-rotate axis (normalized before use).
+
+This makes camera and lighting setups reproducible for screenshots and videos.
+
 ** Video / GIF Recording
 
 - "Record" captures WebM video via =MediaRecorder= + canvas stream.
+- "REC" selects recording scale (1x/2x/3x) before recording.
 - "Record GIF" (movie-mode only, when =FRAMES.length > 0=) uses =gif.js=
   from CDN. Captures up to 100 frames at 10 fps. The GIF worker is loaded
   via a Blob URL so it works even when opening the file with =file://=.
+
+** Background Modes and Transparent PNG Export
+
+In addition to solid color (=Bg= picker), the viewer supports gradient
+background modes (L→R, T→B, radial) and a transparent mode.
+
+- Transparent mode shows a checkerboard preview in the canvas area.
+- Exported PNGs preserve alpha when transparent mode is active.
+
+** HUD / Legend Folding
+
+The viewer supports:
+
+- collapsing the full HUD panel (=◧= and =Controls= tab),
+- folding dynamic trace legend entries (=Fold Legend=).
 
 ** Per-Mesh Opacity Sliders
 
@@ -450,6 +478,8 @@ Mouse over any atom, bond, surface face, or pore-graph node to see a
 rich tooltip. Local maxima now show:
 - pore radius (dgrid) in Angstroms
 - segmentation region label
+- maxima label and maxima PBC representative label
+- maxima offset vector
 - xyz coordinates and grid indices
 
 * Comparison with the Plotly Renderer
@@ -484,6 +514,7 @@ Both APIs follow the same object model:
 | RAM for long movies    | All frames in memory           | Sidecar streaming: ~50 MB fixed    |
 | Mesh opacity per trace | Single opacity slider          | Per-trace opacity sliders in HUD   |
 | Hover on meshes        | Not supported                  | Per-face hover with region labels  |
+| Background/export UX   | Static scene bgcolor           | Solid/gradient/transparent + alpha PNG |
 | Point hover priority   | First hit                      | Ranked: Points > Mesh-with-face > Lines > Instanced > Mesh |
 
 * API Reference Summary
@@ -495,7 +526,7 @@ Both APIs follow the same object model:
 | =build_static_scene(atoms, dgrid, regions, seg)= | One-liner for framework + segmentation + pore graph   |
 | =make_framework_trace(atoms)=   | Framework mesh trace (CPK colors)                      |
 | =make_surface_trace(dgrid, regions, atoms, ...)= | Isosurface mesh trace                                |
-| =make_maxima_trace(seg, atoms)= | Local maxima points (internal + periodic)            |
+| =make_maxima_trace(seg, atoms)= | Local maxima points (internal + periodic + PBC reps) |
 | =make_windows_trace(seg)=       | Window markers                                         |
 | =make_connections_trace(seg, atoms)= | Pore graph edges (internal + periodic)            |
 | =make_cell_trace(atoms)=        | Unit cell wireframe                                    |
