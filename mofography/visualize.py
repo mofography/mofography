@@ -2778,7 +2778,8 @@ def plot_windows(connections, **kwargs):
     #set defaults for kwargs
     name = kwargs.get('name', 'windows')
     marker_color = kwargs.get('marker_color', 'yellowgreen')
-    marker_size = kwargs.get('marker_size', 10)
+    marker_size=10
+    marker_size = kwargs.get('marker_size', marker_size)
     opacity = kwargs.get('opacity', 0.5)
     hovertext = kwargs.get('hovertext', window_labels)
     #remove the entires from kwargs that we have already read in
@@ -2791,6 +2792,138 @@ def plot_windows(connections, **kwargs):
 
     #return the scatter trace
     return go.Scatter3d(x=windows[:,0], y=windows[:,1], z=windows[:,2], mode='markers', marker=dict(size=marker_size, color=marker_color, opacity=opacity), hovertext=hovertext, name=name, **kwargs)
+
+
+
+def plot_percolation_windows(
+    analysis: dict,
+    pld_tolerance: float = 0.25,
+    **kwargs,
+):
+    """Build Plotly traces for windows along percolating clusters.
+
+    Returns two Scatter3d traces:
+    - Regular windows: yellow circles
+    - PLD-critical windows (within ±pld_tolerance of PLD): red diamonds
+
+    Parameters
+    ----------
+    analysis:
+        Percolation analysis dict with keys: percolation_history, connections,
+        dgrid, regions, pld, maxima_info.
+    pld_tolerance:
+        Radius tolerance for PLD-critical windows (default ±0.25 Å).
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+
+    percolation_history = analysis.get("percolation_history", [])
+    connections = analysis.get("connections", [])
+    regions = np.asarray(analysis.get("regions", []))
+    pld = float(analysis.get("pld", 0.0))
+    pld_probe_radius = pld / 2.0  # PLD is a diameter; compare against radius
+    probe_radius = kwargs.pop("probe_radius", None)
+
+    if not percolation_history or not len(connections):
+        return [], []
+
+    # Find the entry for the selected probe radius
+    if probe_radius is None:
+        entry = percolation_history[-1]
+    else:
+        entry = next((e for e in percolation_history if e[0] >= probe_radius), None)
+        if entry is None:
+            return [], []
+
+    _threshold, components = entry
+
+    # Collect all unique percolating region sets
+    unique_components: dict[tuple, list] = {}
+    for axis, comp_list in components.items():
+        for comp in comp_list:
+            key = tuple(sorted(comp))
+            if key not in unique_components:
+                unique_components[key] = []
+            unique_components[key].append(axis)
+
+    all_comp_regions: set[int] = set()
+    for comp in unique_components:
+        all_comp_regions.update(comp)
+
+    if not all_comp_regions:
+        return [], []
+
+    # Map maxima label → region label
+    # maxima_info columns: (label, z, y, x, offset_z, offset_y, offset_x)
+    maxima_info = np.asarray(analysis.get("maxima_info", []), dtype=int)
+    maxima_to_region: dict[int, int] = {}
+    if maxima_info.ndim == 2 and maxima_info.shape[1] >= 7:
+        for row in maxima_info:
+            label = int(row[0])
+            gz, gy, gx = int(row[1]), int(row[2]), int(row[3])
+            oz, oy, ox = int(row[4]), int(row[5]), int(row[6])
+            gz_w = (gz + oz * regions.shape[0]) % regions.shape[0]
+            gy_w = (gy + oy * regions.shape[1]) % regions.shape[1]
+            gx_w = (gx + ox * regions.shape[2]) % regions.shape[2]
+            if 0 <= gz_w < regions.shape[0] and 0 <= gy_w < regions.shape[1] and 0 <= gx_w < regions.shape[2]:
+                rl = int(regions[gz_w, gy_w, gx_w])
+                if rl > 0:
+                    maxima_to_region[label] = rl
+
+    # Collect windows
+    all_wx, all_wy, all_wz = [], [], []
+    all_hover = []
+    pld_wx, pld_wy, pld_wz = [], [], []
+    pld_hover = []
+
+    for c in connections:
+        if not c[1] or len(c) < 5:
+            continue
+        n1, n2 = c[0]
+        r1 = maxima_to_region.get(int(n1), -1)
+        r2 = maxima_to_region.get(int(n2), -1)
+        if r1 not in all_comp_regions or r2 not in all_comp_regions:
+            continue
+        pts = c[3] if c[3] is not None else []
+        wr = c[4] if c[4] is not None else []
+        ctype = str(c[2]) if len(c) > 2 else "internal"
+        for p, r in zip(pts, wr if len(wr) == len(pts) else [0.0] * len(pts)):
+            radius = float(r)
+            hover = (
+                f"{ctype} window<br>"
+                f"maxima: {n1}-{n2}<br>"
+                f"radius: {radius:.3f} Å"
+            )
+            if pld > 0 and abs(radius - pld_probe_radius) <= pld_tolerance:
+                pld_wx.append(p[0]); pld_wy.append(p[1]); pld_wz.append(p[2])
+                pld_hover.append(hover + f"<br>⚠ PLD-critical (±{pld_tolerance} Å)")
+            else:
+                all_wx.append(p[0]); all_wy.append(p[1]); all_wz.append(p[2])
+                all_hover.append(hover)
+
+    traces = []
+    if all_wx:
+        traces.append(go.Scatter3d(
+            x=all_wx, y=all_wy, z=all_wz,
+            mode="markers",
+            marker=dict(size=6, color="yellow", symbol="circle", opacity=0.8),
+            hovertext=all_hover,
+            hoverinfo="text",
+            name="Percolation windows",
+            showlegend=True,
+        ))
+    if pld_wx:
+        traces.append(go.Scatter3d(
+            x=pld_wx, y=pld_wy, z=pld_wz,
+            mode="markers",
+            marker=dict(size=8, color="red", symbol="diamond", opacity=0.9,
+                       line=dict(color="darkred", width=1)),
+            hovertext=pld_hover,
+            hoverinfo="text",
+            name=f"PLD-critical windows (±{pld_tolerance} Å)",
+            showlegend=True,
+        ))
+    return traces
 
 
 # def plot_maxima(dgrid, maxima, ase_atoms, **kwargs):
