@@ -499,3 +499,35 @@ def quick_cluster(ase_atoms,
 #         if make_figures:
 #             print('Returning the figures if make_figures=True')
 #             return [fig_full_visual, fig_vdw]
+def assign_pocket_types(segmentation_results, atoms, method='env_cluster', **kwargs):
+    """Assign pocket types to segmentation results.
+
+    Wraps pocket_typing.assign_pocket_types_from_segmentation.
+
+    :param segmentation_results: dict from do_periodic_segmentation_rust
+    :param atoms: ASE Atoms object
+    :param method: 'env_cluster' (default, SH fingerprint + connectivity)
+    :return: dict with 'regions_cluster' added
+    """
+    from mofography.pocket_typing import assign_pocket_types_from_segmentation
+    return assign_pocket_types_from_segmentation(segmentation_results, atoms, method=method, **kwargs)
+
+def add_percolation_windows_to_fig(fig, analysis_result, pld_probe_radius=None, pld_tolerance=0.25):
+    """Add window traces (regular + PLD-critical diamonds) to an existing figure.
+
+    :param fig: plotly Figure (go.Figure)
+    :param analysis_result: dict with 'connections' key from segmentation
+    :param pld_probe_radius: if given, highlight PLD-critical windows as red diamonds
+    :param pld_tolerance: radius tolerance for PLD-critical classification (default 0.25)
+    :return: figure with window traces added
+    """
+    from mofography.visualize import plot_percolation_windows
+    traces = plot_percolation_windows(
+        analysis_result,
+        pld_probe_radius=pld_probe_radius,
+        pld_tolerance=pld_tolerance,
+    )
+    for t in traces:
+        fig.add_trace(t)
+    return fig
+

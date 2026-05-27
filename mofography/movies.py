@@ -724,12 +724,34 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     }
 
 
-def _serialize_windows_trace(seg: dict[str, Any]) -> dict[str, Any]:
+def _serialize_windows_trace(seg: dict[str, Any], atoms=None, spacing: float | None = None) -> dict[str, Any]:
     conns = list(seg.get("connections", []))
     internal_windows = []
     internal_hover = []
     periodic_windows = []
     periodic_hover = []
+    # Compute wall tolerance for "close or inside" criteria.
+    wall_tol = None
+    dgrid_shape = None
+    inv_cell = None
+    if atoms is not None and spacing is not None:
+        from mofography.helper import compute_wall_cells
+        dgrid = np.asarray(seg.get("dgrid", []))
+        if dgrid.size:
+            dgrid_shape = np.asarray(dgrid.shape, dtype=float)
+            wall_tol = compute_wall_cells(atoms, spacing, wall_thickness=0.05)
+            cell = atoms.get_cell().array.T
+            try:
+                inv_cell = np.linalg.inv(cell)
+            except np.linalg.LinAlgError:
+                inv_cell = None
+
+    def _window_grid_coord(cart):
+        if inv_cell is None or dgrid_shape is None:
+            return None
+        frac = np.dot(cart, inv_cell)
+        return frac * dgrid_shape
+
     for c in conns:
         if len(c) < 5 or not c[1]:
             continue
@@ -745,6 +767,17 @@ def _serialize_windows_trace(seg: dict[str, Any]) -> dict[str, Any]:
                 f"type: {ctype}\n"
                 f"size: {float(r):.3f} A"
             )
+            if ctype == "internal" and wall_tol is not None and dgrid_shape is not None:
+                grid_c = _window_grid_coord(wp)
+                if grid_c is not None:
+                    from mofography.helper import is_inside_or_close_to_boundary
+                    loc = is_inside_or_close_to_boundary(
+                        [tuple(grid_c)], tuple(dgrid_shape.astype(int)), wall_tol
+                    )[0]
+                    if loc == "far_outside":
+                        periodic_windows.append(wp)
+                        periodic_hover.append(txt.replace("internal", "periodic (wrapped)"))
+                        continue
             if ctype == "internal":
                 internal_windows.append(wp)
                 internal_hover.append(txt)
