@@ -81,7 +81,7 @@ def void_cart_for_pocket(
     Uses ``regions == rep`` when that fragment exists and is not huge vs ``regions_pbc``;
     otherwise falls back to ``regions_pbc == rep`` (subsampled).
     """
-    from mgr.helper import find_coord_from_indices
+    from mofography.helper import find_coord_from_indices
 
     rep = int(rep)
     mask_frag = regions == rep
@@ -324,7 +324,7 @@ def void_cart_mic_for_fragment_group(
     max_samples: int = MAX_VOID_SAMPLES,
 ) -> np.ndarray:
     """Void points for a full PBC pocket (all fragment copies, MIC-wrapped to peak)."""
-    from mgr.helper import find_coord_from_indices
+    from mofography.helper import find_coord_from_indices
 
     labels = [int(x) for x in fragment_labels]
     mask = np.isin(regions, labels)
@@ -361,7 +361,7 @@ def void_cart_near_dgrid_peak(
     shell_a: float = VOID_SHELL_MAXIMUM_A,
 ) -> np.ndarray:
     """Void samples within ``shell_a`` of the local dgrid maximum (fragment)."""
-    from mgr.helper import find_coord_from_indices
+    from mofography.helper import find_coord_from_indices
 
     mask = regions == int(rep)
     if not np.any(mask):
@@ -393,7 +393,7 @@ def void_cart_surface_pocket(
     surface_voxels_cart : (N, 3) Cartesian, MIC-wrapped around pocket maximum
     peak_cart : (3,) Cartesian position of the dgrid maximum (physical cage centre)
     """
-    from mgr.helper import find_coord_from_indices
+    from mofography.helper import find_coord_from_indices
 
     rep = int(rep)
     pocket_mask = regions_pbc == rep
@@ -440,7 +440,7 @@ def peak_cart_for_fragment_group(
     atoms,
 ) -> np.ndarray:
     """Cartesian position of the dgrid maximum for a PBC pocket group."""
-    from mgr.helper import find_coord_from_indices
+    from mofography.helper import find_coord_from_indices
 
     labels = [int(x) for x in fragment_labels]
     mask = np.isin(regions, labels)
