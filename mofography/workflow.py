@@ -881,6 +881,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         taubin_lambda=float(defaults.get("plot_surface_taubin_lambda", 0.2175)),
         taubin_nu=float(defaults.get("plot_surface_taubin_nu", -0.2175)),
     )
+    _surf_step_size = int(defaults.get("plot_surface_step_size", 1))
     isovalue = float(defaults["plot_surface_isovalue"])
 
     if defaults.get("plot_framework", True):
@@ -897,7 +898,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             dgrid=dgrid, regions=regions, atoms=atoms,
             isovalue=isovalue, name="Regions (raw)",
             trace_id="surface", style="surface",
-            hover_prefix="Region:", **taubin_kw,
+            hover_prefix="Region:", step_size=_surf_step_size, **taubin_kw,
         )
         fig.add_trace(t)
         fig.update_traces(
@@ -910,7 +911,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             dgrid=dgrid, regions=np.asarray(regions_pbc), atoms=atoms,
             isovalue=isovalue, name="Regions (PBC merged)",
             trace_id="surface_regions_pbc", style="surface",
-            hover_prefix="PBC:", **taubin_kw,
+            hover_prefix="PBC:", step_size=_surf_step_size, **taubin_kw,
         )
         fig.add_trace(t)
         fig.update_traces(
@@ -927,7 +928,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             dgrid=dgrid, regions=rc, atoms=atoms,
             isovalue=isovalue, name="Pocket types (cluster)",
             trace_id="surface_regions_cluster", style="surface",
-            hover_prefix="Pocket type:", **taubin_kw,
+            hover_prefix="Pocket type:", step_size=_surf_step_size, **taubin_kw,
         )
         fig.add_trace(t)
         fig.update_traces(
