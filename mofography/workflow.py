@@ -643,6 +643,14 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
         "plot_surface_opacity": 1.0,
         "plot_surface_pbc_opacity": 1.0,
         "plot_surface_types_opacity": 1.0,
+        # Taubin smoothing — match app defaults (intensity=0.05 → 3 iterations)
+        "plot_surface_taubin_smooth": True,
+        "plot_surface_taubin_iterations": 3,
+        "plot_surface_taubin_lambda": 0.2175,
+        "plot_surface_taubin_nu": -0.2175,
+        # Marching-cubes step size: 1 = full resolution ("medium" / "high" quality)
+        # Set plot_surface_step_size=2 for faster / lower-fidelity meshes
+        "plot_surface_step_size": 1,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -653,6 +661,14 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     all_maxima    = np.asarray(seg.get("all_maxima", []))
     connections   = seg.get("connections", [])
     unique_regions = np.asarray(seg.get("unique_regions", []), dtype=int)
+
+    _taubin_kw = dict(
+        taubin_smooth=bool(defaults.get("plot_surface_taubin_smooth", True)),
+        taubin_iterations=int(defaults.get("plot_surface_taubin_iterations", 3)),
+        taubin_lambda=float(defaults.get("plot_surface_taubin_lambda", 0.2175)),
+        taubin_nu=float(defaults.get("plot_surface_taubin_nu", -0.2175)),
+    )
+    _stepsize = int(defaults.get("plot_surface_step_size", 1))
 
     # Trim connections to accessible regions (matches show_mof reference)
     if unique_regions.size:
@@ -685,6 +701,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
             region_labels=regions,
             opacity=float(defaults["plot_surface_opacity"]),
             name="Regions Surface", cscale=cscale, stylize=stylize,
+            stepsize=_stepsize, **_taubin_kw,
         ))
 
     if defaults.get("plot_surface_pbc", True) and regions_pbc is not None:
@@ -693,6 +710,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
             region_labels=np.asarray(regions_pbc),
             opacity=float(defaults["plot_surface_pbc_opacity"]),
             name="Regions Surface (PBC)", cscale=cscale, stylize=stylize,
+            stepsize=_stepsize, **_taubin_kw,
         ))
 
     # Pocket types surface (requires typed_result.ok and .regions_cluster)
@@ -706,6 +724,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
             opacity=float(defaults["plot_surface_types_opacity"]),
             name="Pocket Types", cscale=cscale, stylize=stylize,
             hover_label="Pocket type :",
+            stepsize=_stepsize, **_taubin_kw,
         ))
 
     if defaults.get("plot_connections", True) and connections_trimmed:
@@ -754,7 +773,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     return fig
 
 
-def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atoms=None, output_html=None, **options):
+def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atoms=None, output_html=None, show=False, renderer="browser", **options):
     """Build a standalone Three.js HTML visualization.
 
     Reproduces the default interactive-app main visualization using the
@@ -811,10 +830,13 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         "plot_surface_opacity": 1.0,
         "plot_surface_pbc_opacity": 1.0,
         "plot_surface_types_opacity": 1.0,
+        # Taubin smoothing — match app defaults (intensity=0.05 → 3 iterations)
         "plot_surface_taubin_smooth": True,
-        "plot_surface_taubin_iterations": 10,
-        "plot_surface_taubin_lambda": 0.5,
-        "plot_surface_taubin_nu": -0.53,
+        "plot_surface_taubin_iterations": 3,
+        "plot_surface_taubin_lambda": 0.2175,
+        "plot_surface_taubin_nu": -0.2175,
+        # Marching-cubes step size: 1 = full resolution ("medium" / "high" quality)
+        "plot_surface_step_size": 1,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -855,9 +877,9 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
 
     taubin_kw = dict(
         taubin_smooth=bool(defaults.get("plot_surface_taubin_smooth", True)),
-        taubin_iterations=int(defaults.get("plot_surface_taubin_iterations", 10)),
-        taubin_lambda=float(defaults.get("plot_surface_taubin_lambda", 0.5)),
-        taubin_nu=float(defaults.get("plot_surface_taubin_nu", -0.53)),
+        taubin_iterations=int(defaults.get("plot_surface_taubin_iterations", 3)),
+        taubin_lambda=float(defaults.get("plot_surface_taubin_lambda", 0.2175)),
+        taubin_nu=float(defaults.get("plot_surface_taubin_nu", -0.2175)),
     )
     isovalue = float(defaults["plot_surface_isovalue"])
 
@@ -947,14 +969,27 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             scene_bg=0x111111,
         )
 
-    tmp = tempfile.NamedTemporaryFile(suffix=".html", delete=False)
-    fig.to_html(tmp.name)
-    with open(tmp.name, "r", encoding="utf-8") as f:
-        html_str = f.read()
-    os.unlink(tmp.name)
+    # show=True — mirrors plotly's fig.show() / fig.show(renderer="browser")
+    # renderer="browser" opens a temp HTML file in the system browser
+    # renderer="notebook" displays via IPython.display inside Jupyter
+    if show:
+        fig.show(renderer=renderer)
 
     if output_html is not None:
         from pathlib import Path as _P
-        _P(output_html).write_text(html_str, encoding="utf-8")
-        return str(output_html)
-    return html_str
+        _p = _P(output_html)
+        _p.parent.mkdir(parents=True, exist_ok=True)
+        fig.to_html(str(_p))
+        return str(_p)
+
+    # No output_html — return HTML as a string (or None when show was the only goal)
+    if not show:
+        tmp = tempfile.NamedTemporaryFile(suffix=".html", delete=False)
+        try:
+            fig.to_html(tmp.name)
+            with open(tmp.name, "r", encoding="utf-8") as f:
+                return f.read()
+        finally:
+            os.unlink(tmp.name)
+
+    return None  # show=True, no output_html — browser/notebook opened above
