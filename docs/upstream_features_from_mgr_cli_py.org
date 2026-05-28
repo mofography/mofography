@@ -473,106 +473,47 @@ print(f"Figure now has {len(fig.data)} traces")
 
 -----
 
-* 7  Full End-to-End Workflow with Standalone HTML Output
+* 7  End-to-End Workflow — Standalone HTML Figures (Plotly + Three.js)
 
-This section assembles all six upstreamed features into a single pipeline:
-read CIF → compute bonds → distance grid → segmentation → pocket types →
-percolation window traces → 3D figure → save standalone HTML.
+Two high-level functions in =mofography.workflow= mirror the interactive
+app's main visualisation page:
 
-Swap =CIF_PATH= and =OUTPUT_HTML= to try different materials.
+- =show_mof_plotly= — Plotly backend; returns a =go.Figure= that can be
+  saved as a self-contained HTML file with the standard Plotly CDN loader.
+- =show_mof_threejs= — Three.js / =MovieFigure= backend; returns (or writes)
+  the same self-contained HTML rendered by the in-browser Three.js engine.
 
-** 7.1  IRMOF-1 (simple cage, expect 2 pocket types)
+Both reproduce the interactive-app default view:
 
-#+begin_src python
-from pathlib import Path
-import plotly.graph_objects as go
-from plotly.io import to_html
+| Layer | Details |
+|---|---|
+| Framework mesh | Ball-and-stick spheres + bonds (Taubin-smoothed) |
+| Aromatic rings | Instanced torus/polygon overlays |
+| Unit cell | Wire-frame box |
+| Regions surface (raw) | Per-region colour from raw watershed grid |
+| Regions surface (PBC merged) | Same after PBC-group merging |
+| Pocket-type surface | Coloured by type id when =typed_result= supplied |
+| Pore-graph connections | Edges trimmed to accessible regions |
+| Windows (internal only) | Red spheres; =c[2]=="internal"= filter + far-outside reclassification |
+| Local maxima | Pore-centre spheres scaled by cage radius |
 
-# ── 1. CIF read (Rust parser) ────────────────────────────────────────────────
-from mofography.cif_io import read_cif_to_ase
-CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/IRMOF-1.cif")
-OUTPUT_HTML = Path("/tmp/irmof1_upstream_check.html")
+** Critical: keep =atoms= and =atoms_b= separate
 
-atoms = read_cif_to_ase(CIF_PATH)
-print(f"[1] CIF read   : {len(atoms)} atoms  vol={atoms.get_cell().volume:.1f} Å³")
+=update_with_covalent_bonds= writes bond data into =atoms.info= in a way
+that causes a Rust panic inside =assign_pocket_types= (Cu-BTC duplicate
+sites trigger AABB re-indexing).  Keep them separate:
 
-# ── 2. Covalent bonds (Rust) ──────────────────────────────────────────────────
-from mofography.analyze import update_with_covalent_bonds
-atoms_b = update_with_covalent_bonds(atoms)
-bonds   = atoms_b.info["covalent_bonds"]
-print(f"[2] Bonds      : {len(bonds)} covalent bonds")
+#+begin_example
+atoms   = read_cif_to_ase(cif)                    # clean — for seg/typed
+atoms_b = update_with_covalent_bonds(atoms)       # bonds — for framework only
+#+end_example
 
-# ── 3. Distance grid (Rust exact) ──────────────────────────────────────────────
-from mofography.rust_fun import dgrid_from_atoms_rust
-SPACING = 0.5
-dgrid = dgrid_from_atoms_rust(atoms, spacing=SPACING)
-print(f"[3] Dgrid      : {dgrid.shape}  spacing={SPACING} Å  (exact VDW radii)")
+Pass =framework_atoms=atoms_b= to both visualisation functions.
 
-# ── 4. Periodic segmentation ─────────────────────────────────────────────────
-from mofography.rust_fun import do_periodic_segmentation_rust
-seg = do_periodic_segmentation_rust(
-    dgrid, atoms, spacing=SPACING,
-    mask_thickness=0.05,
-    min_distance=1.5, threshold_abs=1.5,
-    disable_tqdm=True,
-)
-print(f"[4] Regions    : {len(seg.get('unique_regions', []))} PBC-merged regions")
+** Commit
+=02e7966= (2026-05-28)
 
-# ── 5. Pocket types (env_cluster) ────────────────────────────────────────────
-from mofography.workflow import assign_pocket_types, pocket_regions_cluster
-typed = assign_pocket_types(seg, atoms)
-summary = typed.type_summary
-print(f"[5] Pocket types: {typed.n_types}  (expected 2 for IRMOF-1)")
-for info in sorted(summary, key=lambda x: x["type_id"]):
-    pid = info["type_id"]
-    print(f"    type {pid}: n={info.get('n_pockets')}  max_r={info.get('max_r_mean_a', 0):.2f} Å")
-
-# ── 6. Build 3D figure ───────────────────────────────────────────────────────
-from mofography.visualize import (
-    plot_surface_dgrid, plot_framework_as_mesh,
-    plot_cell, plot_maxima, plot_windows, plot_percolation_windows,
-    white_layout,
-)
-import plotly.express as px
-
-cscale = px.colors.qualitative.Plotly
-
-regions_cluster = pocket_regions_cluster(typed, seg)
-surface = plot_surface_dgrid(
-    dgrid, 1.75, select="all", ase_atoms=atoms_b,
-    region_labels=regions_cluster, cscale=cscale,
-    stylize=True, name="Pocket types",
-)
-frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
-cell    = plot_cell(atoms_b)
-maxima  = plot_maxima(maxima=seg["maxima_info"][:, 1:4],
-                      dgrid=dgrid, ase_atoms=atoms)
-
-# Windows (marker_size=10 — upstreamed change)
-win_trace = plot_windows(seg["connections"])
-
-fig = go.Figure(data=[surface, *frame, cell, maxima, win_trace])
-fig.update(layout=white_layout)
-fig.update_layout(scene=dict(aspectmode="data"),
-                  title=f"IRMOF-1 — {typed.n_types} pocket type(s)")
-
-# ── 7. Percolation window traces ─────────────────────────────────────────────
-from mofography.workflow import add_percolation_windows_to_fig
-pld = seg.get("pld", None)
-fig = add_percolation_windows_to_fig(
-    fig, seg,
-    pld_probe_radius=pld / 2.0 if pld else None,
-)
-print(f"[6] Figure traces: {len(fig.data)}")
-
-# ── 8. Standalone HTML ───────────────────────────────────────────────────────
-html = to_html(fig, full_html=True, include_plotlyjs="cdn")
-OUTPUT_HTML.write_text(html)
-print(f"[7] Saved → {OUTPUT_HTML}")
-print("    Open in browser: open", OUTPUT_HTML)
-#+end_src
-
-** 7.2  Cu-BTC (expect 3 pocket types)
+** 7.1  Cu-BTC — Plotly backend (expect 3 pocket types)
 
 #+begin_src python
 from pathlib import Path
@@ -581,193 +522,129 @@ from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
-from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
-                                   plot_cell, plot_maxima, plot_windows, white_layout)
-import plotly.express as px
+from mofography.workflow import assign_pocket_types, show_mof_plotly
 
 CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
-OUTPUT_HTML = Path("/tmp/cubtc_upstream_check.html")
-SPACING     = 0.3
+OUTPUT_HTML = Path("/tmp/cubtc_plotly.html")
+SPACING     = 0.5
 
 atoms   = read_cif_to_ase(CIF_PATH)
-atoms_b = update_with_covalent_bonds(atoms)
-dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
-seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
-                                         mask_thickness=0.05, disable_tqdm=True)
-typed   = assign_pocket_types(seg, atoms)
+atoms_b = update_with_covalent_bonds(atoms)   # bonds/rings — framework only
 
-summary = typed.type_summary
+dgrid = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                       mask_thickness=0.05,
+                                       min_distance=1.5, threshold_abs=1.5)
+typed = assign_pocket_types(seg, atoms)
+print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
+for info in sorted(typed.type_summary, key=lambda x: x["type_id"]):
+    print(f"  type {info['type_id']}: n={info.get('n_pockets')}  "
+          f"max_r={info.get('max_r_mean_a', float('nan')):.2f} Å")
+
+# Full visualization — matches app default + pocket-type surface
+fig = show_mof_plotly(
+    seg, atoms,
+    typed_result=typed,
+    framework_atoms=atoms_b,       # bonds/rings without breaking pocket typing
+)
+print(f"Figure traces: {len(fig.data)}")
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+Customisation options (=**options= kwargs to =show_mof_plotly=)::
+
+#+begin_src python
+# White background, skip raw regions, different isovalue
+fig = show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                      plot_surface=False,
+                      plot_surface_pbc=True,
+                      plot_surface_isovalue=0.8,
+                      plot_layout="white")
+#+end_src
+
+** 7.2  Cu-BTC — Three.js backend (expect 3 pocket types)
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, show_mof_threejs
+
+CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+OUTPUT_HTML = Path("/tmp/cubtc_threejs.html")
+SPACING     = 0.5
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)   # bonds/rings — framework only
+
+dgrid = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                       mask_thickness=0.05,
+                                       min_distance=1.5, threshold_abs=1.5)
+typed = assign_pocket_types(seg, atoms)
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
 
-cscale  = px.colors.qualitative.Plotly
-regions_cluster = pocket_regions_cluster(typed, seg)
-surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
-                              region_labels=regions_cluster, cscale=cscale,
-                              stylize=True, name="Pocket types")
-frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
-cell    = plot_cell(atoms_b)
-win     = plot_windows(seg["connections"])
-
-fig = go.Figure(data=[surface, *frame, cell, win])
-fig = add_percolation_windows_to_fig(fig, seg,
-                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
-fig.update(layout=white_layout)
-fig.update_layout(scene=dict(aspectmode="data"),
-                  title=f"Cu-BTC — {typed.n_types} pocket type(s)")
-
-OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+# Three.js standalone HTML — write directly to file
+show_mof_threejs(
+    seg, atoms,
+    typed_result=typed,
+    framework_atoms=atoms_b,
+    output_html=OUTPUT_HTML,
+)
 print(f"Saved → {OUTPUT_HTML}")
+
+# Or capture the HTML string (e.g. for st.components.v1.html())
+# html_str = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
 #+end_src
 
-** 7.3  LTA-96 (expect 2 pocket types)
+Customisation options (=**options= kwargs to =show_mof_threejs=)::
+
+#+begin_src python
+# White background, disable raw surface, lower isovalue for PBC surface
+html = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                        plot_surface=False,
+                        plot_surface_pbc=True,
+                        plot_surface_isovalue=0.8,
+                        plot_surface_taubin_smooth=False,
+                        plot_layout="white")
+#+end_src
+
+** 7.3  ZIF-20 (expect 6 pocket types) — same pattern
 
 #+begin_src python
 from pathlib import Path
-import plotly.graph_objects as go
-from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
-from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
-                                   plot_cell, plot_maxima, plot_windows, white_layout)
-import plotly.express as px
+from mofography.workflow import assign_pocket_types, show_mof_plotly, show_mof_threejs
+from plotly.io import to_html
 
-CIF_PATH    = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs/LTA-96.cif")
-OUTPUT_HTML = Path("/tmp/lta96_upstream_check.html")
-SPACING     = 0.3
+CIF_PATH = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif")
+SPACING  = 0.5
 
 atoms   = read_cif_to_ase(CIF_PATH)
 atoms_b = update_with_covalent_bonds(atoms)
 dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
 seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
-                                         mask_thickness=0.05, disable_tqdm=True)
+                                         mask_thickness=0.05,
+                                         min_distance=1.5, threshold_abs=1.5)
 typed   = assign_pocket_types(seg, atoms)
-
-summary = typed.type_summary
-print(f"LTA-96 pocket types: {typed.n_types}  (expected 2)")
-
-cscale  = px.colors.qualitative.Plotly
-regions_cluster = pocket_regions_cluster(typed, seg)
-surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
-                              region_labels=regions_cluster, cscale=cscale,
-                              stylize=True, name="Pocket types")
-frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
-cell    = plot_cell(atoms_b)
-win     = plot_windows(seg["connections"])
-
-fig = go.Figure(data=[surface, *frame, cell, win])
-fig = add_percolation_windows_to_fig(fig, seg,
-                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
-fig.update(layout=white_layout)
-fig.update_layout(scene=dict(aspectmode="data"),
-                  title=f"LTA-96 — {typed.n_types} pocket type(s)")
-
-OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
-print(f"Saved → {OUTPUT_HTML}")
-#+end_src
-
-** 7.4  ZIF-20 (hardest case — expect 6 pocket types)
-
-#+begin_src python
-from pathlib import Path
-import plotly.graph_objects as go
-from plotly.io import to_html
-from mofography.cif_io import read_cif_to_ase
-from mofography.analyze import update_with_covalent_bonds
-from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
-from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
-                                   plot_cell, plot_maxima, plot_windows, white_layout)
-import plotly.express as px
-
-CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif")
-OUTPUT_HTML = Path("/tmp/zif20_upstream_check.html")
-SPACING     = 0.3
-
-atoms   = read_cif_to_ase(CIF_PATH)
-atoms_b = update_with_covalent_bonds(atoms)
-dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
-seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
-                                         mask_thickness=0.05, disable_tqdm=True)
-typed   = assign_pocket_types(seg, atoms)
-
-summary = typed.type_summary
 print(f"ZIF-20 pocket types: {typed.n_types}  (expected 6)")
-for info in sorted(summary, key=lambda x: x["type_id"]):
-    pid = info["type_id"]
-    print(f"  type {pid}: n={info.get('n_pockets')}  max_r={info.get('max_r_mean_a', 0):.2f} Å")
 
-cscale  = px.colors.qualitative.Dark24
-regions_cluster = pocket_regions_cluster(typed, seg)
-surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
-                              region_labels=regions_cluster, cscale=cscale,
-                              stylize=True, name="Pocket types")
-frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
-cell    = plot_cell(atoms_b)
-win     = plot_windows(seg["connections"])
+# Plotly (6 types need Dark24 palette for distinct colours)
+fig = show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
+Path("/tmp/zif20_plotly.html").write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
 
-fig = go.Figure(data=[surface, *frame, cell, win])
-fig = add_percolation_windows_to_fig(fig, seg,
-                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
-fig.update(layout=white_layout)
-fig.update_layout(scene=dict(aspectmode="data"),
-                  title=f"ZIF-20 — {typed.n_types} pocket type(s)")
-
-OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
-print(f"Saved → {OUTPUT_HTML}")
-#+end_src
-
-** 7.5  NU-1000 (expect 3 pocket types)
-
-#+begin_src python
-from pathlib import Path
-import plotly.graph_objects as go
-from plotly.io import to_html
-from mofography.cif_io import read_cif_to_ase
-from mofography.analyze import update_with_covalent_bonds
-from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
-from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
-                                   plot_cell, plot_maxima, plot_windows, white_layout)
-import plotly.express as px
-
-CIF_PATH    = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs/NU-1000.cif")
-OUTPUT_HTML = Path("/tmp/nu1000_upstream_check.html")
-SPACING     = 0.3
-
-atoms   = read_cif_to_ase(CIF_PATH)
-atoms_b = update_with_covalent_bonds(atoms)
-dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
-seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
-                                         mask_thickness=0.05, disable_tqdm=True)
-typed   = assign_pocket_types(seg, atoms)
-
-summary = typed.type_summary
-print(f"NU-1000 pocket types: {typed.n_types}  (expected 3)")
-
-cscale  = px.colors.qualitative.Plotly
-regions_cluster = pocket_regions_cluster(typed, seg)
-surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
-                              region_labels=regions_cluster, cscale=cscale,
-                              stylize=True, name="Pocket types")
-frame   = plot_framework_as_mesh(atoms_b, show_rings=True, stylize=True)
-cell    = plot_cell(atoms_b)
-win     = plot_windows(seg["connections"])
-
-fig = go.Figure(data=[surface, *frame, cell, win])
-fig = add_percolation_windows_to_fig(fig, seg,
-                                      pld_probe_radius=seg.get("pld", 0) / 2.0)
-fig.update(layout=white_layout)
-fig.update_layout(scene=dict(aspectmode="data"),
-                  title=f"NU-1000 — {typed.n_types} pocket type(s)")
-
-OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
-print(f"Saved → {OUTPUT_HTML}")
+# Three.js
+show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                 output_html="/tmp/zif20_threejs.html")
+print("Saved /tmp/zif20_plotly.html  and  /tmp/zif20_threejs.html")
 #+end_src
 
 -----
+
 
 * 8  Parameter Reference
 
