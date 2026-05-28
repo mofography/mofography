@@ -524,10 +524,40 @@ def add_percolation_windows_to_fig(fig, analysis_result, pld_probe_radius=None, 
     from mofography.visualize import plot_percolation_windows
     traces = plot_percolation_windows(
         analysis_result,
-        pld_probe_radius=pld_probe_radius,
+        probe_radius=pld_probe_radius,
         pld_tolerance=pld_tolerance,
     )
     for t in traces:
         fig.add_trace(t)
     return fig
 
+
+def pocket_regions_cluster(typed_result, seg):
+    """Return the pocket-type region label grid for surface colouring.
+
+    ``assign_pocket_types`` stores the typed region array as
+    ``PocketTypingResult.regions_cluster`` (a ``numpy.ndarray``).  The naive
+    ``typed.regions_cluster or seg.get("regions_pbc")`` fails with
+    ``ValueError`` because numpy arrays have no single boolean truth value.
+
+    This helper does the safe ``is not None`` check and falls back to the raw
+    PBC-merged region grid from the segmentation dict when pocket typing did
+    not populate the array (e.g. when ``result.ok`` is False).
+
+    Usage::
+
+        from mofography.workflow import assign_pocket_types, pocket_regions_cluster
+
+        result  = assign_pocket_types(seg, atoms)
+        regions = pocket_regions_cluster(result, seg)
+        surface = plot_surface_dgrid(dgrid, 1.75, select="all",
+                                     region_labels=regions, ...)
+
+    :param typed_result: ``PocketTypingResult`` from ``assign_pocket_types``
+    :param seg: segmentation dict from ``do_periodic_segmentation_rust``
+    :return: numpy int array with one label per voxel, or None
+    """
+    rc = getattr(typed_result, "regions_cluster", None)
+    if rc is not None:
+        return rc
+    return seg.get("regions_pbc")
