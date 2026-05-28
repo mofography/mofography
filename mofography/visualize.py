@@ -215,7 +215,9 @@ def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
     return path_traces
 
 def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='all', opacity=1.0, cscale=None,
-                       color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :', **kwargs_mesh):
+                       color='blue', stepsize=1, stylize=False, random_seed=0, hover_label='Region :',
+                       taubin_smooth=False, taubin_iterations=3, taubin_lambda=0.2175, taubin_nu=-0.2175,
+                       **kwargs_mesh):
     """
     It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
     returns a plotly mesh3d object that can be plotted using plotly
@@ -255,7 +257,11 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
     from skimage.measure import marching_cubes as mc
     verts, faces, normals, values = mc(dgrid, isovalue, step_size=stepsize)
 
-
+    # Optional Taubin smoothing (lightweight, preserves volume better than Laplacian)
+    if taubin_smooth:
+        _tm = trimesh.Trimesh(vertices=verts, faces=faces, vertex_normals=normals, process=False)
+        trimesh.smoothing.filter_taubin(_tm, lamb=taubin_lambda, nu=taubin_nu, iterations=taubin_iterations)
+        verts, faces = np.asarray(_tm.vertices), np.asarray(_tm.faces)
 
     # replace default **kwargs_mesh with user defined ones
 
