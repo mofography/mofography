@@ -668,6 +668,11 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     def _pack(ids: set[int]):
         if not ids:
             return [], [], [], [], 0
+        # Guard: IDs are 1-based; clamp to valid maxima range
+        n_max = len(maxima)
+        ids = {i for i in ids if 1 <= i <= n_max}
+        if not ids:
+            return [], [], [], [], 0
         idx = np.asarray([i - 1 for i in ids], dtype=int)
         p = pos[idx]
         s = np.asarray(sizes, dtype=float)[idx]
