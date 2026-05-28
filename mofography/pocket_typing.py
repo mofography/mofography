@@ -170,16 +170,34 @@ def _edge_connected(data: dict) -> bool:
 
 
 def _import_mgr():
-    import mgr
+    """Return a namespace with the RAG/PSD helpers from mofography.compute and .rust_fun.
 
-    return mgr
+    This replaces the old `import mgr` that broke after the package was renamed to mofography.
+    All callers continue to use `mgr.<func>(...)` without changes.
+
+    NOTE: mofography.__init__ does `from .compute import *` which shadows the submodule
+    attribute with the top-level `compute()` function; we must use importlib to get the
+    real submodule from sys.modules.
+    """
+    import types, importlib
+    _compute  = importlib.import_module("mofography.compute")
+    _rust_fun = importlib.import_module("mofography.rust_fun")
+
+    ns = types.SimpleNamespace()
+    ns.rag_from_connections        = _compute.rag_from_connections
+    ns.add_window_info_to_rag      = _compute.add_window_info_to_rag
+    ns.add_pbc_to_rag              = _compute.add_pbc_to_rag
+    ns.add_maxima_to_rag           = _compute.add_maxima_to_rag
+    ns.compute_psds_pocketwise_rust = _rust_fun.compute_psds_pocketwise_rust
+
+    # mofography.compute.add_psd_to_rag_with_pbc now accepts pocket_psds;
+    # bind it directly.
+    ns.add_psd_to_rag_with_pbc = _compute.add_psd_to_rag_with_pbc
+    return ns
 
 
 def _import_get_pbc_groups():
-    try:
-        from python_cli.mgrcli.cli import get_pbc_groups
-    except ImportError:
-        from mgrcli.cli import get_pbc_groups
+    from mofography.compute import get_pbc_groups
     return get_pbc_groups
 
 

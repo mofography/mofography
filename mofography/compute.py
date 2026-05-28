@@ -3364,6 +3364,9 @@ def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
 
     G = copy.deepcopy(rag)
     prop_labels = np.array([prop["label"] for prop in props])
+
+    # Tag PSD source so downstream consumers can inspect it.
+    G.graph["psd_source"] = "pocketwise_rust" if pocket_psds is not None else "centroid_distance"
     for group in pbc_groups: 
         prop_indices = [np.where(prop_labels == g)[0][0] for g in group]
         # print(group, prop_indices)
@@ -3388,7 +3391,7 @@ def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
     return G
 
 
-def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
+def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape, pocket_psds=None):
     """
     > It takes a rag, a list of properties, a list of pbc groups, a list of bins, an ase atoms object
     and a shape and returns a region adjacency graph with pbc properties added to it.
@@ -3442,18 +3445,30 @@ def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
     for group in pbc_groups:
         prop_indices = [np.where(prop_labels == g)[0][0] for g in group]
         # print(group, prop_indices)
+        # Try to find a representative region with precomputed pocket PSD data.
+        _psd_rep = None
+        if pocket_psds is not None:
+            for g in group:
+                if g in pocket_psds:
+                    _psd_rep = g
+                    break
+
         if len(group) > 1:
             # * fractional coordinates of all the points present in this group
             coords = np.vstack([props[pi]["coords"] for pi in prop_indices]) / shape
-            # print(coords.shape)
             # * pbc centroid of the group in fractional coordinates
             centroid = stats.circmean(coords, axis=0, low=0, high=1)
-            # * distances for the group in cartesian units
-            distances = get_pbc_distances(coords, centroid, ase_atoms)
-            # * histogram of the distances and bin centers
-            psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
-            psd_x_pbc = (bine[1:] + bine[:-1]) / 2
-            # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+
+            if _psd_rep is not None:
+                # Use precomputed pocketwise PSD (Rust sampler, much more accurate)
+                psd_y_pbc = pocket_psds[_psd_rep]["hist"].astype(float)
+                psd_x_pbc = pocket_psds[_psd_rep]["bin_centers"].astype(float)
+            else:
+                # Legacy: centroid-distance histogram
+                distances = get_pbc_distances(coords, centroid, ase_atoms)
+                psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+                psd_x_pbc = (bine[1:] + bine[:-1]) / 2
+
             for i, g in enumerate(group):
                 G.nodes[props[prop_indices[i]]["label"]]["centroid_pbc"] = (
                     find_coord_from_indices(
@@ -3464,16 +3479,17 @@ def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
                 G.nodes[props[prop_indices[i]]["label"]]["psd_y_pbc"] = psd_y_pbc
         else:
             pi = np.where(prop_labels == list(group)[0])[0][0]
-            # print(pi)
-            # * get coordinates and centroids
             coords = props[pi]["coords"] / shape
             centroid = np.mean(coords, axis=0)
-            # * histogram of the distances and bin centers
-            distances = get_pbc_distances(coords, centroid, ase_atoms)
-            psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
-            psd_x_pbc = (bine[1:] + bine[:-1]) / 2
 
-            # * Now update the property of all the nodes in the graph with the pbc psd and cetnroid properties
+            if _psd_rep is not None:
+                psd_y_pbc = pocket_psds[_psd_rep]["hist"].astype(float)
+                psd_x_pbc = pocket_psds[_psd_rep]["bin_centers"].astype(float)
+            else:
+                distances = get_pbc_distances(coords, centroid, ase_atoms)
+                psd_y_pbc, bine = np.histogram(distances, bins=bins, density=True)
+                psd_x_pbc = (bine[1:] + bine[:-1]) / 2
+
             G.nodes[props[pi]["label"]]["centroid_pbc"] = find_coord_from_indices(
                 indices=centroid * shape, ase_atoms=ase_atoms, shape=shape
             )
