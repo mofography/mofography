@@ -478,10 +478,12 @@ print(f"Figure now has {len(fig.data)} traces")
 Two high-level functions in =mofography.workflow= mirror the interactive
 app's main visualisation page:
 
-- =show_mof_plotly= — Plotly backend; returns a =go.Figure= that can be
-  saved as a self-contained HTML file with the standard Plotly CDN loader.
-- =show_mof_threejs= — Three.js / =MovieFigure= backend; returns (or writes)
-  the same self-contained HTML rendered by the in-browser Three.js engine.
+- =show_mof_plotly= — Plotly backend; returns a =go.Figure=.
+  Call =fig.show()= or =fig.show(renderer="browser")= just like any
+  Plotly figure.  Save to disk with =to_html(fig, ...)=.
+- =show_mof_threejs= — Three.js / =MovieFigure= backend; returns
+  (or writes) a self-contained HTML string.  Pass =show=True= to
+  open it directly in the browser or Jupyter notebook.
 
 Both reproduce the interactive-app default view:
 
@@ -494,14 +496,13 @@ Both reproduce the interactive-app default view:
 | Regions surface (PBC merged) | Same after PBC-group merging |
 | Pocket-type surface | Coloured by type id when =typed_result= supplied |
 | Pore-graph connections | Edges trimmed to accessible regions |
-| Windows (internal only) | Red spheres; =c[2]=="internal"= filter + far-outside reclassification |
+| Windows (internal only) | Red spheres; =c[2]=="internal"= filter |
 | Local maxima | Pore-centre spheres scaled by cage radius |
 
 ** Critical: keep =atoms= and =atoms_b= separate
 
 =update_with_covalent_bonds= writes bond data into =atoms.info= in a way
-that causes a Rust panic inside =assign_pocket_types= (Cu-BTC duplicate
-sites trigger AABB re-indexing).  Keep them separate:
+that causes a Rust panic inside =assign_pocket_types=.  Keep them separate:
 
 #+begin_example
 atoms   = read_cif_to_ase(cif)                    # clean — for seg/typed
@@ -510,8 +511,38 @@ atoms_b = update_with_covalent_bonds(atoms)       # bonds — for framework only
 
 Pass =framework_atoms=atoms_b= to both visualisation functions.
 
-** Commit
-=02e7966= (2026-05-28)
+** Surface smoothing defaults (match interactive app)
+
+Default =taubin_intensity = 0.05= → 3 iterations, λ=0.2175, ν=-0.2175.
+Marching-cubes =step_size = 1= (full-resolution, equivalent to app “medium” quality).
+
+Override with:
+
+#+begin_src python
+# No smoothing (sharp edges, fastest)
+fig = show_mof_plotly(seg, atoms, plot_surface_taubin_smooth=False)
+
+# Higher Taubin intensity (more blur, heavier)
+fig = show_mof_plotly(seg, atoms,
+                      plot_surface_taubin_iterations=8,
+                      plot_surface_taubin_lambda=0.45,
+                      plot_surface_taubin_nu=-0.45)
+
+# Lower-resolution mesh (faster, larger structures)
+fig = show_mof_plotly(seg, atoms, plot_surface_step_size=2)
+#+end_src
+
+** High-quality local render
+
+When running locally (not in Spaces), you can afford =step_size=1= with
+Taubin off for the sharpest surfaces — that is already the default.
+For the very best quality with =stylize=True= cylinder caps, there is no
+further option to set; the app’s “high” mode only adds smooth cylinders,
+which =plot_framework_as_mesh= already produces by default.
+
+** Commits
+=02e7966= (show_mof_plotly/threejs added, 2026-05-28),
+=51c356c= (taubin defaults fixed, show() added)
 
 ** 7.1  Cu-BTC — Plotly backend (expect 3 pocket types)
 
@@ -537,33 +568,24 @@ seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
                                        min_distance=1.5, threshold_abs=1.5)
 typed = assign_pocket_types(seg, atoms)
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
-for info in sorted(typed.type_summary, key=lambda x: x["type_id"]):
-    print(f"  type {info['type_id']}: n={info.get('n_pockets')}  "
-          f"max_r={info.get('max_r_mean_a', float('nan')):.2f} Å")
 
-# Full visualization — matches app default + pocket-type surface
 fig = show_mof_plotly(
     seg, atoms,
     typed_result=typed,
-    framework_atoms=atoms_b,       # bonds/rings without breaking pocket typing
+    framework_atoms=atoms_b,
 )
 print(f"Figure traces: {len(fig.data)}")
+
+# Open interactively (like any Plotly figure)
+fig.show()                         # uses default Plotly renderer
+fig.show(renderer="browser")       # force browser tab
+
+# Save standalone HTML
 OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
 print(f"Saved → {OUTPUT_HTML}")
 #+end_src
 
-Customisation options (=**options= kwargs to =show_mof_plotly=)::
-
-#+begin_src python
-# White background, skip raw regions, different isovalue
-fig = show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
-                      plot_surface=False,
-                      plot_surface_pbc=True,
-                      plot_surface_isovalue=0.8,
-                      plot_layout="white")
-#+end_src
-
-** 7.2  Cu-BTC — Three.js backend (expect 3 pocket types)
+** 7.2  Cu-BTC — Three.js backend + =show()= (expect 3 pocket types)
 
 #+begin_src python
 from pathlib import Path
@@ -577,16 +599,28 @@ OUTPUT_HTML = Path("/tmp/cubtc_threejs.html")
 SPACING     = 0.5
 
 atoms   = read_cif_to_ase(CIF_PATH)
-atoms_b = update_with_covalent_bonds(atoms)   # bonds/rings — framework only
-
-dgrid = dgrid_from_atoms_rust(atoms, spacing=SPACING)
-seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
-                                       mask_thickness=0.05,
-                                       min_distance=1.5, threshold_abs=1.5)
-typed = assign_pocket_types(seg, atoms)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05,
+                                         min_distance=1.5, threshold_abs=1.5)
+typed   = assign_pocket_types(seg, atoms)
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
 
-# Three.js standalone HTML — write directly to file
+# Open directly in browser (mirrors plotly’s fig.show(renderer='browser'))
+show_mof_threejs(
+    seg, atoms,
+    typed_result=typed,
+    framework_atoms=atoms_b,
+    show=True,                  # opens a temp HTML in the default browser
+    renderer="browser",         # or "notebook" inside Jupyter
+)
+
+# Jupyter notebook — inline display
+# show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+#                  show=True, renderer="notebook")
+
+# Write to file
 show_mof_threejs(
     seg, atoms,
     typed_result=typed,
@@ -595,20 +629,8 @@ show_mof_threejs(
 )
 print(f"Saved → {OUTPUT_HTML}")
 
-# Or capture the HTML string (e.g. for st.components.v1.html())
+# Capture HTML string (e.g. for st.components.v1.html())
 # html_str = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
-#+end_src
-
-Customisation options (=**options= kwargs to =show_mof_threejs=)::
-
-#+begin_src python
-# White background, disable raw surface, lower isovalue for PBC surface
-html = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
-                        plot_surface=False,
-                        plot_surface_pbc=True,
-                        plot_surface_isovalue=0.8,
-                        plot_surface_taubin_smooth=False,
-                        plot_layout="white")
 #+end_src
 
 ** 7.3  ZIF-20 (expect 6 pocket types) — same pattern
@@ -633,11 +655,15 @@ seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
 typed   = assign_pocket_types(seg, atoms)
 print(f"ZIF-20 pocket types: {typed.n_types}  (expected 6)")
 
-# Plotly (6 types need Dark24 palette for distinct colours)
+# Plotly — fig.show() or save
 fig = show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
+fig.show(renderer="browser")
 Path("/tmp/zif20_plotly.html").write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
 
-# Three.js
+# Three.js — show in browser
+show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                 show=True, renderer="browser")
+# Also save to file
 show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
                  output_html="/tmp/zif20_threejs.html")
 print("Saved /tmp/zif20_plotly.html  and  /tmp/zif20_threejs.html")
