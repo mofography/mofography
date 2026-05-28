@@ -3090,6 +3090,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         <button id="applyViewDir" type="button" style="font-size:9px;padding:1px 4px;">Set</button>
       </label>
       <label>Exploded: <input id="explodeSlider" type="range" min="0" max="6" step="0.05" value="0" style="width:140px;vertical-align:middle;" /></label>
+      <label style="margin-left:2px;">Plane: <select id="explodePlane" style="font-size:10px;vertical-align:middle;">
+        <option value="ab" selected>AB</option>
+        <option value="bc">BC</option>
+        <option value="ca">CA</option>
+      </select></label>
       <label>Bg: <input id="bgPicker" type="color" value="#111111" style="width:40px;vertical-align:middle;border:none;height:16px;" /></label>
       <div style="margin-top:2px;display:flex;gap:2px;">
         <button id="bgGradientNone" title="Solid" style="font-size:8px;padding:1px 3px;">■</button>
@@ -3324,6 +3329,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const viewDirZInput = document.getElementById("viewDirZ");
     const applyViewDirBtn = document.getElementById("applyViewDir");
     const explodeSlider = document.getElementById("explodeSlider");
+    const explodePlane = document.getElementById("explodePlane");
     const bgPicker = document.getElementById("bgPicker");
     const pngResSelect = document.getElementById("pngRes");
     const recResSelect = document.getElementById("recRes");
@@ -4122,12 +4128,30 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     controls.update();
 
     // Override default camera to 1.5 * (la, lb, lc) from scene center along (1,1,1)
+    // Also store cell lengths and unit vectors for dynamic explode slider.
+    let _cellLengths = { la: 20, lb: 20, lc: 20 };
+    let _cellVecs = [
+      new THREE.Vector3(1, 0, 0),  // a-hat (Cartesian fallback)
+      new THREE.Vector3(0, 1, 0),  // b-hat
+      new THREE.Vector3(0, 0, 1),  // c-hat
+    ];
     let _camOverridePos = null;
     if (cellObj && cellObj.geometry && cellObj.geometry.attributes && cellObj.geometry.attributes.position) {
       const cpos = cellObj.geometry.attributes.position.array;
+      // Cell wireframe edges encode the lattice vectors directly:
+      //   cpos[0..2]  = origin, cpos[3..5]  = a-vector
+      //   cpos[6..8]  = origin, cpos[9..11]  = b-vector
+      //   cpos[12..14] = origin, cpos[15..17] = c-vector
       const la = Math.sqrt(cpos[3]*cpos[3] + cpos[4]*cpos[4] + cpos[5]*cpos[5]);
       const lb = Math.sqrt(cpos[9]*cpos[9] + cpos[10]*cpos[10] + cpos[11]*cpos[11]);
       const lc = Math.sqrt(cpos[15]*cpos[15] + cpos[16]*cpos[16] + cpos[17]*cpos[17]);
+      _cellLengths = { la: la, lb: lb, lc: lc };
+      // Store unit cell vectors (normalized) for explode offsets along crystallographic directions.
+      _cellVecs = [
+        new THREE.Vector3(cpos[3], cpos[4], cpos[5]).normalize(),
+        new THREE.Vector3(cpos[9], cpos[10], cpos[11]).normalize(),
+        new THREE.Vector3(cpos[15], cpos[16], cpos[17]).normalize(),
+      ];
       _camOverridePos = new THREE.Vector3(1.5 * la, 1.5 * lb, 1.5 * lc);
       [perspectiveCam, orthoCam].forEach(function(cam) {
         cam.position.copy(_camOverridePos);
@@ -4136,6 +4160,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       controls.target.copy(sceneCenter);
       controls.update();
       updateOrthoFrustum();
+      // Dynamic slider max: largest cell dimension / 6 + 1.0 cushion for extra separation
+      const maxLen = Math.max(la, lb, lc);
+      explodeSlider.max = (maxLen / 6.0 + 1.0).toFixed(2);
     }
 
     // Exploded view: multi-directional separation
@@ -4432,7 +4459,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       });
       updateFrameworkCellVisibility();
       // Re-apply exploded offsets so newly-active representations land in the right cell.
-      if (typeof applyExplodeOffsets === "function") applyExplodeOffsets();
+      applyExplodeOffsets();
     }
     showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
@@ -4660,26 +4687,46 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
 
     const _explodeOrig = {};
-    explodeSlider.addEventListener("input", () => {
+
+    function applyExplodeOffsets() {
       const dist = parseFloat(explodeSlider.value);
+      const plane = explodePlane ? explodePlane.value : "ab";
+      // Map plane selection to cell-vector indices: which two lattice vectors to use.
+      // AB plane: a→primary (left/right), b→secondary (up/down)
+      // BC plane: b→primary, c→secondary
+      // CA plane: c→primary, a→secondary
+      // Offsets are along crystallographic cell-vector directions, not Cartesian axes,
+      // so non-orthogonal cells explode correctly along their own lattice vectors.
+      const planeMap = {
+        "ab": { primary: 0, secondary: 1 },  // a, b
+        "bc": { primary: 1, secondary: 2 },  // b, c
+        "ca": { primary: 2, secondary: 0 },  // c, a
+      };
+      const idx = planeMap[plane] || planeMap["ab"];
+      const vecA = _cellVecs[idx.primary];
+      const vecB = _cellVecs[idx.secondary];
       const spacing = dist * 8.0;
       _explodeGroups.forEach(function(group) {
-        const offsetX = group.x * spacing;
-        const offsetY = group.y * spacing;
+        const offset = new THREE.Vector3(0, 0, 0);
+        offset.addScaledVector(vecA, group.x * spacing);
+        offset.addScaledVector(vecB, group.y * spacing);
         group.ids.forEach(function(tid) {
           const obj = objectsById[tid];
           if (!obj) return;
           if (_explodeOrig[tid] === undefined) {
             _explodeOrig[tid] = obj.position.clone();
           }
-          obj.position.copy(_explodeOrig[tid]).add(new THREE.Vector3(offsetX, offsetY, 0));
+          obj.position.copy(_explodeOrig[tid]).add(offset);
         });
       });
       // Show/hide the cell copies when exploded — each follows actual trace visibility
       updateFrameworkCellVisibility();
       updateCellCopyVisibility();
       updateSurfaceCellVisibility();
-    });
+    }
+
+    explodeSlider.addEventListener("input", applyExplodeOffsets);
+    if (explodePlane) explodePlane.addEventListener("change", applyExplodeOffsets);
 
     bgPicker.addEventListener("input", () => {
       updateSceneBackground();
