@@ -270,7 +270,7 @@ fingerprinting even though they are too narrow to be "windows".
 #+begin_src python
 from mofography.cif_io import read_cif_to_ase
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types
+from mofography.workflow import assign_pocket_types, pocket_regions_cluster
 
 cif   = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif"
 atoms = read_cif_to_ase(cif)
@@ -289,8 +289,7 @@ result = assign_pocket_types(seg, atoms)
 if not result.ok:
     print("ERROR:", result.error)
 else:
-    print(f"
-ZIF-20 pocket types detected: {result.n_types}  (expected: 6)")
+    print(f" ZIF-20 pocket types detected: {result.n_types}  (expected: 6)")
     for info in sorted(result.type_summary, key=lambda x: x["type_id"]):
         pid = info["type_id"]
         n   = info.get("n_pockets", "?")
@@ -309,7 +308,7 @@ Params: spacing=0.5, mask_thickness=0.05, min_distance=1.5, threshold_abs=1.5.
 from pathlib import Path
 from mofography.cif_io import read_cif_to_ase
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types
+from mofography.workflow import assign_pocket_types, pocket_regions_cluster
 
 RASPA = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
 TEST  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
@@ -338,8 +337,7 @@ for name, cif, expected_n_types in BENCHMARK:
     else:                failed += 1
     print(f"[{status}] {name:10s} expected={expected_n_types}  got={got}")
 
-print(f"
-{passed}/{passed+failed} materials PASS")
+print(f" {passed}/{passed+failed} materials PASS")
 #+end_src
 
 -----
@@ -521,7 +519,7 @@ seg = do_periodic_segmentation_rust(
 print(f"[4] Regions    : {len(seg.get('unique_regions', []))} PBC-merged regions")
 
 # ── 5. Pocket types (env_cluster) ────────────────────────────────────────────
-from mofography.workflow import assign_pocket_types
+from mofography.workflow import assign_pocket_types, pocket_regions_cluster
 typed = assign_pocket_types(seg, atoms)
 summary = typed.type_summary
 print(f"[5] Pocket types: {typed.n_types}  (expected 2 for IRMOF-1)")
@@ -539,7 +537,7 @@ import plotly.express as px
 
 cscale = px.colors.qualitative.Plotly
 
-regions_cluster = getattr(typed, "regions_cluster", None) or seg.get("regions_pbc")
+regions_cluster = pocket_regions_cluster(typed, seg)
 surface = plot_surface_dgrid(
     dgrid, 1.75, select="all", ase_atoms=atoms_b,
     region_labels=regions_cluster, cscale=cscale,
@@ -583,7 +581,7 @@ from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
 from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
                                    plot_cell, plot_maxima, plot_windows, white_layout)
 import plotly.express as px
@@ -603,7 +601,7 @@ summary = typed.type_summary
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
 
 cscale  = px.colors.qualitative.Plotly
-regions_cluster = getattr(typed, "regions_cluster", None) or seg.get("regions_pbc")
+regions_cluster = pocket_regions_cluster(typed, seg)
 surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
                               region_labels=regions_cluster, cscale=cscale,
                               stylize=True, name="Pocket types")
@@ -631,7 +629,7 @@ from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
 from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
                                    plot_cell, plot_maxima, plot_windows, white_layout)
 import plotly.express as px
@@ -651,7 +649,7 @@ summary = typed.type_summary
 print(f"LTA-96 pocket types: {typed.n_types}  (expected 2)")
 
 cscale  = px.colors.qualitative.Plotly
-regions_cluster = getattr(typed, "regions_cluster", None) or seg.get("regions_pbc")
+regions_cluster = pocket_regions_cluster(typed, seg)
 surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
                               region_labels=regions_cluster, cscale=cscale,
                               stylize=True, name="Pocket types")
@@ -679,7 +677,7 @@ from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
 from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
                                    plot_cell, plot_maxima, plot_windows, white_layout)
 import plotly.express as px
@@ -702,7 +700,7 @@ for info in sorted(summary, key=lambda x: x["type_id"]):
     print(f"  type {pid}: n={info.get('n_pockets')}  max_r={info.get('max_r_mean_a', 0):.2f} Å")
 
 cscale  = px.colors.qualitative.Dark24
-regions_cluster = getattr(typed, "regions_cluster", None) or seg.get("regions_pbc")
+regions_cluster = pocket_regions_cluster(typed, seg)
 surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
                               region_labels=regions_cluster, cscale=cscale,
                               stylize=True, name="Pocket types")
@@ -730,7 +728,7 @@ from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
 from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig
+from mofography.workflow import assign_pocket_types, add_percolation_windows_to_fig, pocket_regions_cluster
 from mofography.visualize import (plot_surface_dgrid, plot_framework_as_mesh,
                                    plot_cell, plot_maxima, plot_windows, white_layout)
 import plotly.express as px
@@ -750,7 +748,7 @@ summary = typed.type_summary
 print(f"NU-1000 pocket types: {typed.n_types}  (expected 3)")
 
 cscale  = px.colors.qualitative.Plotly
-regions_cluster = getattr(typed, "regions_cluster", None) or seg.get("regions_pbc")
+regions_cluster = pocket_regions_cluster(typed, seg)
 surface = plot_surface_dgrid(dgrid, 1.75, select="all", ase_atoms=atoms_b,
                               region_labels=regions_cluster, cscale=cscale,
                               stylize=True, name="Pocket types")

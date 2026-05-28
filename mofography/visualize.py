@@ -2825,7 +2825,7 @@ def plot_percolation_windows(
     probe_radius = kwargs.pop("probe_radius", None)
 
     if not percolation_history or not len(connections):
-        return [], []
+        return []
 
     # Find the entry for the selected probe radius
     if probe_radius is None:
@@ -2833,7 +2833,7 @@ def plot_percolation_windows(
     else:
         entry = next((e for e in percolation_history if e[0] >= probe_radius), None)
         if entry is None:
-            return [], []
+            return []
 
     _threshold, components = entry
 
@@ -2851,7 +2851,7 @@ def plot_percolation_windows(
         all_comp_regions.update(comp)
 
     if not all_comp_regions:
-        return [], []
+        return []
 
     # Map maxima label → region label
     # maxima_info columns: (label, z, y, x, offset_z, offset_y, offset_x)
