@@ -2788,6 +2788,8 @@ def plot_windows(connections, **kwargs):
     kwargs.pop('marker_size', None)
     kwargs.pop('opacity', None)
     kwargs.pop('hovertext', None)
+    kwargs.pop('atoms', None)
+    kwargs.pop('spacing', None)
 
 
     #return the scatter trace

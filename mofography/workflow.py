@@ -561,3 +561,400 @@ def pocket_regions_cluster(typed_result, seg):
     if rc is not None:
         return rc
     return seg.get("regions_pbc")
+
+
+def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms=None, **options):
+    """Build the full mofography visualization figure (Plotly backend).
+
+    Reproduces the default interactive-app main visualization:
+
+    - Framework mesh with aromatic rings
+    - Unit cell
+    - Raw region surface
+    - PBC-merged region surface
+    - Pocket-type surface (when *typed_result* is supplied and ``result.ok``)
+    - Pore-graph connections trimmed to accessible (unique) regions
+    - **Internal** windows only — red spheres with far-outside reclassification
+    - Local maxima
+
+    Parameters
+    ----------
+    seg : dict
+        Output of ``do_periodic_segmentation_rust``.
+    atoms : ase.Atoms
+        Structure to visualize.
+    typed_result : PocketTypingResult, optional
+        Output of ``assign_pocket_types``.  When supplied and ``result.ok``,
+        adds a pocket-type surface coloured by type id.
+    stylize : bool
+        Apply PBR lighting tweaks (default ``True``).
+    framework_atoms : ase.Atoms, optional
+        Atoms object used *only* for framework mesh and aromatic ring rendering.
+        Pass the output of ``update_with_covalent_bonds(atoms)`` here to get
+        proper ring highlighting, while keeping *atoms* (un-modified) for all
+        grid / segmentation / pocket-typing operations.  When omitted, *atoms*
+        is used for both.
+    **options
+        Override any ``plot_*`` flag, e.g.::
+
+            show_mof_plotly(seg, atoms, plot_surface=False, plot_layout="white")
+
+        Recognised keys (all optional, shown with defaults):
+
+        .. code-block:: text
+
+            plot_cell               True
+            plot_framework          True
+            plot_framework_show_rings True
+            plot_maxima             True
+            plot_connections        True
+            plot_windows            True
+            plot_surface            True
+            plot_surface_pbc        True
+            plot_surface_isovalue   1.0
+            plot_surface_opacity    1.0
+            plot_surface_pbc_opacity  1.0
+            plot_surface_types_opacity 1.0
+            plot_layout             "dark"   # or "white"
+
+    Returns
+    -------
+    plotly.graph_objects.Figure
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    import plotly.express as px
+    from mofography.visualize import (
+        plot_surface_dgrid, plot_framework_as_mesh, plot_cell,
+        plot_maxima, plot_windows, dark_layout, white_layout,
+        plot_connections_as_it_is,
+    )
+
+    defaults = {
+        "plot_cell": True,
+        "plot_framework": True,
+        "plot_framework_show_rings": True,
+        "plot_maxima": True,
+        "plot_connections": True,
+        "plot_windows": True,
+        "plot_surface": True,
+        "plot_surface_pbc": True,
+        "plot_surface_isovalue": 1.0,
+        "plot_surface_opacity": 1.0,
+        "plot_surface_pbc_opacity": 1.0,
+        "plot_surface_types_opacity": 1.0,
+        "plot_layout": "dark",
+    }
+    defaults.update({k: v for k, v in options.items() if v is not None})
+
+    dgrid         = np.asarray(seg["dgrid"])
+    regions       = np.asarray(seg["regions"])
+    regions_pbc   = seg.get("regions_pbc")
+    all_maxima    = np.asarray(seg.get("all_maxima", []))
+    connections   = seg.get("connections", [])
+    unique_regions = np.asarray(seg.get("unique_regions", []), dtype=int)
+
+    # Trim connections to accessible regions (matches show_mof reference)
+    if unique_regions.size:
+        connections_trimmed = [c for c in connections if np.any(np.isin(c[0], unique_regions))]
+    else:
+        connections_trimmed = list(connections)
+
+    # Cap maxima to regions.max() — excludes padding-only sites
+    n_cap   = int(regions.max()) if regions.size else 0
+    maxima  = all_maxima[:n_cap] if n_cap > 0 else all_maxima[:0]
+
+    traces  = []
+    cscale  = px.colors.qualitative.Pastel
+    isovalue = float(defaults["plot_surface_isovalue"])
+
+    if defaults.get("plot_framework", True):
+        _fw_atoms = framework_atoms if framework_atoms is not None else atoms
+        fw = plot_framework_as_mesh(
+            _fw_atoms, stylize=stylize,
+            show_rings=bool(defaults.get("plot_framework_show_rings", True)),
+        )
+        traces.extend(fw)
+
+    if defaults.get("plot_cell", True):
+        traces.append(plot_cell(atoms))
+
+    if defaults.get("plot_surface", True):
+        traces.append(plot_surface_dgrid(
+            dgrid=dgrid, isovalue=isovalue, ase_atoms=atoms,
+            region_labels=regions,
+            opacity=float(defaults["plot_surface_opacity"]),
+            name="Regions Surface", cscale=cscale, stylize=stylize,
+        ))
+
+    if defaults.get("plot_surface_pbc", True) and regions_pbc is not None:
+        traces.append(plot_surface_dgrid(
+            dgrid=dgrid, isovalue=isovalue, ase_atoms=atoms,
+            region_labels=np.asarray(regions_pbc),
+            opacity=float(defaults["plot_surface_pbc_opacity"]),
+            name="Regions Surface (PBC)", cscale=cscale, stylize=stylize,
+        ))
+
+    # Pocket types surface (requires typed_result.ok and .regions_cluster)
+    rc = None
+    if typed_result is not None and getattr(typed_result, "ok", False):
+        rc = getattr(typed_result, "regions_cluster", None)
+    if rc is not None:
+        traces.append(plot_surface_dgrid(
+            dgrid=dgrid, isovalue=isovalue, ase_atoms=atoms,
+            region_labels=rc - 1,
+            opacity=float(defaults["plot_surface_types_opacity"]),
+            name="Pocket Types", cscale=cscale, stylize=stylize,
+            hover_label="Pocket type :",
+        ))
+
+    if defaults.get("plot_connections", True) and connections_trimmed:
+        conn_traces = plot_connections_as_it_is(
+            connections_trimmed, all_maxima, dgrid.shape, atoms,
+        )
+        traces.extend(conn_traces)
+
+    # Windows — ONLY internal connections; far-outside points reclassified
+    if defaults.get("plot_windows", True) and connections_trimmed:
+        internal_conns = [
+            c for c in connections_trimmed
+            if c[1] and c[2] == "internal"
+            and len(c) > 3 and c[3] is not None
+            and np.asarray(c[3]).size >= 3
+        ]
+        if internal_conns:
+            _cell    = atoms.get_cell().array.T
+            _lengths = np.linalg.norm(_cell, axis=0)
+            _shape   = np.asarray(dgrid.shape, dtype=float)
+            _spacing = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
+            traces.append(plot_windows(
+                internal_conns,
+                atoms=atoms, spacing=_spacing,
+                name="windows (internal)",
+                marker_color="red",
+                marker_size=10,
+                opacity=0.6,
+            ))
+
+    if defaults.get("plot_maxima", True) and len(maxima):
+        mx = plot_maxima(dgrid, maxima, atoms, marker_size=14)
+        if isinstance(mx, (list, tuple)):
+            traces.extend(mx)
+        else:
+            traces.append(mx)
+
+    _layout = str(defaults.get("plot_layout", "dark")).lower()
+    layout  = white_layout if _layout == "white" else dark_layout
+    fig = go.Figure(data=traces)
+    fig.update_layout(**layout)
+    fig.update_layout(
+        scene=dict(aspectmode="data"),
+        title=dict(text=getattr(atoms, "info", {}).get("name", "MOF")),
+    )
+    return fig
+
+
+def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atoms=None, output_html=None, **options):
+    """Build a standalone Three.js HTML visualization.
+
+    Reproduces the default interactive-app main visualization using the
+    Three.js / ``MovieFigure`` backend (same as the app's Three.js toggle).
+
+    Includes framework (ball-and-stick + aromatic rings), unit cell, raw and
+    PBC-merged region surfaces, optional pocket-type surface, pore-graph
+    connections, internal windows (periodic hidden by default), and local
+    maxima.
+
+    Parameters
+    ----------
+    seg : dict
+        Output of ``do_periodic_segmentation_rust``.
+    atoms : ase.Atoms
+        Structure to visualize.
+    typed_result : PocketTypingResult, optional
+        When supplied and ``result.ok``, adds the pocket-type surface.
+    stylize : bool
+        Apply PBR roughness/metalness tweaks (default ``True``).
+    output_html : str or Path, optional
+        If given, write the HTML to this path and return the path string.
+        Otherwise return the HTML string directly.
+    **options
+        Same ``plot_*`` flags as :func:`show_mof_plotly` plus Three.js extras:
+
+        .. code-block:: text
+
+            plot_surface_taubin_smooth      True
+            plot_surface_taubin_iterations  10
+            plot_surface_taubin_lambda      0.5
+            plot_surface_taubin_nu          -0.53
+            plot_layout                     "dark"   # or "white"
+
+    Returns
+    -------
+    str
+        Self-contained HTML string (or the output path when *output_html* is set).
+    """
+    import numpy as np
+    import tempfile, os
+    from mofography.movies import MovieFigure, make_surface_trace
+
+    defaults = {
+        "plot_cell": True,
+        "plot_framework": True,
+        "plot_framework_show_rings": True,
+        "plot_maxima": True,
+        "plot_connections": True,
+        "plot_windows": True,
+        "plot_surface": True,
+        "plot_surface_pbc": True,
+        "plot_surface_isovalue": 1.0,
+        "plot_surface_opacity": 1.0,
+        "plot_surface_pbc_opacity": 1.0,
+        "plot_surface_types_opacity": 1.0,
+        "plot_surface_taubin_smooth": True,
+        "plot_surface_taubin_iterations": 10,
+        "plot_surface_taubin_lambda": 0.5,
+        "plot_surface_taubin_nu": -0.53,
+        "plot_layout": "dark",
+    }
+    defaults.update({k: v for k, v in options.items() if v is not None})
+
+    dgrid          = np.asarray(seg["dgrid"])
+    regions        = np.asarray(seg["regions"])
+    regions_pbc    = seg.get("regions_pbc")
+    all_maxima_raw = seg.get("all_maxima")
+    maxima_pbc     = seg.get("maxima_pbc")
+    maxima_info    = seg.get("maxima_info")
+    maxima_pbc_dict = seg.get("maxima_pbc_dict", {})
+    connections_raw = seg.get("connections", [])
+    unique_regions  = np.asarray(seg.get("unique_regions", []), dtype=int)
+
+    if unique_regions.size:
+        connections = [c for c in connections_raw if np.any(np.isin(c[0], unique_regions))]
+    else:
+        connections = list(connections_raw)
+
+    # Cap maxima to regions.max()
+    n_cap = int(regions.max()) if regions.size else 0
+    am = np.asarray(all_maxima_raw, dtype=float) if all_maxima_raw is not None else np.zeros((0, 3), dtype=float)
+    all_maxima_plot = am[:n_cap] if n_cap > 0 else am[:0]
+    m_plot = len(all_maxima_plot)
+    if maxima_info is not None:
+        mi = np.asarray(maxima_info, dtype=int)
+        maxima_info_plot = mi[:m_plot] if mi.ndim == 2 and mi.shape[0] >= m_plot and m_plot > 0 else np.zeros((0, 7), dtype=int)
+    else:
+        maxima_info_plot = np.zeros((0, 7), dtype=int)
+
+    # Estimate grid spacing for window reclassification
+    _cell    = atoms.get_cell().array.T
+    _lengths = np.linalg.norm(_cell, axis=0)
+    _shape   = np.asarray(dgrid.shape, dtype=float)
+    spacing  = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
+
+    fig = MovieFigure()
+
+    taubin_kw = dict(
+        taubin_smooth=bool(defaults.get("plot_surface_taubin_smooth", True)),
+        taubin_iterations=int(defaults.get("plot_surface_taubin_iterations", 10)),
+        taubin_lambda=float(defaults.get("plot_surface_taubin_lambda", 0.5)),
+        taubin_nu=float(defaults.get("plot_surface_taubin_nu", -0.53)),
+    )
+    isovalue = float(defaults["plot_surface_isovalue"])
+
+    if defaults.get("plot_framework", True):
+        _fw_atoms = framework_atoms if framework_atoms is not None else atoms
+        fig.add_framework(_fw_atoms, representation="ball_and_stick")
+        if defaults.get("plot_framework_show_rings", True):
+            fig.add_aromatic_rings(_fw_atoms, cycles=_fw_atoms.info.get("aromatic_cycles"))
+
+    if defaults.get("plot_cell", True):
+        fig.add_cell(atoms)
+
+    if defaults.get("plot_surface", True):
+        t = make_surface_trace(
+            dgrid=dgrid, regions=regions, atoms=atoms,
+            isovalue=isovalue, name="Regions (raw)",
+            trace_id="surface", style="surface",
+            hover_prefix="Region:", **taubin_kw,
+        )
+        fig.add_trace(t)
+        fig.update_traces(
+            {"opacity": float(defaults["plot_surface_opacity"])},
+            selector={"id": "surface"},
+        )
+
+    if defaults.get("plot_surface_pbc", True) and regions_pbc is not None:
+        t = make_surface_trace(
+            dgrid=dgrid, regions=np.asarray(regions_pbc), atoms=atoms,
+            isovalue=isovalue, name="Regions (PBC merged)",
+            trace_id="surface_regions_pbc", style="surface",
+            hover_prefix="PBC:", **taubin_kw,
+        )
+        fig.add_trace(t)
+        fig.update_traces(
+            {"opacity": float(defaults["plot_surface_pbc_opacity"])},
+            selector={"id": "surface_regions_pbc"},
+        )
+
+    # Pocket types surface
+    rc = None
+    if typed_result is not None and getattr(typed_result, "ok", False):
+        rc = getattr(typed_result, "regions_cluster", None)
+    if rc is not None:
+        t = make_surface_trace(
+            dgrid=dgrid, regions=rc, atoms=atoms,
+            isovalue=isovalue, name="Pocket types (cluster)",
+            trace_id="surface_regions_cluster", style="surface",
+            hover_prefix="Pocket type:", **taubin_kw,
+        )
+        fig.add_trace(t)
+        fig.update_traces(
+            {"opacity": float(defaults["plot_surface_types_opacity"])},
+            selector={"id": "surface_regions_cluster"},
+        )
+
+    seg_dict = {
+        "dgrid": dgrid,
+        "regions": regions,
+        "all_maxima": all_maxima_plot,
+        "maxima_pbc": maxima_pbc if maxima_pbc is not None else np.zeros((0, 3), dtype=int),
+        "maxima_info": maxima_info_plot,
+        "maxima_pbc_dict": maxima_pbc_dict if maxima_pbc_dict else {},
+        "connections": connections,
+    }
+
+    if defaults.get("plot_connections", True) and connections:
+        fig.add_connections(seg_dict, atoms, hide_periodic=True)
+
+    if defaults.get("plot_windows", True) and connections:
+        fig.add_windows(seg_dict, hide_periodic=True, atoms=atoms, spacing=spacing)
+
+    if defaults.get("plot_maxima", True) and len(all_maxima_plot):
+        fig.add_maxima(seg_dict, atoms, hide_periodic=True)
+
+    if stylize:
+        fig.update_traces(
+            {"roughness": 0.05, "metalness": 0.3},
+            selector={"type": "mesh"},
+        )
+
+    layout = defaults.get("plot_layout", "dark")
+    if layout == "white":
+        fig.set_appearance(background="#ffffff", scene_bg=0xffffff)
+    else:
+        fig.set_appearance(
+            background="radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)",
+            scene_bg=0x111111,
+        )
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".html", delete=False)
+    fig.to_html(tmp.name)
+    with open(tmp.name, "r", encoding="utf-8") as f:
+        html_str = f.read()
+    os.unlink(tmp.name)
+
+    if output_html is not None:
+        from pathlib import Path as _P
+        _P(output_html).write_text(html_str, encoding="utf-8")
+        return str(output_html)
+    return html_str

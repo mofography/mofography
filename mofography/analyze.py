@@ -947,3 +947,42 @@ def _expand_aromatic_embeddings_rust(sgraph, chemically_unique_cycles: list) -> 
     templates = [[int(x) for x in cycle] for cycle in chemically_unique_cycles]
     return mgr_rust.expand_aromatic_cycle_embeddings(n, ei, ej, elems, bts, templates)
 
+
+
+def compute_aromatic_cycles(
+    ase_atoms,
+    *,
+    force_recompute: bool = False,
+    expand_isomorphisms: bool = True,
+    default_ring_sizes=None,
+):
+    """Detect aromatic cycles and cache the result in ``ase_atoms.info``.
+
+    Mirrors ``mgr.analyze.compute_aromatic_cycles``:
+
+    1. Ensures covalent bonds are present (calls
+       :func:`update_with_covalent_bonds` if needed).
+    2. Returns the cached ``ase_atoms.info["aromatic_cycles"]`` when
+       ``force_recompute=False`` and the info entry is already populated.
+    3. Otherwise calls :func:`find_aromatic_cycles_in_sgraph`, stores the
+       result in ``ase_atoms.info["aromatic_cycles"]``, and returns it.
+
+    Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
+    when a pre-computed cycle list is not supplied.
+    """
+    if "covalent_bonds" not in ase_atoms.info:
+        ase_atoms = update_with_covalent_bonds(ase_atoms)
+
+    if (
+        not force_recompute
+        and ase_atoms.info.get("aromatic_cycles") is not None
+    ):
+        return ase_atoms.info["aromatic_cycles"]
+
+    kw = {} if default_ring_sizes is None else {"default_ring_sizes": default_ring_sizes}
+    cycles = find_aromatic_cycles_in_sgraph(
+        sgraph_from_atoms(ase_atoms),
+        **kw,
+    )
+    ase_atoms.info["aromatic_cycles"] = cycles
+    return cycles
