@@ -4179,6 +4179,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       { ids: ["surface_pbc", "surface_regions_pbc", "maxima_pbc", "cell_pbc"], x: 0, y: 1 },
       { ids: ["surface_pocket", "surface_regions_cluster", "cell_pocket"], x: 0, y: -1 },
     ];
+    const _explodeOrig = {};  // must be declared before updateFrameworkVisibility() runs
 
     // Create unit-cell copies for exploded view — each group gets its own copy
     let cellCopy = null;
@@ -4685,8 +4686,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       dirKey.intensity = (_lightOrig.key !== undefined ? _lightOrig.key : 0.48) * mult;
       dirFill.intensity = (_lightOrig.fill !== undefined ? _lightOrig.fill : 0.32) * mult;
     });
-
-    const _explodeOrig = {};
 
     function applyExplodeOffsets() {
       const dist = parseFloat(explodeSlider.value);
