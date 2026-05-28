@@ -837,6 +837,10 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         "plot_surface_taubin_nu": -0.2175,
         # Marching-cubes step size: 1 = full resolution ("medium" / "high" quality)
         "plot_surface_step_size": 1,
+        # Framework representation: "mesh" (baked ball-and-stick mesh, default) or
+        # "instanced" (scatter — individual instanced spheres + cylinders, lighter GPU load,
+        #               matches the interactive-app scatter-trace option)
+        "plot_framework_representation": "mesh",
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -886,7 +890,26 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
 
     if defaults.get("plot_framework", True):
         _fw_atoms = framework_atoms if framework_atoms is not None else atoms
-        fig.add_framework(_fw_atoms, representation="ball_and_stick")
+        _fw_repr  = str(defaults.get("plot_framework_representation", "mesh")).lower()
+        if _fw_repr == "instanced":
+            from mofography.movies import make_framework_instanced_trace
+            _bs = make_framework_instanced_trace(
+                _fw_atoms, representation="ball_and_stick", trace_id="framework",
+            )
+            fig.add_trace(_bs["atoms"])
+            fig.add_trace(_bs["bonds"])
+            # Stick variant (hidden by default; toggled by the Representation selector)
+            _st = make_framework_instanced_trace(
+                _fw_atoms, representation="stick",
+                trace_id="framework_stick", name="Framework (stick)",
+            )
+            _st["atoms"]["visible"] = False
+            _st["bonds"]["visible"] = False
+            fig.add_trace(_st["atoms"])
+            fig.add_trace(_st["bonds"])
+        else:
+            # Default: baked mesh (ball-and-stick + hidden stick/spacefill variants)
+            fig.add_framework(_fw_atoms, representation="ball_and_stick")
         if defaults.get("plot_framework_show_rings", True):
             fig.add_aromatic_rings(_fw_atoms, cycles=_fw_atoms.info.get("aromatic_cycles"))
 

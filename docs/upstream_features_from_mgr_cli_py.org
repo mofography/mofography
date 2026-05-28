@@ -595,8 +595,10 @@ from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_
 from mofography.workflow import assign_pocket_types, show_mof_threejs
 
 CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/marksid-018.cif")
 OUTPUT_HTML = Path("/tmp/cubtc_threejs.html")
 SPACING     = 0.5
+# SPACING     = 0.25
 
 atoms   = read_cif_to_ase(CIF_PATH)
 atoms_b = update_with_covalent_bonds(atoms)
@@ -607,7 +609,7 @@ seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
 typed   = assign_pocket_types(seg, atoms)
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
 
-# Open directly in browser (mirrors plotly’s fig.show(renderer='browser'))
+# Open directly in browser (mirrors plotly's fig.show(renderer='browser'))
 show_mof_threejs(
     seg, atoms,
     typed_result=typed,
@@ -620,7 +622,7 @@ show_mof_threejs(
 # show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
 #                  show=True, renderer="notebook")
 
-# Write to file
+# Write to file — default mesh framework, full pocket-type surface
 show_mof_threejs(
     seg, atoms,
     typed_result=typed,
@@ -629,9 +631,31 @@ show_mof_threejs(
 )
 print(f"Saved → {OUTPUT_HTML}")
 
+# ── Scatter / instanced framework (matches the interactive-app scatter-trace
+#    option).  Replace the baked ball-and-stick mesh with individual instanced
+#    spheres + cylinders: lighter GPU load, ~15 MB vs ~113 MB for Cu-BTC.
+#    The Representation selector (ball-and-stick ↔ stick) still works.
+# show_mof_threejs(
+#     seg, atoms,
+#     typed_result=typed,
+#     framework_atoms=atoms_b,
+#     output_html=Path("/tmp/cubtc_threejs_instanced.html"),
+#     plot_framework_representation="instanced",
+# )
+
+# ── No pocket-type surface (like the interactive app when "Detect pocket types"
+#    is unchecked).  Omit typed_result (defaults to None); the
+#    surface_regions_cluster trace is simply not generated.
+# show_mof_threejs(
+#     seg, atoms,
+#     framework_atoms=atoms_b,          # typed_result omitted → no pocket surface
+#     output_html=Path("/tmp/cubtc_threejs_no_pockets.html"),
+# )
+
 # Capture HTML string (e.g. for st.components.v1.html())
 # html_str = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
 #+end_src
+
 
 ** 7.3  ZIF-20 (expect 6 pocket types) — same pattern
 
