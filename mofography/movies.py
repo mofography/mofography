@@ -4281,6 +4281,43 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         wrapper.appendChild(opacitySlider);
         meshOpacityContainer.appendChild(wrapper);
       });
+      // Single merged framework slider — controls all framework sub-traces together
+      var hasFwSub = false;
+      fwSubIds.forEach(function(sid) { if (objectsById[sid]) hasFwSub = true; });
+      if (hasFwSub) {
+        const fwWrapper = document.createElement("div");
+        fwWrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
+        const fwLabel = document.createElement("label");
+        fwLabel.style.cssText = "font-size:10px;white-space:nowrap;width:70px;overflow:hidden;text-overflow:ellipsis;";
+        fwLabel.textContent = "Framework";
+        const fwSlider = document.createElement("input");
+        fwSlider.type = "range"; fwSlider.min = "0"; fwSlider.max = "1"; fwSlider.step = "0.05";
+        fwSlider.value = "1";
+        fwSlider.style.cssText = "flex:1;";
+        fwSlider.addEventListener("input", () => {
+          const v = parseFloat(fwSlider.value);
+          fwSubIds.forEach(tid => {
+            const o = objectsById[tid];
+            if (!o || !o.material) return;
+            if (o.userData.originalOpacity === undefined) o.userData.originalOpacity = o.material.opacity;
+            const b = o.userData.originalOpacity || 1.0;
+            const sv = v * b;
+            o.material.opacity = sv;
+            o.material.transparent = sv < 1.0;
+            o.material.depthWrite = true;
+            o.material.depthTest = true;
+            if (o.userData.originalSide !== undefined) o.material.side = o.userData.originalSide;
+            o.visible = v > 0.001;
+            o.castShadow = v > 0.999;
+            o.receiveShadow = v > 0.999;
+            o.material.needsUpdate = true;
+          });
+          updateFrameworkVisibility();
+        });
+        fwWrapper.appendChild(fwLabel);
+        fwWrapper.appendChild(fwSlider);
+        meshOpacityContainer.appendChild(fwWrapper);
+      }
       // Stacking-order note for overlapping mesh traces (e.g. multiple surfaces)
       if (meshTraces.length > 0) {
         const note = document.createElement("div");
