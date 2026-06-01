@@ -11,6 +11,7 @@ from .raspa_helper import *
 from .rust_fun import *
 from .winding_percolation import *
 from .movies import *
+from .threejs_viz import *
 
 # Handle versioneer
 from ._version import get_versions
