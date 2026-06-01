@@ -555,3 +555,207 @@ Both APIs follow the same object model:
 | =set_colorscale(colors)=         | Set surface colors from px.colors or color list       |
 | =to_html(path, sidecar=False)=   | Save self-contained HTML (or sidecar pair)            |
 | =show(renderer)=                 | Display in notebook or browser                        |
+
+* Figure3JS — Granular Plotly-Style API
+
+=Figure3JS= is a chainable object API in =mofography.threejs_viz= that mirrors
+the Plotly trace model.  Every method returns =self=, so calls can be chained.
+Unlike =build_static_scene=, every visual element is added explicitly, giving
+full control over what appears and in what order.
+
+** Import
+
+#+begin_src python
+from mofography import threejs_viz as tjs
+#+end_src
+
+** Minimal Example
+
+#+begin_src python :exports both
+from mofography import threejs_viz as tjs
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg   = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = tjs.Figure3JS()
+fig.plot_cell(atoms, color="orange")
+fig.draw_framework(atoms)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=seg["regions"],
+    name="Regions", opacity=1.0,
+    cscale=tjs.qualitative_colorscale("Pastel"),
+)
+fig.plot_maxima(dgrid, seg["all_maxima"], atoms, name="Maxima")
+fig.set_camera(eye=(2.0, 0.0, 1.35))
+fig.to_html("my_output.html")
+#+end_src
+
+** Full Pipeline — Matching the Interactive App
+
+This is the canonical snippet that mirrors exactly what the interactive app
+produces (segmentation surfaces, PBC overlay, connections, windows).
+
+#+begin_src python :exports both
+import numpy as np
+from mofography import threejs_viz as tjs
+import mofography as mgr
+from ase.io import read
+
+# ---------- data ----------------------------------------------------------
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg   = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+regions             = seg["regions"]
+regions_pbc         = seg["regions_pbc"]
+connections         = seg["connections"]
+all_maxima          = seg["all_maxima"]
+unique_regions      = seg["unique_regions"]
+connections_trimmed = np.array(
+    [c for c in connections if np.any(np.isin(c[0], unique_regions))],
+    dtype=object,
+)
+
+# ---------- figure --------------------------------------------------------
+cscale = tjs.qualitative_colorscale("Pastel")
+
+fig = tjs.Figure3JS()
+fig.set_camera(eye=(2.0, 0.0, 1.35))
+fig.plot_cell(atoms, color="orange")
+fig.draw_framework(atoms)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions,
+    name="Regions", opacity=1.0, cscale=cscale,
+)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions_pbc,
+    name="Regions PBC", opacity=0.35, cscale=cscale,
+    trace_id="surface_regions_pbc",
+)
+fig.plot_maxima(dgrid, all_maxima, atoms,
+                name="Maxima (distinct)", cscale=cscale)
+fig.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, atoms,
+    cscale=cscale, plot_disconnected=False, plot_periodic=True,
+)
+fig.plot_windows(
+    connections_trimmed,
+    name="Windows",
+    marker_color="yellow", marker_size=10, marker_opacity=0.8,
+    grid_shape=dgrid.shape, maxima=all_maxima,
+)
+fig.to_html("cubtc_granular.html")
+#+end_src
+
+** Method Reference
+
+| Method | Purpose |
+|---|---|
+| =plot_cell(atoms, color="purple")= | Unit-cell wireframe |
+| =draw_framework(atoms)= | Ball-and-stick mesh (alias: =plot_framework=) |
+| =plot_surface_dgrid(dgrid, isovalue, atoms, region_labels=…)= | Marching-cubes surface from a distance grid |
+| =plot_surface(dgrid, label_array, atoms, …)= | Low-level surface (takes pre-computed regions array) |
+| =plot_maxima(dgrid, maxima, atoms, …)= | Pore-centre markers |
+| =plot_maxima_from_grid(dgrid, maxima, atoms, …)= | Same, with explicit regions override |
+| =plot_connections(seg, atoms, …)= | Channel connections from a seg dict |
+| =plot_connections_as_it_is(connections, maxima, shape, atoms, …)= | Connections from raw arrays |
+| =plot_windows(connections, …)= | Window centroids as point markers |
+| =plot_guests(positions, atoms, …)= | Guest-molecule positions (MD snapshots) |
+| =set_camera(eye, center, up)= | Camera position |
+| =set_appearance(**kwargs)= | Background, font, scene color |
+| =update_traces(patch, selector=…)= | Bulk-patch existing traces |
+| =add_group(id, traces, label, …)= | HUD checkbox group |
+| =add_trace(trace_dict)= | Append a raw trace dict |
+| =add_traces(traces)= | Append multiple raw trace dicts |
+| =to_html(path=None)= | Write self-contained HTML (returns HTML string if path is None) |
+| =show(renderer="browser")= | Open in browser |
+
+Access the underlying =MovieFigure= object via =fig.figure= for advanced use.
+
+** Surface Smoothing
+
+Surfaces are Taubin-smoothed by default at the same level as the interactive
+app (strength 0.05):
+
+| Parameter | Default | Notes |
+|---|---|---|
+| =taubin_smooth= | =True= | Set =False= to skip smoothing entirely |
+| =taubin_iterations= | =3= | Number of Taubin passes |
+| =taubin_lambda= | =0.2175= | Shrink factor |
+| =taubin_nu= | =-0.2175= | Inflate factor |
+
+Override per-call:
+
+#+begin_src python
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions, name="No smoothing",
+    taubin_smooth=False,
+)
+
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions, name="Heavy smoothing",
+    taubin_iterations=15, taubin_lambda=0.5, taubin_nu=-0.53,
+)
+#+end_src
+
+** Chaining
+
+All methods return =self=, enabling Plotly-style method chaining:
+
+#+begin_src python
+tjs.Figure3JS() \\
+    .plot_cell(atoms) \\
+    .draw_framework(atoms) \\
+    .plot_surface_dgrid(dgrid, 1.0, atoms, region_labels=regions, name="R") \\
+    .set_camera(eye=(2.0, 0.0, 1.35)) \\
+    .to_html("out.html")
+#+end_src
+
+** Colorscale Helper
+
+=tjs.qualitative_colorscale(name)= converts a Plotly qualitative palette name
+to the float RGB list expected by =Figure3JS=:
+
+#+begin_src python
+cscale = tjs.qualitative_colorscale("Pastel")   # list of [[r,g,b], …]
+cscale = tjs.qualitative_colorscale("Dark24")
+cscale = tjs.qualitative_colorscale("Vivid")
+
+# Or pass a px.colors list directly
+import plotly.express as px
+fig.plot_surface_dgrid(..., cscale=px.colors.qualitative.Set2)
+#+end_src
+
+** Difference from =Figure3D= / =build_static_scene=
+
+| Feature | =Figure3D= / =build_static_scene= | =Figure3JS= |
+|---|---|---|
+| Construction | Keyword-driven builder | Explicit per-trace calls |
+| Element control | Controlled by flags | Each element added manually |
+| Chaining | No | Yes |
+| Output | HTML via =.to_html()= | HTML via =.to_html()= |
+| Use case | Quick full-scene render | Custom layouts, research figures |
+
+For a quick full-scene render where you just need the default layout, prefer
+=build_static_scene=.  Use =Figure3JS= when you need precise control over
+which layers appear, in what order, with custom per-trace opacity or colors.
