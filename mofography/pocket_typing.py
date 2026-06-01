@@ -190,8 +190,8 @@ def _import_mgr():
     ns.add_maxima_to_rag           = _compute.add_maxima_to_rag
     ns.compute_psds_pocketwise_rust = _rust_fun.compute_psds_pocketwise_rust
 
-    # mofography.compute.add_psd_to_rag_with_pbc now accepts pocket_psds;
-    # bind it directly.
+    ns.add_csd_to_rag_with_pbc = _compute.add_csd_to_rag_with_pbc
+    ns.add_pocket_psd_to_rag_with_pbc = _compute.add_pocket_psd_to_rag_with_pbc
     ns.add_psd_to_rag_with_pbc = _compute.add_psd_to_rag_with_pbc
     return ns
 
@@ -260,15 +260,14 @@ def build_pockets_from_segmentation(
     except Exception:
         pocket_psds = None
 
-    rag = mgr.add_psd_to_rag_with_pbc(
-        rag,
-        props,
-        pbc_groups,
-        psd_bin_edges,
-        atoms,
-        dgrid.shape,
-        pocket_psds=pocket_psds,
+    rag = mgr.add_csd_to_rag_with_pbc(
+        rag, props, pbc_groups, psd_bin_edges, atoms, dgrid.shape
     )
+    if pocket_psds is not None:
+        rag = mgr.add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)
+        psd_source = str(rag.graph.get("pocket_psd_source", "pocketwise_rust"))
+    else:
+        psd_source = "missing_pocket_psd"
 
     region_to_rep: Dict[int, int] = {}
     for group in pbc_groups:
@@ -306,8 +305,8 @@ def build_pockets_from_segmentation(
     for pi, group in enumerate(pbc_groups):
         rep = min(group)
         nd = rag.nodes[rep]
-        x = np.asarray(nd.get("psd_x_pbc", psd_bin_edges), dtype=float)
-        y = _norm_psd(np.asarray(nd.get("psd_y_pbc", []), dtype=float))
+        x = np.asarray(nd.get("pocket_psd_x_pbc", []), dtype=float)
+        y = _norm_psd(np.asarray(nd.get("pocket_psd_y_pbc", []), dtype=float))
         if y.size == 0:
             continue
         i1 = int(np.argmax(y))
@@ -326,8 +325,9 @@ def build_pockets_from_segmentation(
         nbr_d1 = sorted(
             round(d1_map.get(nb, 0.0), 2) for nb in pocket_adj.get(rep, []) if nb in d1_map
         )
-        # Normalized PSD vector for fingerprint similarity (stored for compute_pocket_fingerprints)
-        psd_y_full = np.asarray(nd.get("psd_y_pbc", []), dtype=float)
+        # Probe-occupiable pocket PSD (Rust) on pocket_psd_x_pbc / pocket_psd_y_pbc.
+        psd_x_arr = np.asarray(nd.get("pocket_psd_x_pbc", []), dtype=float)
+        psd_y_full = np.asarray(nd.get("pocket_psd_y_pbc", []), dtype=float)
         psd_norm = _norm_psd(psd_y_full)
         pockets.append(
             {
@@ -341,7 +341,9 @@ def build_pockets_from_segmentation(
                 "nbr_d1": nbr_d1,
                 "trusted_nbr_reps": sorted(pocket_adj.get(rep, [])),
                 "conn_nbr_reps": sorted(pocket_adj_conn.get(rep, [])),
+                "psd_x": psd_x_arr,
                 "psd_vec": psd_norm,
+                "psd_source": psd_source,
             }
         )
 

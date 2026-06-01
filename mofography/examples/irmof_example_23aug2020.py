@@ -76,12 +76,12 @@ frame_trace = mgr.plot_framework_as_mesh(mat_updated, show_rings=False, stylize=
 from skimage.measure import regionprops
 props = regionprops(regions)
 # * size dist about centroid with and without pbc 
-rag2 = mgr.add_psd_to_rag(rag2,props,  bins=np.linspace(0,30,50), ase_atoms=mat_updated, shape = regions.shape)
-rag2 = mgr.add_psd_to_rag_with_pbc(rag=rag2,props =props, pbc_groups = pbc_groups, bins=np.linspace(0,30,50), ase_atoms=mat_updated, shape = regions.shape)
+rag2 = mgr.add_csd_to_rag(rag2,props,  bins=np.linspace(0,30,50), ase_atoms=mat_updated, shape = regions.shape)
+rag2 = mgr.add_csd_to_rag_with_pbc(rag=rag2,props =props, pbc_groups = pbc_groups, bins=np.linspace(0,30,50), ase_atoms=mat_updated, shape = regions.shape)
 fig1=go.Figure() 
 for group in pbc_groups:
     node = list(group)[0]
-    fig1.add_trace(go.Scatter(x=rag2.nodes[node]['psd_x_pbc'], y=rag2.nodes[node]['psd_y_pbc'], mode='markers+lines', name=str(rag2.nodes[node]['labels'][0])))
+    fig1.add_trace(go.Scatter(x=rag2.nodes[node]['csd_x_pbc'], y=rag2.nodes[node]['csd_y_pbc'], mode='markers+lines', name=str(rag2.nodes[node]['labels'][0])))
 pio.renderers.default = "notebook_connected"
 fig1.update_layout(xaxis=dict(title='Cavity size (\u212b)'), yaxis=dict(title='Density histogram')).show()
 # fig1.show()
