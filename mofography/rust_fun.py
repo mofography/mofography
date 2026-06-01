@@ -5,6 +5,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+
+def _voxel_lengths_for_smoothing(ase_atoms, spacing, grid_shape=None):
+    """Per-axis fractional grid step lengths in Å (for anisotropic Gaussian smoothing)."""
+    from ase.geometry import cellpar_to_cell
+
+    M = cellpar_to_cell(ase_atoms.cell.cellpar())
+    cellpar = ase_atoms.cell.cellpar()
+    if grid_shape is not None:
+        nx, ny, nz = (int(grid_shape[0]), int(grid_shape[1]), int(grid_shape[2]))
+    else:
+        nx, ny, nz = (cellpar[:3] / spacing).astype(int) + 1
+    lx = float(np.linalg.norm(M[0]) / max(nx - 1, 1))
+    ly = float(np.linalg.norm(M[1]) / max(ny - 1, 1))
+    lz = float(np.linalg.norm(M[2]) / max(nz - 1, 1))
+    return (lx, ly, lz)
+
+def _cell_matrix_for_rust(ase_atoms):
+    """Return C for Rust ``cart = C @ delta_frac`` (matches ASE ``frac @ M``)."""
+    from ase.geometry import cellpar_to_cell
+
+    return cellpar_to_cell(ase_atoms.cell.cellpar()).T
+
+
 def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     """Compute a distance grid from atomic positions using the Rust backend.
 
@@ -24,14 +47,13 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     import mgr_rust
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
-    from ase.geometry import cellpar_to_cell
     from ase.data import vdw_radii as _ase_vdw
 
     if radii is None:
         radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
-    cell = cellpar_to_cell(ase_atoms.cell.cellpar())
+    cell = _cell_matrix_for_rust(ase_atoms)
     nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
     dgrid = mgr_rust.dgrid_from_atoms(fpoints, cell, radii, int(nx), int(ny), int(nz))
     return dgrid
@@ -53,7 +75,6 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     :rtype: numpy.ndarray
     """
     import mgr_rust
-    from ase.geometry import cellpar_to_cell
     from ase.data import vdw_radii as _ase_vdw
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
@@ -62,7 +83,7 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
         radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
-    cell = cellpar_to_cell(ase_atoms.cell.cellpar())
+    cell = _cell_matrix_for_rust(ase_atoms)
     nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
     return mgr_rust.dgrid_from_atoms_aabb(
         fpoints, cell, int(nx), int(ny), int(nz), radii, int(n_neighbors)
@@ -82,7 +103,6 @@ def dgrid_from_atoms_aabb_interp_rust(
     :return: 3D distance grid (float32) with mild smoothing from interpolation
     """
     import mgr_rust
-    from ase.geometry import cellpar_to_cell
     from ase.data import vdw_radii as _ase_vdw
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
@@ -91,7 +111,7 @@ def dgrid_from_atoms_aabb_interp_rust(
         radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
-    cell = cellpar_to_cell(ase_atoms.cell.cellpar())
+    cell = _cell_matrix_for_rust(ase_atoms)
     nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
 
     return mgr_rust.dgrid_from_atoms_aabb_interp(
@@ -348,6 +368,9 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     # )
 
     cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
+    voxel_lengths = _voxel_lengths_for_smoothing(
+        mat_atoms, spacing, grid_shape=dgrid.shape
+    )
     # merged_maxima, unmerged_maxima, raw_maxima = mgr_rust.detect_maxima_h_morph(dgrid, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
     merged_maxima, unmerged_maxima, raw_maxima = (
         mgr_rust.detect_maxima_selective_smoothing_parallel(
@@ -359,6 +382,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             threshold_abs=threshold_abs,
             min_distance=min_distance,
             cell=cell,
+            voxel_lengths=voxel_lengths,
         )
     )
     dt = dgrid.copy()
@@ -977,7 +1001,6 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         # let's mark a connection as periodic if any maxima is far from the box, no reindexing just yet.
         for c in connections_list:
             if np.any(~np.isin(c[0], valid_maxima_ids)):
-                # print(f"This connection is {c[0]}")
                 c[2] = "periodic"
         logger.info(
             "TIME(s): %.2f Done with computing connections\n"
