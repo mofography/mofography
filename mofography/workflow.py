@@ -671,11 +671,10 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     )
     _stepsize = int(defaults.get("plot_surface_step_size", 1))
 
-    # Trim connections to accessible regions (matches show_mof reference)
-    if unique_regions.size:
-        connections_trimmed = [c for c in connections if np.any(np.isin(c[0], unique_regions))]
-    else:
-        connections_trimmed = list(connections)
+    # Trim: both endpoints must be unique_regions (unit-cell pore graph)
+    from mofography.helper import trim_connections_to_unique_regions
+
+    connections_trimmed = trim_connections_to_unique_regions(connections, unique_regions)
 
     # Cap maxima to regions.max() — excludes padding-only sites
     n_cap   = int(regions.max()) if regions.size else 0
@@ -731,18 +730,19 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     if defaults.get("plot_connections", True) and connections_trimmed:
         conn_traces = plot_connections_as_it_is(
             connections_trimmed, all_maxima, dgrid.shape, atoms,
+            plot_periodic=bool(defaults.get("plot_connections_periodic", True)),
         )
         traces.extend(conn_traces)
 
-    # Windows — ONLY internal connections; far-outside points reclassified as periodic
+    # Windows from all trimmed connections; far-outside coords reclassified when enabled.
     if defaults.get("plot_windows", True) and connections_trimmed:
-        internal_conns = [
+        window_conns = [
             c for c in connections_trimmed
-            if c[1] and c[2] == "internal"
+            if c[1]
             and len(c) > 3 and c[3] is not None
             and np.asarray(c[3]).size >= 3
         ]
-        if internal_conns:
+        if window_conns:
             _cell    = atoms.get_cell().array.T
             _lengths = np.linalg.norm(_cell, axis=0)
             _shape   = np.asarray(dgrid.shape, dtype=float)
@@ -761,7 +761,15 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
                 filtered_conns = []
                 periodic_windows = []
                 periodic_hover = []
-                for c in internal_conns:
+                for c in window_conns:
+                    if str(c[2]) == "periodic":
+                        for wp, ws in zip(c[3], c[4]):
+                            wp_arr = np.asarray(wp, dtype=float)
+                            periodic_windows.append(wp_arr)
+                            periodic_hover.append(
+                                f"{c[0][0]}-{c[0][1]}<br>periodic<br>{float(ws):.3f} A"
+                            )
+                        continue
                     kept_windows, kept_sizes = [], []
                     for wp, ws in zip(c[3], c[4]):
                         wp_arr = np.asarray(wp, dtype=float)
@@ -781,10 +789,19 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
                     if kept_windows:
                         filtered_conns.append([c[0], c[1], c[2], kept_windows, kept_sizes])
             else:
-                # No reclassification — plot all internal windows as-is
-                filtered_conns = internal_conns
+                filtered_conns = [
+                    c for c in window_conns if c[1] and str(c[2]) == "internal"
+                ]
                 periodic_windows = []
                 periodic_hover = []
+                for c in window_conns:
+                    if str(c[2]) != "periodic":
+                        continue
+                    for wp, ws in zip(c[3], c[4]):
+                        periodic_windows.append(np.asarray(wp, dtype=float))
+                        periodic_hover.append(
+                            f"{c[0][0]}-{c[0][1]}<br>periodic<br>{float(ws):.3f} A"
+                        )
 
             if filtered_conns:
                 traces.append(plot_windows(
@@ -908,10 +925,9 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
     connections_raw = seg.get("connections", [])
     unique_regions  = np.asarray(seg.get("unique_regions", []), dtype=int)
 
-    if unique_regions.size:
-        connections = [c for c in connections_raw if np.any(np.isin(c[0], unique_regions))]
-    else:
-        connections = list(connections_raw)
+    from mofography.helper import trim_connections_to_unique_regions
+
+    connections = trim_connections_to_unique_regions(connections_raw, unique_regions)
 
     # Cap maxima to regions.max()
     n_cap = int(regions.max()) if regions.size else 0
