@@ -739,7 +739,7 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     }
 
 
-def _serialize_windows_trace(seg: dict[str, Any], atoms=None, spacing: float | None = None) -> dict[str, Any]:
+def _serialize_windows_trace(seg: dict[str, Any], atoms=None, spacing: float | None = None, reclassify_far_outside: bool = True) -> dict[str, Any]:
     conns = list(seg.get("connections", []))
     internal_windows = []
     internal_hover = []
@@ -749,7 +749,7 @@ def _serialize_windows_trace(seg: dict[str, Any], atoms=None, spacing: float | N
     wall_tol = None
     dgrid_shape = None
     inv_cell = None
-    if atoms is not None and spacing is not None:
+    if reclassify_far_outside and atoms is not None and spacing is not None:
         from mofography.helper import compute_wall_cells
         dgrid = np.asarray(seg.get("dgrid", []))
         if dgrid.size:
@@ -764,7 +764,7 @@ def _serialize_windows_trace(seg: dict[str, Any], atoms=None, spacing: float | N
     def _window_grid_coord(cart):
         if inv_cell is None or dgrid_shape is None:
             return None
-        frac = np.dot(cart, inv_cell)
+        frac = inv_cell @ cart
         return frac * dgrid_shape
 
     for c in conns:
@@ -1862,8 +1862,11 @@ def make_windows_trace(
     style: str | dict | None = "internal_windows",
     name: str = "Windows",
     trace_id: str = "windows",
+    atoms: Any | None = None,
+    spacing: float | None = None,
+    reclassify_far_outside: bool = True,
 ) -> dict[str, Any]:
-    payload = _serialize_windows_trace(seg)
+    payload = _serialize_windows_trace(seg, atoms=atoms, spacing=spacing, reclassify_far_outside=reclassify_far_outside)
     internal = _make_trace(
         trace_id=f"{trace_id}_internal",
         trace_type="points",
@@ -2810,10 +2813,23 @@ class MovieFigure:
         self,
         seg: dict[str, Any],
         hide_periodic: bool = True,
+        atoms: Any | None = None,
+        spacing: float | None = None,
+        reclassify_far_outside: bool = True,
         **style: Any,
     ) -> "MovieFigure":
-        """Add window points between connected pores (internal + optional periodic)."""
-        windows = make_windows_trace(seg, style=style if style else "internal_windows")
+        """Add window points between connected pores (internal + optional periodic).
+
+        When *atoms* and *spacing* are supplied and *reclassify_far_outside* is True,
+        windows tagged ``internal`` whose Cartesian position is far outside the unit
+        cell are reclassified as periodic (prevents phantom internal-window markers
+        for non-orthogonal cells).
+        """
+        windows = make_windows_trace(
+            seg, atoms=atoms, spacing=spacing,
+            reclassify_far_outside=reclassify_far_outside,
+            style=style if style else "internal_windows",
+        )
         self.add_trace(windows["internal"])
         if hide_periodic:
             windows["periodic"]["visible"] = False
@@ -2883,7 +2899,7 @@ def build_fixed_framework_movie(
     fig.add_trace(maxima["internal"])
     fig.add_trace(maxima["outside"])
 
-    windows = make_windows_trace(seg)
+    windows = make_windows_trace(seg, atoms=framework_atoms, spacing=spacing)
     fig.add_trace(windows["internal"])
     fig.add_trace(windows["periodic"])
 
@@ -5408,7 +5424,7 @@ def make_sparse_multicomponent_movie(
             maxima = make_maxima_trace(seg, framework_atoms)
             fig.add_trace(maxima["internal"], frame=local_frame)
             fig.add_trace(maxima["outside"], frame=local_frame)
-            windows = make_windows_trace(seg)
+            windows = make_windows_trace(seg, atoms=framework_atoms, spacing=spacing)
             fig.add_trace(windows["internal"], frame=local_frame)
             fig.add_trace(windows["periodic"], frame=local_frame)
             conns = make_connections_trace(seg, framework_atoms)
@@ -5431,7 +5447,7 @@ def make_sparse_multicomponent_movie(
             maxima = make_maxima_trace(seg, framework_atoms)
             fig.add_trace(maxima["internal"])
             fig.add_trace(maxima["outside"])
-            windows = make_windows_trace(seg)
+            windows = make_windows_trace(seg, atoms=framework_atoms, spacing=spacing)
             fig.add_trace(windows["internal"])
             fig.add_trace(windows["periodic"])
             conns = make_connections_trace(seg, framework_atoms)
@@ -5607,9 +5623,14 @@ def compute_maxima_data(
     return _serialize_maxima_trace(seg, atoms)
 
 
-def compute_windows_data(seg: dict[str, Any]) -> dict[str, Any]:
-    """Compute window-point data from connection list."""
-    return _serialize_windows_trace(seg)
+def compute_windows_data(seg: dict[str, Any], atoms: Any | None = None, spacing: float | None = None, reclassify_far_outside: bool = True) -> dict[str, Any]:
+    """Compute window-point data from connection list.
+
+    When *atoms* and *spacing* are supplied and *reclassify_far_outside* is True,
+    internal windows whose Cartesian position is far outside the unit cell are
+    reclassified as periodic.
+    """
+    return _serialize_windows_trace(seg, atoms=atoms, spacing=spacing, reclassify_far_outside=reclassify_far_outside)
 
 
 def compute_connection_data(
@@ -5694,7 +5715,7 @@ def build_static_scene(
     if seg is not None:
         fig.add_maxima(seg, atoms, hide_periodic=hide_periodic)
         fig.add_connections(seg, atoms, hide_periodic=hide_periodic)
-        fig.add_windows(seg, hide_periodic=hide_periodic)
+        fig.add_windows(seg, hide_periodic=hide_periodic, atoms=atoms, spacing=spacing)
 
     return fig
 

@@ -651,6 +651,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
         # Marching-cubes step size: 1 = full resolution ("medium" / "high" quality)
         # Set plot_surface_step_size=2 for faster / lower-fidelity meshes
         "plot_surface_step_size": 1,
+        "plot_windows_reclassify_far_outside": True,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -733,7 +734,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
         )
         traces.extend(conn_traces)
 
-    # Windows — ONLY internal connections; far-outside points reclassified
+    # Windows — ONLY internal connections; far-outside points reclassified as periodic
     if defaults.get("plot_windows", True) and connections_trimmed:
         internal_conns = [
             c for c in connections_trimmed
@@ -746,14 +747,64 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
             _lengths = np.linalg.norm(_cell, axis=0)
             _shape   = np.asarray(dgrid.shape, dtype=float)
             _spacing = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
-            traces.append(plot_windows(
-                internal_conns,
-                atoms=atoms, spacing=_spacing,
-                name="windows (internal)",
-                marker_color="red",
-                marker_size=10,
-                opacity=0.6,
-            ))
+
+            _do_reclassify = defaults.get("plot_windows_reclassify_far_outside", True)
+
+            if _do_reclassify:
+                # Filter out far-outside windows (reclassify as periodic for
+                # non-orthogonal cells where Cartesian → fractional must use
+                # inv_cell @ cart, NOT cart @ inv_cell).
+                _inv_cell = np.linalg.inv(_cell)
+                from mofography.helper import compute_wall_cells, is_inside_or_close_to_boundary
+                _wall_tol = compute_wall_cells(atoms, _spacing, wall_thickness=0.05)
+
+                filtered_conns = []
+                periodic_windows = []
+                periodic_hover = []
+                for c in internal_conns:
+                    kept_windows, kept_sizes = [], []
+                    for wp, ws in zip(c[3], c[4]):
+                        wp_arr = np.asarray(wp, dtype=float)
+                        frac = _inv_cell @ wp_arr          # correct for non-orthogonal
+                        grid_c = frac * _shape
+                        loc = is_inside_or_close_to_boundary(
+                            [tuple(grid_c)], tuple(_shape.astype(int)), _wall_tol,
+                        )[0]
+                        if loc == "far_outside":
+                            periodic_windows.append(wp_arr)
+                            periodic_hover.append(
+                                f"{c[0][0]}-{c[0][1]}<br>periodic (wrapped)<br>{ws:.3f} A"
+                            )
+                        else:
+                            kept_windows.append(wp)
+                            kept_sizes.append(ws)
+                    if kept_windows:
+                        filtered_conns.append([c[0], c[1], c[2], kept_windows, kept_sizes])
+            else:
+                # No reclassification — plot all internal windows as-is
+                filtered_conns = internal_conns
+                periodic_windows = []
+                periodic_hover = []
+
+            if filtered_conns:
+                traces.append(plot_windows(
+                    filtered_conns,
+                    name="windows (internal)",
+                    marker_color="red",
+                    marker_size=10,
+                    opacity=0.6,
+                ))
+            if periodic_windows:
+                pw = np.vstack(periodic_windows)
+                traces.append(go.Scatter3d(
+                    x=pw[:, 0], y=pw[:, 1], z=pw[:, 2],
+                    mode="markers",
+                    marker=dict(size=8, color="orange", opacity=0.4),
+                    hovertext=periodic_hover,
+                    hoverinfo="text",
+                    name="windows (periodic wrapped)",
+                    legendgroup="Pore Graph",
+                ))
 
     if defaults.get("plot_maxima", True) and len(maxima):
         mx = plot_maxima(dgrid, maxima, atoms, marker_size=14)
@@ -837,10 +888,12 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         "plot_surface_taubin_nu": -0.2175,
         # Marching-cubes step size: 1 = full resolution ("medium" / "high" quality)
         "plot_surface_step_size": 1,
-        # Framework representation: "mesh" (baked ball-and-stick mesh, default) or
-        # "instanced" (scatter — individual instanced spheres + cylinders, lighter GPU load,
-        #               matches the interactive-app scatter-trace option)
+        # Framework representation (plot_framework_style alias supported):
+        #   "mesh"      — baked ball-and-stick mesh (default)
+        #   "scatter"   — points + line segments (interactive-app simple scatter)
+        #   "instanced" — instanced spheres + cylinders (interactive-app instanced)
         "plot_framework_representation": "mesh",
+        "plot_windows_reclassify_far_outside": True,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -890,18 +943,40 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
 
     if defaults.get("plot_framework", True):
         _fw_atoms = framework_atoms if framework_atoms is not None else atoms
-        _fw_repr  = str(defaults.get("plot_framework_representation", "mesh")).lower()
-        if _fw_repr == "instanced":
+        _fw_repr_raw = defaults.get("plot_framework_representation")
+        if _fw_repr_raw is None:
+            _fw_repr_raw = defaults.get("plot_framework_style", "mesh")
+        _fw_repr = str(_fw_repr_raw).lower()
+        _fw_scale = float(defaults.get("plot_framework_mesh_scale", 0.65))
+        _fw_bond_lw = float(defaults.get("plot_framework_bond_linewidth", 8.0))
+        if _fw_repr == "scatter":
+            from mofography.movies import make_framework_scatter_trace
+            _scatter = make_framework_scatter_trace(
+                _fw_atoms,
+                bonds="auto",
+                style="framework",
+                atom_scale=_fw_scale,
+                bond_linewidth=_fw_bond_lw,
+            )
+            fig.add_trace(_scatter["atoms"])
+            fig.add_trace(_scatter["bonds"])
+        elif _fw_repr == "instanced":
             from mofography.movies import make_framework_instanced_trace
             _bs = make_framework_instanced_trace(
-                _fw_atoms, representation="ball_and_stick", trace_id="framework",
+                _fw_atoms,
+                representation="ball_and_stick",
+                trace_id="framework",
+                atom_scale=_fw_scale,
             )
             fig.add_trace(_bs["atoms"])
             fig.add_trace(_bs["bonds"])
             # Stick variant (hidden by default; toggled by the Representation selector)
             _st = make_framework_instanced_trace(
-                _fw_atoms, representation="stick",
-                trace_id="framework_stick", name="Framework (stick)",
+                _fw_atoms,
+                representation="stick",
+                trace_id="framework_stick",
+                name="Framework (stick)",
+                atom_scale=_fw_scale,
             )
             _st["atoms"]["visible"] = False
             _st["bonds"]["visible"] = False
@@ -973,7 +1048,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         fig.add_connections(seg_dict, atoms, hide_periodic=True)
 
     if defaults.get("plot_windows", True) and connections:
-        fig.add_windows(seg_dict, hide_periodic=True, atoms=atoms, spacing=spacing)
+        fig.add_windows(seg_dict, hide_periodic=True, atoms=atoms, spacing=spacing, reclassify_far_outside=defaults.get("plot_windows_reclassify_far_outside", True))
 
     if defaults.get("plot_maxima", True) and len(all_maxima_plot):
         fig.add_maxima(seg_dict, atoms, hide_periodic=True)
