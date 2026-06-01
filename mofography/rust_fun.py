@@ -998,9 +998,11 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             np.array([c[0], c[1], c[2], c[3], c[4]], dtype="object")
             for c in connections_list
         ]
-        # let's mark a connection as periodic if any maxima is far from the box, no reindexing just yet.
+        # Periodic = edge touches a region outside the unit-cell label set (padding ghosts),
+        # not merely a far-outside maximum on an in-cell region.
+        unit_cell_region_labels = np.delete(np.unique(regions), 0)
         for c in connections_list:
-            if np.any(~np.isin(c[0], valid_maxima_ids)):
+            if np.any(~np.isin(c[0], unit_cell_region_labels)):
                 c[2] = "periodic"
         logger.info(
             "TIME(s): %.2f Done with computing connections\n"
