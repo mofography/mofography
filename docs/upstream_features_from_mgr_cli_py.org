@@ -3,7 +3,7 @@
 #+DATE: 2026-05-28
 #+PROPERTY: header-args:python :results output :exports both :eval yes
 #+STARTUP: overview
-#+OPTIONS: toc:3 num:t
+#+OPTIONS: toc:3 num:k
 
 This document walks through every feature upstreamed from =mgr_cli_py= into
 =mofography= in commits =dd19eaf= (2026-05-27) and =81364a4= (2026-05-28).  Each section contains a
@@ -552,22 +552,38 @@ import plotly.graph_objects as go
 from plotly.io import to_html
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
-from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust, dgrid_from_atoms_aabb_rust
 from mofography.workflow import assign_pocket_types, show_mof_plotly
 
-CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+
+# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif")
 OUTPUT_HTML = Path("/tmp/cubtc_plotly.html")
 SPACING     = 0.5
 
 atoms   = read_cif_to_ase(CIF_PATH)
 atoms_b = update_with_covalent_bonds(atoms)   # bonds/rings — framework only
 
-dgrid = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+dgrid = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
 seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
                                        mask_thickness=0.05,
                                        min_distance=1.5, threshold_abs=1.5)
 typed = assign_pocket_types(seg, atoms)
 print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
+
+
+fig = show_mof_plotly(
+    seg, atoms,
+    typed_result=None,
+    framework_atoms=atoms_b,
+    plot_framework_style='scatter'
+)
+print(f"Figure traces: {len(fig.data)}")
+
+
+
+# Open interactively (like any Plotly figure)
 
 fig = show_mof_plotly(
     seg, atoms,
@@ -591,32 +607,40 @@ print(f"Saved → {OUTPUT_HTML}")
 from pathlib import Path
 from mofography.cif_io import read_cif_to_ase
 from mofography.analyze import update_with_covalent_bonds
-from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust, dgrid_from_atoms_aabb_rust
 from mofography.workflow import assign_pocket_types, show_mof_threejs
+import logging
+import stackprinter
+stackprinter.set_excepthook(style="darkbg2")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
-# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/marksid-018.cif")
-OUTPUT_HTML = Path("/tmp/cubtc_threejs.html")
+# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif")
+
+OUTPUT_HTML = Path("/tmp/marksid_threejs.html")
 SPACING     = 0.5
 # SPACING     = 0.25
 
 atoms   = read_cif_to_ase(CIF_PATH)
 atoms_b = update_with_covalent_bonds(atoms)
-dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+# dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
 seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
                                          mask_thickness=0.05,
                                          min_distance=1.5, threshold_abs=1.5)
-typed   = assign_pocket_types(seg, atoms)
-print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
+
+# typed   = assign_pocket_types(seg, atoms)
+# print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
 
 # Open directly in browser (mirrors plotly's fig.show(renderer='browser'))
-show_mof_threejs(
-    seg, atoms,
-    typed_result=typed,
-    framework_atoms=atoms_b,
-    show=True,                  # opens a temp HTML in the default browser
-    renderer="browser",         # or "notebook" inside Jupyter
-)
+# show_mof_threejs(
+#     seg, atoms,
+#     typed_result=typed,
+#     framework_atoms=atoms_b,
+#     show=True,                  # opens a temp HTML in the default browser
+#     renderer="browser",         # or "notebook" inside Jupyter
+# )
 
 # Jupyter notebook — inline display
 # show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
@@ -625,10 +649,11 @@ show_mof_threejs(
 # Write to file — default mesh framework, full pocket-type surface
 show_mof_threejs(
     seg, atoms,
-    typed_result=typed,
+    typed_result=None,
     framework_atoms=atoms_b,
+    plot_framework_representation='scatter',
     output_html=OUTPUT_HTML,
-)
+ )
 print(f"Saved → {OUTPUT_HTML}")
 
 # ── Scatter / instanced framework (matches the interactive-app scatter-trace
@@ -729,3 +754,262 @@ All 21 tests map one-to-one to the sections above:
 - =TestPocketTyping= (4) → §4
 - =TestWindowPlotting= (5) → §5
 - =TestPLDPercolation= (2) → §6
+
+
+* Marksid 018
+#+begin_src python
+import numpy as np
+import os, sys
+import plotly.graph_objects as go
+import plotly.express as px
+# import plotly.io as pio
+from plotly.subplots import make_subplots
+from ase.io import read
+from pathlib import Path
+import pickle
+import dask
+from dask.distributed import Client, progress, wait
+from dask import delayed
+import dask.bag as db
+import pandas as pd
+import mofography as mgr
+import networkx as nx
+import optuna
+from skimage.measure import regionprops
+import logging
+from io import StringIO
+import time
+import mofography as mgr
+from tqdm import tqdm
+import stackprinter
+stackprinter.set_excepthook(style="darkbg2")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+print("hello cruel world! , just to confirm the imports are working!")
+results = seg
+# grab separate variables from output
+mat_atoms = atoms_b
+dgrid = results["dgrid"]
+regions = results["regions"]
+regions_pbc = results["regions_pbc"]
+maxima_info = results["maxima_info"]
+pbc_groups = results["pbc_groups"]
+connections = results["connections"]
+all_maxima = results["all_maxima"]
+all_maxima_radii = dgrid[tuple(maxima_info[:, 1:4].T)]
+maxima_pbc = results["maxima_pbc"]
+unique_regions = results["unique_regions"]
+maxima = all_maxima[: regions.max()]
+close_maxima = results['close_or_inside_maxima']
+maxima_radii = all_maxima_radii[: regions.max()]
+connections_trimmed = [c for c in connections if np.all(np.isin(c[0], unique_regions))]
+maxima_pbc_dict = results['maxima_pbc_dict']
+connections_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, mat_atoms
+)
+# regions_padded = results["regions_padded"]
+rag = mgr.rag_from_connections(connections_trimmed, maxima)
+rag = mgr.add_maxima_to_rag(rag, maxima, maxima_radii, dgrid.shape, mat_atoms)
+rag = mgr.add_pbc_to_rag(rag, pbc_groups)
+props = regionprops(regions)
+bins = np.linspace(0, 50, 30)
+rag = mgr.add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, mat_atoms, dgrid.shape)
+
+
+
+#+end_src
+#+begin_src python
+import plotly.express as px
+import plotly.graph_objects as go
+cscale = px.colors.qualitative.Pastel
+isovals = [1.0,1.5 ]
+
+mat_updated = atoms_b
+# cscale = px.colors.qualitative.Alphabet
+isosurface_segmentation = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions, ase_atoms=mat_atoms, name='Regions', opacity=1, cscale=cscale)
+isosurface_pbc = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions_pbc, ase_atoms=mat_atoms, name='Regions PBC',  opacity=1, cscale=cscale, stepsize=2 )
+cell_trace = mgr.plot_cell(mat_atoms, color='orange')
+maxima_trace = mgr.plot_maxima(dgrid,close_maxima, mat_atoms, marker_size=10,show_spheres=False, marker_colorscale = cscale, name='Maxima (distinct)')
+
+frame_trace = mgr.plot_framework_as_mesh(mat_updated, stylize=True, show_rings=False)
+# frame_trace = mgr.draw_framework(mat_updated)
+
+
+maxima_trace_pbc= mgr.plot_maxima(dgrid,maxima_pbc, mat_atoms,show_spheres=False,  marker_size=7.5, marker_colorscale = cscale,name='Maxima (pbc)')
+connections_traces =mgr.plot_connections_as_it_is(connections_trimmed, all_maxima, regions.shape, mat_atoms, cscale=cscale, plot_disconnected=False, plot_periodic=True)
+windows_trace = mgr.plot_windows(connections_trimmed, name='Windows', marker_color='yellow', marker_size=4, marker_opacity=0.8)
+
+
+fig = go.Figure(data=[*frame_trace, cell_trace, maxima_trace, maxima_trace_pbc, *connections_traces, windows_trace, isosurface_pbc], layout=mgr.white_layout)
+fig= mgr.make_fig_orthographic(fig)
+fig.update_layout(scene_camera=dict(up=dict(x=0, y=0, z=1), eye=dict(x=1.5, y=0, z=0)), legend=dict(groupclick='toggleitem'))
+fig.write_html('/tmp/marks_plotly.html')
+# fig.show(renderer='browser')
+#+end_src
+
+#+begin_src python
+fig.write_html('/tmp/marksid018.html')
+#+end_src
+
+-----
+
+* 7  Granular Three.js Figure for Large Structures (marksid-018)
+
+** What changed
+The =show_mof_threejs()= function in =workflow.py= provides a one-call
+"kitchen sink" visualization, but sometimes you want granular control over
+each trace — framework style, surface step size, which layers to include,
+etc.  The =Figure3JS= class (and the =threejs_viz= module it wraps) exposes
+the same Plotly-style =add_trace / add_traces= API for Three.js output.
+
+This is especially useful for large structures (50K+ atoms) where the
+default =mesh= framework style produces multi-GB HTML files.  Using
+=scatter= or =instanced= style instead keeps the output manageable.
+
+** Where it lives
+| File                            | Symbol                     |
+|---------------------------------|----------------------------|
+| =mofography/threejs_viz.py=     | =Figure3JS=, =plot_surface_dgrid=, =draw_framework=, etc. |
+| =mofography/workflow.py=        | =show_mof_threejs()=       |
+| =mofography/movies.py=          | =MovieFigure=, =make_surface_trace= |
+| =examples/gen_cubtc_granular_threejs.py= | Reference example (Cu-BTC) |
+
+** Runnable check — marksid-018 polymer (55,286 C atoms)
+
+This snippet reproduces the full interactive-app visualization pipeline
+for the marksid-018 polymer using the granular =Figure3JS= API:
+
+#+begin_src python
+import sys, time
+from pathlib import Path
+import numpy as np
+
+sys.path.insert(0, str(Path("/Users/arungopalan/repos/mofography")))
+import mofography as mgr
+from mofography import threejs_viz as tjs
+
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+OUT = Path("/tmp/marksid018_granular_threejs.html")
+SPACING = 0.5
+
+# ── Load ──────────────────────────────────────────────────────────────
+print("Loading marksid-018...")
+atoms = mgr.cif_io.read_cif_to_ase(CIF)
+print(f"  {len(atoms):,} atoms")
+
+# ── Covalent bonds (AABB neighbor list → Rust) ───────────────────────
+print("Covalent bonds...")
+t0 = time.perf_counter()
+atoms = mgr.update_with_covalent_bonds(atoms)
+print(f"  {time.perf_counter()-t0:.1f}s — {len(atoms.info['covalent_bonds']):,} bonds")
+
+# ── Aromatic rings (large-graph fast path) ────────────────────────────
+print("Aromatic rings...")
+t0 = time.perf_counter()
+mgr.compute_aromatic_cycles(atoms)
+print(f"  {time.perf_counter()-t0:.1f}s — {len(atoms.info.get('aromatic_cycles', [])):,} cycles")
+
+# ── Distance grid (Rust AABB) ────────────────────────────────────────
+print("Distance grid...")
+t0 = time.perf_counter()
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=SPACING).astype(np.float32)
+print(f"  {time.perf_counter()-t0:.1f}s — shape={dgrid.shape}")
+
+# ── Segmentation ─────────────────────────────────────────────────────
+print("Segmentation...")
+t0 = time.perf_counter()
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=SPACING,
+    mask_thickness=0.5, h=0.2,
+    threshold_abs=1.5, min_distance=1.5,
+    extra_padding=5, compute_connections=True,
+    return_dgrid=False)
+print(f"  {time.perf_counter()-t0:.1f}s")
+
+regions        = seg["regions"]
+regions_pbc    = seg["regions_pbc"]
+connections    = seg["connections"]
+all_maxima     = seg["all_maxima"]
+unique_regions = seg["unique_regions"]
+connections_trimmed = [c for c in connections
+                       if np.any(np.isin(c[0], unique_regions))]
+
+# ── Build granular Three.js figure ───────────────────────────────────
+print("Building Three.js figure...")
+t0 = time.perf_counter()
+
+cscale = tjs.qualitative_colorscale("Pastel")
+
+fig = tjs.Figure3JS(layout="dark", stylize=True)
+fig.set_camera(eye=(2.0, 0.0, 1.35), center=(0, 0, 0), up=(0, 0, 1))
+
+# Framework — "scatter" (points + lines, small file) or "instanced" (GPU spheres)
+fig.draw_framework(atoms, representation="scatter")
+
+# Unit cell wireframe
+fig.plot_cell(atoms, color="orange")
+
+# Segmentation surfaces — stepsize=2 for speed, stepsize=1 for quality
+fig.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=atoms,
+    region_labels=regions, name="Regions",
+    opacity=1.0, cscale=cscale, stepsize=1, stylize=True)
+fig.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=atoms,
+    region_labels=regions_pbc, name="Regions PBC",
+    opacity=0.35, cscale=cscale, stepsize=1, stylize=True)
+
+# Maxima (distinct pore centres)
+fig.plot_maxima(seg, atoms, name="Maxima", cscale=cscale)
+
+# Channel connections
+fig.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, atoms,
+    cscale=cscale, plot_periodic=True, plot_disconnected=False)
+
+# Windows
+fig.plot_windows(
+    connections_trimmed, name="Windows",
+    marker_color="yellow", marker_size=10,
+    marker_opacity=0.8, grid_shape=dgrid.shape, maxima=all_maxima)
+
+# Export
+fig.to_html(str(OUT))
+print(f"  {time.perf_counter()-t0:.1f}s — {OUT.stat().st_size/1024/1024:.0f} MB")
+print(f"Saved to {OUT}")
+#+end_src
+
+Expected: loads 55,286 atoms, computes bonds/aromatic/dgrid/segmentation,
+and produces a ~100-250 MB self-contained HTML with orbit controls and
+layer toggles for each trace (framework, surfaces, maxima, connections,
+windows).
+
+** One-liner alternative (kitchen sink)
+
+If you don't need per-trace control, =show_mof_threejs()= in =workflow.py=
+does everything in one call:
+
+#+begin_src python
+import mofography as mgr
+from pathlib import Path
+
+# CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/LTA96.cif"
+atoms = mgr.cif_io.read_cif_to_ase(CIF)
+atoms = mgr.update_with_covalent_bonds(atoms)
+mgr.compute_aromatic_cycles(atoms)
+
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.05, h=0.2,
+    threshold_abs=1.5, min_distance=1.5, extra_padding=5,
+    compute_connections=True, return_dgrid=False)
+
+html = mgr.show_mof_threejs(
+    seg, atoms,
+    plot_framework_representation="scatter",
+    plot_surface_step_size=1,
+    output_html="/tmp/marksid018_onecall.html")
+print(f"Saved to {html}")
+#+end_src
