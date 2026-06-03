@@ -87,7 +87,8 @@ Description of this module.
 | [plot_molecule_at_best_optuna_trials](plot_molecule_at_best_optuna_trials.qmd#mofography.visualize.plot_molecule_at_best_optuna_trials) | This function plots a molecule using the best Optuna trials. |
 | [plot_paths](plot_paths.qmd#mofography.visualize.plot_paths) | The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by |
 | [plot_pore_graph](plot_pore_graph.qmd#mofography.visualize.plot_pore_graph) |  |
-| [plot_psds](plot_psds.qmd#mofography.visualize.plot_psds) | > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group.  |
+| [plot_csds](plot_csds.qmd#mofography.visualize.plot_csds) | CSD on RAG |
+| [plot_psds](plot_psds.qmd) | deprecated alias | | > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group.  |
 | [plot_rag](plot_rag.qmd#mofography.visualize.plot_rag) |  |
 | [plot_snapshot_raspa_pdb](plot_snapshot_raspa_pdb.qmd#mofography.visualize.plot_snapshot_raspa_pdb) |  |
 | [plot_subset_of_atoms](plot_subset_of_atoms.qmd#mofography.visualize.plot_subset_of_atoms) | > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of |

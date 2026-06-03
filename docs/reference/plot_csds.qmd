@@ -1,0 +1,24 @@
+# plot_csds { #mofography.visualize.plot_csds }
+
+`visualize.plot_csds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster')`
+
+> This function takes in a RAG and a list of PBC groups and plots cavity size distributions (CSD) for each PBC group. 
+
+Let's see how it works:
+
+## Parameters
+
+| Name         | Type   | Description                                                                | Default    |
+|--------------|--------|----------------------------------------------------------------------------|------------|
+| `rag`        |        | the region adjacency graph                                                 | _required_ |
+| `pbc_groups` |        | a list of sets of nodes that are connected by periodic boundary conditions | _required_ |
+
+## Returns
+
+| Type   | Description            |
+|--------|------------------------|
+|        | A plotly figure object |
+
+## Deprecated alias
+
+`plot_psds` warns and calls `plot_csds`.

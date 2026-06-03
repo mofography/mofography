@@ -318,7 +318,7 @@ fig.show()
 Compare CSD curves for different pocket types:
 
 ```python
-csd_traces = mgr.plot_psds(
+csd_traces = mgr.plot_csds(
     rag, pbc_groups,
     cscale=cscale,
     cluster_key='cluster_geom_pbc'
