@@ -113,6 +113,7 @@ quartodoc:
     - plot_molecule_at_best_optuna_trials
     - plot_paths
     - plot_pore_graph
+    - plot_csds
     - plot_psds
     - plot_rag
     - plot_snapshot_raspa_pdb

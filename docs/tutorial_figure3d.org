@@ -556,9 +556,9 @@ Both APIs follow the same object model:
 | =to_html(path, sidecar=False)=   | Save self-contained HTML (or sidecar pair)            |
 | =show(renderer)=                 | Display in notebook or browser                        |
 
-* Figure3JS — Granular Plotly-Style API
+* Figure3js — Granular Plotly-Style API
 
-=Figure3JS= is a chainable object API in =mofography.threejs_viz= that mirrors
+=Figure3js= (import from =mofography=; alias =Figure3JS=) is a chainable API in =threejs_viz= that mirrors
 the Plotly trace model.  Every method returns =self=, so calls can be chained.
 Unlike =build_static_scene=, every visual element is added explicitly, giving
 full control over what appears and in what order.
@@ -566,13 +566,15 @@ full control over what appears and in what order.
 ** Import
 
 #+begin_src python
-from mofography import threejs_viz as tjs
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
 #+end_src
 
 ** Minimal Example
 
 #+begin_src python :exports both
-from mofography import threejs_viz as tjs
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
 import mofography as mgr
 from ase.io import read
 
@@ -586,7 +588,7 @@ seg   = mgr.do_periodic_segmentation_rust(
     compute_connections=True, return_dgrid=False, extra_padding=5,
 )
 
-fig = tjs.Figure3JS()
+fig = Figure3js()
 fig.plot_cell(atoms, color="orange")
 fig.draw_framework(atoms)
 fig.plot_surface_dgrid(
@@ -607,7 +609,8 @@ produces (segmentation surfaces, PBC overlay, connections, windows).
 
 #+begin_src python :exports both
 import numpy as np
-from mofography import threejs_viz as tjs
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
 import mofography as mgr
 from ase.io import read
 
@@ -635,7 +638,7 @@ connections_trimmed = np.array(
 # ---------- figure --------------------------------------------------------
 cscale = tjs.qualitative_colorscale("Pastel")
 
-fig = tjs.Figure3JS()
+fig = Figure3js()
 fig.set_camera(eye=(2.0, 0.0, 1.35))
 fig.plot_cell(atoms, color="orange")
 fig.draw_framework(atoms)
@@ -660,7 +663,6 @@ fig.plot_windows(
     connections_trimmed,
     name="Windows",
     marker_color="yellow", marker_size=10, marker_opacity=0.8,
-    grid_shape=dgrid.shape, maxima=all_maxima,
 )
 fig.to_html("cubtc_granular.html")
 #+end_src
@@ -723,7 +725,7 @@ fig.plot_surface_dgrid(
 All methods return =self=, enabling Plotly-style method chaining:
 
 #+begin_src python
-tjs.Figure3JS() \\
+Figure3js() \\
     .plot_cell(atoms) \\
     .draw_framework(atoms) \\
     .plot_surface_dgrid(dgrid, 1.0, atoms, region_labels=regions, name="R") \\
@@ -734,7 +736,7 @@ tjs.Figure3JS() \\
 ** Colorscale Helper
 
 =tjs.qualitative_colorscale(name)= converts a Plotly qualitative palette name
-to the float RGB list expected by =Figure3JS=:
+to the float RGB list expected by =Figure3js=:
 
 #+begin_src python
 cscale = tjs.qualitative_colorscale("Pastel")   # list of [[r,g,b], …]
@@ -748,7 +750,7 @@ fig.plot_surface_dgrid(..., cscale=px.colors.qualitative.Set2)
 
 ** Difference from =Figure3D= / =build_static_scene=
 
-| Feature | =Figure3D= / =build_static_scene= | =Figure3JS= |
+| Feature | =Figure3D= / =build_static_scene= | =Figure3js= |
 |---|---|---|
 | Construction | Keyword-driven builder | Explicit per-trace calls |
 | Element control | Controlled by flags | Each element added manually |
@@ -757,5 +759,5 @@ fig.plot_surface_dgrid(..., cscale=px.colors.qualitative.Set2)
 | Use case | Quick full-scene render | Custom layouts, research figures |
 
 For a quick full-scene render where you just need the default layout, prefer
-=build_static_scene=.  Use =Figure3JS= when you need precise control over
+=build_static_scene=.  Use =Figure3js= when you need precise control over
 which layers appear, in what order, with custom per-trace opacity or colors.

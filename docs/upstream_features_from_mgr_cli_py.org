@@ -23,63 +23,6 @@ sys.path.insert(0, "/Users/arungopalan/repos/mofography")
 
 -----
 
-* 1  Rust CIF Parser
-
-** What changed
-=mofography= previously relied entirely on ASE's pure-Python CIF reader.
-The new =mofography.cif_io= module wraps a three-stage pipeline:
-
-1. *Rust reader* (=mgr_rust.read_cif=) — parses symmetry operations, atom
-   sites, and unit cell parameters directly from the CIF text without
-   constructing an ASE object in Python.
-2. *Wyckoff deduplication via spglib* — after symmetry expansion some CIFs
-   contain duplicate sites; spglib is used to identify the asymmetric unit
-   and remove duplicates before handing the structure to ASE.
-3. *ASE fallback* — if the Rust reader raises (unusual CIF dialect, missing
-   loop blocks) the function transparently retries with =ase.io.read=.
-
-Under the hood the Rust code (=mgr_rust/src/cif.rs=) uses a hand-written
-tokeniser that is ~15× faster than ASE on large supercells because it
-avoids Python string allocation for every token.
-
-** Where it lives
-| File                          | Symbol          |
-|-------------------------------|-----------------|
-| =mgr_rust/src/cif.rs=         | =read_cif= (Rust entry point) |
-| =mofography/cif_io.py=        | =read_cif_to_ase()=           |
-
-** Commit
-=dd19eaf= — "upstream from mgr_cli_py: Rust CIF+bonds+aromatic, pocket typing, window improvements"
-
-** Runnable check
-
-#+begin_src python
-from pathlib import Path
-from mofography.cif_io import read_cif_to_ase
-
-RASPA_CIFS = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
-TEST_CIFS  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
-
-materials = {
-    "IRMOF-1":  RASPA_CIFS / "IRMOF-1.cif",
-    "Cu-BTC":   RASPA_CIFS / "Cu-BTC.cif",
-    "ZIF-20":   RASPA_CIFS / "ZIF-20.cif",
-    "LTA-96":   TEST_CIFS  / "LTA-96.cif",
-    "NU-1000":  TEST_CIFS  / "NU-1000.cif",
-    "MIL-47":  TEST_CIFS  / "MIL-47-RASPA.cif",
-}
-
-for name, cif in materials.items():
-    atoms = read_cif_to_ase(cif)
-    cell_vol = atoms.get_cell().volume
-    print(f"{name:10s}  {len(atoms):5d} atoms   cell volume = {cell_vol:.1f} Å³")
-#+end_src
-
-Expected output: each line shows the atom count and a non-zero cell
-volume — confirming the Rust reader expanded symmetry correctly.
-
------
-
 * 2  Fast Covalent Bonds
 
 ** What changed
@@ -135,6 +78,63 @@ for i, j in bonds:
 for (e1, e2), cnt in sorted(pairs.items()):
     print(f"  {e1}-{e2}: {cnt}")
 #+end_src
+
+-----
+
+* 1  Rust CIF Parser
+
+** What changed
+=mofography= previously relied entirely on ASE's pure-Python CIF reader.
+The new =mofography.cif_io= module wraps a three-stage pipeline:
+
+1. *Rust reader* (=mgr_rust.read_cif=) — parses symmetry operations, atom
+   sites, and unit cell parameters directly from the CIF text without
+   constructing an ASE object in Python.
+2. *Wyckoff deduplication via spglib* — after symmetry expansion some CIFs
+   contain duplicate sites; spglib is used to identify the asymmetric unit
+   and remove duplicates before handing the structure to ASE.
+3. *ASE fallback* — if the Rust reader raises (unusual CIF dialect, missing
+   loop blocks) the function transparently retries with =ase.io.read=.
+
+Under the hood the Rust code (=mgr_rust/src/cif.rs=) uses a hand-written
+tokeniser that is ~15× faster than ASE on large supercells because it
+avoids Python string allocation for every token.
+
+** Where it lives
+| File                          | Symbol          |
+|-------------------------------|-----------------|
+| =mgr_rust/src/cif.rs=         | =read_cif= (Rust entry point) |
+| =mofography/cif_io.py=        | =read_cif_to_ase()=           |
+
+** Commit
+=dd19eaf= — "upstream from mgr_cli_py: Rust CIF+bonds+aromatic, pocket typing, window improvements"
+
+** Runnable check
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+
+RASPA_CIFS = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
+TEST_CIFS  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
+
+materials = {
+    "IRMOF-1":  RASPA_CIFS / "IRMOF-1.cif",
+    "Cu-BTC":   RASPA_CIFS / "Cu-BTC.cif",
+    "ZIF-20":   RASPA_CIFS / "ZIF-20.cif",
+    "LTA-96":   TEST_CIFS  / "LTA-96.cif",
+    "NU-1000":  TEST_CIFS  / "NU-1000.cif",
+    "MIL-47":  TEST_CIFS  / "MIL-47-RASPA.cif",
+}
+
+for name, cif in materials.items():
+    atoms = read_cif_to_ase(cif)
+    cell_vol = atoms.get_cell().volume
+    print(f"{name:10s}  {len(atoms):5d} atoms   cell volume = {cell_vol:.1f} Å³")
+#+end_src
+
+Expected output: each line shows the atom count and a non-zero cell
+volume — confirming the Rust reader expanded symmetry correctly.
 
 -----
 
@@ -859,7 +859,7 @@ fig.write_html('/tmp/marksid018.html')
 The =show_mof_threejs()= function in =workflow.py= provides a one-call
 "kitchen sink" visualization, but sometimes you want granular control over
 each trace — framework style, surface step size, which layers to include,
-etc.  The =Figure3JS= class (and the =threejs_viz= module it wraps) exposes
+etc.  The =Figure3js= class (and the =threejs_viz= module it wraps) exposes
 the same Plotly-style =add_trace / add_traces= API for Three.js output.
 
 This is especially useful for large structures (50K+ atoms) where the
@@ -869,7 +869,7 @@ default =mesh= framework style produces multi-GB HTML files.  Using
 ** Where it lives
 | File                            | Symbol                     |
 |---------------------------------|----------------------------|
-| =mofography/threejs_viz.py=     | =Figure3JS=, =plot_surface_dgrid=, =draw_framework=, etc. |
+| =mofography/threejs_viz.py=     | =Figure3js=, =plot_*_3js= on =mgr=, =draw_framework_3js=, etc. |
 | =mofography/workflow.py=        | =show_mof_threejs()=       |
 | =mofography/movies.py=          | =MovieFigure=, =make_surface_trace= |
 | =examples/gen_cubtc_granular_threejs.py= | Reference example (Cu-BTC) |
@@ -877,7 +877,7 @@ default =mesh= framework style produces multi-GB HTML files.  Using
 ** Runnable check — marksid-018 polymer (55,286 C atoms)
 
 This snippet reproduces the full interactive-app visualization pipeline
-for the marksid-018 polymer using the granular =Figure3JS= API:
+for the marksid-018 polymer using the granular =Figure3js= API:
 
 #+begin_src python
 import sys, time
@@ -886,7 +886,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path("/Users/arungopalan/repos/mofography")))
 import mofography as mgr
-from mofography import threejs_viz as tjs
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
 
 CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
 OUT = Path("/tmp/marksid018_granular_threejs.html")
@@ -940,7 +941,7 @@ t0 = time.perf_counter()
 
 cscale = tjs.qualitative_colorscale("Pastel")
 
-fig = tjs.Figure3JS(layout="dark", stylize=True)
+fig = Figure3js(layout="dark", stylize=True)
 fig.set_camera(eye=(2.0, 0.0, 1.35), center=(0, 0, 0), up=(0, 0, 1))
 
 # Framework — "scatter" (points + lines, small file) or "instanced" (GPU spheres)
@@ -971,7 +972,7 @@ fig.plot_connections_as_it_is(
 fig.plot_windows(
     connections_trimmed, name="Windows",
     marker_color="yellow", marker_size=10,
-    marker_opacity=0.8, grid_shape=dgrid.shape, maxima=all_maxima)
+    marker_opacity=0.8)
 
 # Export
 fig.to_html(str(OUT))

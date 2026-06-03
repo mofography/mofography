@@ -1,0 +1,1547 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-06-03 Wed 22:48 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mofography plotting guide — Plotly &amp; Three.js</title>
+<meta name="author" content="Arun Gopalan" />
+<meta name="description" content="How to plot MOF pores, surfaces, maxima, connections, windows, and PSDs (both backends)." />
+<meta name="generator" content="Org Mode" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+/* Simple dark theme for Org HTML export (Geometry-style) */
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --card: #1c2128;
+  --text: #e6edf3;
+  --muted: #9da7b3;
+  --accent: #58a6ff;
+  --accent2: #7ee787;
+  --border: #30363d;
+  --code: #0b1220;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.75;
+  font-size: 15px;
+}
+#content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+.title {
+  color: var(--text);
+  font-size: 2.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+.subtitle, #author, .date, .timestamp { color: var(--muted); font-size: 0.95rem; }
+
+/* Headings only — not body copy */
+#content h2,
+.outline-2 > h2 {
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 2.2rem 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+#content h3,
+.outline-3 > h3 {
+  color: var(--accent2);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+#content h4,
+.outline-4 > h4 {
+  color: var(--accent2);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+}
+
+/* Body text — explicit normal weight/size (fixes unclosed-h2 bleed) */
+.outline-text-2,
+.outline-text-3,
+.outline-text-4 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.75;
+}
+.outline-text-2 p,
+.outline-text-3 p,
+.outline-text-4 p,
+.outline-text-2 li,
+.outline-text-3 li,
+.outline-text-4 li,
+.outline-text-2 td,
+.outline-text-3 td {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.heading-permalink { display: none !important; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+p { margin: 0 0 0.9rem; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+li { margin-bottom: 0.35rem; }
+
+#table-of-contents { display: none; }
+
+code {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.88em;
+  background: var(--code);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+}
+.org-src-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.75rem 0 1.25rem;
+}
+.org-src-container.has-copy-btn pre,
+.org-src-container pre {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--code);
+  color: #dbeafe;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+  white-space: pre;
+}
+.org-src-container.has-copy-btn pre {
+  padding-top: 38px;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.code-copy-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0 1.25rem; }
+th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+th { background: #1e293b; color: var(--accent); }
+blockquote {
+  background: var(--bg2);
+  border-left: 4px solid var(--accent2);
+  padding: 14px 18px;
+  margin: 1rem 0 1.5rem;
+  border-radius: 6px;
+}
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+img { max-width: 100%; height: auto; border-radius: 6px; }
+#postamble, #text-footnotes {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.org-src-container').forEach(function(box){
+    var pre=box.querySelector('pre');
+    if(!pre||box.querySelector('.code-copy-btn'))return;
+    box.classList.add('has-copy-btn');
+    var btn=document.createElement('button');
+    btn.type='button';btn.className='code-copy-btn';btn.textContent='Copy';
+    btn.addEventListener('click',function(){
+      var t=pre.innerText||pre.textContent||'';
+      (navigator.clipboard&&navigator.clipboard.writeText
+        ?navigator.clipboard.writeText(t)
+        :Promise.reject(new Error('clipboard')))
+      .then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},1400);})
+      .catch(function(){btn.textContent='Failed';setTimeout(function(){btn.textContent='Copy'},1400);});
+    });
+    box.insertBefore(btn,pre);
+  });
+});
+</script>
+<script>
+MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div id="content" class="content">
+<h1 class="title">Mofography plotting guide — Plotly &amp; Three.js</h1>
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#org66b6960">1. Overview</a></li>
+<li><a href="#orgfa0c04e">2. Quick start</a>
+<ul>
+<li><a href="#org3c3e37c">2.1. HTML export:** Code blocks are <code>:eval no-export</code> (shown as source only). Run a block in Emacs with <code>C-c C-v b</code> when you want live output.</a></li>
+</ul>
+</li>
+<li><a href="#orgaaa1087">3. API naming (migrated)</a></li>
+<li><a href="#orga9a4ab1">4. Figure containers — which object to build</a></li>
+<li><a href="#org5a8d43a">5. Master trace map (Plotly vs Three.js)</a></li>
+<li><a href="#org16bb7fc">6. Prerequisites</a></li>
+<li><a href="#orgd6eebdf">7. Color scales (<code>cscale</code>)</a></li>
+<li><a href="#orgf5981b1">8. Traces in detail</a>
+<ul>
+<li><a href="#org181a90e">8.1. Convention:** <b>Plotly</b> → <code>mgr.plot_*</code> on <code>go.Figure</code>. <b>Three.js</b> → <code>mgr.plot_*_3js</code> and <code>Figure3js</code> (chaining methods <code>.plot_*_3js()</code> mirror the functional API).</a>
+<ul>
+<li><a href="#org6a2789d">8.1.1. Framework — mesh (ball-and-stick as mesh)</a></li>
+<li><a href="#orgeba9342">8.1.2. Framework — scatter / ball-and-stick (lighter)</a></li>
+<li><a href="#org2c8f16d">8.1.3. Unit cell</a></li>
+<li><a href="#orgcd6ad03">8.1.4. Iso-surfaces (segmentation / PBC)</a></li>
+<li><a href="#org0755a3a">8.1.5. Maxima — local (distinct pockets)</a></li>
+<li><a href="#org5d300ff">8.1.6. Maxima — PBC-unified</a></li>
+<li><a href="#org9d60207">8.1.7. Connections — internal and periodic (<code>plot_connections_as_it_is</code>)</a></li>
+<li><a href="#org824eec0">8.1.8. Connections — internal only</a></li>
+<li><a href="#org680a9eb">8.1.9. Windows — simple (no PBC reclassification)</a></li>
+<li><a href="#org6dade4f">8.1.10. Windows — with far-outside → periodic reclassification</a></li>
+<li><a href="#orge817385">8.1.11. Percolated cluster meshes</a></li>
+<li><a href="#org79e2be5">8.1.12. PLD-critical windows (percolation)</a></li>
+<li><a href="#orge091d56">8.1.13. Pocket PSDs (2D curves)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#orgaa64408">9. Full examples</a>
+<ul>
+<li><a href="#org8b1268f">9.1. Plotly — DUT-75 notebook figure</a></li>
+<li><a href="#orgcb48626">9.2. Three.js — same scene as HTML</a></li>
+</ul>
+</li>
+<li><a href="#org6780931">10. Global PSD (2D histogram)</a></li>
+<li><a href="#orgdae98a6">11. Quick reference</a></li>
+<li><a href="#org212a508">12. Troubleshooting</a>
+<ul>
+<li><a href="#org2d977ca">12.1. <code>ValueError: invalid literal for int() with base 10: 'rrr...'</code></a></li>
+<li><a href="#org7213020">12.2. <code>plot_windows(...) needs grid_shape</code> and maxima=**</a></li>
+<li><a href="#org186c278">12.3. <code>go.Figure</code> crashes with trace dict / bundle</a></li>
+<li><a href="#org5ef02a9">12.4. <code>Figure3js.add_trace</code> rejects my trace</a></li>
+<li><a href="#orgf1914a4">12.5. HTML export runs Python code</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<p>
+:ID:       a1b2c3d4-e5f6-7890-abcd-ef1234567890
+:ROAM<sub>ALIASES</sub>: &ldquo;mofography plotting&rdquo; &ldquo;plot windows surface maxima&rdquo; &ldquo;Plotly vs Three.js mofography&rdquo;
+:ROAM<sub>TAGS</sub>: mofography visualization plotly threejs figure3d plotting-guide
+</p>
+<div id="outline-container-org66b6960" class="outline-2">
+<h2 id="org66b6960"><span class="section-number-2">1.</span> Overview</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Mofography has two 3D rendering backends. <b><b>Default for new work: Three.js</b></b> (interactive HTML, large scenes). <b><b>Plotly</b></b> remains best for notebook <code>go.Figure</code> workflows and 2D PSD curves.
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Backend</th>
+<th scope="col" class="org-left">Module</th>
+<th scope="col" class="org-left">Trace type</th>
+<th scope="col" class="org-left">Assemble with</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Three.js</td>
+<td class="org-left"><code>mofography.threejs_viz</code> + <code>movies</code></td>
+<td class="org-left">Trace dict / bundle</td>
+<td class="org-left"><code>Figure3D</code>, <code>Figure3js</code>, or <code>show_mof_threejs</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Plotly</td>
+<td class="org-left"><code>mofography.visualize</code></td>
+<td class="org-left"><code>Mesh3d</code>, <code>Scatter3d</code></td>
+<td class="org-left"><code>plotly.graph_objects.Figure</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Related: <code>docs/tutorial_figure3d.org</code>, <code>docs/native_granular_viz.org</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-orgfa0c04e" class="outline-2">
+<h2 id="orgfa0c04e"><span class="section-number-2">2.</span> Quick start</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+<b><b>Plotly (notebook):</b></b>
+</p>
+
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">import</span> plotly.graph_objects <span style="color: #bb9af7;">as</span> go
+<span style="color: #bb9af7;">import</span> mofography <span style="color: #bb9af7;">as</span> mgr
+
+<span style="color: #c0caf5;">fig</span> = go.Figure(
+    data=[*mgr.plot_framework_as_mesh(mat_updated), mgr.plot_cell(mat_atoms)],
+    layout=mgr.white_layout,
+)
+fig.show(renderer=<span style="color: #9ece6a;">"firefox"</span>)
+</pre>
+</div>
+
+<p>
+<b><b>Three.js (HTML scene):</b></b>
+</p>
+
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">from</span> mofography <span style="color: #bb9af7;">import</span> Figure3js
+
+<span style="color: #c0caf5;">fig</span> = (
+    Figure3js(layout=<span style="color: #9ece6a;">"white"</span>, stylize=<span style="color: #ff9e64;">True</span>)
+    .plot_framework_as_mesh_3js(mat_updated, stylize=<span style="color: #ff9e64;">True</span>)
+    .plot_cell_3js(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>)
+)
+fig.to_html(<span style="color: #9ece6a;">"scene.html"</span>)
+</pre>
+</div>
+</div>
+<div id="outline-container-org3c3e37c" class="outline-3">
+<h3 id="org3c3e37c"><span class="section-number-3">2.1.</span> HTML export:** Code blocks are <code>:eval no-export</code> (shown as source only). Run a block in Emacs with <code>C-c C-v b</code> when you want live output.</h3>
+</div>
+</div>
+<div id="outline-container-orgaaa1087" class="outline-2">
+<h2 id="orgaaa1087"><span class="section-number-2">3.</span> API naming (migrated)</h2>
+<div class="outline-text-2" id="text-3">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Backend</th>
+<th scope="col" class="org-left">Call pattern</th>
+<th scope="col" class="org-left">Figure object</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><b><b>Plotly</b></b> (notebooks, <code>go.Figure</code>)</td>
+<td class="org-left"><code>mgr.plot_cell</code>, <code>mgr.plot_surface_dgrid</code>, …</td>
+<td class="org-left"><code>plotly.graph_objects.Figure</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><b><b>Three.js</b></b> (interactive HTML, default for new 3D work)</td>
+<td class="org-left"><code>mgr.plot_cell_3js</code>, <code>mgr.plot_surface_dgrid_3js</code>, …</td>
+<td class="org-left"><code>Figure3js</code> (alias <code>Figure3JS</code>)</td>
+</tr>
+</tbody>
+</table>
+
+<ul class="org-ul">
+<li>Plotly names are <b><b>unchanged</b></b> — existing tutorials keep working.</li>
+<li>Three.js uses an explicit <code>_3js</code> suffix so backends never shadow each other.</li>
+<li><code>Figure3js.add_trace</code> / <code>.add_traces</code> <b><b>reject</b></b> Plotly traces; use <code>mgr.add_traces_plotly(fig, …)</code> for Plotly with the same validation.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orga9a4ab1" class="outline-2">
+<h2 id="orga9a4ab1"><span class="section-number-2">4.</span> Figure containers — which object to build</h2>
+<div class="outline-text-2" id="text-4">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Container</th>
+<th scope="col" class="org-left">Backend</th>
+<th scope="col" class="org-left">Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>go.Figure(data</code>[&#x2026;], layout=mgr.white<sub>layout</sub>)=</td>
+<td class="org-left">Plotly</td>
+<td class="org-left">Jupyter / Firefox renderer; combine <code>Mesh3d</code> + <code>Scatter3d</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>Figure3D()</code> (<code>MovieFigure</code>)</td>
+<td class="org-left">Three.js</td>
+<td class="org-left">Low-level: <code>.add_framework()</code>, <code>.add_cell()</code>, <code>.add_surface()</code>, <code>.to_html()</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>Figure3js()</code></td>
+<td class="org-left">Three.js</td>
+<td class="org-left">Fluent API: <code>.plot_*_3js()</code> (same args as Plotly) on top of <code>Figure3D</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>show_mof_threejs(seg, atoms, …)</code></td>
+<td class="org-left">Three.js</td>
+<td class="org-left">One-shot scene from segmentation dict</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>show_mof_plotly(seg, atoms, …)</code></td>
+<td class="org-left">Plotly</td>
+<td class="org-left">One-shot Plotly scene</td>
+</tr>
+</tbody>
+</table>
+
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">from</span> mofography.movies <span style="color: #bb9af7;">import</span> Figure3D
+<span style="color: #bb9af7;">from</span> mofography <span style="color: #bb9af7;">import</span> Figure3js
+<span style="color: #bb9af7;">import</span> mofography <span style="color: #bb9af7;">as</span> mgr
+
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Figure3D &#8212; canonical Three.js builder (same class as MovieFigure)
+</span><span style="color: #c0caf5;">fig3d</span> = Figure3D(layout=<span style="color: #9ece6a;">"white"</span>)
+fig3d.add_framework(mat_updated).add_cell(mat_atoms).to_html(<span style="color: #9ece6a;">"scene.html"</span>)
+
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Figure3js &#8212; chaining sugar on top of Figure3D
+</span><span style="color: #c0caf5;">fig</span> = (
+    Figure3js(layout=<span style="color: #9ece6a;">"white"</span>)
+    .plot_framework_as_mesh_3js(mat_updated, stylize=<span style="color: #ff9e64;">True</span>)
+    .plot_cell_3js(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>)
+    .to_html(<span style="color: #9ece6a;">"scene_chain.html"</span>)
+)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org5a8d43a" class="outline-2">
+<h2 id="org5a8d43a"><span class="section-number-2">5.</span> Master trace map (Plotly vs Three.js)</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+Assume <code>results</code> from <code>do_periodic_segmentation_rust</code>, <code>mat_atoms</code>, <code>mat_updated = update_with_covalent_bonds(mat_atoms)</code>, <code>connections_trimmed</code>, <code>cscale</code> (e.g. <code>px.colors.qualitative.Pastel</code>).
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Trace</th>
+<th scope="col" class="org-left">Plotly (<code>go.Figure</code>)</th>
+<th scope="col" class="org-left">Three.js (<code>Figure3D</code> / bundles)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Framework mesh</td>
+<td class="org-left"><code>mgr.plot_framework_as_mesh(mat_updated, stylize=True)</code></td>
+<td class="org-left"><code>plot_framework_as_mesh_3js(...)</code> or <code>Figure3js().plot_framework_as_mesh_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Framework scatter/stick</td>
+<td class="org-left"><code>mgr.draw_framework(mat_updated, …)</code></td>
+<td class="org-left"><code>draw_framework_3js(...)</code> or <code>.draw_framework_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Unit cell</td>
+<td class="org-left"><code>mgr.plot_cell(atoms, color=…)</code></td>
+<td class="org-left"><code>plot_cell_3js(atoms, …)</code> or <code>.plot_cell_3js(atoms)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Iso-surface (regions)</td>
+<td class="org-left"><code>mgr.plot_surface_dgrid(...)</code></td>
+<td class="org-left"><code>plot_surface_dgrid_3js(...)</code> or <code>.plot_surface_dgrid_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Iso-surface (PBC regions)</td>
+<td class="org-left">same with <code>region_labels=regions_pbc</code></td>
+<td class="org-left">same</td>
+</tr>
+
+<tr>
+<td class="org-left">Maxima (local subset)</td>
+<td class="org-left"><code>mgr.plot_maxima(dgrid, maxima, atoms, …)</code></td>
+<td class="org-left"><code>plot_maxima_from_grid_3js(..., hide_periodic=True)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Maxima (PBC)</td>
+<td class="org-left"><code>mgr.plot_maxima(dgrid, maxima_pbc, atoms, …)</code></td>
+<td class="org-left"><code>plot_maxima_from_grid_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Connections (internal + periodic)</td>
+<td class="org-left"><code>mgr.plot_connections_as_it_is(...)</code></td>
+<td class="org-left"><code>plot_connections_as_it_is_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Connections (internal only)</td>
+<td class="org-left"><code>plot_periodic=False</code></td>
+<td class="org-left"><code>plot_connections_3js(seg, atoms, hide_periodic=True)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Windows (simple)</td>
+<td class="org-left"><code>mgr.plot_windows(connections_trimmed, …)</code></td>
+<td class="org-left"><code>plot_windows_3js(connections_trimmed, …)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Windows (+ far-outside → periodic)</td>
+<td class="org-left"><code>mgr.plot_windows_from_results(...)</code></td>
+<td class="org-left"><code>plot_windows_from_results_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Percolated cluster meshes</td>
+<td class="org-left"><code>mgr.plot_percolated_cluster_meshes(...)</code></td>
+<td class="org-left"><code>plot_percolated_cluster_meshes_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">PLD-critical windows</td>
+<td class="org-left"><code>mgr.plot_percolation_windows(...)</code></td>
+<td class="org-left"><code>plot_percolation_windows_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Pocket PSDs (2D)</td>
+<td class="org-left"><code>mgr.plot_psds(rag, pbc_groups, …)</code></td>
+<td class="org-left">Plotly only</td>
+</tr>
+
+<tr>
+<td class="org-left">Full scene</td>
+<td class="org-left"><code>show_mof_plotly(results, atoms, …)</code></td>
+<td class="org-left"><code>show_mof_threejs(results, atoms, …)</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+<b><b>Add traces to Three.js:</b></b> <code>fig.add_traces(bundle)</code> flattens <code>{"internal": …, "periodic": …}</code> dicts. <b><b>Do not</b></b> pass Three.js bundles to <code>go.Figure</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-org16bb7fc" class="outline-2">
+<h2 id="org16bb7fc"><span class="section-number-2">6.</span> Prerequisites</h2>
+<div class="outline-text-2" id="text-6">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">from</span> pathlib <span style="color: #bb9af7;">import</span> Path
+<span style="color: #bb9af7;">from</span> ase.io <span style="color: #bb9af7;">import</span> read
+<span style="color: #bb9af7;">import</span> numpy <span style="color: #bb9af7;">as</span> np
+<span style="color: #bb9af7;">import</span> mofography <span style="color: #bb9af7;">as</span> mgr
+
+<span style="color: #c0caf5;">mat_atoms</span> = read(Path(<span style="color: #9ece6a;">"./DUT-75_uncapped.cif"</span>).expanduser())
+<span style="color: #c0caf5;">spacing</span> = 0.5
+<span style="color: #c0caf5;">dgrid</span> = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=spacing).astype(np.float32)
+<span style="color: #c0caf5;">results</span> = mgr.do_periodic_segmentation_rust(
+    dgrid, mat_atoms, mask_thickness=0.05, h=0.2, spacing=spacing,
+    threshold_abs=1.5, min_distance=1.5, return_dgrid=<span style="color: #ff9e64;">True</span>,
+    return_padded_regions=<span style="color: #ff9e64;">True</span>, extra_padding=2,
+)
+<span style="color: #c0caf5;">dgrid</span> = results[<span style="color: #9ece6a;">"dgrid"</span>]
+<span style="color: #c0caf5;">regions</span> = results[<span style="color: #9ece6a;">"regions"</span>]
+<span style="color: #c0caf5;">regions_pbc</span> = results[<span style="color: #9ece6a;">"regions_pbc"</span>]
+<span style="color: #c0caf5;">connections</span> = results[<span style="color: #9ece6a;">"connections"</span>]
+<span style="color: #c0caf5;">all_maxima</span> = results[<span style="color: #9ece6a;">"all_maxima"</span>]
+<span style="color: #c0caf5;">maxima_pbc</span> = results[<span style="color: #9ece6a;">"maxima_pbc"</span>]
+<span style="color: #c0caf5;">unique_regions</span> = results[<span style="color: #9ece6a;">"unique_regions"</span>]
+<span style="color: #c0caf5;">maxima</span> = all_maxima[: regions.<span style="color: #f7768e;">max</span>()]
+<span style="color: #c0caf5;">connections_trimmed</span> = [c <span style="color: #bb9af7;">for</span> c <span style="color: #bb9af7;">in</span> connections <span style="color: #bb9af7;">if</span> np.<span style="color: #f7768e;">all</span>(np.isin(c[0], unique_regions))]
+<span style="color: #c0caf5;">mat_updated</span> = mgr.update_with_covalent_bonds(mat_atoms)
+</pre>
+</div>
+
+<p>
+Connection tuple: <code>[ (n1, n2), has_path, "internal"|"periodic", window_xyz_list, radii_list ]</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-orgd6eebdf" class="outline-2">
+<h2 id="orgd6eebdf"><span class="section-number-2">7.</span> Color scales (<code>cscale</code>)</h2>
+<div class="outline-text-2" id="text-7">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Input</th>
+<th scope="col" class="org-left">Three.js</th>
+<th scope="col" class="org-left">Plotly</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>None</code></td>
+<td class="org-left">10-color default</td>
+<td class="org-left">solid <code>color</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>px.colors.qualitative.Pastel</code></td>
+<td class="org-left">parsed RGB ints</td>
+<td class="org-left">colorscale on mesh/markers</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>"red"</code>, <code>"#ff0000"</code></td>
+<td class="org-left">single RGB</td>
+<td class="org-left">name / hex</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>"viridis"</code></td>
+<td class="org-left">sampled colormap</td>
+<td class="org-left">scale name</td>
+</tr>
+</tbody>
+</table>
+
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">import</span> plotly.express <span style="color: #bb9af7;">as</span> px
+<span style="color: #c0caf5;">cscale</span> = px.colors.qualitative.Pastel
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orgf5981b1" class="outline-2">
+<h2 id="orgf5981b1"><span class="section-number-2">8.</span> Traces in detail</h2>
+<div class="outline-text-2" id="text-8">
+</div>
+<div id="outline-container-org181a90e" class="outline-3">
+<h3 id="org181a90e"><span class="section-number-3">8.1.</span> Convention:** <b>Plotly</b> → <code>mgr.plot_*</code> on <code>go.Figure</code>. <b>Three.js</b> → <code>mgr.plot_*_3js</code> and <code>Figure3js</code> (chaining methods <code>.plot_*_3js()</code> mirror the functional API).</h3>
+<div class="outline-text-3" id="text-8-1">
+</div>
+<div id="outline-container-org6a2789d" class="outline-4">
+<h4 id="org6a2789d"><span class="section-number-4">8.1.1.</span> Framework — mesh (ball-and-stick as mesh)</h4>
+<div class="outline-text-4" id="text-8-1-1">
+</div>
+<ol class="org-ol">
+<li><a id="org1cbc2ca"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-1-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">frame_traces</span> = mgr.plot_framework_as_mesh(
+    mat_updated, stylize=<span style="color: #ff9e64;">True</span>, show_rings=<span style="color: #ff9e64;">True</span>)
+<span style="color: #51587a;"># </span><span style="color: #51587a;">list of Mesh3d &#8212; use [*frame_traces] in go.Figure</span>
+</pre>
+</div>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Argument</th>
+<th scope="col" class="org-left">Default</th>
+<th scope="col" class="org-left">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>ase_atoms</code></td>
+<td class="org-left">required</td>
+<td class="org-left">Use <code>update_with_covalent_bonds</code> first</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>show_rings</code></td>
+<td class="org-left"><code>True</code></td>
+<td class="org-left">Aromatic ring traces</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>stylize</code></td>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Lighting preset</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>kwargs_frame_mesh</code></td>
+<td class="org-left">legend/name</td>
+<td class="org-left">Passed to <code>Mesh3d</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><a id="orgb794dcb"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-1-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #51587a;"># </span><span style="color: #51587a;">Functional trace dict
+</span><span style="color: #c0caf5;">bundle</span> = mgr.draw_framework_3js(mat_updated, representation=<span style="color: #9ece6a;">"mesh"</span>, name=<span style="color: #9ece6a;">"Framework"</span>)
+
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Or builder
+</span><span style="color: #bb9af7;">from</span> mofography.movies <span style="color: #bb9af7;">import</span> Figure3D
+<span style="color: #c0caf5;">fig</span> = Figure3D().add_framework(mat_updated, show_rings=<span style="color: #ff9e64;">True</span>)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-orgeba9342" class="outline-4">
+<h4 id="orgeba9342"><span class="section-number-4">8.1.2.</span> Framework — scatter / ball-and-stick (lighter)</h4>
+<div class="outline-text-4" id="text-8-1-2">
+</div>
+<ol class="org-ol">
+<li><a id="orga460477"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-2-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">traces</span> = mgr.draw_framework(mat_updated, show_aromatics=<span style="color: #ff9e64;">True</span>, bond_opacity=0.9)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="orgf202fec"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-2-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">bundle</span> = mgr.draw_framework_3js(
+    mat_updated, representation=<span style="color: #9ece6a;">"scatter"</span>, atom_scale=0.65, name=<span style="color: #9ece6a;">"Framework"</span>)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org2c8f16d" class="outline-4">
+<h4 id="org2c8f16d"><span class="section-number-4">8.1.3.</span> Unit cell</h4>
+<div class="outline-text-4" id="text-8-1-3">
+</div>
+<ol class="org-ol">
+<li><a id="org7b93bfc"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-3-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">cell_trace</span> = mgr.plot_cell(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>, name=<span style="color: #9ece6a;">"cell"</span>)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="orgc78c8a6"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-3-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">cell_trace</span> = mgr.plot_cell_3js(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>, name=<span style="color: #9ece6a;">"cell"</span>)
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Figure3D: Figure3D().add_cell(mat_atoms, color=[1, 0.65, 0])</span>
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-orgcd6ad03" class="outline-4">
+<h4 id="orgcd6ad03"><span class="section-number-4">8.1.4.</span> Iso-surfaces (segmentation / PBC)</h4>
+<div class="outline-text-4" id="text-8-1-4">
+</div>
+<ol class="org-ol">
+<li><a id="org08e4aea"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-4-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">iso</span> = mgr.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=mat_atoms, region_labels=regions_pbc,
+    opacity=1.0, cscale=cscale, stepsize=1, stylize=<span style="color: #ff9e64;">True</span>, name=<span style="color: #9ece6a;">"Regions PBC"</span>,
+    taubin_smooth=<span style="color: #ff9e64;">False</span>)
+</pre>
+</div>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Argument</th>
+<th scope="col" class="org-left">Default</th>
+<th scope="col" class="org-left">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>dgrid</code>, <code>isovalue</code>, <code>ase_atoms</code></td>
+<td class="org-left">required</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>region_labels</code></td>
+<td class="org-left"><code>None</code></td>
+<td class="org-left">Per-voxel region id; enables colored regions</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>cscale</code></td>
+<td class="org-left"><code>None</code></td>
+<td class="org-left">Region colors</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>select</code></td>
+<td class="org-left"><code>'all'</code></td>
+<td class="org-left">Subset of region ids to show</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>stepsize</code></td>
+<td class="org-left"><code>1</code></td>
+<td class="org-left">Marching cubes step</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>taubin_smooth</code></td>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Mesh smoothing</td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><a id="org5d24cbb"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-4-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">iso</span> = mgr.plot_surface_dgrid_3js(
+    dgrid, 1.0, mat_atoms, region_labels=regions_pbc,
+    cscale=cscale, stylize=<span style="color: #ff9e64;">True</span>, name=<span style="color: #9ece6a;">"Regions PBC"</span>)
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Figure3js: .plot_surface_dgrid_3js(dgrid, 1.0, mat_atoms, region_labels=regions_pbc, ...)</span>
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org0755a3a" class="outline-4">
+<h4 id="org0755a3a"><span class="section-number-4">8.1.5.</span> Maxima — local (distinct pockets)</h4>
+<div class="outline-text-4" id="text-8-1-5">
+<p>
+Pass only the maxima rows you want (e.g. first <code>regions.max()</code> rows).
+</p>
+</div>
+<ol class="org-ol">
+<li><a id="orgcef6655"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-5-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">trace</span> = mgr.plot_maxima(
+    dgrid, maxima, mat_atoms, show_spheres=<span style="color: #ff9e64;">False</span>,
+    marker_size=10, marker_colorscale=cscale, name=<span style="color: #9ece6a;">"Maxima (local)"</span>)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org20cfb70"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-5-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">bundle</span> = mgr.plot_maxima_from_grid_3js(
+    dgrid, maxima, mat_atoms, hide_periodic=<span style="color: #ff9e64;">True</span>,
+    cscale=cscale, name=<span style="color: #9ece6a;">"Maxima (local)"</span>)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org5d300ff" class="outline-4">
+<h4 id="org5d300ff"><span class="section-number-4">8.1.6.</span> Maxima — PBC-unified</h4>
+<div class="outline-text-4" id="text-8-1-6">
+</div>
+<ol class="org-ol">
+<li><a id="orgfa2913d"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-6-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">trace</span> = mgr.plot_maxima(
+    dgrid, maxima_pbc, mat_atoms, show_spheres=<span style="color: #ff9e64;">False</span>,
+    marker_size=7.5, marker_colorscale=cscale, name=<span style="color: #9ece6a;">"Maxima (pbc)"</span>)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org199296f"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-6-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">bundle</span> = mgr.plot_maxima_from_grid_3js(
+    dgrid, maxima_pbc, mat_atoms, cscale=cscale, name=<span style="color: #9ece6a;">"Maxima (pbc)"</span>)
+<span style="color: #51587a;"># </span><span style="color: #51587a;">Or full seg: mgr.plot_maxima_3js(results, mat_atoms, hide_periodic=False)</span>
+</pre>
+</div>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<tbody>
+<tr>
+<td class="org-left"><code>show_spheres</code> (Plotly)</td>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Optional sphere meshes at maxima</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>hide_periodic</code> (3js)</td>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Hide &ldquo;outside&rdquo; periodic copies</td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org9d60207" class="outline-4">
+<h4 id="org9d60207"><span class="section-number-4">8.1.7.</span> Connections — internal and periodic (<code>plot_connections_as_it_is</code>)</h4>
+<div class="outline-text-4" id="text-8-1-7">
+</div>
+<ol class="org-ol">
+<li><a id="orgc47bc35"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-7-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">conn_traces</span> = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_disconnected=<span style="color: #ff9e64;">False</span>, plot_periodic=<span style="color: #ff9e64;">True</span>,
+)
+<span style="color: #51587a;"># </span><span style="color: #51587a;">list of Scatter3d</span>
+</pre>
+</div>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Argument</th>
+<th scope="col" class="org-left">Default</th>
+<th scope="col" class="org-left">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>connections</code></td>
+<td class="org-left">required</td>
+<td class="org-left">Trimmed connection list</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>all_maxima</code></td>
+<td class="org-left">required</td>
+<td class="org-left">Full maxima array (grid indices)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>grid_shape</code></td>
+<td class="org-left">required</td>
+<td class="org-left"><code>regions.shape</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>ase_atoms</code></td>
+<td class="org-left">required</td>
+<td class="org-left">For fractional positions</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>plot_periodic</code></td>
+<td class="org-left"><code>True</code></td>
+<td class="org-left">Draw periodic image connections</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>plot_disconnected</code></td>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Show edges with no path</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>cscale</code></td>
+<td class="org-left"><code>None</code></td>
+<td class="org-left">Line colors</td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li><a id="org40eee5e"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-7-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">conn_bundle</span> = mgr.plot_connections_as_it_is_3js(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_periodic=<span style="color: #ff9e64;">True</span>,
+)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org824eec0" class="outline-4">
+<h4 id="org824eec0"><span class="section-number-4">8.1.8.</span> Connections — internal only</h4>
+<div class="outline-text-4" id="text-8-1-8">
+</div>
+<ol class="org-ol">
+<li><a id="orga1d8340"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-8-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">conn_traces</span> = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    plot_periodic=<span style="color: #ff9e64;">False</span>,
+)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org9fe2ea7"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-8-2">
+<p>
+Use <code>plot_connections_3js(seg, atoms, hide_periodic=True)</code> or <code>Figure3D.add_connections(..., hide_periodic=True)</code>.
+</p>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org680a9eb" class="outline-4">
+<h4 id="org680a9eb"><span class="section-number-4">8.1.9.</span> Windows — simple (no PBC reclassification)</h4>
+<div class="outline-text-4" id="text-8-1-9">
+</div>
+<ol class="org-ol">
+<li><a id="orgb6f5cb1"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-9-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">windows_trace</span> = mgr.plot_windows(
+    connections_trimmed, name=<span style="color: #9ece6a;">"Windows"</span>,
+    marker_color=<span style="color: #9ece6a;">"yellow"</span>, marker_size=10, marker_opacity=0.8,
+)
+</pre>
+</div>
+
+<p>
+No <code>grid_shape</code> / <code>maxima</code> required.
+</p>
+</div>
+</li>
+<li><a id="orgd3f84ff"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-9-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">windows_bundle</span> = mgr.plot_windows_3js(
+    connections_trimmed, name=<span style="color: #9ece6a;">"Windows"</span>,
+    marker_color=<span style="color: #9ece6a;">"yellow"</span>, marker_size=10, marker_opacity=0.8,
+)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org6dade4f" class="outline-4">
+<h4 id="org6dade4f"><span class="section-number-4">8.1.10.</span> Windows — with far-outside → periodic reclassification</h4>
+<div class="outline-text-4" id="text-8-1-10">
+<p>
+Use when windows far outside the unit cell should appear as periodic images.
+</p>
+</div>
+<ol class="org-ol">
+<li><a id="org74e4b96"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-10-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">win_traces</span> = mgr.plot_windows_from_results(
+    connections_trimmed,
+    dgrid=dgrid,
+    atoms=mat_atoms,
+    spacing=0.5,
+    outside_windows_to_periodic=<span style="color: #ff9e64;">True</span>,
+    name=<span style="color: #9ece6a;">"Windows"</span>,
+    marker_color=<span style="color: #9ece6a;">"red"</span>,
+    marker_size=10,
+)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org9c69dc0"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-10-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">win_bundle</span> = mgr.plot_windows_from_results_3js(
+    connections_trimmed,
+    dgrid=dgrid,
+    atoms=mat_atoms,
+    spacing=0.5,
+    outside_windows_to_periodic=<span style="color: #ff9e64;">True</span>,
+    name=<span style="color: #9ece6a;">"Windows"</span>,
+    marker_color=<span style="color: #9ece6a;">"red"</span>,
+)
+</pre>
+</div>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Argument</th>
+<th scope="col" class="org-left">Default</th>
+<th scope="col" class="org-left">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>outside_windows_to_periodic</code></td>
+<td class="org-left"><code>True</code></td>
+<td class="org-left">Reclassify far-outside windows as periodic</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>dgrid</code>, <code>atoms</code>, <code>spacing</code></td>
+<td class="org-left">required for reclassification</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-orge817385" class="outline-4">
+<h4 id="orge817385"><span class="section-number-4">8.1.11.</span> Percolated cluster meshes</h4>
+<div class="outline-text-4" id="text-8-1-11">
+<p>
+From <code>percolation_history</code> at a probe size (or <code>pld_history</code>).
+</p>
+</div>
+<ol class="org-ol">
+<li><a id="org08e3a4e"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-11-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">cluster_traces</span> = mgr.plot_percolated_cluster_meshes(
+    percolation_history,
+    probe_size=1.2,
+    atoms=mat_atoms,
+    isovalue=1.0,
+    opacity=0.85,
+    cscale=cscale,
+    name=<span style="color: #9ece6a;">"Percolated clusters"</span>,
+)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org9b0fe97"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-11-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">cluster_bundle</span> = mgr.plot_percolated_cluster_meshes_3js(
+    percolation_history,
+    probe_size=1.2,
+    atoms=mat_atoms,
+    isovalue=1.0,
+    opacity=0.85,
+    cscale=cscale,
+)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-org79e2be5" class="outline-4">
+<h4 id="org79e2be5"><span class="section-number-4">8.1.12.</span> PLD-critical windows (percolation)</h4>
+<div class="outline-text-4" id="text-8-1-12">
+<p>
+Windows at the probe radius where the network percolates (PLD threshold).
+</p>
+</div>
+<ol class="org-ol">
+<li><a id="org0d98835"></a>Plotly<br />
+<div class="outline-text-5" id="text-8-1-12-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">pld_traces</span> = mgr.plot_percolation_windows(
+    percolation_history,
+    probe_size=1.2,
+    atoms=mat_atoms,
+    marker_color=<span style="color: #9ece6a;">"red"</span>,
+    marker_size=12,
+    name=<span style="color: #9ece6a;">"PLD-critical windows"</span>,
+)
+</pre>
+</div>
+</div>
+</li>
+<li><a id="org71b4034"></a>Three.js<br />
+<div class="outline-text-5" id="text-8-1-12-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">pld_bundle</span> = mgr.plot_percolation_windows_3js(
+    percolation_history,
+    probe_size=1.2,
+    atoms=mat_atoms,
+    marker_color=<span style="color: #9ece6a;">"red"</span>,
+    marker_size=12,
+)
+</pre>
+</div>
+</div>
+</li>
+</ol>
+</div>
+<div id="outline-container-orge091d56" class="outline-4">
+<h4 id="orge091d56"><span class="section-number-4">8.1.13.</span> Pocket PSDs (2D curves)</h4>
+<div class="outline-text-4" id="text-8-1-13">
+<p>
+Plotly only — geometry or energy cluster keys on the RAG.
+</p>
+
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #c0caf5;">psd_traces</span> = mgr.plot_psds(
+    rag, pbc_groups, cscale=cscale, cluster_key=<span style="color: #9ece6a;">"cluster_geom_pbc"</span>,
+)
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-orgaa64408" class="outline-2">
+<h2 id="orgaa64408"><span class="section-number-2">9.</span> Full examples</h2>
+<div class="outline-text-2" id="text-9">
+</div>
+<div id="outline-container-org8b1268f" class="outline-3">
+<h3 id="org8b1268f"><span class="section-number-3">9.1.</span> Plotly — DUT-75 notebook figure</h3>
+<div class="outline-text-3" id="text-9-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">import</span> plotly.express <span style="color: #bb9af7;">as</span> px
+<span style="color: #bb9af7;">import</span> plotly.graph_objects <span style="color: #bb9af7;">as</span> go
+<span style="color: #bb9af7;">import</span> mofography <span style="color: #bb9af7;">as</span> mgr
+
+<span style="color: #c0caf5;">cscale</span> = px.colors.qualitative.Pastel
+<span style="color: #c0caf5;">isovals</span> = [1.0, 1.5]
+
+<span style="color: #c0caf5;">mat_updated</span> = mgr.update_with_covalent_bonds(mat_atoms)
+<span style="color: #c0caf5;">frame_trace</span> = mgr.plot_framework_as_mesh(mat_updated, stylize=<span style="color: #ff9e64;">True</span>)
+<span style="color: #c0caf5;">isosurface_pbc</span> = mgr.plot_surface_dgrid(
+    dgrid, stylize=<span style="color: #ff9e64;">True</span>, isovalue=isovals[0], region_labels=regions_pbc,
+    ase_atoms=mat_atoms, name=<span style="color: #9ece6a;">"Regions PBC"</span>, opacity=1, cscale=cscale,
+)
+<span style="color: #c0caf5;">cell_trace</span> = mgr.plot_cell(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>)
+<span style="color: #c0caf5;">maxima_trace_pbc</span> = mgr.plot_maxima(
+    dgrid, maxima_pbc, mat_atoms, show_spheres=<span style="color: #ff9e64;">False</span>,
+    marker_size=7.5, marker_colorscale=cscale, name=<span style="color: #9ece6a;">"Maxima (pbc)"</span>,
+)
+<span style="color: #c0caf5;">connections_traces</span> = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_disconnected=<span style="color: #ff9e64;">False</span>, plot_periodic=<span style="color: #ff9e64;">True</span>,
+)
+<span style="color: #c0caf5;">windows_trace</span> = mgr.plot_windows(
+    connections_trimmed, name=<span style="color: #9ece6a;">"Windows"</span>,
+    marker_color=<span style="color: #9ece6a;">"yellow"</span>, marker_size=10, marker_opacity=0.8,
+)
+
+<span style="color: #c0caf5;">fig</span> = go.Figure(
+    data=[*frame_trace, cell_trace, maxima_trace_pbc, isosurface_pbc],
+    layout=mgr.white_layout,
+)
+fig.show(renderer=<span style="color: #9ece6a;">"firefox"</span>)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orgcb48626" class="outline-3">
+<h3 id="orgcb48626"><span class="section-number-3">9.2.</span> Three.js — same scene as HTML</h3>
+<div class="outline-text-3" id="text-9-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">from</span> mofography <span style="color: #bb9af7;">import</span> Figure3js
+
+<span style="color: #c0caf5;">fig</span> = (
+    Figure3js(layout=<span style="color: #9ece6a;">"white"</span>, stylize=<span style="color: #ff9e64;">True</span>)
+    .plot_framework_as_mesh_3js(mat_updated, stylize=<span style="color: #ff9e64;">True</span>)
+    .plot_cell_3js(mat_atoms, color=<span style="color: #9ece6a;">"orange"</span>)
+    .plot_surface_dgrid_3js(
+        dgrid, isovals[0], mat_atoms, region_labels=regions_pbc,
+        cscale=cscale, name=<span style="color: #9ece6a;">"Regions PBC"</span>,
+    )
+    .plot_maxima_from_grid_3js(
+        dgrid, maxima_pbc, mat_atoms, cscale=cscale, name=<span style="color: #9ece6a;">"Maxima (pbc)"</span>,
+    )
+    .add_traces(
+        mgr.plot_connections_as_it_is_3js(
+            connections_trimmed, all_maxima, regions.shape, mat_atoms,
+            cscale=cscale, plot_periodic=<span style="color: #ff9e64;">True</span>,
+        )
+    )
+    .add_traces(
+        mgr.plot_windows_3js(
+            connections_trimmed, name=<span style="color: #9ece6a;">"Windows"</span>, marker_color=<span style="color: #9ece6a;">"yellow"</span>,
+        )
+    )
+)
+fig.to_html(<span style="color: #9ece6a;">"dut75_scene.html"</span>)
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-org6780931" class="outline-2">
+<h2 id="org6780931"><span class="section-number-2">10.</span> Global PSD (2D histogram)</h2>
+<div class="outline-text-2" id="text-10">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #bb9af7;">import</span> plotly.graph_objects <span style="color: #bb9af7;">as</span> go
+<span style="color: #bb9af7;">import</span> numpy <span style="color: #bb9af7;">as</span> np
+<span style="color: #bb9af7;">import</span> mofography <span style="color: #bb9af7;">as</span> mgr
+
+<span style="color: #c0caf5;">probe_radius</span> = 0
+<span style="color: #c0caf5;">sample_points</span>, <span style="color: #c0caf5;">pore_sizes</span> = mgr.compute_pore_sizes_uniform_rust(
+    dgrid, mat_atoms, num_samples_total=50000,
+)
+<span style="color: #c0caf5;">pore_sizes</span> = pore_sizes[pore_sizes &gt; probe_radius]
+<span style="color: #c0caf5;">bins</span> = np.linspace(0, 100, 1000)
+<span style="color: #c0caf5;">hist</span>, <span style="color: #c0caf5;">bin_edges</span> = np.histogram(pore_sizes * 2, bins=bins, density=<span style="color: #ff9e64;">True</span>)
+<span style="color: #c0caf5;">binC</span> = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+<span style="color: #c0caf5;">mgr_psd_trace</span> = go.Scatter(
+    x=binC, y=hist, mode=<span style="color: #9ece6a;">"lines+markers"</span>, marker_size=10,
+    name=<span style="color: #9ece6a;">"PSD mgr"</span>, line=<span style="color: #f7768e;">dict</span>(width=2, color=<span style="color: #9ece6a;">"black"</span>),
+)
+<span style="color: #c0caf5;">fig</span> = go.Figure(data=[mgr_psd_trace], layout=mgr.white_layout)
+fig.update_layout(
+    xaxis_range=[0, 27],
+    xaxis_title=<span style="color: #9ece6a;">"Pore Diameter (&#197;)"</span>,
+    yaxis_title=<span style="color: #9ece6a;">"Normalized Pore Size Distribution"</span>,
+)
+fig.show(renderer=<span style="color: #9ece6a;">"firefox"</span>)
+</pre>
+</div>
+
+<p>
+Define <code>publication_layout</code> in your notebook if you use a custom layout instead of <code>mgr.white_layout</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-orgdae98a6" class="outline-2">
+<h2 id="orgdae98a6"><span class="section-number-2">11.</span> Quick reference</h2>
+<div class="outline-text-2" id="text-11">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Goal</th>
+<th scope="col" class="org-left">Plotly</th>
+<th scope="col" class="org-left">Three.js</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Notebook 3D</td>
+<td class="org-left"><code>go.Figure</code> + <code>mgr.plot_*</code></td>
+<td class="org-left"><code>Figure3js</code> + <code>plot_*_3js</code> + <code>to_html()</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Unit cell</td>
+<td class="org-left"><code>plot_cell</code></td>
+<td class="org-left"><code>plot_cell_3js</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Colored pockets</td>
+<td class="org-left"><code>plot_surface_dgrid(..., region_labels</code>)=</td>
+<td class="org-left"><code>plot_surface_dgrid_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Maxima subset</td>
+<td class="org-left">pass row slice to <code>plot_maxima</code></td>
+<td class="org-left"><code>plot_maxima_from_grid_3js</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Windows</td>
+<td class="org-left"><code>plot_windows(connections)</code></td>
+<td class="org-left"><code>plot_windows_3js(connections)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Windows + PBC fix</td>
+<td class="org-left"><code>plot_windows_from_results(...)</code></td>
+<td class="org-left"><code>plot_windows_from_results_3js(...)</code></td>
+</tr>
+
+<tr>
+<td class="org-left">Percolation meshes</td>
+<td class="org-left"><code>plot_percolated_cluster_meshes</code></td>
+<td class="org-left"><code>plot_percolated_cluster_meshes_3js</code></td>
+</tr>
+
+<tr>
+<td class="org-left">PLD windows</td>
+<td class="org-left"><code>plot_percolation_windows</code></td>
+<td class="org-left"><code>plot_percolation_windows_3js</code></td>
+</tr>
+
+<tr>
+<td class="org-left">2D PSD</td>
+<td class="org-left"><code>plot_psds</code></td>
+<td class="org-left">—</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="outline-container-org212a508" class="outline-2">
+<h2 id="org212a508"><span class="section-number-2">12.</span> Troubleshooting</h2>
+<div class="outline-text-2" id="text-12">
+</div>
+<div id="outline-container-org2d977ca" class="outline-3">
+<h3 id="org2d977ca"><span class="section-number-3">12.1.</span> <code>ValueError: invalid literal for int() with base 10: 'rrr...'</code></h3>
+<div class="outline-text-3" id="text-12-1">
+<p>
+Passed a string or Plotly hex list where Three.js expected RGB tuples. Fixed in <code>movies._normalize_cscale()</code>; use <code>px.colors.qualitative.Pastel</code> or omit <code>cscale</code>.
+</p>
+</div>
+</div>
+<div id="outline-container-org7213020" class="outline-3">
+<h3 id="org7213020"><span class="section-number-3">12.2.</span> <code>plot_windows(...) needs grid_shape</code> and maxima=**</h3>
+<div class="outline-text-3" id="text-12-2">
+<p>
+Outdated call pattern. Use <code>plot_windows(connections_trimmed, ...)</code> only, or <code>plot_windows_from_results(...)</code> for reclassification.
+</p>
+</div>
+</div>
+<div id="outline-container-org186c278" class="outline-3">
+<h3 id="org186c278"><span class="section-number-3">12.3.</span> <code>go.Figure</code> crashes with trace dict / bundle</h3>
+<div class="outline-text-3" id="text-12-3">
+<p>
+You passed Three.js trace dicts to Plotly. Use <code>mgr.plot_*</code> for Plotly and <code>Figure3js</code> + <code>plot_*_3js</code> for HTML.
+</p>
+</div>
+</div>
+<div id="outline-container-org5ef02a9" class="outline-3">
+<h3 id="org5ef02a9"><span class="section-number-3">12.4.</span> <code>Figure3js.add_trace</code> rejects my trace</h3>
+<div class="outline-text-3" id="text-12-4">
+<p>
+You passed a Plotly <code>Mesh3d</code> / <code>Scatter3d</code>. Use the matching <code>plot_*_3js</code> helper or <code>add_traces_plotly</code> for Plotly figures.
+</p>
+</div>
+</div>
+<div id="outline-container-orgf1914a4" class="outline-3">
+<h3 id="orgf1914a4"><span class="section-number-3">12.5.</span> HTML export runs Python code</h3>
+<div class="outline-text-3" id="text-12-5">
+<p>
+Set file header: <code>#+PROPERTY: header-args:python :eval no-export :exports code</code>
+</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
