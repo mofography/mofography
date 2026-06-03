@@ -257,6 +257,8 @@ def _make_trace(
     hover: list[str] | None = None,
     visible: bool = True,
 ) -> dict[str, Any]:
+    from .viz_backend import MOFOGRAPHY_BACKEND_KEY, THREEJS_BACKEND
+
     return {
         "id": trace_id,
         "type": trace_type,
@@ -265,6 +267,7 @@ def _make_trace(
         "style": _resolve_style(style),
         "data": data,
         "hover": hover,
+        MOFOGRAPHY_BACKEND_KEY: THREEJS_BACKEND,
     }
 
 
@@ -453,6 +456,99 @@ def _apply_taubin_smoothing(
     return mesh
 
 
+DEFAULT_REGION_CSCALE = [
+    [102, 197, 204],
+    [246, 207, 113],
+    [248, 156, 116],
+    [220, 176, 242],
+    [135, 197, 95],
+    [158, 185, 243],
+    [254, 136, 177],
+    [201, 219, 116],
+    [139, 224, 164],
+    [180, 151, 231],
+    [179, 179, 179],
+]
+
+
+def _normalize_cscale(cscale) -> list[list[int]]:
+    """Normalise a cscale value to a list of [R, G, B] integer triplets (0-255).
+
+    Accepts:
+    - None                       → DEFAULT_REGION_CSCALE
+    - str                        → matplotlib colour name or hex
+    - list of plotly hex/rgb strings  → parsed to [R, G, B]
+    - single [r, g, b] triplet   → wrapped into a list of one
+    - list of float triplets     → scaled ×255 → int
+    - list of int triplets       → used as-is
+    - anything else              → DEFAULT_REGION_CSCALE
+    """
+    if cscale is None:
+        return list(DEFAULT_REGION_CSCALE)
+    if isinstance(cscale, str):
+        import matplotlib.colors as mcolors
+        import matplotlib.cm as mcm
+        # Try as a single color name/hex first
+        try:
+            rgba = mcolors.to_rgba(cscale)
+            return [[int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255)]]
+        except ValueError:
+            pass
+        # Try as a matplotlib colormap name → sample 10 colors
+        try:
+            cmap = mcm.get_cmap(cscale)
+            return [[int(r * 255), int(g * 255), int(b * 255)]
+                    for r, g, b, _ in (cmap(i / 9) for i in range(10))]
+        except (ValueError, KeyError):
+            pass
+        # Try as a plotly qualitative/sequential attribute name
+        try:
+            import plotly.express as px
+            raw = getattr(px.colors.qualitative, cscale, None)
+            if raw is None:
+                raw = getattr(px.colors.sequential, cscale, None)
+            if raw is not None:
+                return _normalize_cscale(list(raw))
+        except Exception:
+            pass
+        return list(DEFAULT_REGION_CSCALE)
+    # Non-iterable → fallback
+    if not isinstance(cscale, (list, tuple)):
+        return list(DEFAULT_REGION_CSCALE)
+    # list of plotly colour strings like "rgb(102,197,204)" or "#ff0000"
+    if len(cscale) > 0 and isinstance(cscale[0], str):
+        import re
+        out = []
+        for s in cscale:
+            m = re.match(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", s.strip())
+            if m:
+                out.append([int(m.group(1)), int(m.group(2)), int(m.group(3))])
+            elif s.startswith("#") and len(s) == 7:
+                out.append([int(s[i:i+2], 16) for i in (1, 3, 5)])
+            else:
+                import matplotlib.colors as mcolors
+                rgba = mcolors.to_rgba(s)
+                out.append([int(rgba[0] * 255), int(rgba[1] * 255), int(rgba[2] * 255)])
+        return out if out else list(DEFAULT_REGION_CSCALE)
+    # single bare RGB triplet
+    if all(isinstance(c, (int, float)) for c in cscale) and len(cscale) == 3:
+        triplet = cscale
+        if all(isinstance(v, float) for v in triplet):
+            triplet = [int(v * 255) for v in triplet]
+        return [list(triplet)]
+    # list of RGB triplets
+    if all(isinstance(rgb, (list, tuple)) for rgb in cscale):
+        out = []
+        for rgb in cscale:
+            if all(isinstance(v, float) for v in rgb):
+                out.append([int(v * 255) for v in rgb])
+            else:
+                out.append([int(v) for v in rgb])
+        return out if out else list(DEFAULT_REGION_CSCALE)
+    # fallback
+    return list(DEFAULT_REGION_CSCALE)
+
+
 
 def _serialize_segmentation_surface_mesh(
     atoms: Atoms,
@@ -512,23 +608,7 @@ def _serialize_segmentation_surface_mesh(
         _, nn = tree.query(verts_cart[zero_idx], k=1)
         labels[zero_idx] = labels[nonzero_idx[nn]]
 
-    _DEFAULT_CSCALE = [
-        [102, 197, 204],
-        [246, 207, 113],
-        [248, 156, 116],
-        [220, 176, 242],
-        [135, 197, 95],
-        [158, 185, 243],
-        [254, 136, 177],
-        [201, 219, 116],
-        [139, 224, 164],
-        [180, 151, 231],
-        [179, 179, 179],
-    ]
-    if cscale is None:
-        cscale = _DEFAULT_CSCALE
-    else:
-        cscale = [[int(c * 255) for c in rgb] for rgb in cscale]
+    cscale = _normalize_cscale(cscale)
     uniq = sorted([int(x) for x in np.unique(labels) if int(x) > 0])
     cmap = {rid: cscale[i % len(cscale)] for i, rid in enumerate(uniq)}
     colors = np.asarray(
@@ -574,23 +654,7 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     frac = maxima / grid_shape
     pos = np.dot(cell, frac.T).T
 
-    _DEFAULT_CSCALE = [
-        [102, 197, 204],
-        [246, 207, 113],
-        [248, 156, 116],
-        [220, 176, 242],
-        [135, 197, 95],
-        [158, 185, 243],
-        [254, 136, 177],
-        [201, 219, 116],
-        [139, 224, 164],
-        [180, 151, 231],
-        [179, 179, 179],
-    ]
-    if cscale is None:
-        cscale = _DEFAULT_CSCALE
-    else:
-        cscale = [[int(c * 255) for c in rgb] for rgb in cscale]
+    cscale = _normalize_cscale(cscale)
 
     # Color maxima by their region label for consistency with the surface mesh.
     # Each maxima is at a grid point; we look up its region in the regions array.
@@ -2352,6 +2416,43 @@ class _TraceCollection:
         return f"TraceCollection({ids})"
 
 
+
+
+def _open_threejs_in_browser(fig: "MovieFigure", *, port: int | None = None) -> str:
+    """Write temp HTML, serve on localhost, open browser. Returns viewer URL."""
+    import http.server
+    import socket
+    import tempfile
+    import threading
+    import webbrowser
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="mofography_view_"))
+    html_path = tmp_dir / "figure3d.html"
+    fig.to_html(html_path)
+
+    if port is None:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+    class _Handler(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, directory=str(tmp_dir), **kwargs)
+
+        def log_message(self, format, *args):
+            return
+
+    httpd = http.server.HTTPServer(("127.0.0.1", int(port)), _Handler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+
+    url = f"http://127.0.0.1:{port}/{html_path.name}"
+    print(f"Figure3D viewer: {url}")
+    print(f"(temp HTML: {html_path})")
+    webbrowser.open(url)
+    return url
+
+
 class MovieFigure:
     """Plotly-like API for building Three.js movie scenes."""
 
@@ -2464,6 +2565,73 @@ class MovieFigure:
             ap["title"] = title
         if theme is not None:
             ap["theme"] = theme
+        return self
+
+    def set_lights(
+        self,
+        *,
+        ambient: float | None = None,
+        hemisphere_intensity: float | None = None,
+        hemisphere_sky: str | int | None = None,
+        hemisphere_ground: str | int | None = None,
+        dir_key_intensity: float | None = None,
+        dir_key_position: tuple[float, float, float] | None = None,
+        dir_fill_intensity: float | None = None,
+        dir_fill_position: tuple[float, float, float] | None = None,
+        ssao: bool | None = None,
+        explicit: bool = True,
+    ) -> "MovieFigure":
+        """Set Three.js scene lighting (embedded in exported HTML).
+
+        When *explicit* is True (default), the viewer uses these intensities
+        as-is and does **not** apply the automatic orthographic compensation.
+
+        Parameters
+        ----------
+        ambient
+            Ambient light intensity (0–1 typical).
+        hemisphere_intensity, hemisphere_sky, hemisphere_ground
+            Hemisphere light settings (sky/ground are hex colours).
+        dir_key_intensity, dir_key_position
+            Key directional light.
+        dir_fill_intensity, dir_fill_position
+            Fill directional light.
+        ssao
+            Enable SSAO. Default: off in orthographic, on in perspective.
+        explicit
+            If True, skip orthographic auto-boost of directional lights.
+        """
+        if "lighting" not in self.layout:
+            self.layout["lighting"] = {}
+
+        def _hex(c: str | int) -> str:
+            if isinstance(c, str):
+                return c if c.startswith("#") else f"#{c}"
+            return f"#{int(c):06x}"
+
+        lt = self.layout["lighting"]
+        if ambient is not None:
+            lt["ambient"] = float(ambient)
+        hemi: dict[str, Any] = lt.setdefault("hemisphere", {})
+        if hemisphere_intensity is not None:
+            hemi["intensity"] = float(hemisphere_intensity)
+        if hemisphere_sky is not None:
+            hemi["sky"] = _hex(hemisphere_sky)
+        if hemisphere_ground is not None:
+            hemi["ground"] = _hex(hemisphere_ground)
+        key: dict[str, Any] = lt.setdefault("dir_key", {})
+        if dir_key_intensity is not None:
+            key["intensity"] = float(dir_key_intensity)
+        if dir_key_position is not None:
+            key["position"] = list(dir_key_position)
+        fill: dict[str, Any] = lt.setdefault("dir_fill", {})
+        if dir_fill_intensity is not None:
+            fill["intensity"] = float(dir_fill_intensity)
+        if dir_fill_position is not None:
+            fill["position"] = list(dir_fill_position)
+        if ssao is not None:
+            lt["ssao"] = bool(ssao)
+        lt["explicit"] = bool(explicit)
         return self
 
     @staticmethod
@@ -2665,31 +2833,107 @@ class MovieFigure:
             f'srcdoc="{escaped}"></iframe>'
         )
 
-    def show(self, renderer: str = "notebook") -> None:
+    def show(self, renderer: str = "notebook", *, port: int | None = None) -> str | None:
         """Display the figure.
 
         Parameters
         ----------
         renderer
             ``"notebook"`` — display inline in Jupyter output cell (default).
-            ``"browser"`` — write a temporary HTML file and open it in the
-            system's default web browser (like ``plotly.io.show(renderer="browser")``).
+            ``"browser"`` — serve HTML on ``127.0.0.1`` (random free port) and
+            open in the system browser (Plotly-style). Also writes a temp HTML
+            backup and prints its path.
+        port
+            Optional fixed port for ``renderer="browser"`` (default: auto).
+
+        Returns
+        -------
+        str or None
+            Viewer URL when ``renderer="browser"``, else None.
         """
         if renderer == "browser":
-            import tempfile
-            import webbrowser
-            tmp = Path(tempfile.mktemp(suffix=".html"))
-            self.to_html(tmp)
-            webbrowser.open(str(tmp))
-        else:
-            try:
-                from IPython.display import HTML, display
-                display(HTML(self._repr_html_()))
-            except ImportError:
-                raise RuntimeError(
-                    "IPython is required for notebook rendering. "
-                    "Use renderer='browser' to open in a web browser instead."
-                )
+            return _open_threejs_in_browser(self, port=port)
+        try:
+            from IPython.display import HTML, display
+            display(HTML(self._repr_html_()))
+        except ImportError:
+            raise RuntimeError(
+                "IPython is required for notebook rendering. "
+                "Use renderer='browser' to open in a web browser instead."
+            )
+        return None
+
+    def export_png(
+        self,
+        path: str | Path,
+        *,
+        resolution_mult: int = 2,
+        width: int | None = None,
+        height: int | None = None,
+        wait_ms: int = 1500,
+    ) -> Path:
+        """Export the current static scene to PNG.
+
+        Uses Playwright headless Chromium when installed::
+
+            pip install playwright
+            playwright install chromium
+
+        Otherwise raises with instructions to use the in-viewer **Export PNG**
+        button after ``.show(renderer="browser")``.
+
+        Parameters
+        ----------
+        path
+            Output ``.png`` path.
+        resolution_mult
+            Supersampling factor (matches the viewer Export PNG control).
+        width, height
+            Browser viewport in pixels (default 1280×720).
+        wait_ms
+            Milliseconds to wait for WebGL scene load before capture.
+        """
+        out = Path(path).expanduser().resolve()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if out.suffix.lower() != ".png":
+            out = out.with_suffix(".png")
+
+        import tempfile
+        tmp_dir = Path(tempfile.mkdtemp(prefix="mofography_figure3d_"))
+        html_path = tmp_dir / "scene.html"
+        self.to_html(html_path)
+
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError as exc:
+            raise RuntimeError(
+                "export_png() requires Playwright. Install with:\n"
+                "  pip install playwright\n"
+                "  playwright install chromium\n"
+                "Or open the scene with fig.show(renderer='browser') and "
+                "click Export PNG in the HUD."
+            ) from exc
+
+        w = int(width or 1280)
+        h = int(height or 720)
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={"width": w, "height": h})
+            page.goto(html_path.as_uri(), wait_until="networkidle")
+            page.wait_for_timeout(wait_ms)
+            data_url = page.evaluate(
+                "(mult) => window.__mofFigureExportPng(mult)",
+                int(resolution_mult),
+            )
+            browser.close()
+
+        if not data_url or not str(data_url).startswith("data:image/png"):
+            raise RuntimeError("PNG export failed — scene may not have finished loading.")
+
+        import base64
+        b64 = str(data_url).split(",", 1)[1]
+        out.write_bytes(base64.b64decode(b64))
+        return out
 
     # ------------------------------------------------------------------
     # Convenience trace builders (static scenes)
@@ -3443,12 +3687,43 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     // Orthographic toggle
     const toggleOrthoBtn = document.getElementById("toggleOrtho");
     toggleOrthoBtn.textContent = isOrtho ? "Perspective" : "Ortho";
+    const LIGHTING = (DATA.layout && DATA.layout.lighting) || {};
+    const lightingExplicit = !!LIGHTING.explicit;
+
+    function ssaoEnabled() {
+      if (LIGHTING.ssao !== undefined) return !!LIGHTING.ssao;
+      return !isOrtho;
+    }
+
+    function applyLightingFromLayout() {
+      if (!DATA.layout || !DATA.layout.lighting) return;
+      const L = DATA.layout.lighting;
+      if (L.ambient != null) ambient.intensity = L.ambient;
+      const h = L.hemisphere || {};
+      if (h.intensity != null) hemiLight.intensity = h.intensity;
+      if (h.sky) hemiLight.color.set(h.sky);
+      if (h.ground) hemiLight.groundColor.set(h.ground);
+      const k = L.dir_key || {};
+      if (k.intensity != null) dirKey.intensity = k.intensity;
+      if (k.position) dirKey.position.set(k.position[0], k.position[1], k.position[2]);
+      const f = L.dir_fill || {};
+      if (f.intensity != null) dirFill.intensity = f.intensity;
+      if (f.position) dirFill.position.set(f.position[0], f.position[1], f.position[2]);
+      _lightOrig.ambient = ambient.intensity;
+      _lightOrig.hemi = hemiLight.intensity;
+      _lightOrig.key = dirKey.intensity;
+      _lightOrig.fill = dirFill.intensity;
+      lightDirXInput.value = String(dirKey.position.x.toFixed(2));
+      lightDirYInput.value = String(dirKey.position.y.toFixed(2));
+      lightDirZInput.value = String(dirKey.position.z.toFixed(2));
+    }
+
     function recreateComposer() {
       if (composer) {
         try { composer.passes.forEach(function(p) { if (p.dispose) p.dispose(); }); } catch(e) {}
       }
       composer = null; ssaoPass = null;
-      if (!isOrtho) {
+      if (ssaoEnabled()) {
         try {
           composer = new THREE.EffectComposer(renderer);
           composer.addPass(new THREE.RenderPass(scene, camera));
@@ -3496,20 +3771,22 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       updateOrthoFrustum();
       recreateComposer();
 
-      if (isOrtho) {
-        _lightOrig.ambient = ambient.intensity;
-        _lightOrig.hemi = hemiLight.intensity;
-        _lightOrig.key = dirKey.intensity;
-        _lightOrig.fill = dirFill.intensity;
-        ambient.intensity = 0.015;
-        hemiLight.intensity = 0.10;
-        dirKey.intensity = _lightOrig.key * 1.2;
-        dirFill.intensity = _lightOrig.fill * 0.22;
-      } else {
-        ambient.intensity = _lightOrig.ambient;
-        hemiLight.intensity = _lightOrig.hemi;
-        dirKey.intensity = _lightOrig.key;
-        dirFill.intensity = _lightOrig.fill;
+      if (!lightingExplicit) {
+        if (isOrtho) {
+          _lightOrig.ambient = ambient.intensity;
+          _lightOrig.hemi = hemiLight.intensity;
+          _lightOrig.key = dirKey.intensity;
+          _lightOrig.fill = dirFill.intensity;
+          ambient.intensity = 0.015;
+          hemiLight.intensity = 0.10;
+          dirKey.intensity = _lightOrig.key * 1.2;
+          dirFill.intensity = _lightOrig.fill * 0.22;
+        } else {
+          ambient.intensity = _lightOrig.ambient;
+          hemiLight.intensity = _lightOrig.hemi;
+          dirKey.intensity = _lightOrig.key;
+          dirFill.intensity = _lightOrig.fill;
+        }
       }
 
       renderer.domElement.style.filter = "";
@@ -3540,8 +3817,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     lightDirYInput.value = String(dirKey.position.y.toFixed(2));
     lightDirZInput.value = String(dirKey.position.z.toFixed(2));
 
-    // Ortho init: compensate for lack of SSAO with stronger directional contrast
-    if (isOrtho) {
+  if (lightingExplicit) {
+      applyLightingFromLayout();
+    } else if (isOrtho) {
+      // Ortho init: compensate for lack of SSAO with stronger directional contrast
       _lightOrig.ambient = ambient.intensity;
       _lightOrig.hemi = hemiLight.intensity;
       _lightOrig.key = dirKey.intensity;
@@ -3550,10 +3829,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       hemiLight.intensity = 0.10;
       dirKey.intensity = _lightOrig.key * 1.2;
       dirFill.intensity = _lightOrig.fill * 0.22;
+    } else {
+      _lightOrig.ambient = ambient.intensity;
+      _lightOrig.hemi = hemiLight.intensity;
+      _lightOrig.key = dirKey.intensity;
+      _lightOrig.fill = dirFill.intensity;
     }
     renderer.domElement.style.filter = "";
 
-    // Post-processing: SSAO in perspective, contrast boost in ortho
+    // Post-processing: SSAO when enabled (layout or perspective default)
     let composer, ssaoPass;
     recreateComposer();
 
@@ -3812,6 +4096,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const sh = segLon || 14;
       const geo = new THREE.SphereBufferGeometry(1.0, sw, sh);
       const style = styleFor(trace);
+      const positions = trace.data.positions || [];
       const hasInstanceColors = !!(trace.data && trace.data.colors && trace.data.colors.length >= 3);
       const c = style.color;
       const col = hasInstanceColors
@@ -3819,15 +4104,93 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         : (Array.isArray(c) && c.length >= 3
             ? new THREE.Color(c[0], c[1], c[2])
             : (typeof c === "number" ? new THREE.Color(c) : new THREE.Color(0xff69b4)));
+      const opacity = style.opacity !== undefined ? style.opacity : 1.0;
+      const isOpaque = opacity >= 0.999;
       const mat = new THREE.MeshPhongMaterial({
         color: col,
         shininess: style.shininess !== undefined ? style.shininess : 10,
         specular: style.specular !== undefined ? style.specular : 0x151515,
+        transparent: !isOpaque,
+        opacity: opacity,
+        depthWrite: isOpaque,
       });
       const mesh = new THREE.InstancedMesh(geo, mat, n);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       if (mesh.instanceColor) mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+      const radii = trace.data.radii || [];
+      const colors = trace.data.colors || [];
+      const dummy = new THREE.Object3D();
+      for (let a = 0; a < n; a++) {
+        const x = positions[a * 3] || 0;
+        const y = positions[a * 3 + 1] || 0;
+        const z = positions[a * 3 + 2] || 0;
+        const r = (radii[a]) || 0.6;
+        dummy.position.set(x, y, z);
+        dummy.scale.set(r, r, r);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(a, dummy.matrix);
+        if (mesh.setColorAt && colors.length >= (a * 3 + 3)) {
+          mesh.setColorAt(a, new THREE.Color(colors[a * 3], colors[a * 3 + 1], colors[a * 3 + 2]));
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.name = trace.id;
+      mesh.userData.originalOpacity = mat.opacity;
+      scene.add(mesh);
+      objectsById[trace.id] = mesh;
+      return mesh;
+    }
+    function addInstancedCylinders(trace) {
+      const n = trace.data.n_bonds || 0;
+      if (!n) { console.warn("Skipping empty instanced cylinders:", trace.id); return null; }
+      const starts = trace.data.start_positions || [];
+      const ends = trace.data.end_positions || [];
+      const colors = trace.data.colors || [];
+      const radius = trace.data.radius || 0.08;
+      const style = styleFor(trace);
+      const geo = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 10);
+      const hasColors = colors.length >= 3;
+      const col = hasColors ? new THREE.Color(1, 1, 1) : new THREE.Color(0x808080);
+      const opacity = style.opacity !== undefined ? style.opacity : 1.0;
+      const isOpaque = opacity >= 0.999;
+      const mat = new THREE.MeshPhongMaterial({
+        color: col,
+        shininess: style.shininess !== undefined ? style.shininess : 10,
+        specular: style.specular !== undefined ? style.specular : 0x151515,
+        transparent: !isOpaque,
+        opacity: opacity,
+        depthWrite: isOpaque,
+      });
+      const mesh = new THREE.InstancedMesh(geo, mat, n);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (mesh.instanceColor) mesh.instanceColor.setUsage(THREE.DynamicDrawUsage);
+      const _up = new THREE.Vector3(0, 1, 0);
+      const _dir = new THREE.Vector3();
+      const _mid = new THREE.Vector3();
+      const _quat = new THREE.Quaternion();
+      const dummy = new THREE.Object3D();
+      for (let b = 0; b < n; b++) {
+        const sx = starts[b * 3], sy = starts[b * 3 + 1], sz = starts[b * 3 + 2];
+        const ex = ends[b * 3], ey = ends[b * 3 + 1], ez = ends[b * 3 + 2];
+        _mid.set((sx + ex) * 0.5, (sy + ey) * 0.5, (sz + ez) * 0.5);
+        _dir.set(ex - sx, ey - sy, ez - sz);
+        const len = _dir.length();
+        if (len < 1e-8) { _dir.set(0, 1, 0); } else { _dir.divideScalar(len); }
+        _quat.setFromUnitVectors(_up, _dir);
+        dummy.position.copy(_mid);
+        dummy.quaternion.copy(_quat);
+        dummy.scale.set(radius, len, radius);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(b, dummy.matrix);
+        if (mesh.setColorAt && colors.length >= (b * 3 + 3)) {
+          mesh.setColorAt(b, new THREE.Color(colors[b * 3], colors[b * 3 + 1], colors[b * 3 + 2]));
+        }
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      mesh.name = trace.id;
+      mesh.userData.originalOpacity = mat.opacity;
       scene.add(mesh);
       objectsById[trace.id] = mesh;
       return mesh;
@@ -3922,6 +4285,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         }
         addInstancedSpheres(trace, 14, 14);
       }
+      else if (trace.type === "instanced_cylinders") {
+        addInstancedCylinders(trace);
+      }
     });
 
     // Traces that exist only on animation frames (e.g. flexible framework) — create once from frame 0
@@ -3932,6 +4298,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       else if (trace.type === "line_segments") addLineSegments(trace);
       else if (trace.type === "points") addPoints(trace);
       else if (trace.type === "unit_cell_lines") addUnitCellLines(trace);
+      else if (trace.type === "instanced_spheres") {
+        if (trace.id === "guests" || trace.id.startsWith("guests_")) return;
+        addInstancedSpheres(trace, 14, 14);
+      }
+      else if (trace.type === "instanced_cylinders") addInstancedCylinders(trace);
     });
 
     // Guest instanced meshes for animation (supports multi-component ids like guests_CO2)
@@ -4010,6 +4381,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       ["surface_regions_pbc", "Regions (PBC merged)"],
       ["surface_pocket", "Pocket types"],
       ["surface_regions_cluster", "Pocket types (cluster)"],
+      ["framework_atoms", "Framework (atoms)"],
+      ["framework_bonds", "Framework (bonds)"],
+      ["maxima_internal", "Local maxima"],
+      ["maxima_pbc", "Maxima (PBC reps)"],
+      ["maxima_outside", "Maxima (periodic)"],
+      ["connections_internal", "Connections (internal)"],
+      ["connections_periodic", "Connections (periodic)"],
+      ["windows_internal", "Windows (internal)"],
+      ["windows_periodic", "Windows (periodic)"],
     ].forEach(function(defn) {
       const tid = defn[0];
       const label = defn[1];
@@ -5015,11 +5395,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
     window.dispatchEvent(new Event("resize"));
 
-    // Export PNG button
-    document.getElementById("exportPng").addEventListener("click", function() {
-      const resMult = parseInt(pngResSelect.value, 10) || 1;
-      // Screen-door (shader-discard) can produce moire-like export artifacts
-      // at high-resolution readback. Export with standard alpha path, then restore.
+    // Export PNG (programmatic API: window.__mofFigureExportPng(mult))
+    window.__mofFigureExportPng = function(resMult) {
+      resMult = parseInt(resMult, 10) || 1;
       const restoreScreenDoor = !!(screenDoorToggle && screenDoorToggle.checked);
       if (restoreScreenDoor) {
         screenDoorToggle.checked = false;
@@ -5029,19 +5407,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const oldH = renderer.domElement.height;
       if (resMult > 1) {
         renderer.setSize(oldW * resMult, oldH * resMult, false);
-        camera.aspect = (oldW * resMult) / (oldH * resMult);
-        camera.updateProjectionMatrix();
+        if (camera.isPerspectiveCamera) {
+          camera.aspect = (oldW * resMult) / (oldH * resMult);
+          camera.updateProjectionMatrix();
+        }
         updateOrthoFrustum();
       }
       if (composer) { composer.render(); } else { renderer.render(scene, camera); }
-      const link = document.createElement("a");
-      link.download = "figure3d_export_" + resMult + "x.png";
-      link.href = renderer.domElement.toDataURL("image/png");
-      link.click();
+      const dataUrl = renderer.domElement.toDataURL("image/png");
       if (resMult > 1) {
         renderer.setSize(oldW, oldH, false);
-        camera.aspect = oldW / oldH;
-        camera.updateProjectionMatrix();
+        if (camera.isPerspectiveCamera) {
+          camera.aspect = oldW / oldH;
+          camera.updateProjectionMatrix();
+        }
         updateOrthoFrustum();
       }
       if (restoreScreenDoor) {
@@ -5049,6 +5428,15 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         applySurfaceScreenDoorAll();
         if (composer) { composer.render(); } else { renderer.render(scene, camera); }
       }
+      return dataUrl;
+    };
+
+    document.getElementById("exportPng").addEventListener("click", function() {
+      const resMult = parseInt(pngResSelect.value, 10) || 1;
+      const link = document.createElement("a");
+      link.download = "figure3d_export_" + resMult + "x.png";
+      link.href = window.__mofFigureExportPng(resMult);
+      link.click();
     });
 
     // Record video (WebM) via MediaRecorder + canvas.captureStream
@@ -5719,6 +6107,431 @@ def build_static_scene(
 
     return fig
 
+
+
+# ---------------------------------------------------------------------------
+# Percolation cluster meshes and windows (Three.js)
+# ---------------------------------------------------------------------------
+
+
+def _parse_color_to_rgb(color, fallback=(99, 110, 250)):
+    """Parse a color string or tuple to RGB tuple."""
+    if isinstance(color, (list, tuple)) and len(color) >= 3:
+        return (int(color[0]), int(color[1]), int(color[2]))
+    if isinstance(color, str):
+        color = color.strip()
+        if color.startswith("#") and len(color) == 7:
+            return (
+                int(color[1:3], 16),
+                int(color[3:5], 16),
+                int(color[5:7], 16),
+            )
+        if color.startswith("rgb("):
+            parts = color[4:-1].split(",")
+            return (int(parts[0]), int(parts[1]), int(parts[2]))
+    return fallback
+
+
+def _adjust_hls(rgb, light_factor=1.0, sat_factor=1.0, hue_deg=0.0):
+    """Adjust RGB color via HLS space."""
+    import colorsys
+
+    r, g, b = rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    l = max(0.0, min(1.0, l * light_factor))
+    s = max(0.0, min(1.0, s * sat_factor))
+    h = (h + hue_deg / 360.0) % 1.0
+    r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+    return (int(r2 * 255), int(g2 * 255), int(b2 * 255))
+
+
+def _serialize_percolation_cluster_mesh(
+    dgrid,
+    regions,
+    atoms,
+    component_regions,
+    base_color,
+    isovalue=1.6,
+    step_size=1,
+    taubin_smooth: bool = False,
+    taubin_iterations: int = 10,
+    taubin_lambda: float = 0.5,
+    taubin_nu: float = -0.53,
+):
+    """Serialize a percolation cluster mesh for Three.js."""
+    verts, faces, _normals, _vals = marching_cubes(
+        dgrid, level=isovalue, step_size=max(step_size, 1)
+    )
+    if len(faces) == 0:
+        return {
+            "positions": [],
+            "indices": [],
+            "colors": [],
+            "labels": [],
+            "n_vertices": 0,
+            "n_triangles": 0,
+        }
+
+    cell = atoms.get_cell().array.T
+    shape = np.asarray(dgrid.shape, dtype=float)
+    shape_den = np.maximum(shape - 1.0, 1.0)
+    verts_cart = np.dot(cell, (verts / shape_den).T).T
+    mesh = trimesh.Trimesh(vertices=verts_cart, faces=faces, process=False)
+
+    from scipy.interpolate import RegularGridInterpolator as RGI
+
+    xx = np.linspace(0, regions.shape[0] - 1, regions.shape[0])
+    yy = np.linspace(0, regions.shape[1] - 1, regions.shape[1])
+    zz = np.linspace(0, regions.shape[2] - 1, regions.shape[2])
+    rl = RGI((xx, yy, zz), regions, method="nearest", bounds_error=False, fill_value=0)
+
+    comp_set = set(int(x) for x in component_regions)
+    vert_labels = rl(verts).astype(int)
+    face_mask = np.all(np.isin(vert_labels[faces], list(comp_set)), axis=1)
+    faces_to_keep = np.where(face_mask)[0]
+
+    if faces_to_keep.size == 0:
+        return {
+            "positions": [],
+            "indices": [],
+            "colors": [],
+            "labels": [],
+            "n_vertices": 0,
+            "n_triangles": 0,
+        }
+
+    submesh = mesh.submesh([faces_to_keep], append=True)
+    if isinstance(submesh, (list, tuple)):
+        if not submesh:
+            return {
+                "positions": [],
+                "indices": [],
+                "colors": [],
+                "labels": [],
+                "n_vertices": 0,
+                "n_triangles": 0,
+            }
+        submesh = trimesh.util.concatenate(submesh)
+
+    if not hasattr(submesh, "vertices") or not hasattr(submesh, "faces"):
+        return {
+            "positions": [],
+            "indices": [],
+            "colors": [],
+            "labels": [],
+            "n_vertices": 0,
+            "n_triangles": 0,
+        }
+
+    submesh = _apply_taubin_smoothing(
+        submesh,
+        enabled=taubin_smooth,
+        iterations=taubin_iterations,
+        lamb=taubin_lambda,
+        nu=taubin_nu,
+    )
+
+    cell_inv = np.linalg.inv(cell)
+    v_sub = np.asarray(submesh.vertices, dtype=float)
+    idx_like = np.dot(v_sub, cell_inv.T) * shape_den
+    gx = np.arange(regions.shape[0], dtype=float)
+    gy = np.arange(regions.shape[1], dtype=float)
+    gz = np.arange(regions.shape[2], dtype=float)
+    lbl_paint = RGI(
+        (gx, gy, gz),
+        np.asarray(regions, dtype=float),
+        method="nearest",
+        bounds_error=False,
+        fill_value=0,
+    )
+    sub_labels = lbl_paint(idx_like).astype(int)
+
+    comp_sorted = sorted(comp_set)
+    n_regions = len(comp_sorted)
+    if n_regions == 1:
+        shades = {comp_sorted[0]: base_color}
+    else:
+        light_low, light_high = 0.92, 1.06
+        sat_low, sat_high = 0.95, 1.05
+        hue_span = 10.0
+        light_factors = np.linspace(light_low, light_high, n_regions)
+        sat_factors = np.linspace(sat_low, sat_high, n_regions)
+        hue_offsets = np.linspace(-hue_span / 2.0, hue_span / 2.0, n_regions)
+        shades = {}
+        for idx, label in enumerate(comp_sorted):
+            shades[label] = _adjust_hls(
+                base_color,
+                light_factor=light_factors[idx],
+                sat_factor=sat_factors[idx],
+                hue_deg=hue_offsets[idx],
+            )
+
+    colors = np.asarray(
+        [shades.get(int(r), base_color) for r in sub_labels], dtype=float
+    ) / 255.0
+
+    return {
+        "positions": np.asarray(submesh.vertices, dtype=float).reshape(-1).tolist(),
+        "indices": np.asarray(submesh.faces, dtype=int).reshape(-1).tolist(),
+        "colors": colors.reshape(-1).tolist(),
+        "labels": sub_labels.tolist(),
+        "n_vertices": int(len(submesh.vertices)),
+        "n_triangles": int(len(submesh.faces)),
+    }
+
+
+def make_percolation_clusters_trace(
+    percolation_history,
+    distance_grid,
+    regions,
+    atoms,
+    probe_radius=None,
+    isovalue=1.6,
+    cscale=None,
+    style="surface",
+    trace_id="percolation_clusters",
+    cluster_opacity: float = 1.0,
+    step_size: int = 1,
+    taubin_smooth: bool = False,
+    taubin_iterations: int = 10,
+    taubin_lambda: float = 0.5,
+    taubin_nu: float = -0.53,
+):
+    """Build Three.js mesh traces for percolated clusters at a given probe radius."""
+    if probe_radius is None:
+        entry = percolation_history[-1]
+    else:
+        entry = next((e for e in percolation_history if e[0] >= probe_radius), None)
+        if entry is None:
+            raise ValueError(f"No percolation data found for probe radius {probe_radius}")
+
+    _threshold, components = entry
+
+    unique_components = {}
+    for axis, comp_list in components.items():
+        for comp in comp_list:
+            comp_key = tuple(sorted(comp))
+            if comp_key in unique_components:
+                unique_components[comp_key].append(axis)
+            else:
+                unique_components[comp_key] = [axis]
+
+    try:
+        import plotly.express as px
+
+        default_palette = px.colors.qualitative.Plotly
+    except Exception:
+        default_palette = [
+            "#636EFA",
+            "#EF553B",
+            "#00CC96",
+            "#AB63FA",
+            "#FFA15A",
+            "#19D3F3",
+            "#FF6692",
+            "#B6E880",
+            "#FF97FF",
+            "#FECB52",
+        ]
+
+    user_cscale = cscale
+    traces = []
+
+    for i, (comp, axes) in enumerate(unique_components.items(), 1):
+        dir_labels = [
+            "x" if 0 in axes else "",
+            "y" if 1 in axes else "",
+            "z" if 2 in axes else "",
+        ]
+        dir_str = "".join(dir_labels)
+
+        palette = None
+        if user_cscale is not None:
+            if isinstance(user_cscale, (list, tuple)) and len(user_cscale) > 0:
+                palette = list(user_cscale)
+            elif isinstance(user_cscale, str):
+                try:
+                    import plotly.express as px
+
+                    palette = list(getattr(px.colors.qualitative, user_cscale))
+                except Exception:
+                    try:
+                        import plotly.express as px
+
+                        palette = list(getattr(px.colors.sequential, user_cscale))
+                    except Exception:
+                        palette = None
+        if not palette:
+            palette = default_palette
+
+        base_color_raw = palette[(i - 1) % len(palette)]
+        base_color = _parse_color_to_rgb(base_color_raw, (99, 110, 250))
+
+        payload = _serialize_percolation_cluster_mesh(
+            dgrid=distance_grid,
+            regions=regions,
+            atoms=atoms,
+            component_regions=list(comp),
+            base_color=base_color,
+            isovalue=isovalue,
+            step_size=step_size,
+            taubin_smooth=taubin_smooth,
+            taubin_iterations=taubin_iterations,
+            taubin_lambda=taubin_lambda,
+            taubin_nu=taubin_nu,
+        )
+
+        if payload["n_vertices"] == 0:
+            continue
+
+        trace = _make_trace(
+            trace_id=f"{trace_id}_{i}_{dir_str}",
+            trace_type="mesh",
+            name=f"Component {i}_{dir_str}",
+            data=payload,
+            style={"opacity": float(cluster_opacity), "side": "DoubleSide"}
+            if style == "surface"
+            else style,
+            hover=None,
+            visible=True,
+        )
+        traces.append(trace)
+
+    return traces
+
+
+def make_percolation_windows_trace(
+    analysis: dict[str, Any],
+    atoms,
+    probe_radius: float | None = None,
+    pld_tolerance: float = 0.25,
+) -> dict[str, dict[str, Any]]:
+    """Build Three.js traces for windows along percolating clusters."""
+    percolation_history = analysis.get("percolation_history", [])
+    connections = analysis.get("connections", [])
+    regions = np.asarray(analysis.get("regions", []))
+    pld = float(analysis.get("pld", 0.0))
+    pld_probe_radius = pld / 2.0
+
+    if not percolation_history:
+        return {"windows": {}, "pld_critical": {}}
+
+    if probe_radius is None:
+        entry = percolation_history[-1]
+    else:
+        entry = next((e for e in percolation_history if e[0] >= probe_radius), None)
+        if entry is None:
+            return {"windows": {}, "pld_critical": {}}
+
+    _threshold, components = entry
+
+    unique_components: dict[tuple, list] = {}
+    for axis, comp_list in components.items():
+        for comp in comp_list:
+            key = tuple(sorted(comp))
+            if key not in unique_components:
+                unique_components[key] = []
+            unique_components[key].append(axis)
+
+    all_comp_regions: set[int] = set()
+    for comp in unique_components:
+        all_comp_regions.update(comp)
+
+    if not all_comp_regions:
+        return {"windows": {}, "pld_critical": {}}
+
+    maxima_info = np.asarray(analysis.get("maxima_info", []), dtype=int)
+    maxima_to_region: dict[int, int] = {}
+    if maxima_info.ndim == 2 and maxima_info.shape[1] >= 7:
+        for row in maxima_info:
+            label = int(row[0])
+            gz, gy, gx = int(row[1]), int(row[2]), int(row[3])
+            oz, oy, ox = int(row[4]), int(row[5]), int(row[6])
+            gz_w = (gz + oz * regions.shape[0]) % regions.shape[0]
+            gy_w = (gy + oy * regions.shape[1]) % regions.shape[1]
+            gx_w = (gx + ox * regions.shape[2]) % regions.shape[2]
+            if (
+                0 <= gz_w < regions.shape[0]
+                and 0 <= gy_w < regions.shape[1]
+                and 0 <= gx_w < regions.shape[2]
+            ):
+                rl = int(regions[gz_w, gy_w, gx_w])
+                if rl > 0:
+                    maxima_to_region[label] = rl
+
+    all_window_positions: list[list[float]] = []
+    all_window_radii: list[float] = []
+    all_window_hover: list[str] = []
+    pld_positions: list[list[float]] = []
+    pld_radii: list[float] = []
+    pld_hover: list[str] = []
+
+    for c in connections:
+        if not c[1] or len(c) < 5:
+            continue
+        n1, n2 = c[0]
+        r1 = maxima_to_region.get(int(n1), -1)
+        r2 = maxima_to_region.get(int(n2), -1)
+        if r1 not in all_comp_regions or r2 not in all_comp_regions:
+            continue
+        pts = c[3] if c[3] is not None else []
+        wr = c[4] if c[4] is not None else []
+        ctype = str(c[2]) if len(c) > 2 else "internal"
+        for p, r in zip(pts, wr if len(wr) == len(pts) else [0.0] * len(pts)):
+            wp = np.asarray(p, dtype=float).tolist()
+            radius = float(r)
+            hover = (
+                f"trace: {ctype} windows<br>"
+                f"connection maxima: {n1}-{n2}<br>"
+                f"type: {ctype}<br>"
+                f"window radius: {radius:.3f} Å"
+            )
+            if pld > 0 and abs(radius - pld_probe_radius) <= pld_tolerance:
+                pld_positions.append(wp)
+                pld_radii.append(radius)
+                pld_hover.append(hover + f"<br>⚠ PLD-critical (±{pld_tolerance} Å)")
+            else:
+                all_window_positions.append(wp)
+                all_window_radii.append(radius)
+                all_window_hover.append(hover)
+
+    window_trace = _make_trace(
+        trace_id="percolation_windows",
+        trace_type="points",
+        name="Percolation windows",
+        data={
+            "positions": np.array(all_window_positions).reshape(-1).tolist()
+            if all_window_positions
+            else [],
+            "colors": ([1.0, 1.0, 0.0] * len(all_window_positions))
+            if all_window_positions
+            else [],
+            "sizes": [12.0] * len(all_window_positions),
+            "n_points": len(all_window_positions),
+        },
+        style={"color": [1.0, 1.0, 0.0], "size": 12.0, "symbol": "circle"},
+        hover=all_window_hover,
+        visible=True,
+    )
+
+    pld_trace = _make_trace(
+        trace_id="percolation_windows_pld",
+        trace_type="points",
+        name="PLD-critical windows",
+        data={
+            "positions": np.array(pld_positions).reshape(-1).tolist()
+            if pld_positions
+            else [],
+            "colors": ([1.0, 0.2, 0.2] * len(pld_positions)) if pld_positions else [],
+            "sizes": [16.0] * len(pld_positions),
+            "n_points": len(pld_positions),
+        },
+        style={"color": [1.0, 0.2, 0.2], "size": 16.0, "symbol": "diamond"},
+        hover=pld_hover,
+        visible=True,
+    )
+
+    return {"windows": window_trace, "pld_critical": pld_trace}
 
 # ---------------------------------------------------------------------------
 # User-friendly alias
