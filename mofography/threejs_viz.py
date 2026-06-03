@@ -1,5 +1,7 @@
 """Plotly-parity helpers for granular Three.js scenes (Figure3D)."""
 from __future__ import annotations
+
+import re
 from typing import Any
 import numpy as np
 from ase import Atoms
@@ -12,14 +14,25 @@ from .movies import (
     make_connections_trace,
     make_framework_scatter_trace,
     make_maxima_trace,
+    make_percolation_clusters_trace,
+    make_percolation_windows_trace,
     make_surface_trace,
     make_windows_trace,
 )
 __all__ = [
-    "Figure3D", "MovieFigure", "Figure3JS", "qualitative_colorscale", "prepare_seg_threejs",
-    "seg_from_connections", "add_trace", "add_traces", "plot_surface_dgrid",
-    "plot_cell", "draw_framework", "plot_maxima", "plot_maxima_from_grid",
-    "plot_connections", "plot_connections_as_it_is", "plot_windows",
+    "Figure3D", "MovieFigure", "Figure3js", "Figure3JS", "qualitative_colorscale",
+    "prepare_seg_threejs", "seg_from_connections", "add_trace", "add_traces",
+    "plot_surface_dgrid", "plot_surface_dgrid_3js",
+    "plot_cell", "plot_cell_3js",
+    "draw_framework", "draw_framework_3js",
+    "plot_framework_as_mesh_3js",
+    "plot_maxima", "plot_maxima_3js", "plot_maxima_from_grid", "plot_maxima_from_grid_3js",
+    "plot_connections", "plot_connections_3js",
+    "plot_connections_as_it_is", "plot_connections_as_it_is_3js",
+    "plot_windows", "plot_windows_3js",
+    "plot_windows_from_results", "plot_windows_from_results_3js",
+    "plot_percolated_cluster_meshes", "plot_percolated_cluster_meshes_3js",
+    "plot_percolation_windows", "plot_percolation_windows_3js",
 ]
 
 def qualitative_colorscale(name: str = "Pastel") -> list[list[float]]:
@@ -86,16 +99,48 @@ def _style_from_plotly_kwargs(*, opacity=1.0, color=None, stylize=False, name="t
     return style
 
 def add_trace(fig: Figure3D, trace: dict[str, Any]) -> Figure3D:
+    from .viz_backend import ensure_threejs_figure, ensure_threejs_trace
+
+    ensure_threejs_figure(fig, context="add_trace")
+    ensure_threejs_trace(trace, context="add_trace")
     fig.add_trace(trace)
     return fig
 
+
+def _trace_id_from_name(name: str, default: str = "trace") -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "_", str(name or default)).strip("_").lower()
+    return slug or default
+
+
+def _register_trace_bundle_legend(fig: Figure3D, bundle: dict[str, Any]) -> None:
+    if not isinstance(bundle, dict):
+        return
+    for key, val in bundle.items():
+        if key == "payload" or not isinstance(val, dict):
+            continue
+        tid = val.get("id")
+        if tid:
+            fig.groups.setdefault(tid, {"traces": [tid], "label": val.get("name", tid)})
+
+
 def add_traces(fig: Figure3D, traces: Any) -> Figure3D:
+    from .viz_backend import ensure_threejs_figure, validate_threejs_traces
+
+    ensure_threejs_figure(fig, context="add_traces")
+    validate_threejs_traces(traces, context="add_traces")
     if isinstance(traces, dict):
+        if traces.get("type") or traces.get("trace_type"):
+            fig.add_trace(traces)
+            tid = traces.get("id")
+            if tid:
+                fig.groups.setdefault(tid, {"traces": [tid], "label": traces.get("name", tid)})
+            return fig
         for key, val in traces.items():
             if key == "payload" or not isinstance(val, dict):
                 continue
             if val.get("trace_type") or val.get("type"):
                 fig.add_trace(val)
+        _register_trace_bundle_legend(fig, traces)
         return fig
     if isinstance(traces, (list, tuple)):
         for t in traces:
@@ -129,30 +174,59 @@ def draw_framework(ase_atoms, bonds="auto", representation="scatter", atom_scale
     return {"mesh": make_framework_trace(ase_atoms, bonds=bonds, name=name)}
 
 def plot_maxima(seg_or_dgrid, atoms_or_maxima=None, ase_atoms=None, *, seg=None, hide_periodic=False,
-                name="Maxima", cscale=None, **kwargs):
+                name="Maxima", cscale=None, trace_id=None, **kwargs):
     del kwargs
+    if trace_id is None:
+        trace_id = _trace_id_from_name(name, "maxima")
     if seg is not None or isinstance(seg_or_dgrid, dict):
         seg_dict = prepare_seg_threejs(seg or seg_or_dgrid)
         atoms = atoms_or_maxima
     else:
-        return plot_maxima_from_grid(seg_or_dgrid, atoms_or_maxima, ase_atoms, name=name, cscale=cscale, hide_periodic=hide_periodic)
-    bundle = make_maxima_trace(seg_dict, atoms, name=name, cscale=cscale)
+        return plot_maxima_from_grid(seg_or_dgrid, atoms_or_maxima, ase_atoms, name=name, cscale=cscale, hide_periodic=hide_periodic, trace_id=trace_id, **kwargs)
+    bundle = make_maxima_trace(seg_dict, atoms, name=name, trace_id=trace_id, cscale=cscale)
     if hide_periodic:
         bundle["outside"]["visible"] = False
         bundle["pbc"]["visible"] = False
     return bundle
 
-def plot_maxima_from_grid(dgrid, maxima, ase_atoms, *, regions=None, name="Maxima", cscale=None, hide_periodic=False, **kwargs):
+def plot_maxima_from_grid(
+    dgrid,
+    maxima,
+    ase_atoms,
+    *,
+    regions=None,
+    name="Maxima",
+    cscale=None,
+    hide_periodic=False,
+    trace_id=None,
+    maxima_info=None,
+    maxima_pbc=None,
+    maxima_pbc_dict=None,
+    connections=None,
+    **kwargs,
+):
     del kwargs
+    if trace_id is None:
+        trace_id = _trace_id_from_name(name, "maxima")
     dgrid = np.asarray(dgrid)
     maxima = np.asarray(maxima, dtype=float)
     if regions is None:
         regions = np.zeros(dgrid.shape, dtype=np.int32)
         for i, w in enumerate(np.mod(maxima.astype(int), np.asarray(dgrid.shape, dtype=int))):
             regions[tuple(w)] = (i % 20) + 1
-    seg_dict = {"dgrid": dgrid, "regions": np.asarray(regions), "all_maxima": maxima,
-                "connections": [], "maxima_pbc": np.asarray([]), "maxima_info": np.asarray([]), "maxima_pbc_dict": {}}
-    return plot_maxima(seg_dict, ase_atoms, name=name, cscale=cscale, hide_periodic=hide_periodic)
+    seg_dict = {
+        "dgrid": dgrid,
+        "regions": np.asarray(regions),
+        "all_maxima": maxima,
+        "connections": list(connections) if connections is not None else [],
+        "maxima_pbc": np.asarray(maxima_pbc, dtype=float) if maxima_pbc is not None else np.zeros((0, 3), dtype=float),
+        "maxima_info": np.asarray(maxima_info, dtype=int) if maxima_info is not None else np.zeros((0, 7), dtype=int),
+        "maxima_pbc_dict": maxima_pbc_dict if maxima_pbc_dict is not None else {},
+    }
+    return plot_maxima(
+        seg_dict, ase_atoms, name=name, cscale=cscale,
+        hide_periodic=hide_periodic, trace_id=trace_id,
+    )
 
 def plot_connections(seg, atoms, hide_periodic=True, **kwargs):
     del kwargs
@@ -162,12 +236,17 @@ def plot_connections(seg, atoms, hide_periodic=True, **kwargs):
         bundle["periodic_nodes"]["visible"] = False
     return bundle
 
-def plot_connections_as_it_is(connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, **kwargs):
+def plot_connections_as_it_is(connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, unique_regions=None, **kwargs):
     del plot_disconnected
+    if unique_regions is not None:
+        from mofography.helper import trim_connections_to_unique_regions
+        connections = trim_connections_to_unique_regions(connections, unique_regions)
     seg = seg_from_connections(connections, maxima, shape)
     payload = _serialize_connection_traces(seg, ase_atoms)
     name = kwargs.pop("name", "Connections")
-    trace_id = kwargs.pop("trace_id", "connections")
+    trace_id = kwargs.pop("trace_id", None)
+    if trace_id is None:
+        trace_id = _trace_id_from_name(name, "connections")
     style_lines = kwargs.pop("style", "internal_connections")
     def _line(suffix, pos_key, hover_key, periodic):
         positions = payload[pos_key]
@@ -188,16 +267,32 @@ def plot_connections_as_it_is(connections, maxima, shape, ase_atoms, plot_period
                 hover=payload["periodic_points_hover"], visible=plot_periodic), "payload": payload}
 
 def plot_windows(connections_or_seg, name="Windows", marker_color=None, marker_size=10, marker_opacity=0.8, **kwargs):
+    """Plot window positions between connected pores (Three.js backend).
+
+    Accepts either:
+    - A *seg dict* (from ``prepare_seg_threejs`` or the results of
+      ``do_periodic_segmentation_rust``) — used as-is.
+    - A *connections list* — a minimal seg dict is built automatically
+      (no periodic reclassification; for that use ``plot_windows_from_results``).
+
+    Any unknown keyword args are silently consumed for backward compatibility
+    with the old Plotly-style call signature.
+    """
     del marker_size
+    # Accept and discard legacy kwargs that callers may still pass
+    for _legacy in ("grid_shape", "maxima", "atoms", "spacing"):
+        kwargs.pop(_legacy, None)
     if isinstance(connections_or_seg, dict):
         seg = prepare_seg_threejs(connections_or_seg)
     else:
-        shape = kwargs.pop("grid_shape", None)
-        maxima = kwargs.pop("maxima", [])
-        if shape is None:
-            raise ValueError("plot_windows(connections, ...) needs grid_shape= and maxima=")
-        seg = seg_from_connections(connections_or_seg, maxima, shape)
-    bundle = make_windows_trace(seg, name=name)
+        # Build a minimal seg with just connections — no maxima/grid needed
+        # for basic window plotting (periodic reclassification requires
+        # plot_windows_from_results instead).
+        seg = {"dgrid": np.zeros((2, 2, 2), dtype=np.float32),
+               "regions": np.zeros((2, 2, 2), dtype=np.int32),
+               "connections": list(connections_or_seg),
+               "all_maxima": np.zeros((0, 3), dtype=float)}
+    bundle = make_windows_trace(seg, name=name, reclassify_far_outside=False)
     if marker_color is not None:
         rgb = _hex_to_rgb01(marker_color)
         for key in ("internal", "periodic"):
@@ -206,11 +301,100 @@ def plot_windows(connections_or_seg, name="Windows", marker_color=None, marker_s
     return bundle
 
 
+def plot_windows_from_results(
+    connections_or_seg,
+    dgrid=None,
+    atoms=None,
+    spacing=None,
+    name="Windows",
+    marker_color=None,
+    marker_size=10,
+    marker_opacity=0.8,
+    outside_windows_to_periodic=True,
+):
+    """Plot window positions with optional periodic reclassification (Three.js backend).
+
+    This is the enriched version of :func:`plot_windows` that can reclassify
+    far-outside "internal" windows as periodic (needed for non-orthogonal cells).
+
+    Parameters
+    ----------
+    connections_or_seg : list or dict
+        Either a connections list or a full seg dict.
+    dgrid : ndarray, optional
+        Distance grid (shape used for boundary checks).
+    atoms : ASE Atoms, optional
+        Unit cell atoms (for cell matrix and wall computation).
+    spacing : float, optional
+        Grid spacing (for wall tolerance computation).
+    outside_windows_to_periodic : bool, default True
+        If True, windows tagged "internal" whose Cartesian position is far
+        outside the unit cell are reclassified as periodic.
+    """
+    del marker_size
+    if isinstance(connections_or_seg, dict):
+        seg = prepare_seg_threejs(connections_or_seg)
+    else:
+        conns = list(connections_or_seg)
+        shape = dgrid.shape if dgrid is not None else (2, 2, 2)
+        seg = {"dgrid": np.asarray(dgrid) if dgrid is not None else np.zeros(shape, dtype=np.float32),
+               "regions": np.zeros(shape, dtype=np.int32),
+               "connections": conns,
+               "all_maxima": np.zeros((0, 3), dtype=float)}
+    bundle = make_windows_trace(
+        seg, name=name, atoms=atoms, spacing=spacing,
+        reclassify_far_outside=bool(outside_windows_to_periodic),
+    )
+    if marker_color is not None:
+        rgb = _hex_to_rgb01(marker_color)
+        for key in ("internal", "periodic"):
+            bundle[key].setdefault("style", {})["color"] = rgb
+            bundle[key]["style"]["opacity"] = float(marker_opacity)
+    return bundle
+
+
+def plot_percolated_cluster_meshes(
+    percolation_history,
+    distance_grid,
+    regions,
+    ase_atoms,
+    probe_radius=None,
+    isovalue=1.6,
+    cscale=None,
+    **kwargs,
+):
+    """Return Three.js mesh trace dicts (functional API)."""
+    return make_percolation_clusters_trace(
+        percolation_history,
+        distance_grid,
+        regions,
+        ase_atoms,
+        probe_radius=probe_radius,
+        isovalue=isovalue,
+        cscale=cscale,
+        cluster_opacity=float(kwargs.pop("opacity", kwargs.pop("cluster_opacity", 1.0))),
+        step_size=int(kwargs.pop("stepsize", kwargs.pop("step_size", 2))),
+        taubin_smooth=bool(kwargs.pop("taubin_smooth", False)),
+        **kwargs,
+    )
+
+
+def plot_percolation_windows(analysis, atoms, probe_radius=None, pld_tolerance=0.25, **kwargs):
+    """Return ``{windows, pld_critical}`` trace dict bundle (functional API)."""
+    del kwargs
+    return make_percolation_windows_trace(
+        analysis,
+        atoms,
+        probe_radius=probe_radius,
+        pld_tolerance=pld_tolerance,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Figure3JS — plotly-style chaining API for Three.js scenes
 # ---------------------------------------------------------------------------
 
-class Figure3JS:
+class Figure3js:
     """Plotly-like granular builder for Three.js MOF visualisations.
 
     Mirror of the plotly trace API from ``mgr.visualize`` (``plot_surface_dgrid``,
@@ -220,7 +404,7 @@ class Figure3JS:
     All ``plot_*`` / ``draw_*`` methods return ``self`` so they can be chained::
 
         fig = (
-            Figure3JS()
+            Figure3js()
             .plot_framework(atoms)
             .plot_cell(atoms, color="orange")
             .plot_surface(dgrid, regions, atoms, name="Regions", opacity=1.0)
@@ -330,7 +514,7 @@ class Figure3JS:
         representation: str = "ball_and_stick",
         name: "str | None" = None,
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add framework mesh (ball-and-stick, stick, or space-filling).
 
         Mirrors ``mgr.draw_framework()``.
@@ -355,7 +539,7 @@ class Figure3JS:
         color: "str | None" = None,
         name: str = "cell",
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add unit-cell wireframe.  Mirrors ``mgr.plot_cell()``."""
         if color is not None:
             style = {"color": _hex_to_rgb01(color), **style}
@@ -384,7 +568,7 @@ class Figure3JS:
         taubin_nu: float = -0.2175,
         hover_label: str = "Region",
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add segmentation isosurface mesh.
 
         Mirrors ``mgr.plot_surface_dgrid()``.  Unlike the functional version
@@ -435,7 +619,7 @@ class Figure3JS:
         taubin_lambda: float = 0.2175,
         taubin_nu: float = -0.2175,
         **kwargs: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Functional-API alias for ``plot_surface``; matches ``mgr.plot_surface_dgrid()``."""
         name = kwargs.pop("name", f"{isovalue} A isosurface")
         trace_id = kwargs.pop("trace_id", None)
@@ -472,11 +656,11 @@ class Figure3JS:
         maxima_pbc_dict: "dict | None" = None,
         connections: "list | None" = None,
         name: str = "Maxima",
-        trace_id: str = "maxima",
+        trace_id: str | None = None,
         cscale: "list | None" = None,
         hide_periodic: bool = True,
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add pore-centre maxima scatter points.
 
         Accepts either:
@@ -485,6 +669,8 @@ class Figure3JS:
 
         Mirrors ``mgr.plot_maxima()`` / ``mgr.plot_maxima_from_grid()``.
         """
+        if trace_id is None:
+            trace_id = _trace_id_from_name(name, "maxima")
         cs = self._apply_cscale(cscale)
         if isinstance(dgrid_or_seg, dict):
             seg = prepare_seg_threejs(dgrid_or_seg)
@@ -520,6 +706,10 @@ class Figure3JS:
             self._fig.groups[f"{trace_id}_pbc"] = {
                 "traces": [f"{trace_id}_pbc"], "label": f"{name} (PBC reps)",
             }
+            if bundle["outside"].get("data", {}).get("n_points", 0):
+                self._fig.groups[f"{trace_id}_outside"] = {
+                    "traces": [f"{trace_id}_outside"], "label": f"{name} (periodic)",
+                }
         return self
 
     # Functional-API alias
@@ -531,12 +721,14 @@ class Figure3JS:
         *,
         regions: "np.ndarray | None" = None,
         name: str = "Maxima",
-        trace_id: str = "maxima",
+        trace_id: str | None = None,
         cscale: "list | None" = None,
         hide_periodic: bool = False,
         **kwargs: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Raw-arrays alias; mirrors ``mgr.plot_maxima_from_grid()``."""
+        if trace_id is None:
+            trace_id = _trace_id_from_name(name, "maxima")
         return self.plot_maxima(
             dgrid, maxima, ase_atoms,
             regions=regions, name=name, trace_id=trace_id,
@@ -559,13 +751,15 @@ class Figure3JS:
         hide_periodic: bool = True,
         plot_periodic: bool = False,
         name: str = "Connections",
-        trace_id: str = "connections",
+        trace_id: str | None = None,
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add pore-graph connection lines and node markers.
 
         Mirrors ``mgr.plot_connections_as_it_is()``.
         """
+        if trace_id is None:
+            trace_id = _trace_id_from_name(name, "connections")
         seg = seg_from_connections(connections, all_maxima, shape, dgrid=dgrid)
         bundle = plot_connections_as_it_is(
             connections, all_maxima, shape, atoms,
@@ -585,11 +779,13 @@ class Figure3JS:
         plot_periodic: bool = True,
         plot_disconnected: bool = False,
         name: str = "Connections",
-        trace_id: str = "connections",
+        trace_id: str | None = None,
         cscale: "list | None" = None,
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Exact-signature alias matching ``mgr.plot_connections_as_it_is()``."""
+        if trace_id is None:
+            trace_id = _trace_id_from_name(name, "connections")
         bundle = plot_connections_as_it_is(
             connections, all_maxima, shape, ase_atoms,
             plot_periodic=plot_periodic, plot_disconnected=plot_disconnected,
@@ -617,7 +813,7 @@ class Figure3JS:
         maxima: "np.ndarray | None" = None,
         grid_shape: "tuple | None" = None,
         **kwargs: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add window markers between connected pores.
 
         Mirrors ``mgr.plot_windows()``.  Accepts either a seg-dict or a raw
@@ -637,6 +833,42 @@ class Figure3JS:
         add_traces(self._fig, bundle)
         return self
 
+    def plot_windows_from_results(
+        self,
+        connections_or_seg,
+        *,
+        dgrid: "np.ndarray | None" = None,
+        atoms: "Atoms | None" = None,
+        spacing: "float | None" = None,
+        name: str = "Windows",
+        trace_id: str | None = None,
+        marker_color: "str | None" = None,
+        marker_size: float = 10,
+        marker_opacity: float = 0.8,
+        hide_periodic: bool = True,
+        outside_windows_to_periodic: bool = True,
+        **kwargs: Any,
+    ) -> "Figure3js":
+        """Add window markers with optional far-outside → periodic reclassification."""
+        if trace_id is None:
+            trace_id = _trace_id_from_name(name, "windows")
+        bundle = plot_windows_from_results(
+            connections_or_seg,
+            dgrid=dgrid,
+            atoms=atoms,
+            spacing=spacing,
+            name=name,
+            marker_color=marker_color,
+            marker_size=marker_size,
+            marker_opacity=marker_opacity,
+            outside_windows_to_periodic=outside_windows_to_periodic,
+            **kwargs,
+        )
+        if hide_periodic:
+            bundle.get("periodic", {})["visible"] = False
+        add_traces(self._fig, bundle)
+        return self
+
     # ------------------------------------------------------------------
     # Guest / adsorbate atoms
     # ------------------------------------------------------------------
@@ -646,7 +878,7 @@ class Figure3JS:
         atoms: "Atoms",
         color: "list | None" = None,
         **style: Any,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Add guest/adsorbate atoms as instanced spheres."""
         self._fig.add_guests(atoms, color=color, **style)
         return self
@@ -661,21 +893,26 @@ class Figure3JS:
         center: "tuple | None" = None,
         up: "tuple | None" = None,
         projection: str = "perspective",
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Set camera position and projection type."""
         self._fig.set_camera(eye=eye, center=center, up=up, projection=projection)
         return self
 
-    def set_appearance(self, **kwargs: Any) -> "Figure3JS":
+    def set_appearance(self, **kwargs: Any) -> "Figure3js":
         """Set scene appearance (background colour, theme, …)."""
         self._fig.set_appearance(**kwargs)
+        return self
+
+    def set_lights(self, **kwargs: Any) -> "Figure3js":
+        """Set scene lighting (see ``MovieFigure.set_lights``)."""
+        self._fig.set_lights(**kwargs)
         return self
 
     def update_traces(
         self,
         patch: "dict[str, Any]",
         selector: "dict[str, Any] | None" = None,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Apply a style patch to matching traces (opacity, color, visible, …)."""
         self._fig.update_traces(patch, selector=selector)
         return self
@@ -685,19 +922,84 @@ class Figure3JS:
         group_id: str,
         traces: "list[str]",
         label: str,
-    ) -> "Figure3JS":
+    ) -> "Figure3js":
         """Manually register a legend group."""
         self._fig.groups[group_id] = {"traces": traces, "label": label}
         return self
 
-    def add_trace(self, trace: "dict[str, Any]") -> "Figure3JS":
-        """Add a raw trace dict directly (escape hatch for advanced use)."""
+    def add_trace(self, trace: "dict[str, Any]") -> "Figure3js":
+        """Add a raw Three.js trace dict (escape hatch for advanced use)."""
+        from .viz_backend import ensure_threejs_trace
+
+        ensure_threejs_trace(trace, context="Figure3js.add_trace")
         self._fig.add_trace(trace)
         return self
 
-    def add_traces(self, traces: Any) -> "Figure3JS":
+    def add_traces(self, traces: Any) -> "Figure3js":
         """Add a trace dict or bundle (dict-of-traces / list of traces)."""
+        from .viz_backend import validate_threejs_traces
+
+        validate_threejs_traces(traces, context="Figure3js.add_traces")
         add_traces(self._fig, traces)
+        return self
+
+
+    def plot_percolated_cluster_meshes(
+        self,
+        percolation_history,
+        distance_grid,
+        regions,
+        ase_atoms,
+        *,
+        probe_radius: float | None = None,
+        isovalue: float = 1.6,
+        cscale=None,
+        cluster_opacity: float = 1.0,
+        step_size: int = 2,
+        taubin_smooth: bool = False,
+        **kwargs,
+    ) -> "Figure3js":
+        """Add percolating cluster meshes. Mirrors ``visualize.plot_percolated_cluster_meshes``."""
+        del kwargs
+        traces = make_percolation_clusters_trace(
+            percolation_history,
+            distance_grid,
+            regions,
+            ase_atoms,
+            probe_radius=probe_radius,
+            isovalue=isovalue,
+            cscale=cscale,
+            cluster_opacity=cluster_opacity,
+            step_size=step_size,
+            taubin_smooth=taubin_smooth,
+        )
+        self.add_traces(traces)
+        for trace in traces:
+            tid = trace["id"]
+            self._fig.groups[tid] = {"traces": [tid], "label": trace["name"]}
+        return self
+
+    def plot_percolation_windows(
+        self,
+        analysis: dict,
+        atoms: "Atoms",
+        *,
+        probe_radius: float | None = None,
+        pld_tolerance: float = 0.25,
+        **kwargs,
+    ) -> "Figure3js":
+        """Add percolation window markers. Mirrors ``visualize.plot_percolation_windows``."""
+        del kwargs
+        bundle = make_percolation_windows_trace(
+            analysis,
+            atoms,
+            probe_radius=probe_radius,
+            pld_tolerance=pld_tolerance,
+        )
+        if bundle.get("windows", {}).get("data", {}).get("n_points", 0):
+            self.add_trace(bundle["windows"])
+        if bundle.get("pld_critical", {}).get("data", {}).get("n_points", 0):
+            self.add_trace(bundle["pld_critical"])
         return self
 
     # ------------------------------------------------------------------
@@ -736,9 +1038,30 @@ class Figure3JS:
             return html
         return self._fig.to_html(path, **kwargs)
 
-    def show(self, renderer: str = "browser") -> None:
-        """Display figure in a browser tab or Jupyter notebook."""
-        self._fig.show(renderer=renderer)
+    def show(self, renderer: str = "browser", *, port: int | None = None) -> str | None:
+        """Display figure in a browser tab or Jupyter notebook.
+
+        ``renderer="browser"`` serves on ``127.0.0.1`` (random port) and prints the URL.
+        """
+        return self._fig.show(renderer=renderer, port=port)
+
+    def export_png(
+        self,
+        path: str | Path,
+        *,
+        resolution_mult: int = 2,
+        width: int | None = None,
+        height: int | None = None,
+        wait_ms: int = 1500,
+    ) -> Path:
+        """Export PNG (requires Playwright — see ``MovieFigure.export_png``)."""
+        return self._fig.export_png(
+            path,
+            resolution_mult=resolution_mult,
+            width=width,
+            height=height,
+            wait_ms=wait_ms,
+        )
 
     def _repr_html_(self) -> str:  # Jupyter integration
         return self._fig._repr_html_()
@@ -759,3 +1082,109 @@ class Figure3JS:
     @property
     def groups(self) -> dict:
         return self._fig.groups
+
+def plot_framework_as_mesh_3js(
+    ase_atoms,
+    show_rings=True,
+    stylize=False,
+    kwargs_frame_mesh=None,
+    kwargs_mesh_for_atoms=None,
+    kwargs_aromatic_rings=None,
+):
+    """Plotly-parity framework mesh for Three.js (same signature as ``plot_framework_as_mesh``).
+
+    Returns a trace bundle for :func:`add_traces` / :class:`Figure3js`.
+    """
+    from .analyze import update_with_covalent_bonds
+    from .movies import make_aromatic_rings_trace, make_framework_trace
+
+    del kwargs_mesh_for_atoms
+    if kwargs_frame_mesh is None:
+        kwargs_frame_mesh = {}
+    if kwargs_aromatic_rings is None:
+        kwargs_aromatic_rings = {}
+    if "covalent_bonds" not in ase_atoms.info:
+        ase_atoms = update_with_covalent_bonds(ase_atoms)
+    name = kwargs_frame_mesh.get("name", "Framework")
+    style = {"name": name}
+    if stylize:
+        style.update({"roughness": 0.05, "metalness": 0.3})
+    bundle = {"framework": make_framework_trace(ase_atoms, bonds="auto", name=name, style=style)}
+    if show_rings:
+        rings = make_aromatic_rings_trace(ase_atoms, **kwargs_aromatic_rings)
+        bundle.update(rings)
+    return bundle
+
+
+plot_surface_dgrid_3js = plot_surface_dgrid
+plot_cell_3js = plot_cell
+draw_framework_3js = draw_framework
+plot_maxima_3js = plot_maxima
+plot_maxima_from_grid_3js = plot_maxima_from_grid
+plot_connections_3js = plot_connections
+plot_connections_as_it_is_3js = plot_connections_as_it_is
+plot_windows_3js = plot_windows
+plot_windows_from_results_3js = plot_windows_from_results
+plot_percolated_cluster_meshes_3js = plot_percolated_cluster_meshes
+plot_percolation_windows_3js = plot_percolation_windows
+
+Figure3JS = Figure3js
+
+
+def _register_figure3js_plot_aliases(cls: type) -> None:
+    """Wire ``*_3js`` aliases to native ``Figure3js`` chain methods."""
+
+    _native = {
+        "plot_surface_dgrid_3js": "plot_surface_dgrid",
+        "plot_cell_3js": "plot_cell",
+        "draw_framework_3js": "plot_framework",
+        "plot_maxima_3js": "plot_maxima",
+        "plot_maxima_from_grid_3js": "plot_maxima_from_grid",
+        "plot_connections_3js": "plot_connections",
+        "plot_connections_as_it_is_3js": "plot_connections_as_it_is",
+        "plot_windows_3js": "plot_windows",
+        "plot_windows_from_results_3js": "plot_windows_from_results",
+        "plot_percolated_cluster_meshes_3js": "plot_percolated_cluster_meshes",
+        "plot_percolation_windows_3js": "plot_percolation_windows",
+    }
+
+    def _plot_framework_instanced_3js(self, atoms, **kwargs):
+        from mofography.movies import make_framework_instanced_trace
+
+        trace_id = kwargs.pop("trace_id", "framework")
+        atom_scale = float(kwargs.pop("atom_scale", 0.65))
+        representation = kwargs.pop("representation", "ball_and_stick")
+        name = kwargs.pop("name", "Framework")
+        bundle = make_framework_instanced_trace(
+            atoms,
+            representation=representation,
+            trace_id=trace_id,
+            atom_scale=atom_scale,
+            name=name,
+        )
+        self.add_traces(bundle)
+        self._fig.groups.setdefault("framework", {
+            "traces": [f"{trace_id}_atoms", f"{trace_id}_bonds"],
+            "label": name,
+        })
+        return self
+
+    cls.plot_framework_as_mesh_3js = _plot_framework_instanced_3js
+    cls.plot_framework_instanced_3js = _plot_framework_instanced_3js
+
+    for alias, method_name in _native.items():
+        native_method = getattr(cls, method_name)
+
+        def _make(alias_name, bound_method):
+            def method(self, *args, **kwargs):
+                return bound_method(self, *args, **kwargs)
+
+            method.__name__ = alias_name
+            method.__doc__ = getattr(bound_method, "__doc__", None)
+            return method
+
+        setattr(cls, alias, _make(alias, native_method))
+
+
+
+_register_figure3js_plot_aliases(Figure3js)

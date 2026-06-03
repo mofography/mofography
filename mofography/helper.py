@@ -693,6 +693,34 @@ def estimate_h_from_percolation_history(distance_grid):
 
     return h
 
+
+def trim_connections_to_unique_regions(connections, unique_regions):
+    """Keep connections whose both endpoint labels are in *unique_regions*.
+
+    For unit-cell pore graphs / plotting: only edges between regions with
+    voxels inside the central cell (``unique_regions`` from periodic seg).
+
+    Parameters
+    ----------
+    connections : list
+        Each entry ``c`` has ``c[0]`` = pair of region label ints.
+    unique_regions : array-like of int
+        Labels from ``do_periodic_segmentation*`` output.
+
+    Returns
+    -------
+    list
+        Filtered connections. If *unique_regions* is empty, returns a shallow
+        copy of *connections* unchanged.
+    """
+    import numpy as np
+
+    unique = np.asarray(unique_regions, dtype=int)
+    if unique.size == 0:
+        return list(connections)
+    return [c for c in connections if np.all(np.isin(c[0], unique))]
+
+
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
     """
     Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
