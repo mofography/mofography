@@ -475,6 +475,10 @@ def _blocking_spheres_scatter3d(
     colorscale,
     scatter_kwargs,
 ):
+    if unique_regions is not None:
+        from mofography.helper import trim_connections_to_unique_regions
+        connections = trim_connections_to_unique_regions(connections, unique_regions)
+
     import numpy as np
     import plotly.graph_objects as go
     import plotly.express as px
@@ -2803,6 +2807,109 @@ def plot_windows(connections, **kwargs):
 
 
 
+def plot_windows_from_results(
+    connections,
+    dgrid=None,
+    atoms=None,
+    spacing=None,
+    outside_windows_to_periodic=True,
+    name="windows",
+    marker_color="red",
+    marker_size=10,
+    opacity=0.6,
+    periodic_marker_color="orange",
+    periodic_marker_size=8,
+    periodic_opacity=0.4,
+):
+    """Plot window positions with optional periodic reclassification (Plotly backend).
+
+    Returns a list of Scatter3d traces:
+    - Internal windows (after reclassification if enabled).
+    - Periodic windows (including reclassified far-outside ones).
+
+    Parameters
+    ----------
+    connections : list
+        Connections list from ``do_periodic_segmentation_rust``.
+    dgrid : ndarray, optional
+        Distance grid (shape used for boundary checks).
+    atoms : ASE Atoms, optional
+        Unit cell atoms (for cell matrix and wall computation).
+    spacing : float, optional
+        Grid spacing (for wall tolerance computation).
+    outside_windows_to_periodic : bool, default True
+        If True, windows tagged "internal" whose Cartesian position is far
+        outside the unit cell are reclassified as periodic.
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+
+    traces = []
+    window_conns = [c for c in connections if c[1] and len(c) > 3 and c[3] is not None and np.asarray(c[3]).size >= 3]
+
+    if outside_windows_to_periodic and atoms is not None and spacing is not None and dgrid is not None:
+        from mofography.helper import compute_wall_cells, is_inside_or_close_to_boundary
+        _cell = atoms.get_cell().array.T
+        _inv_cell = np.linalg.inv(_cell)
+        _shape = np.asarray(dgrid.shape, dtype=float)
+        _wall_tol = compute_wall_cells(atoms, spacing, wall_thickness=0.05)
+
+        internal_windows = []
+        internal_hover = []
+        periodic_windows = []
+        periodic_hover = []
+
+        for c in window_conns:
+            ctype = str(c[2])
+            pts = c[3] if c[3] is not None else []
+            wr = c[4] if c[4] is not None else []
+            n1, n2 = c[0]
+            for p, r in zip(pts, wr):
+                wp = np.asarray(p, dtype=float)
+                txt = f"{n1}-{n2}<br>{ctype}<br>{float(r):.3f} A"
+                if ctype == "internal":
+                    frac = _inv_cell @ wp
+                    grid_c = frac * _shape
+                    loc = is_inside_or_close_to_boundary(
+                        [tuple(grid_c)], tuple(_shape.astype(int)), _wall_tol,
+                    )[0]
+                    if loc == "far_outside":
+                        periodic_windows.append(wp)
+                        periodic_hover.append(txt.replace("internal", "periodic (wrapped)"))
+                        continue
+                    internal_windows.append(wp)
+                    internal_hover.append(txt)
+                elif ctype == "periodic":
+                    periodic_windows.append(wp)
+                    periodic_hover.append(txt)
+
+        if internal_windows:
+            iw = np.vstack(internal_windows)
+            traces.append(go.Scatter3d(
+                x=iw[:, 0], y=iw[:, 1], z=iw[:, 2],
+                mode="markers",
+                marker=dict(size=marker_size, color=marker_color, opacity=opacity),
+                hovertext=internal_hover,
+                name=f"{name} (internal)",
+            ))
+        if periodic_windows:
+            pw = np.vstack(periodic_windows)
+            traces.append(go.Scatter3d(
+                x=pw[:, 0], y=pw[:, 1], z=pw[:, 2],
+                mode="markers",
+                marker=dict(size=periodic_marker_size, color=periodic_marker_color, opacity=periodic_opacity),
+                hovertext=periodic_hover,
+                name=f"{name} (periodic)",
+            ))
+    else:
+        # Simple path: just use the existing plot_windows
+        traces.append(plot_windows(window_conns, name=name, marker_color=marker_color,
+                                   marker_size=marker_size, opacity=opacity))
+
+    return traces
+
+
+
 def plot_percolation_windows(
     analysis: dict,
     pld_tolerance: float = 0.25,
@@ -3313,44 +3420,113 @@ def plot_maxima(
 #     else:
 #         return scatter
 
-def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
-    """
-    > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group. 
-    
-    Let's see how it works:
-    
-    :param rag: the region adjacency graph
-    :param pbc_groups: a list of sets of nodes that are connected by periodic boundary conditions
-    :return: A plotly figure object
-    """
+def plot_csds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key="cluster"):
+    """Plot cavity size distributions (CSD) stored on the RAG.
 
+    Each trace is the histogram of distance from the PBC-aware pocket centroid
+    to void voxels (``csd_x_pbc`` / ``csd_y_pbc``), typically from
+    :func:`mofography.compute.add_csd_to_rag_with_pbc`.
+
+    This is **not** the Rust pocketwise probe PSD (use
+    :func:`compute_psds_pocketwise_rust` or :func:`plot_pocket_psds_from_grid`).
+    For energy histograms along sampling paths, use :func:`plot_vdw_hists` after
+    :func:`mofography.compute.add_vdw_hist_to_rag`.
+
+    Parameters
+    ----------
+    rag : networkx.Graph
+        Region adjacency graph with CSD node attributes.
+    pbc_groups : list
+        Sets of region nodes merged by periodic boundary conditions.
+    cscale : colorscale, optional
+        Plotly qualitative or sequential colorscale for ``cluster_key`` colors.
+    no_pbc : bool
+        If True, plot per-node ``csd_x`` / ``csd_y`` instead of PBC groups.
+    cluster_key : str
+        Node attribute used only for line color (e.g. ``cluster_geom_pbc``).
+
+    Returns
+    -------
+    list
+        Plotly ``Scatter`` traces (one per region or PBC group).
+    """
     import plotly.graph_objects as go
-    import plotly.express as px 
-    import networkx as nx 
+    import plotly.express as px
+    import networkx as nx
     import numpy as np
+
     if cscale is None:
         cscale = px.colors.qualitative.Alphabet
-    unique_clusters = np.unique(list(nx.get_node_attributes(rag,cluster_key).values())).astype(float).astype(int)
+    unique_clusters = np.unique(
+        list(nx.get_node_attributes(rag, cluster_key).values())
+    ).astype(float).astype(int)
 
     from plotly.express.colors import sample_colorscale
-    
     from scipy.interpolate import interp1d
-    mm = interp1d([0,np.max(unique_clusters)], [0,1])
-    cmap = dict(zip(unique_clusters, sample_colorscale(cscale, mm(unique_clusters))))
-    
-    #  cmap = dict(zip(unique_clusters, cscale[:len(unique_clusters)]))
+
+    mm = interp1d([0, np.max(unique_clusters)], [0, 1])
+    cmap = dict(
+        zip(unique_clusters, sample_colorscale(cscale, mm(unique_clusters)))
+    )
+
     traces = []
     if no_pbc:
-        for node in list(rag.nodes().keys()): 
-            # node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['csd_x'], y=rag.nodes[node]['csd_y'], mode='markers+lines', line_color = cmap.get(int(float(rag.nodes[node][cluster_key]))), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Region: {}'.format(node) , name='Region: ' +str(rag.nodes[node]['labels'][0])))
+        for node in list(rag.nodes().keys()):
+            traces.append(
+                go.Scatter(
+                    x=rag.nodes[node]["csd_x"],
+                    y=rag.nodes[node]["csd_y"],
+                    mode="markers+lines",
+                    line_color=cmap.get(
+                        int(float(rag.nodes[node][cluster_key]))
+                    ),
+                    hovertext=(
+                        "Cluster: "
+                        + rag.nodes[node][cluster_key]
+                        + "</br>"
+                        + "Region: {}".format(node)
+                    ),
+                    name="Region: " + str(rag.nodes[node]["labels"][0]),
+                )
+            )
     else:
-        for i,g in enumerate(pbc_groups): 
+        for i, g in enumerate(pbc_groups):
             node = np.min(list(g))
-            traces.append(go.Scatter(x=rag.nodes[node]['csd_x_pbc'], y=rag.nodes[node]['csd_y_pbc'], mode='markers+lines', line_color = cmap.get(int(float(rag.nodes[node][cluster_key]))), hovertext = 'Cluster: '+ rag.nodes[node][cluster_key]+'</br>'+'Regions: {}'.format(','.join(map(str, list(g)))) , name= 'PBC group: {}'.format(i) ))
-            # traces.append(go.Bar(x=rag.nodes[node]['csd_x_pbc'], y=rag.nodes[node]['csd_y_pbc'], marker_color=cmap.get(rag.nodes[node]['cluster']), marker_opacity=0.5, name='PBC group: {}'.format(i+1) ,hovertext = 'Cluster: '+ rag.nodes[node]['cluster']+'</br>'+'Regions: {}'.format(','.join(map(str, list(g))))) )
-    
+            traces.append(
+                go.Scatter(
+                    x=rag.nodes[node]["csd_x_pbc"],
+                    y=rag.nodes[node]["csd_y_pbc"],
+                    mode="markers+lines",
+                    line_color=cmap.get(
+                        int(float(rag.nodes[node][cluster_key]))
+                    ),
+                    hovertext=(
+                        "Cluster: "
+                        + rag.nodes[node][cluster_key]
+                        + "</br>"
+                        + "Regions: {}".format(",".join(map(str, list(g))))
+                    ),
+                    name="PBC group: {}".format(i),
+                )
+            )
+
     return traces
+
+
+def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key="cluster"):
+    """Deprecated alias for :func:`plot_csds` (centroid-distance CSD, not probe PSD)."""
+    import warnings
+
+    warnings.warn(
+        "plot_psds is deprecated; use plot_csds for centroid-distance cavity "
+        "histograms on the RAG. For Rust pocketwise probe PSDs use "
+        "plot_pocket_psds_from_grid or compute_psds_pocketwise_rust.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return plot_csds(
+        rag, pbc_groups, cscale=cscale, no_pbc=no_pbc, cluster_key=cluster_key
+    )
 def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
 
 
@@ -4740,7 +4916,7 @@ def make_fig_orthographic_all_subplots(fig):
 
     return fig
 
-def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, **kwargs):
+def plot_connections_as_it_is( connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, unique_regions=None, **kwargs):
     """Plot connections graph including periodic boundary connections.
 
     Args:
@@ -5230,4 +5406,262 @@ def plot_pocket_psds(pore_sizes, sample_points_labels, pocket_psds, bins, materi
     # fig.show(renderer='chrome')
     return fig
 
+def plot_pocket_psds_on_rag(
+    rag,
+    pbc_groups,
+    cscale=None,
+    no_pbc=False,
+    cluster_key="cluster",
+):
+    """Plot Rust pocketwise probe PSDs stored on the RAG.
 
+    Requires :func:`mofography.compute.add_pocket_psd_to_rag_with_pbc` first
+    (node keys ``pocket_psd_x_pbc`` / ``pocket_psd_y_pbc``).
+
+    Parameters
+    ----------
+    rag, pbc_groups, cscale, no_pbc, cluster_key
+        Same semantics as :func:`plot_csds` (``cluster_key`` colors lines only).
+
+    Returns
+    -------
+    list
+        Plotly ``Scatter`` traces.
+    """
+    import plotly.graph_objects as go
+    import plotly.express as px
+    import networkx as nx
+    import numpy as np
+
+    if cscale is None:
+        cscale = px.colors.qualitative.Alphabet
+    unique_clusters = np.unique(
+        list(nx.get_node_attributes(rag, cluster_key).values())
+    ).astype(float).astype(int)
+
+    from plotly.express.colors import sample_colorscale
+    from scipy.interpolate import interp1d
+
+    mm = interp1d([0, np.max(unique_clusters)], [0, 1])
+    cmap = dict(
+        zip(unique_clusters, sample_colorscale(cscale, mm(unique_clusters)))
+    )
+
+    traces = []
+    if no_pbc:
+        for node in rag.nodes():
+            x = rag.nodes[node].get("pocket_psd_x", [])
+            y = rag.nodes[node].get("pocket_psd_y", [])
+            if len(x) == 0 or len(y) == 0:
+                continue
+            traces.append(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines",
+                    line_color=cmap.get(
+                        int(float(rag.nodes[node][cluster_key]))
+                    ),
+                    name="Region: {}".format(node),
+                )
+            )
+    else:
+        for i, g in enumerate(pbc_groups):
+            node = np.min(list(g))
+            x = rag.nodes[node].get("pocket_psd_x_pbc", [])
+            y = rag.nodes[node].get("pocket_psd_y_pbc", [])
+            if len(x) == 0 or len(y) == 0:
+                continue
+            traces.append(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines",
+                    line_color=cmap.get(
+                        int(float(rag.nodes[node][cluster_key]))
+                    ),
+                    name="PBC group: {} (pocket PSD)".format(i),
+                )
+            )
+    return traces
+
+
+def plot_pocket_psds_from_grid(
+    dgrid,
+    regions_pbc,
+    atoms,
+    *,
+    labels_to_plot=None,
+    num_samples_per_region=50000,
+    bins=None,
+    layout="overlay",
+    material="",
+    probe_radius=None,
+    results=None,
+    return_pocket_psds=True,
+):
+    """Compute and plot Rust pocketwise probe PSDs (not centroid CSD).
+
+    Wraps :func:`mofography.rust_fun.compute_psds_pocketwise_rust` and optional
+    per-pocket subplots (DUT-75 / UMCM-1 manuscript style).
+
+    Parameters
+    ----------
+    dgrid, regions_pbc, atoms
+        Distance grid, PBC region labels, and ASE atoms.
+    labels_to_plot : sequence of int, optional
+        Region ids for ``layout="subplots"``. If None and layout is subplots,
+        uses all keys in ``pocket_psds``.
+    num_samples_per_region : int
+        Samples per pocket for Rust sampler.
+    bins : array-like, optional
+        Histogram bin edges (Å clearance); default ``linspace(0, 50, 200)``.
+    layout : {"overlay", "subplots"}
+        ``overlay`` uses :func:`plot_pocket_psds` (overall + all pockets).
+        ``subplots`` builds one row per label in ``labels_to_plot``.
+    material : str
+        Title label for overlay figure.
+    probe_radius : float, optional
+        If set with ``results``, uses accessible pockets only
+        (:func:`compute_psds_pocketwise_accessible`).
+    results : dict, optional
+        Segmentation dict for accessible PSD path.
+    return_pocket_psds : bool
+        If True, return ``(pocket_psds, fig, samples)``; else only ``fig``.
+
+    Returns
+    -------
+    pocket_psds : dict
+        Per-region PSD data (when ``return_pocket_psds``).
+    fig : plotly.graph_objects.Figure
+    samples : tuple or None
+        ``(sample_points, pore_sizes, sample_point_labels)`` when subplots
+        or when samples are computed.
+    """
+    import numpy as np
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    if bins is None:
+        bins = np.linspace(0, 50, 200)
+    bins = np.asarray(bins)
+
+    from . import rust_fun
+
+    sample_points = pore_sizes = sample_point_labels = None
+
+    if probe_radius is not None and results is not None:
+        out = rust_fun.compute_psds_pocketwise_accessible(
+            results,
+            atoms,
+            probe_radius,
+            num_samples_per_region=num_samples_per_region,
+            bins=bins,
+            return_fig=False,
+            material=material,
+        )
+        pocket_psds = out
+    else:
+        sample_points, pore_sizes, sample_point_labels = (
+            rust_fun.compute_pore_sizes_pocketwise_rust(
+                dgrid,
+                regions_pbc,
+                atoms,
+                samples_per_region=min(num_samples_per_region, 5000)
+                if layout == "subplots"
+                else num_samples_per_region,
+            )
+        )
+        pocket_psds = rust_fun.compute_psds_pocketwise_rust(
+            dgrid,
+            regions_pbc,
+            atoms,
+            num_samples_per_region=num_samples_per_region,
+            bins=bins,
+            return_fig=False,
+            material=material,
+        )
+
+    if layout == "subplots":
+        if labels_to_plot is None:
+            labels_to_plot = sorted(pocket_psds.keys())
+        if sample_point_labels is None:
+            sample_points, pore_sizes, sample_point_labels = (
+                rust_fun.compute_pore_sizes_pocketwise_rust(
+                    dgrid,
+                    regions_pbc,
+                    atoms,
+                    samples_per_region=max(1000, num_samples_per_region // 10),
+                )
+            )
+        bin_centers = 0.5 * (bins[:-1] + bins[1:])
+        fig = make_subplots(
+            rows=len(labels_to_plot),
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.04,
+        )
+        for row_idx, label in enumerate(labels_to_plot, start=1):
+            if label in pocket_psds and pocket_psds[label].get("bin_centers") is not None:
+                x_row = pocket_psds[label]["bin_centers"]
+                y_row = pocket_psds[label]["hist"]
+            else:
+                mask = sample_point_labels == label
+                psizes = pore_sizes[mask] * 2
+                y_row, _ = np.histogram(psizes, bins=bins, density=True)
+                x_row = bin_centers
+            fig.add_trace(
+                go.Scatter(
+                    x=x_row,
+                    y=y_row,
+                    mode="lines",
+                    fill="tozeroy",
+                    name="Pocket {}".format(label),
+                    showlegend=False,
+                ),
+                row=row_idx,
+                col=1,
+            )
+            fig.update_yaxes(title_text="PSD", row=row_idx, col=1)
+        fig.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+        fig.update_xaxes(
+            title_text="Pore diameter (Å)",
+            row=len(labels_to_plot),
+            col=1,
+            mirror=True,
+        )
+    else:
+        if sample_point_labels is None:
+            sample_points, pore_sizes, sample_point_labels = (
+                rust_fun.compute_pore_sizes_pocketwise_rust(
+                    dgrid,
+                    regions_pbc,
+                    atoms,
+                    samples_per_region=num_samples_per_region,
+                )
+            )
+        fig = plot_pocket_psds(
+            pore_sizes * 2,
+            sample_point_labels,
+            pocket_psds,
+            bins,
+            material_name=material or "Material",
+        )
+
+    if return_pocket_psds:
+        return pocket_psds, fig, (sample_points, pore_sizes, sample_point_labels)
+    return fig
+
+
+def add_traces_plotly(fig, traces):
+    """Add traces to a Plotly ``go.Figure`` with backend validation."""
+    from .viz_backend import ensure_plotly_figure, validate_plotly_traces
+
+    ensure_plotly_figure(fig, context="add_traces_plotly")
+    validate_plotly_traces(traces, context="add_traces_plotly")
+    if isinstance(traces, (list, tuple)):
+        for t in traces:
+            fig.add_trace(t)
+    else:
+        fig.add_trace(traces)
+    return fig
