@@ -113,7 +113,7 @@ def quick_cluster(ase_atoms,
                            add_clustering_to_rag_geometry_js, add_maxima_to_rag)
     from .data import mix_lorentz_berthelot
     from .visualize import (plot_surface_dgrid, plot_framework_as_mesh, 
-                            plot_cell, plot_maxima, plot_psds, 
+                            plot_cell, plot_maxima, plot_csds, 
                             white_layout, plot_vdw_hists)
     from .helper import zoom_grid
 
@@ -180,9 +180,9 @@ def quick_cluster(ase_atoms,
 
     if make_figures:
         # vdw_traces = plot_vdw_hists(rag, pbc_groups, cscale=cscale, cluster_key='cluster_geom_pbc')
-        vdw_traces =plot_psds(rag, pbc_groups, cscale=cscale, cluster_key='cluster_geom_pbc')
-        fig_vdw = go.Figure(data=vdw_traces)
-        fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
+        csd_traces = plot_csds(rag, pbc_groups, cscale=cscale, cluster_key='cluster_geom_pbc')
+        fig_csd = go.Figure(data=csd_traces)
+        fig_csd.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
         # fig_vdw.show(renderer=renderer)
 
     if make_figures:
@@ -236,14 +236,14 @@ def quick_cluster(ase_atoms,
         # list_return_objects = [val for i,val in enumerate(values) if args[i] in return_these_vars]
         list_return_objects = [frame.f_locals[var] for var in return_these_vars]
 
-        return list_return_objects + [[fig_full_visual, fig_vdw]]
+        return list_return_objects + [[fig_full_visual, fig_csd]]
     else:
         print('No return objects specified, possible options to pass in list_return_strings are:')
         # print(callers_local_vars)
         print(frame.f_locals.keys())
         if make_figures:
             print('Returning the figures if make_figures=True')
-            return [fig_full_visual, fig_vdw]
+            return [fig_full_visual, fig_csd]
 
 # def quick_cluster_copy(ase_atoms,
 
@@ -324,7 +324,7 @@ def quick_cluster(ase_atoms,
 #     from .analyze import update_with_covalent_bonds
 #     from .compute import dgrid_from_atoms,regions_from_dgrid,apply_pbc, get_rag_from_regions_and_grid,add_pbc_to_rag, add_psd_to_rag, add_psd_to_rag_with_pbc, add_clustering_to_rag_pca, clustering_grid_from_regions,add_clustering_to_rag_energy, add_vdw_hist_to_rag
 #     from .data import mix_lorentz_berthelot
-#     from .visualize import plot_surface_dgrid, plot_framework_as_mesh, plot_cell, plot_maxima, plot_psds, white_layout, plot_vdw_hists, draw_framework
+#     from .visualize import plot_surface_dgrid, plot_framework_as_mesh, plot_cell, plot_maxima, plot_csds, white_layout, plot_vdw_hists, draw_framework
 #     if cscale is None:
 #         #* set colorscale for plotting, make things consistent across the two figures
 #         cscale = px.colors.qualitative.Alphabet
@@ -382,7 +382,7 @@ def quick_cluster(ase_atoms,
 #         regions_cluster =  clustering_grid_from_regions(regions, rag, cluster_key='cluster_energy_pbc')
 #         if make_figures:
 #             vdw_traces = plot_vdw_hists(rag, pbc_groups, cscale=cscale, cluster_key='cluster_energy_pbc')
-#             fig_vdw = go.Figure(data=vdw_traces)
+#             fig_csd = go.Figure(data=csd_traces)
 #             fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
 #             # fig_vdw.show(renderer=renderer)
 #     else:
@@ -403,7 +403,7 @@ def quick_cluster(ase_atoms,
 #         # regions_cluster =  clustering_grid_from_regions(regions, rag)
 #         if make_figures:
 #             # * plot the cavity histogram for each pbc group
-#             csd_traces =  plot_psds(rag, pbc_groups, cscale=cscale)
+#             csd_traces =  plot_csds(rag, pbc_groups, cscale=cscale)
 #             fig_vdw = go.Figure(data=csd_traces)
 #             fig_vdw.update_layout(xaxis_title='Distance to centroid (A)', yaxis_title='Normalized histogram')
 #             # fig_vdw.show(renderer=renderer)
@@ -498,16 +498,68 @@ def quick_cluster(ase_atoms,
 #         print(frame.f_locals.keys())
 #         if make_figures:
 #             print('Returning the figures if make_figures=True')
-#             return [fig_full_visual, fig_vdw]
+#             return [fig_full_visual, fig_csd]
+def enrich_segmentation_with_pocket_psds(
+    segmentation,
+    atoms,
+    *,
+    inplace=True,
+    raise_on_error=False,
+    probe_radius_psd=None,
+    **kwargs,
+):
+    """Run pocket-wise Rust PSDs once and store on the segmentation dict.
+
+    Call before :func:`assign_pocket_types` and/or
+    :func:`~mofography.compute.add_pocket_psds_to_rag_from_segmentation`.
+    """
+    from mofography.pocket_typing import DEFAULT_PROBE_RADIUS_PSD_A
+    from mofography.rust_fun import compute_pocket_psds_for_segmentation
+
+    pr = (
+        float(probe_radius_psd)
+        if probe_radius_psd is not None
+        else DEFAULT_PROBE_RADIUS_PSD_A
+    )
+    try:
+        pocket_psds = compute_pocket_psds_for_segmentation(
+            segmentation,
+            atoms,
+            probe_center_min_radius=pr,
+            **kwargs,
+        )
+        pocket_psd_error = None
+    except Exception as exc:
+        pocket_psd_error = str(exc)
+        if raise_on_error:
+            raise
+        pocket_psds = None
+
+    patch = {
+        "pocket_psd_probe_radius_a": pr,
+        "pocket_psd_error": pocket_psd_error,
+    }
+    if pocket_psds is not None:
+        patch["pocket_psds"] = pocket_psds
+
+    if inplace:
+        segmentation.update(patch)
+        return segmentation
+    return {**dict(segmentation), **patch}
+
+
 def assign_pocket_types(segmentation_results, atoms, method='env_cluster', **kwargs):
     """Assign pocket types to segmentation results.
 
     Wraps pocket_typing.assign_pocket_types_from_segmentation.
 
+    Reuses ``segmentation_results['pocket_psds']`` when set (see
+    :func:`enrich_segmentation_with_pocket_psds`).
+
     :param segmentation_results: dict from do_periodic_segmentation_rust
     :param atoms: ASE Atoms object
     :param method: 'env_cluster' (default, SH fingerprint + connectivity)
-    :return: dict with 'regions_cluster' added
+    :return: PocketTypingResult
     """
     from mofography.pocket_typing import assign_pocket_types_from_segmentation
     return assign_pocket_types_from_segmentation(segmentation_results, atoms, method=method, **kwargs)
@@ -626,7 +678,8 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     import plotly.express as px
     from mofography.visualize import (
         plot_surface_dgrid, plot_framework_as_mesh, plot_cell,
-        plot_maxima, plot_windows, dark_layout, white_layout,
+        plot_maxima, plot_windows, plot_windows_from_results,
+        dark_layout, white_layout,
         plot_connections_as_it_is,
     )
 
@@ -652,6 +705,10 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
         # Set plot_surface_step_size=2 for faster / lower-fidelity meshes
         "plot_surface_step_size": 1,
         "plot_windows_reclassify_far_outside": True,
+        # Periodic overlays hidden by default (HUD toggles); set True to show on load
+        "plot_connections_periodic": False,
+        "plot_windows_periodic": False,
+        "plot_maxima_pbc": True,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -736,92 +793,23 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
 
     # Windows from all trimmed connections; far-outside coords reclassified when enabled.
     if defaults.get("plot_windows", True) and connections_trimmed:
-        window_conns = [
-            c for c in connections_trimmed
-            if c[1]
-            and len(c) > 3 and c[3] is not None
-            and np.asarray(c[3]).size >= 3
-        ]
-        if window_conns:
-            _cell    = atoms.get_cell().array.T
-            _lengths = np.linalg.norm(_cell, axis=0)
-            _shape   = np.asarray(dgrid.shape, dtype=float)
-            _spacing = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
-
-            _do_reclassify = defaults.get("plot_windows_reclassify_far_outside", True)
-
-            if _do_reclassify:
-                # Filter out far-outside windows (reclassify as periodic for
-                # non-orthogonal cells where Cartesian → fractional must use
-                # inv_cell @ cart, NOT cart @ inv_cell).
-                _inv_cell = np.linalg.inv(_cell)
-                from mofography.helper import compute_wall_cells, is_inside_or_close_to_boundary
-                _wall_tol = compute_wall_cells(atoms, _spacing, wall_thickness=0.05)
-
-                filtered_conns = []
-                periodic_windows = []
-                periodic_hover = []
-                for c in window_conns:
-                    if str(c[2]) == "periodic":
-                        for wp, ws in zip(c[3], c[4]):
-                            wp_arr = np.asarray(wp, dtype=float)
-                            periodic_windows.append(wp_arr)
-                            periodic_hover.append(
-                                f"{c[0][0]}-{c[0][1]}<br>periodic<br>{float(ws):.3f} A"
-                            )
-                        continue
-                    kept_windows, kept_sizes = [], []
-                    for wp, ws in zip(c[3], c[4]):
-                        wp_arr = np.asarray(wp, dtype=float)
-                        frac = _inv_cell @ wp_arr          # correct for non-orthogonal
-                        grid_c = frac * _shape
-                        loc = is_inside_or_close_to_boundary(
-                            [tuple(grid_c)], tuple(_shape.astype(int)), _wall_tol,
-                        )[0]
-                        if loc == "far_outside":
-                            periodic_windows.append(wp_arr)
-                            periodic_hover.append(
-                                f"{c[0][0]}-{c[0][1]}<br>periodic (wrapped)<br>{ws:.3f} A"
-                            )
-                        else:
-                            kept_windows.append(wp)
-                            kept_sizes.append(ws)
-                    if kept_windows:
-                        filtered_conns.append([c[0], c[1], c[2], kept_windows, kept_sizes])
-            else:
-                filtered_conns = [
-                    c for c in window_conns if c[1] and str(c[2]) == "internal"
-                ]
-                periodic_windows = []
-                periodic_hover = []
-                for c in window_conns:
-                    if str(c[2]) != "periodic":
-                        continue
-                    for wp, ws in zip(c[3], c[4]):
-                        periodic_windows.append(np.asarray(wp, dtype=float))
-                        periodic_hover.append(
-                            f"{c[0][0]}-{c[0][1]}<br>periodic<br>{float(ws):.3f} A"
-                        )
-
-            if filtered_conns:
-                traces.append(plot_windows(
-                    filtered_conns,
-                    name="windows (internal)",
-                    marker_color="red",
-                    marker_size=10,
-                    opacity=0.6,
-                ))
-            if periodic_windows:
-                pw = np.vstack(periodic_windows)
-                traces.append(go.Scatter3d(
-                    x=pw[:, 0], y=pw[:, 1], z=pw[:, 2],
-                    mode="markers",
-                    marker=dict(size=8, color="orange", opacity=0.4),
-                    hovertext=periodic_hover,
-                    hoverinfo="text",
-                    name="windows (periodic wrapped)",
-                    legendgroup="Pore Graph",
-                ))
+        _cell    = atoms.get_cell().array.T
+        _lengths = np.linalg.norm(_cell, axis=0)
+        _shape   = np.asarray(dgrid.shape, dtype=float)
+        _spacing = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
+        _do_reclassify = defaults.get("plot_windows_reclassify_far_outside", True)
+        win_traces = plot_windows_from_results(
+            connections_trimmed,
+            dgrid=dgrid,
+            atoms=atoms,
+            spacing=_spacing,
+            outside_windows_to_periodic=_do_reclassify,
+            name="windows",
+            marker_color="red",
+            marker_size=10,
+            opacity=0.6,
+        )
+        traces.extend(win_traces)
 
     if defaults.get("plot_maxima", True) and len(maxima):
         mx = plot_maxima(dgrid, maxima, atoms, marker_size=14)
@@ -911,6 +899,10 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         #   "instanced" — instanced spheres + cylinders (interactive-app instanced)
         "plot_framework_representation": "mesh",
         "plot_windows_reclassify_far_outside": True,
+        # Periodic overlays hidden by default (HUD toggles); set True to show on load
+        "plot_connections_periodic": False,
+        "plot_windows_periodic": False,
+        "plot_maxima_pbc": True,
         "plot_layout": "dark",
     }
     defaults.update({k: v for k, v in options.items() if v is not None})
@@ -986,6 +978,10 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             )
             fig.add_trace(_bs["atoms"])
             fig.add_trace(_bs["bonds"])
+            fig.groups["framework"] = {
+                "traces": ["framework_atoms", "framework_bonds"],
+                "label": "Framework",
+            }
             # Stick variant (hidden by default; toggled by the Representation selector)
             _st = make_framework_instanced_trace(
                 _fw_atoms,
@@ -1060,14 +1056,64 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         "connections": connections,
     }
 
+    hide_periodic_conn = not bool(defaults.get("plot_connections_periodic", False))
+    hide_periodic_win = not bool(defaults.get("plot_windows_periodic", False))
+    hide_periodic_max = not bool(defaults.get("plot_maxima_pbc", True))
+
     if defaults.get("plot_connections", True) and connections:
-        fig.add_connections(seg_dict, atoms, hide_periodic=True)
+        fig.add_connections(seg_dict, atoms, hide_periodic=hide_periodic_conn)
 
     if defaults.get("plot_windows", True) and connections:
-        fig.add_windows(seg_dict, hide_periodic=True, atoms=atoms, spacing=spacing, reclassify_far_outside=defaults.get("plot_windows_reclassify_far_outside", True))
+        fig.add_windows(
+            seg_dict,
+            hide_periodic=hide_periodic_win,
+            atoms=atoms,
+            spacing=spacing,
+            reclassify_far_outside=defaults.get("plot_windows_reclassify_far_outside", True),
+        )
 
     if defaults.get("plot_maxima", True) and len(all_maxima_plot):
-        fig.add_maxima(seg_dict, atoms, hide_periodic=True)
+        fig.add_maxima(seg_dict, atoms, hide_periodic=hide_periodic_max)
+
+    # Legend groups (interactive-app parity) for HUD toggles
+    trace_ids = {t.get("id") for t in fig.data}
+    if defaults.get("plot_framework", True) and "framework_atoms" in trace_ids:
+        fig.groups["framework"] = {
+            "traces": ["framework_atoms", "framework_bonds"],
+            "label": "Framework",
+        }
+    if defaults.get("plot_surface_pbc", True) and "surface_regions_pbc" in trace_ids:
+        fig.groups["surface_regions_pbc"] = {
+            "traces": ["surface_regions_pbc"],
+            "label": "Regions (PBC merged)",
+        }
+    if rc is not None and "surface_regions_cluster" in trace_ids:
+        fig.groups["surface_regions_cluster"] = {
+            "traces": ["surface_regions_cluster"],
+            "label": "Pocket types (cluster)",
+        }
+    if defaults.get("plot_maxima", True) and "maxima_internal" in trace_ids:
+        fig.groups["maxima_internal"] = {
+            "traces": ["maxima_internal"],
+            "label": "Local maxima",
+        }
+    if defaults.get("plot_maxima_pbc", True) and "maxima_pbc" in trace_ids:
+        fig.groups["maxima_pbc"] = {
+            "traces": ["maxima_pbc"],
+            "label": "Maxima (PBC reps)",
+        }
+    if defaults.get("plot_connections", True) and "connections_periodic" in trace_ids:
+        fig.groups["connections_periodic"] = {
+            "traces": ["connections_periodic", "connections_periodic_nodes"],
+            "label": "Connections (periodic)",
+            "default_off": not bool(defaults.get("plot_connections_periodic", False)),
+        }
+    if defaults.get("plot_windows", True) and "windows_periodic" in trace_ids:
+        fig.groups["windows_periodic"] = {
+            "traces": ["windows_periodic"],
+            "label": "Windows (periodic)",
+            "default_off": not bool(defaults.get("plot_windows_periodic", False)),
+        }
 
     if stylize:
         fig.update_traces(
@@ -1108,3 +1154,40 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             os.unlink(tmp.name)
 
     return None  # show=True, no output_html — browser/notebook opened above
+
+
+def show_percolation_threejs(
+    analysis,
+    atoms,
+    probe_radius: float,
+    output_html=None,
+    show: bool = False,
+    renderer: str = "browser",
+    **options,
+):
+    """Three.js PLD / percolation scene (app percolation tab parity).
+
+    Thin wrapper around :func:`mofography.threejs_plotting.show_percolation_threejs`.
+    """
+    from mofography.threejs_plotting import show_percolation_threejs as _build
+
+    html = _build(analysis, atoms, probe_radius=probe_radius, options=options or {})
+
+    if show:
+        import tempfile
+        import webbrowser
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".html", delete=False)
+        tmp.write(html.encode("utf-8"))
+        tmp.close()
+        webbrowser.open(f"file://{tmp.name}")
+
+    if output_html is not None:
+        from pathlib import Path as _P
+
+        _p = _P(output_html)
+        _p.parent.mkdir(parents=True, exist_ok=True)
+        _p.write_text(html, encoding="utf-8")
+        return str(_p)
+
+    return html if not show else None
