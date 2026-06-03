@@ -3444,6 +3444,66 @@ def add_csd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape):
     return G
 
 
+def pbc_groups_from_segmentation(segmentation):
+    """PBC pocket groups (excluding background label 0) from segmentation outputs."""
+    unique_regions = segmentation["unique_regions"]
+    maxima_info = segmentation["maxima_info"]
+    return [
+        v
+        for v in get_pbc_groups(unique_regions, maxima_info).values()
+        if 0 not in v
+    ]
+
+
+def add_pocket_psds_to_rag_from_segmentation(
+    rag,
+    segmentation,
+    atoms,
+    *,
+    pocket_psds=None,
+    props=None,
+    pbc_groups=None,
+    probe_radius_psd=None,
+    **kwargs,
+):
+    """Attach probe pocket PSDs to a RAG built from segmentation.
+
+    Uses ``segmentation['pocket_psds']`` when present (see
+    :func:`~mofography.workflow.enrich_segmentation_with_pocket_psds`);
+    otherwise runs :func:`~mofography.rust_fun.compute_pocket_psds_for_segmentation`.
+
+    Node keys written: ``pocket_psd_x_pbc`` / ``pocket_psd_y_pbc``.
+    """
+    from skimage.measure import regionprops
+    import numpy as np
+
+    regions = np.asarray(segmentation["regions"])
+    if props is None:
+        props = regionprops(regions)
+    if pbc_groups is None:
+        pbc_groups = pbc_groups_from_segmentation(segmentation)
+
+    if pocket_psds is None:
+        pocket_psds = segmentation.get("pocket_psds")
+    if pocket_psds is None:
+        from mofography.rust_fun import compute_pocket_psds_for_segmentation
+        from mofography.pocket_typing import DEFAULT_PROBE_RADIUS_PSD_A
+
+        pr = (
+            float(probe_radius_psd)
+            if probe_radius_psd is not None
+            else DEFAULT_PROBE_RADIUS_PSD_A
+        )
+        pocket_psds = compute_pocket_psds_for_segmentation(
+            segmentation,
+            atoms,
+            probe_center_min_radius=pr,
+            **kwargs,
+        )
+
+    return add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)
+
+
 def add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds):
     """
     Attach probe-occupiable pocket PSD histograms (Rust pocket-wise sampler) to RAG nodes.

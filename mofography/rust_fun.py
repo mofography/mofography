@@ -1259,6 +1259,8 @@ def compute_psd_uniform_rust(
     :type return_fig: bool
     :param material: Name of the material for plot title
     :type material: str
+    :param probe_center_min_radius: If > 0, only void voxels with dgrid >= this value are sampled.
+    :type probe_center_min_radius: float or None
     :return: If return_fig is False, returns histogram values. If True, returns (histogram, figure)
     :rtype: numpy.ndarray or tuple[numpy.ndarray, plotly.graph_objects.Figure]
     """
@@ -1302,8 +1304,37 @@ def compute_psd_uniform_rust(
         return psd_hist
 
 
+
+def _effective_dgrid_uniform_psd_sampling(dgrid, probe_center_min_radius):
+    """Rust uniform PSD collects ``dgrid > 0``; mark sub-threshold void as −1 so it is omitted."""
+    import numpy as np
+
+    d = np.asarray(dgrid, dtype=np.float32)
+    if probe_center_min_radius is None or float(probe_center_min_radius) <= 0:
+        return d
+    s = np.float32(float(probe_center_min_radius))
+    return np.where(d >= s, d, np.float32(-1.0))
+
+
+def _effective_regions_pocket_psd_sampling(regions_pbc, dgrid, probe_center_min_radius):
+    """Zero region labels wherever clearance would not host the probe center."""
+    import numpy as np
+
+    rg = np.asarray(regions_pbc, dtype=np.uint32)
+    if probe_center_min_radius is None or float(probe_center_min_radius) <= 0:
+        return rg
+    d = np.asarray(dgrid, dtype=np.float32)
+    s = np.float32(float(probe_center_min_radius))
+    valid = (rg > np.uint32(0)) & (d >= s)
+    return np.where(valid, rg, np.uint32(0))
+
+
 def compute_pore_sizes_pocketwise_rust(
-    dgrid, regions_pbc, ase_atoms, samples_per_region=1000
+    dgrid,
+    regions_pbc,
+    ase_atoms,
+    samples_per_region=1000,
+    probe_center_min_radius=None,
 ):
     """Compute pore sizes for each pocket/region separately.
 
@@ -1326,12 +1357,16 @@ def compute_pore_sizes_pocketwise_rust(
     import numpy as np
 
     cell = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    dgrid = np.ascontiguousarray(np.asarray(dgrid, dtype=np.float32))
+    regions_eff = _effective_regions_pocket_psd_sampling(
+        regions_pbc, dgrid, probe_center_min_radius
+    )
     sample_points, pore_sizes, region_labels = (
         mgr_rust.compute_pore_sizes_for_psd_pocketwise(
             dgrid,
-            regions_pbc,
+            regions_eff,
             cell,
-            samples_per_region=samples_per_region,  # Small number for testing
+            samples_per_region=samples_per_region,
         )
     )
     return sample_points, pore_sizes, region_labels
@@ -1345,6 +1380,7 @@ def compute_psds_pocketwise_rust(
     bins=None,
     return_fig=False,
     material="Material",
+    probe_center_min_radius=None,
 ):
     """Compute pore size distributions for each pocket/region.
 
@@ -1374,7 +1410,11 @@ def compute_psds_pocketwise_rust(
     from .visualize import plot_pocket_psds
 
     sample_points, pore_sizes, region_labels = compute_pore_sizes_pocketwise_rust(
-        dgrid, regions_pbc, ase_atoms, samples_per_region=num_samples_per_region
+        dgrid,
+        regions_pbc,
+        ase_atoms,
+        samples_per_region=num_samples_per_region,
+        probe_center_min_radius=probe_center_min_radius,
     )
     if bins is None:
         bins = np.linspace(0, 50, 200)  # histogram bins
@@ -1383,12 +1423,68 @@ def compute_psds_pocketwise_rust(
         region_labels, pore_sizes * 2, bins=bins
     )
     if return_fig:
+        mat_title = material
+        if probe_center_min_radius is not None and float(probe_center_min_radius) > 0:
+            mat_title = (
+                f"{material} (probe-center sites ≥ {float(probe_center_min_radius):.2g} Å)"
+            )
         fig = plot_pocket_psds(
-            pore_sizes * 2, region_labels, pocket_psds, bins, material_name=material
+            pore_sizes * 2, region_labels, pocket_psds, bins, material_name=mat_title
         )
         return pocket_psds, fig
     else:
         return pocket_psds
+
+
+def compute_pocket_psds_for_segmentation(
+    segmentation,
+    atoms,
+    *,
+    num_samples_per_region=1000,
+    bins=None,
+    probe_center_min_radius=None,
+    probe_radius_psd=None,
+):
+    """Compute Rust pocket-wise PSDs from a periodic segmentation dict.
+
+    Parameters
+    ----------
+    segmentation
+        Dict with ``dgrid``, ``regions_pbc`` (or ``regions``), from
+        :func:`do_periodic_segmentation_rust`.
+    atoms
+        ASE :class:`~ase.Atoms`.
+    probe_center_min_radius, probe_radius_psd
+        Minimum clearance (Å) for probe-centre sample sites.
+        ``probe_radius_psd`` is an alias (pocket-typing default 1.2 Å).
+
+    Returns
+    -------
+    dict
+        Region id → ``{"hist", "bin_centers"}`` (same as
+        :func:`compute_psds_pocketwise_rust` without ``return_fig``).
+    """
+    import numpy as np
+
+    if probe_center_min_radius is None:
+        probe_center_min_radius = probe_radius_psd
+    dgrid = np.asarray(segmentation["dgrid"], dtype=np.float32)
+    regions_pbc = np.asarray(
+        segmentation.get("regions_pbc", segmentation["regions"])
+    )
+    if bins is None:
+        from mofography.pocket_typing import psd_bins
+
+        bins = psd_bins(dgrid)
+    return compute_psds_pocketwise_rust(
+        dgrid,
+        regions_pbc,
+        atoms,
+        num_samples_per_region=num_samples_per_region,
+        bins=bins,
+        return_fig=False,
+        probe_center_min_radius=probe_center_min_radius,
+    )
 
 
 def compute_accessible_psd_from_results(
