@@ -1218,6 +1218,17 @@ fn seeded_watershed_det(
     heap_watershed_impl(py, image, seeds, mask)
 }
 
+#[pyfunction]
+#[pyo3(text_signature = "(image, seeds, mask=None)")]
+fn seeded_watershed_det_max(
+    py: Python<'_>,
+    image: PyReadonlyArray3<'_, f32>,
+    seeds: PyReadonlyArray3<'_, u32>,
+    mask: Option<PyReadonlyArray3<'_, u8>>,
+) -> PyResult<Py<PyArray3<u32>>> {
+    heap_watershed_max_impl(py, image, seeds, mask)
+}
+
 // ============================================================================
 // Deterministic level-synchronous parallel watershed (experimental backend)
 // ----------------------------------------------------------------------------
@@ -1477,6 +1488,114 @@ fn seeded_watershed_masked(
     mask: PyReadonlyArray3<'_, u8>,
 ) -> PyResult<Py<PyArray3<u32>>> {
     heap_watershed_impl(py, image, seeds, Some(mask))
+}
+
+// Deterministic heap watershed with path bottleneck priority.
+// Priority propagated to neighbors is min(current_priority, image[neighbor]),
+// which emulates barrier-aware flooding while preserving deterministic order.
+fn heap_watershed_max_impl(
+    py: Python<'_>,
+    image: PyReadonlyArray3<'_, f32>,
+    seeds: PyReadonlyArray3<'_, u32>,
+    mask: Option<PyReadonlyArray3<'_, u8>>,
+) -> PyResult<Py<PyArray3<u32>>> {
+    let img = image.as_array();
+    let seeds_arr = seeds.as_array();
+    if img.dim() != seeds_arr.dim() {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "`image` and `seeds` must have identical shapes",
+        ));
+    }
+
+    if let Some(ref m) = mask {
+        if m.as_array().dim() != img.dim() {
+            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "`mask` shape must match `image`",
+            ));
+        }
+    }
+
+    let (nx, ny, nz) = img.dim();
+    let total_voxels = nx * ny * nz;
+
+    let img_flat: Vec<f32> = img.iter().copied().collect();
+    let mask_flat: Option<Vec<u8>> = mask.as_ref().map(|m| {
+        m.as_array()
+            .iter()
+            .map(|&v| if v != 0 { 1u8 } else { 0u8 })
+            .collect()
+    });
+
+    let mut labels: Vec<u32> = vec![0; total_voxels];
+    let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
+
+    use std::collections::BinaryHeap;
+    let mut heap: BinaryHeap<(NotNan<f32>, usize)> =
+        BinaryHeap::with_capacity(std::cmp::max(1, total_voxels / 8));
+
+    for ((i, j, k), &label) in seeds_arr.indexed_iter() {
+        if label == 0 {
+            continue;
+        }
+        let idx = to_flat(i, j, k);
+        if let Some(ref m_flat) = mask_flat {
+            if m_flat[idx] == 0 {
+                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                    "Seed label found in location where mask==0",
+                ));
+            }
+        }
+        labels[idx] = label;
+        let priority = NotNan::new(img_flat[idx]).unwrap();
+        heap.push((priority, idx));
+    }
+
+    let neighbor_offsets: &[(isize, isize, isize)] = &[
+        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
+        (0, -1, -1), (0, -1, 0), (0, -1, 1),
+        (0, 0, -1),                 (0, 0, 1),
+        (0, 1, -1), (0, 1, 0), (0, 1, 1),
+        (1, -1, -1), (1, -1, 0), (1, -1, 1),
+        (1, 0, -1), (1, 0, 0), (1, 0, 1),
+        (1, 1, -1), (1, 1, 0), (1, 1, 1),
+    ];
+
+    while let Some((prio, idx)) = heap.pop() {
+        let i = idx / (ny * nz);
+        let j = (idx / nz) % ny;
+        let k = idx % nz;
+        let current_label = labels[idx];
+        let prio_val = prio.into_inner();
+
+        for &(dx, dy, dz) in neighbor_offsets {
+            let ni = i as isize + dx;
+            let nj = j as isize + dy;
+            let nk = k as isize + dz;
+            if ni < 0 || nj < 0 || nk < 0 {
+                continue;
+            }
+            let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
+            if ni_u >= nx || nj_u >= ny || nk_u >= nz {
+                continue;
+            }
+            let nidx = to_flat(ni_u, nj_u, nk_u);
+            if let Some(ref m_flat) = mask_flat {
+                if m_flat[nidx] == 0 {
+                    continue;
+                }
+            }
+            if labels[nidx] == 0 {
+                labels[nidx] = current_label;
+                let next_prio = img_flat[nidx].min(prio_val);
+                heap.push((NotNan::new(next_prio).unwrap(), nidx));
+            }
+        }
+    }
+
+    let out_arr = Array3::from_shape_vec((nx, ny, nz), labels).expect("shape mismatch");
+    Ok(PyArray3::from_owned_array(py, out_arr).to_owned())
 }
 
 // Shared helper implementing the original heap algorithm ------------------------------------
@@ -6104,6 +6223,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(seeded_watershed_bucket, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det, m)?)?;
+    m.add_function(wrap_pyfunction!(seeded_watershed_det_max, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
@@ -6130,7 +6250,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bonds::covalent_bonds, m)?)?;
     m.add_function(wrap_pyfunction!(cif::read_cif, m)?)?;
     m.add_function(wrap_pyfunction!(aromatic::expand_aromatic_cycle_embeddings, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
+    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())

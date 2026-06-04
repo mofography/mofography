@@ -206,6 +206,24 @@ def seeded_watershed_det_rust(image, seeds, mask=None):
         return mgr_rust.seeded_watershed_det(img32, seeds32, None)
 
 
+def seeded_watershed_det_max_rust(image, seeds, mask=None):
+    """Deterministic bottleneck-priority seeded watershed wrapper around mgr_rust.
+
+    This uses a path-minimum (maximin) flooding priority that is often more
+    robust against thin-mask overreach while remaining deterministic.
+    """
+    import numpy as np
+    import mgr_rust
+
+    img32 = np.asarray(image, dtype=np.float32)
+    seeds32 = np.asarray(seeds, dtype=np.uint32)
+    if mask is not None:
+        mask8 = np.asarray(mask, dtype=np.uint8)
+        return mgr_rust.seeded_watershed_det_max(img32, seeds32, mask8)
+    else:
+        return mgr_rust.seeded_watershed_det_max(img32, seeds32, None)
+
+
 def seeded_watershed_det_parallel_rust(image, seeds, mask=None):
     """Deterministic parallel seeded watershed wrapper around mgr_rust.
 
@@ -473,6 +491,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             padded_markers.astype(np.uint32),
             padded_void.astype(np.uint8),
         )
+    elif watershed_backend == "rust_det_max":
+        padded_regions = mgr_rust.seeded_watershed_det_max(
+            padded_grid.astype(np.float32),
+            padded_markers.astype(np.uint32),
+            padded_void.astype(np.uint8),
+        )
     elif watershed_backend == "rust_det_parallel":
         padded_regions = mgr_rust.seeded_watershed_det_parallel(
             padded_grid.astype(np.float32),
@@ -491,7 +515,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         ).astype(np.uint32)
     else:
         raise ValueError(
-            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', or 'skimage'."
+            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', 'rust_det_max', or 'skimage'."
         )
 
     logger.info(
@@ -566,6 +590,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
                 padded_markers.astype(np.uint32),
                 padded_void.astype(np.uint8),
             )
+        elif watershed_backend == "rust_det_max":
+            padded_regions = mgr_rust.seeded_watershed_det_max(
+                padded_grid.astype(np.float32),
+                padded_markers.astype(np.uint32),
+                padded_void.astype(np.uint8),
+            )
         elif watershed_backend == "rust_det_parallel":
             padded_regions = mgr_rust.seeded_watershed_det_parallel(
                 padded_grid.astype(np.float32),
@@ -584,7 +614,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             ).astype(np.uint32)
         else:
             raise ValueError(
-                f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', or 'skimage'."
+                f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', 'rust_det_max', or 'skimage'."
             )
 
     # replace regions_pbc with regions_pbc_cleaned
@@ -672,6 +702,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             unmerged_markers.astype(np.uint32),
             padded_void.astype(np.uint8),
         )
+    elif watershed_backend == "rust_det_max":
+        unmerged_padded_regions = mgr_rust.seeded_watershed_det_max(
+            padded_grid.astype(np.float32),
+            unmerged_markers.astype(np.uint32),
+            padded_void.astype(np.uint8),
+        )
     elif watershed_backend == "rust_det_parallel":
         unmerged_padded_regions = mgr_rust.seeded_watershed_det_parallel(
             padded_grid.astype(np.float32),
@@ -690,7 +726,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         ).astype(np.uint32)
     else:
         raise ValueError(
-            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', 'rust_det_parallel', or 'skimage'."
+            f"Unknown watershed_backend '{watershed_backend}'. Expected 'rust_bucket', 'rust_det', 'rust_det_max', 'rust_det_parallel', or 'skimage'."
         )
 
     # grab the central block
