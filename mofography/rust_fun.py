@@ -33,6 +33,9 @@ def _cell_matrix_for_rust(ase_atoms):
 def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     """Compute a distance grid from atomic positions using the Rust backend.
 
+    Uses optimized exact MIC (SoA, SIMD on orthogonal cells, Wassenaar 7-image
+    fallback on skewed cells).
+
     This function calculates the distance field (dgrid) for a given atomic structure,
     where each grid point represents the minimum distance to the nearest atom surface,
     accounting for van der Waals radii.
@@ -61,23 +64,8 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
 
 
 def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
-    """Experimental distance grid with optimized exact MIC handling.
-
-    Orthogonal cells: SIMD batched NINT (1 image). Skewed cells: Wassenaar
-    ``d_max`` guard + 7-image face fallback (SoA atom layout). Matches the
-    unconditional 27-image :func:`dgrid_from_atoms_rust` on benchmark MOFs.
-    """
-    import mgr_rust
-
-    if radii is None:
-        radii = default_vdw_radii_angstrom(ase_atoms)
-
-    fpoints = ase_atoms.get_scaled_positions() - 0.5
-    cell = _cell_matrix_for_rust(ase_atoms)
-    nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
-    return mgr_rust.dgrid_from_atoms_exp(
-        fpoints, cell, radii, int(nx), int(ny), int(nz)
-    )
+    """Deprecated alias for :func:`dgrid_from_atoms_rust`."""
+    return dgrid_from_atoms_rust(ase_atoms, spacing, radii=radii)
 
 
 def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):

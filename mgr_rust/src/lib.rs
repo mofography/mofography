@@ -68,6 +68,8 @@ mod dgrid_exp;
 //     Ok(result.1)
 // }
 
+// Legacy brute-force 27-image MIC (replaced by dgrid_exp::dgrid_from_atoms).
+/*
 #[pyfunction]
 
 #[pyo3(text_signature = "(fpoints, cell, radii, nx, ny, nz)")]
@@ -180,6 +182,9 @@ fn dgrid_from_atoms(
     // Convert to a NumPy array owned by Python and return.
     Ok(PyArray3::from_owned_array(py, array).to_owned())
 }
+
+*/
+
 
 #[pyfunction]
 #[pyo3(signature = (fpoints, cell, nx, ny, nz, radii=None, n_neighbors=10))]
@@ -6244,8 +6249,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Enable better error reporting when the module is imported from Python.
     pyo3_log::init();
 
-    m.add_function(wrap_pyfunction!(dgrid_from_atoms, m)?)?;
-    m.add_function(wrap_pyfunction!(dgrid_exp::dgrid_from_atoms_exp, m)?)?;
+    m.add_function(wrap_pyfunction!(dgrid_exp::dgrid_from_atoms, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb_interp, m)?)?;
     m.add_function(wrap_pyfunction!(egrid_from_atoms, m)?)?;
@@ -6281,7 +6285,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bonds::covalent_bonds, m)?)?;
     m.add_function(wrap_pyfunction!(cif::read_cif, m)?)?;
     m.add_function(wrap_pyfunction!(aromatic::expand_aromatic_cycle_embeddings, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_exp", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
+    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
