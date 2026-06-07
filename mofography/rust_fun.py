@@ -2,6 +2,8 @@ import numpy as np
 import ase
 import logging
 
+from .vdw_radii import default_vdw_radii_angstrom
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,7 +41,7 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Van der Waals radii for each atom. If None, uses ASE's vdw_radii
+    :param radii: Van der Waals radii for each atom. If None, uses the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
     :type radii: numpy.ndarray or None
     :return: 3D distance grid where values represent distances to atom surfaces
     :rtype: numpy.ndarray
@@ -47,10 +49,9 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     import mgr_rust
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
-    from ase.data import vdw_radii as _ase_vdw
 
     if radii is None:
-        radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
+        radii = default_vdw_radii_angstrom(ase_atoms)
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
     cell = _cell_matrix_for_rust(ase_atoms)
@@ -66,8 +67,7 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Optional array of atomic radii. If None, defaults to the same VDW radii
-        table used by the existing Rust wrapper.
+    :param radii: Optional array of atomic radii. If None, defaults to the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
     :type radii: numpy.ndarray or None
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :type n_neighbors: int
@@ -75,12 +75,11 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     :rtype: numpy.ndarray
     """
     import mgr_rust
-    from ase.data import vdw_radii as _ase_vdw
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
 
     if radii is None:
-        radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
+        radii = default_vdw_radii_angstrom(ase_atoms)
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
     cell = _cell_matrix_for_rust(ase_atoms)
@@ -98,17 +97,16 @@ def dgrid_from_atoms_aabb_interp_rust(
     :param ase_atoms: ASE Atoms object containing the atomic structure
     :param spacing: Grid spacing in Angstroms (fine grid)
     :param coarse_factor: Coarsening factor (>1) for the AABB sampling grid; 2 is a mild smoothing
-    :param radii: Optional array of atomic radii. If None, defaults to the same VDW radii table
+    :param radii: Optional array of atomic radii. If None, defaults to the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :return: 3D distance grid (float32) with mild smoothing from interpolation
     """
     import mgr_rust
-    from ase.data import vdw_radii as _ase_vdw
 
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
 
     if radii is None:
-        radii = _ase_vdw[ase_atoms.get_atomic_numbers()]
+        radii = default_vdw_radii_angstrom(ase_atoms)
 
     fpoints = ase_atoms.get_scaled_positions() - 0.5
     cell = _cell_matrix_for_rust(ase_atoms)
