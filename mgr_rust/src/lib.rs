@@ -98,7 +98,22 @@ fn dgrid_from_atoms(
     let c21 = cell[[2, 1]];
     let c22 = cell[[2, 2]];
 
-    // Parallel computation across all grid points.
+    // Precompute the 27 fractional offset vectors for correct PBC handling.
+    // Per-component wrapping (dx -= dx.round()) is only exact for orthogonal cells.
+    // For non-orthogonal cells, the nearest Cartesian image may differ from the
+    // nearest fractional image due to off-diagonal cell coupling.
+    // Checking all 27 images guarantees the correct minimum Cartesian distance.
+    let offsets_27: Vec<[f64; 3]> = (-1..=1)
+        .flat_map(|tx| {
+            (-1..=1).flat_map(move |ty| {
+                (-1..=1).map(move |tz| {
+                    [tx as f64, ty as f64, tz as f64]
+                })
+            })
+        })
+        .collect();
+
+    // Parallel computation across all grid points (rayon).
     let buffer: Vec<f32> = (0..total_points)
         .into_par_iter()
         .map(|idx| {
@@ -116,25 +131,40 @@ fn dgrid_from_atoms(
             let mut min_dist = f64::MAX;
 
             for (atom_idx, atom_frac) in fpoints.outer_iter().enumerate() {
-                // Apply minimum-image convention in fractional space.
-                let mut dx = x_frac - atom_frac[0];
-                let mut dy = y_frac - atom_frac[1];
-                let mut dz = z_frac - atom_frac[2];
+                let r_atom = radii[atom_idx];
 
-                dx -= dx.round();
-                dy -= dy.round();
-                dz -= dz.round();
+                // Raw fractional difference (no wrapping).
+                let raw_dx = x_frac - atom_frac[0];
+                let raw_dy = y_frac - atom_frac[1];
+                let raw_dz = z_frac - atom_frac[2];
 
-                // Convert to Cartesian coordinates: r = cell · diff
-                let cart_x = c00 * dx + c01 * dy + c02 * dz;
-                let cart_y = c10 * dx + c11 * dy + c12 * dz;
-                let cart_z = c20 * dx + c21 * dy + c22 * dz;
+                for &[otx, oty, otz] in &offsets_27 {
+                    let dx = raw_dx + otx;
+                    let dy = raw_dy + oty;
+                    let dz = raw_dz + otz;
 
-                let dist = (cart_x * cart_x + cart_y * cart_y + cart_z * cart_z).sqrt()
-                    - radii[atom_idx];
+                    // Convert to Cartesian: r = cell · diff
+                    let cart_x = c00 * dx + c01 * dy + c02 * dz;
+                    let cart_y = c10 * dx + c11 * dy + c12 * dz;
+                    let cart_z = c20 * dx + c21 * dy + c22 * dz;
 
-                if dist < min_dist {
-                    min_dist = dist;
+                    // Compare squared distances to avoid sqrt until necessary.
+                    let sq_dist = cart_x * cart_x + cart_y * cart_y + cart_z * cart_z;
+                    let _r_sq = r_atom * r_atom;
+
+                    // Fast path: if this atom is clearly not the closest, skip sqrt.
+                    // We need dist = sqrt(sq_dist) - r_atom < min_dist
+                    //   => sqrt(sq_dist) < min_dist + r_atom
+                    //   => sq_dist < (min_dist + r_atom)^2
+                    let threshold = min_dist + r_atom;
+                    if threshold > 0.0 && sq_dist >= threshold * threshold {
+                        continue;
+                    }
+
+                    let dist = sq_dist.sqrt() - r_atom;
+                    if dist < min_dist {
+                        min_dist = dist;
+                    }
                 }
             }
 
