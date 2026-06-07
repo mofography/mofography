@@ -955,6 +955,273 @@ def get_pore_dia_mgr_winding(
     return lcd, pld, dfsd, dgrid
 
 
+def _has_suspicious_self_loop_asymmetry(
+    edge_map: dict,
+    maxima_info: np.ndarray,
+    dgrid: np.ndarray,
+    threshold: float = 0.3,
+) -> bool:
+    """Return True if any node's self-loop radii spread suggests watershed spill.
+
+    Deterministic watershed (rust_det, rust_det_max) can spill 1-2 voxels across
+    thin boundaries, inflating self-loop window radii in some directions.  When
+    the spread of self-loop radii for a single node exceeds *threshold* × pocket
+    radius, the segmentation is flagged as unreliable.
+
+    Parameters
+    ----------
+    edge_map : dict
+        Output of ``collect_periodic_edges``.
+    maxima_info : ndarray
+        Segmentation maxima_info array (columns: label, i, j, k, di, dj, dk).
+    dgrid : ndarray
+        Distance grid used for segmentation.
+    threshold : float
+        Maximum allowed spread/pocket_radius ratio (default 0.3).
+
+    Returns
+    -------
+    bool
+        True if at least one node exceeds the asymmetry threshold.
+    """
+    from collections import defaultdict
+
+    node_self: dict[int, list[float]] = defaultdict(list)
+    for (s, e, off), data in edge_map.items():
+        if s == e and tuple(off) != (0, 0, 0):
+            node_self[s].append(float(data["window_radius_min"]))
+
+    for node, radii in node_self.items():
+        if len(radii) < 2:
+            continue
+        spread = max(radii) - min(radii)
+        mi_rows = maxima_info[maxima_info[:, 0] == node]
+        if len(mi_rows) == 0:
+            continue
+        voxel = tuple(mi_rows[0, 1:4].astype(int))
+        if not all(0 <= v < s for v, s in zip(voxel, dgrid.shape)):
+            continue
+        pocket_r = float(dgrid[voxel])
+        if pocket_r > 0 and spread / pocket_r > threshold:
+            return True
+    return False
+
+
+def get_pore_dia_mgr_winding2(
+    mat_atoms=None,
+    dgrid: Optional[np.ndarray] = None,
+    kwargs: Optional[Dict[str, object]] = None,
+    results: Optional[Dict[str, object]] = None,
+    include_dangling: bool = True,
+    expand_components: bool = True,
+    auto_rerun: bool = True,
+) -> Tuple[float, float, float, np.ndarray]:
+    """Compute pore diameters using winding percolation with spill guardrail.
+
+    Identical to ``get_pore_dia_mgr_winding`` but adds automatic re-segmentation
+    when deterministic watershed spill is detected.  Spill is flagged when any
+    node's self-loop radii spread exceeds 30% of its pocket radius.
+
+    When *auto_rerun* is True and spill is detected:
+    - Re-segments with ``mask_thickness=1.5`` using the same backend and dgrid.
+    - Recomputes PLD from the guarded segmentation.
+    - Stores ``_spill_corrected``, ``_original_pld``, ``_corrected_pld`` in
+      *results* (if mutable) for diagnostics.
+
+    Parameters
+    ----------
+    mat_atoms : ase.Atoms, optional
+        ASE Atoms object. Required if *results* is None.
+    dgrid : ndarray, optional
+        Pre-computed distance grid.
+    kwargs : dict, optional
+        Keyword arguments for ``do_periodic_segmentation_rust``.
+    results : dict, optional
+        Pre-computed segmentation results.
+    include_dangling : bool
+        Whether to include dangling edges.
+    expand_components : bool
+        Whether to expand components.
+    auto_rerun : bool
+        If True, silently re-segment with guard mask when spill is detected.
+        Requires ``results['dgrid']`` and ``results.get('mat_atoms')`` (or
+        *mat_atoms* passed separately).  Raises ``ValueError`` if neither is
+        available.
+
+    Returns
+    -------
+    tuple[float, float, float, ndarray]
+        (lcd, pld, dfsd, dgrid)
+    """
+    if kwargs is None:
+        kwargs = {}
+
+    spacing = kwargs.get("spacing", 0.5)
+    if results is None:
+        if dgrid is None:
+            if mat_atoms is None:
+                raise ValueError("mat_atoms or results must be provided.")
+            dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        results = mgr.do_periodic_segmentation_rust(
+            dgrid,
+            mat_atoms,
+            mask_thickness=kwargs.get("mask_thickness", 1.5),
+            h=kwargs.get("h", 0.2),
+            spacing=spacing,
+            return_dgrid=True,
+            threshold_abs=kwargs.get("threshold_abs", 1.5),
+            min_distance=kwargs.get("min_distance", 1.5),
+            return_padded_regions=True,
+            extra_padding=kwargs.get("extra_padding", 2),
+        )
+    else:
+        dgrid = np.asarray(results["dgrid"])
+
+    graph = make_directed_graph_from_segmentation_results(results)
+    base_region_labels = build_base_region_labels_from_results(results)
+
+    lcd = float(dgrid.max() * 2)
+    plr = find_pore_limiting_radius_winding(
+        results,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
+    if plr is None:
+        return lcd, 0.0, 0.0, dgrid
+
+    pld = float(plr * 2)
+
+    # --- Spill guardrail ---
+    if auto_rerun:
+        edge_map, _ = collect_periodic_edges(
+            results["connections"], results["maxima_info"]
+        )
+        params = results.get("input_params", {})
+        backend = params.get("watershed_backend", "rust_bucket")
+        mask = float(params.get("mask_thickness", 0.05))
+
+        if backend in ("rust_det", "rust_det_max", "rust_det_parallel", "skimage") and mask < 1.5:
+            if _has_suspicious_self_loop_asymmetry(
+                edge_map, results["maxima_info"], dgrid
+            ):
+                # Need dgrid + atoms to rerun
+                atoms = results.get("mat_atoms") or mat_atoms
+                if atoms is None:
+                    raise ValueError(
+                        f"Watershed spill detected (backend={backend}, "
+                        f"mask={mask:.2f}) but cannot auto-correct: "
+                        "neither results['mat_atoms'] nor mat_atoms is available. "
+                        "Either store mat_atoms in results or pass it to this "
+                        "function, or set auto_rerun=False."
+                    )
+                dgrid_for_rerun = dgrid
+                if "dgrid" not in results:
+                    raise ValueError(
+                        "Watershed spill detected but 'dgrid' missing from results. "
+                        "Call do_periodic_segmentation_rust with return_dgrid=True, "
+                        "or pass dgrid directly."
+                    )
+
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(
+                    "Spill guardrail triggered (backend=%s, mask=%.2f). "
+                    "Re-segmenting with mask_thickness=1.5...",
+                    backend, mask,
+                )
+
+                guard_results = mgr.do_periodic_segmentation_rust(
+                    dgrid_for_rerun,
+                    atoms,
+                    mask_thickness=1.5,
+                    h=params.get("h", 0.2),
+                    spacing=params.get("spacing", spacing),
+                    return_dgrid=True,
+                    threshold_abs=params.get("threshold_abs", 1.5),
+                    min_distance=params.get("min_distance", 1.5),
+                    return_padded_regions=True,
+                    extra_padding=params.get("extra_padding", 2),
+                    watershed_backend=backend,
+                )
+
+                guard_graph = make_directed_graph_from_segmentation_results(guard_results)
+                guard_labels = build_base_region_labels_from_results(guard_results)
+                guard_plr = find_pore_limiting_radius_winding(
+                    guard_results,
+                    graph=guard_graph,
+                    base_region_labels=guard_labels,
+                    include_dangling=include_dangling,
+                    expand_components=expand_components,
+                )
+
+                if guard_plr is not None:
+                    guard_pld = float(guard_plr * 2)
+                    original_pld = pld
+                    if guard_pld < pld - 0.1:
+                        pld = guard_pld
+                        # Recompute dfsd from guarded results
+                        guard_dgrid = np.asarray(guard_results["dgrid"])
+                        axis_clusters, _, _ = percolation_all_axes_winding(
+                            guard_results,
+                            guard_plr,
+                            graph=guard_graph,
+                            base_region_labels=guard_labels,
+                            include_dangling=include_dangling,
+                            expand_components=expand_components,
+                        )
+                        percolating_labels = set()
+                        for groups in axis_clusters.values():
+                            for labels in groups:
+                                percolating_labels.update(labels)
+                        dfsd = 0.0
+                        if percolating_labels:
+                            regions = np.asarray(guard_results["regions"])
+                            rmask = np.isin(regions, list(percolating_labels))
+                            if rmask.any():
+                                dfsd = float(guard_dgrid[rmask].max() * 2)
+                        try:
+                            results["_spill_corrected"] = True
+                            results["_original_pld"] = original_pld
+                            results["_corrected_pld"] = pld
+                        except Exception:
+                            pass  # results might be read-only
+                        logger.info(
+                            "Spill corrected: PLD %.2f -> %.2f",
+                            original_pld, pld,
+                        )
+                        return lcd, pld, dfsd, dgrid
+                    else:
+                        logger.info(
+                            "Spill guardrail: no significant PLD change (%.2f vs %.2f)",
+                            original_pld, guard_pld,
+                        )
+
+    # --- Compute DFSD (original path, or when no rerun needed) ---
+    axis_clusters, _, _ = percolation_all_axes_winding(
+        results,
+        plr,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
+    percolating_labels = set()
+    for groups in axis_clusters.values():
+        for labels in groups:
+            percolating_labels.update(labels)
+
+    dfsd = 0.0
+    if percolating_labels:
+        regions = np.asarray(results["regions"])
+        mask = np.isin(regions, list(percolating_labels))
+        if mask.any():
+            dfsd = float(dgrid[mask].max() * 2)
+
+    return lcd, pld, dfsd, dgrid
+
+
 CORNER_LOOP_GRID = np.array(
     [
         [0, 1, 0, 0, 1, 0],
