@@ -61,12 +61,11 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
 
 
 def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
-    """Experimental distance grid with three-tier exact MIC handling.
+    """Experimental distance grid with optimized exact MIC handling.
 
-    Uses an orthogonal single-image fast path, Wassenaar fractional-NINT with
-    ``d_max`` guard for non-orthogonal cells, and a 27-image fallback for rare
-    corner cases. Intended as a faster alternative to the unconditional
-    27-image path in :func:`dgrid_from_atoms_rust`.
+    Orthogonal cells: SIMD batched NINT (1 image). Skewed cells: Wassenaar
+    ``d_max`` guard + 7-image face fallback (SoA atom layout). Matches the
+    unconditional 27-image :func:`dgrid_from_atoms_rust` on benchmark MOFs.
     """
     import mgr_rust
 
