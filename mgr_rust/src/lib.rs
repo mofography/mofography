@@ -181,6 +181,185 @@ fn dgrid_from_atoms(
     Ok(PyArray3::from_owned_array(py, array).to_owned())
 }
 
+const ORTHO_TOL: f64 = 1e-12;
+
+#[inline]
+fn cell_is_orthogonal(cell: &ndarray::ArrayView2<f64>) -> bool {
+    cell[[0, 1]].abs() < ORTHO_TOL
+        && cell[[0, 2]].abs() < ORTHO_TOL
+        && cell[[1, 0]].abs() < ORTHO_TOL
+        && cell[[1, 2]].abs() < ORTHO_TOL
+        && cell[[2, 0]].abs() < ORTHO_TOL
+        && cell[[2, 1]].abs() < ORTHO_TOL
+}
+
+/// Wassenaar d_max = 0.5 × min(||a||, ||b||, ||c||); returns d_max².
+#[inline]
+fn d_max_sq_from_cell(cell: &ndarray::ArrayView2<f64>) -> f64 {
+    let col_len_sq = |col: usize| {
+        let c0 = cell[[0, col]];
+        let c1 = cell[[1, col]];
+        let c2 = cell[[2, col]];
+        c0 * c0 + c1 * c1 + c2 * c2
+    };
+    let min_len_sq = col_len_sq(0).min(col_len_sq(1)).min(col_len_sq(2));
+    0.25 * min_len_sq
+}
+
+#[inline]
+fn frac_to_cart_sq(
+    dx: f64,
+    dy: f64,
+    dz: f64,
+    c00: f64,
+    c01: f64,
+    c02: f64,
+    c10: f64,
+    c11: f64,
+    c12: f64,
+    c20: f64,
+    c21: f64,
+    c22: f64,
+) -> f64 {
+    let cart_x = c00 * dx + c01 * dy + c02 * dz;
+    let cart_y = c10 * dx + c11 * dy + c12 * dz;
+    let cart_z = c20 * dx + c21 * dy + c22 * dz;
+    cart_x * cart_x + cart_y * cart_y + cart_z * cart_z
+}
+
+#[inline]
+fn maybe_update_min_dist(min_dist: &mut f64, sq_dist: f64, r_atom: f64) {
+    let threshold = *min_dist + r_atom;
+    if threshold > 0.0 && sq_dist >= threshold * threshold {
+        return;
+    }
+    let dist = sq_dist.sqrt() - r_atom;
+    if dist < *min_dist {
+        *min_dist = dist;
+    }
+}
+
+/// Experimental distance grid with three-tier exact MIC (orthogonal fast path + Wassenaar guard + 27-image fallback).
+#[pyfunction]
+#[pyo3(text_signature = "(fpoints, cell, radii, nx, ny, nz)")]
+fn dgrid_from_atoms_exp(
+    py: Python<'_>,
+    fpoints: PyReadonlyArray2<'_, f64>,
+    cell: PyReadonlyArray2<'_, f64>,
+    radii: PyReadonlyArray1<'_, f64>,
+    nx: usize,
+    ny: usize,
+    nz: usize,
+) -> PyResult<Py<PyArray3<f32>>> {
+    let fpoints = fpoints.as_array();
+    let cell = cell.as_array();
+    let radii = radii.as_array();
+
+    let total_points = nx * ny * nz;
+
+    let c00 = cell[[0, 0]];
+    let c01 = cell[[0, 1]];
+    let c02 = cell[[0, 2]];
+    let c10 = cell[[1, 0]];
+    let c11 = cell[[1, 1]];
+    let c12 = cell[[1, 2]];
+    let c20 = cell[[2, 0]];
+    let c21 = cell[[2, 1]];
+    let c22 = cell[[2, 2]];
+
+    let is_orthogonal = cell_is_orthogonal(&cell);
+    let d_max_sq = if is_orthogonal {
+        0.0
+    } else {
+        d_max_sq_from_cell(&cell)
+    };
+
+    let offsets_27: Vec<[f64; 3]> = if is_orthogonal {
+        Vec::new()
+    } else {
+        (-1..=1)
+            .flat_map(|tx| {
+                (-1..=1).flat_map(move |ty| {
+                    (-1..=1).map(move |tz| [tx as f64, ty as f64, tz as f64])
+                })
+            })
+            .collect()
+    };
+
+    let buffer: Vec<f32> = (0..total_points)
+        .into_par_iter()
+        .map(|idx| {
+            let i = idx / (ny * nz);
+            let j = (idx / nz) % ny;
+            let k = idx % nz;
+
+            let x_frac = -0.5 + (i as f64) / ((nx - 1) as f64);
+            let y_frac = -0.5 + (j as f64) / ((ny - 1) as f64);
+            let z_frac = -0.5 + (k as f64) / ((nz - 1) as f64);
+
+            let mut min_dist = f64::MAX;
+
+            for (atom_idx, atom_frac) in fpoints.outer_iter().enumerate() {
+                let r_atom = radii[atom_idx];
+                let atom = [atom_frac[0], atom_frac[1], atom_frac[2]];
+
+                if is_orthogonal {
+                    let raw_dx = x_frac - atom[0];
+                    let raw_dy = y_frac - atom[1];
+                    let raw_dz = z_frac - atom[2];
+                    let dx = raw_dx - raw_dx.round();
+                    let dy = raw_dy - raw_dy.round();
+                    let dz = raw_dz - raw_dz.round();
+                    let sq = frac_to_cart_sq(
+                        dx, dy, dz, c00, c01, c02, c10, c11, c12, c20, c21, c22,
+                    );
+                    maybe_update_min_dist(&mut min_dist, sq, r_atom);
+                } else {
+                    let raw_dx = x_frac - atom[0];
+                    let raw_dy = y_frac - atom[1];
+                    let raw_dz = z_frac - atom[2];
+
+                    let dx = raw_dx - raw_dx.round();
+                    let dy = raw_dy - raw_dy.round();
+                    let dz = raw_dz - raw_dz.round();
+                    let sq_nint = frac_to_cart_sq(
+                        dx, dy, dz, c00, c01, c02, c10, c11, c12, c20, c21, c22,
+                    );
+
+                    if sq_nint < d_max_sq {
+                        maybe_update_min_dist(&mut min_dist, sq_nint, r_atom);
+                    } else {
+                        for &[otx, oty, otz] in &offsets_27 {
+                            let sq = frac_to_cart_sq(
+                                raw_dx + otx,
+                                raw_dy + oty,
+                                raw_dz + otz,
+                                c00,
+                                c01,
+                                c02,
+                                c10,
+                                c11,
+                                c12,
+                                c20,
+                                c21,
+                                c22,
+                            );
+                            maybe_update_min_dist(&mut min_dist, sq, r_atom);
+                        }
+                    }
+                }
+            }
+
+            min_dist as f32
+        })
+        .collect();
+
+    let array = Array3::from_shape_vec((nx, ny, nz), buffer)
+        .expect("Shape mismatch while reshaping the output distance grid");
+
+    Ok(PyArray3::from_owned_array(py, array).to_owned())
+}
+
 #[pyfunction]
 #[pyo3(signature = (fpoints, cell, nx, ny, nz, radii=None, n_neighbors=10))]
 #[pyo3(text_signature = "(fpoints, cell, nx, ny, nz, radii=None, n_neighbors=10)")]
@@ -6245,6 +6424,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_function(wrap_pyfunction!(dgrid_from_atoms, m)?)?;
+    m.add_function(wrap_pyfunction!(dgrid_from_atoms_exp, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb_interp, m)?)?;
     m.add_function(wrap_pyfunction!(egrid_from_atoms, m)?)?;
@@ -6280,7 +6460,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bonds::covalent_bonds, m)?)?;
     m.add_function(wrap_pyfunction!(cif::read_cif, m)?)?;
     m.add_function(wrap_pyfunction!(aromatic::expand_aromatic_cycle_embeddings, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
+    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_exp", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())
