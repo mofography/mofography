@@ -1127,6 +1127,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         ] * np.array(dgrid.shape)
         outputs = dict(
             dgrid=dgrid,
+            mat_atoms=mat_atoms,
             maxima_pbc=merged_maxima,
             regions_pbc=regions_pbc,
             maxima_info=maxima_info_copy_copy,
@@ -1142,6 +1143,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         )
         # we need to save the input params to the results, for future reference.
         outputs["input_params"] = {
+            "watershed_backend": watershed_backend,
             "mask_thickness": mask_thickness,
             "h": h,
             "min_distance": min_distance,
