@@ -60,6 +60,27 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     return dgrid
 
 
+def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
+    """Experimental distance grid with three-tier exact MIC handling.
+
+    Uses an orthogonal single-image fast path, Wassenaar fractional-NINT with
+    ``d_max`` guard for non-orthogonal cells, and a 27-image fallback for rare
+    corner cases. Intended as a faster alternative to the unconditional
+    27-image path in :func:`dgrid_from_atoms_rust`.
+    """
+    import mgr_rust
+
+    if radii is None:
+        radii = default_vdw_radii_angstrom(ase_atoms)
+
+    fpoints = ase_atoms.get_scaled_positions() - 0.5
+    cell = _cell_matrix_for_rust(ase_atoms)
+    nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
+    return mgr_rust.dgrid_from_atoms_exp(
+        fpoints, cell, radii, int(nx), int(ny), int(nz)
+    )
+
+
 def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     """Compute a distance grid using the Rust AABB/PBC neighbor search backend.
 
