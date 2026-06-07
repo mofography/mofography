@@ -1,4 +1,4 @@
-//! Optimized `dgrid_from_atoms_exp`: SoA layout, SIMD (orthogonal), Wassenaar 7-image MIC.
+//! Optimized `dgrid_from_atoms`: SoA layout, SIMD (orthogonal), Wassenaar 7-image MIC.
 
 use ndarray::Array3;
 use numpy::{PyArray3, PyReadonlyArray1, PyReadonlyArray2};
@@ -236,7 +236,7 @@ fn min_dist_at_voxel(
 
 #[pyfunction]
 #[pyo3(text_signature = "(fpoints, cell, radii, nx, ny, nz)")]
-pub fn dgrid_from_atoms_exp(
+pub fn dgrid_from_atoms(
     py: Python<'_>,
     fpoints: PyReadonlyArray2<'_, f64>,
     cell: PyReadonlyArray2<'_, f64>,
