@@ -44,7 +44,9 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Van der Waals radii for each atom. If None, uses the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
+    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi
+        (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`.
+        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev table.
     :type radii: numpy.ndarray or None
     :return: 3D distance grid where values represent distances to atom surfaces
     :rtype: numpy.ndarray
@@ -75,7 +77,9 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Optional array of atomic radii. If None, defaults to the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
+    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi
+        (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`.
+        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev table.
     :type radii: numpy.ndarray or None
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :type n_neighbors: int
@@ -105,7 +109,7 @@ def dgrid_from_atoms_aabb_interp_rust(
     :param ase_atoms: ASE Atoms object containing the atomic structure
     :param spacing: Grid spacing in Angstroms (fine grid)
     :param coarse_factor: Coarsening factor (>1) for the AABB sampling grid; 2 is a mild smoothing
-    :param radii: Optional array of atomic radii. If None, defaults to the mendeleev VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
+    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :return: 3D distance grid (float32) with mild smoothing from interpolation
     """

@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import networkx as nx
 import numpy as np
@@ -269,18 +269,11 @@ def _maxima_pbc_data(maxima_info: np.ndarray):
     )
     return maxima_pbc_dict, orig_map, zero_rows
 
-def collect_periodic_edges(connections, maxima_info):
+def collect_periodic_edges_canonical(connections, maxima_info):
     import numpy as np
 
     label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
-    maxima_pbc = np.vstack([m[1:4] for m in maxima_info if np.all(m[4:7] == 0)])
-    maxima_pbc_dict = {tuple(m): i + 1 for i, m in enumerate(maxima_pbc)}
-
-    is_asymmetric = np.all(maxima_info[:, 4:7] == 0, axis=1)
-    asymmetric_labels = set(int(maxima_info[i, 0]) for i in np.where(is_asymmetric)[0])
-    origina_maxima_mapping = np.array(
-        [maxima_pbc_dict[tuple(m[1:4])] for m in maxima_info], dtype=int
-    )
+    _, original_maxima_mapping, _ = _maxima_pbc_data(np.asarray(maxima_info))
 
     edge_map: dict[
         tuple[int, int, tuple[int, int, int]], dict[str, float | int | list[float]]
@@ -290,17 +283,15 @@ def collect_periodic_edges(connections, maxima_info):
     for c in connections:
         if not c[1]:
             continue
-        i_label, j_label = c[0]
-        if not (i_label in asymmetric_labels or j_label in asymmetric_labels):
-            continue
 
-        idx_i = label_to_idx.get(i_label)
-        idx_j = label_to_idx.get(j_label)
+        i_label, j_label = c[0]
+        idx_i = label_to_idx.get(int(i_label))
+        idx_j = label_to_idx.get(int(j_label))
         if idx_i is None or idx_j is None:
             continue
 
-        base_i = int(origina_maxima_mapping[idx_i])
-        base_j = int(origina_maxima_mapping[idx_j])
+        base_i = int(original_maxima_mapping[idx_i])
+        base_j = int(original_maxima_mapping[idx_j])
         offset_i = maxima_info[idx_i, 4:7].astype(int)
         offset_j = maxima_info[idx_j, 4:7].astype(int)
         # Use the largest window observed for this connection so threshold filtering
@@ -311,32 +302,46 @@ def collect_periodic_edges(connections, maxima_info):
         end_base = base_j
         start_offset = offset_i
         end_offset = offset_j
-        if base_j < base_i:
-            start_base, end_base = base_j, base_i
-            start_offset, end_offset = offset_j, offset_i
+        if end_base < start_base:
+            start_base, end_base = end_base, start_base
+            start_offset, end_offset = end_offset, start_offset
 
         relative_offset = tuple(int(x) for x in (end_offset - start_offset))
-        if start_base == end_base and relative_offset == (0, 0, 0):
-            continue
+
+        # Canonicalize self-loop orientation to collapse +/-offset duplicates.
+        if start_base == end_base:
+            if relative_offset == (0, 0, 0):
+                continue
+            neg_offset = tuple(-x for x in relative_offset)
+            if neg_offset < relative_offset:
+                relative_offset = neg_offset
 
         key = (start_base, end_base, relative_offset)
         entry = edge_map.setdefault(
             key,
             {
                 "window_radii": [],
+                "window_positions": [],
                 "window_radius_min": window_radius,
                 "window_radius_max": window_radius,
                 "multiplicity": 0,
             },
         )
         entry["window_radii"].append(window_radius)
+        if len(c) > 3 and isinstance(c[3], (list, tuple, np.ndarray)):
+            for pos in c[3]:
+                try:
+                    if len(pos) == 3:
+                        entry["window_positions"].append(tuple(float(x) for x in pos))
+                except Exception:
+                    continue
         entry["window_radius_min"] = min(entry["window_radius_min"], window_radius)
         entry["window_radius_max"] = max(entry["window_radius_max"], window_radius)
         entry["multiplicity"] = int(entry["multiplicity"]) + 1
         edges_debug.append(
             [
-                i_label,
-                j_label,
+                int(i_label),
+                int(j_label),
                 start_base,
                 end_base,
                 *start_offset,
@@ -347,6 +352,11 @@ def collect_periodic_edges(connections, maxima_info):
         )
 
     return edge_map, np.array(edges_debug) if edges_debug else None
+
+
+def collect_periodic_edges(connections, maxima_info):
+    """Backward-compatible wrapper for canonical edge collection."""
+    return collect_periodic_edges_canonical(connections, maxima_info)
 
 # def collect_periodic_edges(connections, maxima_info):
 #     import numpy as np
@@ -420,7 +430,7 @@ def collect_periodic_edges(connections, maxima_info):
 #     import numpy as np
 #     maxima_info = results["maxima_info"]
 #     connections = results["connections"]
-#     edge_map, edges_debug = collect_periodic_edges(connections, maxima_info)
+#     edge_map, edges_debug = collect_periodic_edges_canonical(connections, maxima_info)
 #     if dgrid is None:
 #         dgrid = results['dgrid']
 #     dgrid_shape = dgrid.shape
@@ -446,7 +456,7 @@ def make_directed_graph_from_segmentation_results(results, dgrid=None):
     import numpy as np
     maxima_info = results["maxima_info"]
     connections = results["connections"]
-    edge_map, edges_debug = collect_periodic_edges(connections, maxima_info)
+    edge_map, edges_debug = collect_periodic_edges_canonical(connections, maxima_info)
     if dgrid is None:
         dgrid = results['dgrid']
     dgrid_shape = dgrid.shape
@@ -454,6 +464,7 @@ def make_directed_graph_from_segmentation_results(results, dgrid=None):
     G = nx.MultiDiGraph()
     for (i, j, rel_offset), data in edge_map.items():
         window_radii = tuple(float(r) for r in data.get("window_radii", ()))
+        window_positions = tuple(tuple(float(x) for x in p) for p in data.get("window_positions", ()))
         if window_radii:
             window_radius_max = max(window_radii)
             window_radius_min = min(window_radii)
@@ -468,6 +479,7 @@ def make_directed_graph_from_segmentation_results(results, dgrid=None):
             window_radius_max=window_radius_max,
             window_radius_min=window_radius_min,
             window_radii=window_radii,
+            window_positions=window_positions,
             multiplicity=int(data.get("multiplicity", 1)),
         )
 
@@ -702,6 +714,206 @@ def _default_mask_thickness(results: Dict[str, object]) -> float:
     return 0.0
 
 
+def _dfsd_threshold(plr: float, results: Dict[str, object], kwargs: Optional[Dict[str, object]]) -> float:
+    """Return a slightly relaxed threshold for DFSD region selection."""
+    eps = 1e-2
+    if kwargs is not None and "dfsd_threshold_eps" in kwargs:
+        try:
+            eps = max(float(kwargs["dfsd_threshold_eps"]), 0.0)
+        except Exception:
+            eps = 1e-2
+    min_default = _default_mask_thickness(results)
+    return max(min_default, float(plr) - eps)
+
+
+def _cosine_similarity_safe(a: np.ndarray, b: np.ndarray) -> float:
+    denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+    if denom <= 1e-12:
+        return 0.0
+    return float(np.clip(np.dot(a, b) / denom, -1.0, 1.0))
+
+
+def _window_frac_from_edge_data(
+    edge_data: Dict[str, object], dgrid_shape: Tuple[int, int, int]
+) -> Optional[np.ndarray]:
+    """Choose one representative window position and convert to wrapped fractional coordinates."""
+    positions = edge_data.get("window_positions")
+    if not positions:
+        return None
+    radii = edge_data.get("window_radii") or ()
+    pick_idx = 0
+    if radii and len(radii) == len(positions):
+        pick_idx = int(np.argmax(np.asarray(radii, dtype=float)))
+    try:
+        pos = np.asarray(positions[pick_idx], dtype=float)
+    except Exception:
+        return None
+    if pos.shape != (3,):
+        return None
+    shp = np.asarray(dgrid_shape, dtype=float)
+    if np.any(shp <= 0):
+        return None
+    frac = ((np.mod(pos, shp)) + 0.5) / shp
+    return np.mod(frac, 1.0)
+
+
+def _window_shell_fingerprint(
+    frac_pos: np.ndarray, atoms, shell_radius: float
+) -> Optional[np.ndarray]:
+    """Direction-invariant shell fingerprint around a window centre."""
+    from ase.geometry import complete_cell
+
+    if atoms is None:
+        return None
+    try:
+        cell = complete_cell(atoms.get_cell()).T
+        atom_frac = np.asarray(atoms.get_scaled_positions(wrap=True), dtype=float)
+        atom_z = np.asarray(atoms.get_atomic_numbers(), dtype=int)
+    except Exception:
+        return None
+    if atom_frac.size == 0:
+        return None
+    dr_frac = atom_frac - frac_pos.reshape(1, 3)
+    dr_frac -= np.round(dr_frac)
+    dr_cart = np.einsum("ni,ij->nj", dr_frac, cell)
+    dist = np.linalg.norm(dr_cart, axis=1)
+    mask = (dist > 1e-8) & (dist <= float(shell_radius))
+    if not np.any(mask):
+        return None
+    vec = np.zeros(118, dtype=float)
+    w = 1.0 / np.maximum(dist[mask], 1e-3)
+    for z, ww in zip(atom_z[mask], w):
+        if 1 <= int(z) <= 118:
+            vec[int(z) - 1] += float(ww)
+    nrm = float(np.linalg.norm(vec))
+    if nrm <= 1e-12:
+        return None
+    return vec / nrm
+
+
+def annotate_graph_edges_with_window_fingerprints(
+    graph: nx.MultiDiGraph,
+    results: Dict[str, object],
+    atoms=None,
+    shell_radius: float = 3.5,
+) -> nx.MultiDiGraph:
+    """Annotate each graph edge with a lightweight window shell fingerprint."""
+    if atoms is None and isinstance(results, dict):
+        atoms = results.get("mat_atoms")
+    if atoms is None:
+        return graph
+    dgrid = np.asarray(results.get("dgrid"))
+    if dgrid.ndim != 3:
+        return graph
+    shape = tuple(int(x) for x in dgrid.shape)
+    for u, v, k, data in graph.edges(keys=True, data=True):
+        frac = _window_frac_from_edge_data(data, shape)
+        if frac is None:
+            graph[u][v][k]["window_fp_ready"] = False
+            continue
+        fp = _window_shell_fingerprint(frac, atoms, shell_radius=float(shell_radius))
+        graph[u][v][k]["window_frac_pos"] = tuple(float(x) for x in frac)
+        if fp is None:
+            graph[u][v][k]["window_fp_ready"] = False
+            continue
+        graph[u][v][k]["window_fp_vec"] = tuple(float(x) for x in fp)
+        graph[u][v][k]["window_fp_ready"] = True
+    return graph
+
+
+def _incident_edge_records(graph: nx.MultiDiGraph, node: int):
+    records: Dict[CanonicalEdgeID, Tuple[int, int, int, Dict[str, object]]] = {}
+    for u, v, k, data in graph.out_edges(node, keys=True, data=True):
+        cid = CanonicalEdgeID.from_nodes(int(u), int(v), int(k))
+        records[cid] = (int(u), int(v), int(k), data)
+    for u, v, k, data in graph.in_edges(node, keys=True, data=True):
+        cid = CanonicalEdgeID.from_nodes(int(u), int(v), int(k))
+        records[cid] = (int(u), int(v), int(k), data)
+    return list(records.values())
+
+
+def _expand_dfsd_labels_with_window_fingerprint(
+    *,
+    graph: nx.MultiDiGraph,
+    base_region_labels: Dict[int, set],
+    percolating_labels: set,
+    results: Dict[str, object],
+    dgrid: np.ndarray,
+    plr: float,
+    kwargs: Optional[Dict[str, object]],
+    atoms=None,
+) -> set:
+    """Optionally rescue max-cavity labels when near-threshold windows look similar."""
+    if kwargs is None or not bool(kwargs.get("window_fp_for_dfsd", False)):
+        return percolating_labels
+    if not percolating_labels:
+        return percolating_labels
+    regions = np.asarray(results["regions"])
+    valid = regions > 0
+    if not np.any(valid):
+        return percolating_labels
+    max_idx = int(np.argmax(np.where(valid, dgrid, -np.inf)))
+    max_label = int(regions.flat[max_idx])
+    if max_label <= 0 or max_label in percolating_labels:
+        return percolating_labels
+
+    owner_node = None
+    for node, labels in base_region_labels.items():
+        if max_label in labels:
+            owner_node = int(node)
+            break
+    if owner_node is None:
+        return percolating_labels
+
+    percolating_nodes = {
+        int(node)
+        for node, labels in base_region_labels.items()
+        if set(labels).intersection(percolating_labels)
+    }
+    if not percolating_nodes:
+        return percolating_labels
+
+    shell_radius = float(kwargs.get("window_fp_shell_radius", 3.5))
+    annotate_graph_edges_with_window_fingerprints(
+        graph, results, atoms=atoms or results.get("mat_atoms"), shell_radius=shell_radius
+    )
+
+    sim_thresh = float(kwargs.get("window_fp_sim_thresh", 0.88))
+    size_tol = float(kwargs.get("window_fp_size_tol", 0.20))
+    ref_tol = float(kwargs.get("window_fp_ref_tol", 0.12))
+    cand_tol = float(kwargs.get("window_fp_candidate_tol", 0.12))
+
+    ref_edges = []
+    for node in percolating_nodes:
+        for _u, _v, _k, data in _incident_edge_records(graph, node):
+            if float(data.get("window_radius", 0.0)) < float(plr) - ref_tol:
+                continue
+            if not data.get("window_fp_ready", False):
+                continue
+            vec = np.asarray(data.get("window_fp_vec"), dtype=float)
+            ref_edges.append((vec, float(data.get("window_radius", 0.0))))
+    if not ref_edges:
+        return percolating_labels
+
+    owner_records = _incident_edge_records(graph, owner_node)
+    for u, v, _k, data in owner_records:
+        wr = float(data.get("window_radius", 0.0))
+        if wr < float(plr) - cand_tol:
+            continue
+        if not data.get("window_fp_ready", False):
+            continue
+        cvec = np.asarray(data.get("window_fp_vec"), dtype=float)
+        for rvec, rwr in ref_edges:
+            if abs(wr - rwr) > size_tol:
+                continue
+            if _cosine_similarity_safe(cvec, rvec) >= sim_thresh:
+                new_labels = set(percolating_labels)
+                new_labels.update(base_region_labels.get(int(u), set()))
+                new_labels.update(base_region_labels.get(int(v), set()))
+                return new_labels
+    return percolating_labels
+
+
 def find_pore_limiting_radius_winding(
     results: Dict[str, object],
     min_threshold: Optional[float] = None,
@@ -932,9 +1144,10 @@ def get_pore_dia_mgr_winding(
         return lcd, 0.0, 0.0, dgrid
 
     pld = float(plr * 2)
+    dfsd_threshold = _dfsd_threshold(plr, results, kwargs)
     axis_clusters, _, _ = percolation_all_axes_winding(
         results,
-        plr,
+        dfsd_threshold,
         graph=graph,
         base_region_labels=base_region_labels,
         include_dangling=include_dangling,
@@ -944,6 +1157,16 @@ def get_pore_dia_mgr_winding(
     for groups in axis_clusters.values():
         for labels in groups:
             percolating_labels.update(labels)
+    percolating_labels = _expand_dfsd_labels_with_window_fingerprint(
+        graph=graph,
+        base_region_labels=base_region_labels,
+        percolating_labels=percolating_labels,
+        results=results,
+        dgrid=dgrid,
+        plr=float(plr),
+        kwargs=kwargs,
+        atoms=mat_atoms,
+    )
 
     dfsd = 0.0
     if percolating_labels:
@@ -1095,7 +1318,7 @@ def get_pore_dia_mgr_winding2(
 
     # --- Spill guardrail ---
     if auto_rerun:
-        edge_map, _ = collect_periodic_edges(
+        edge_map, _ = collect_periodic_edges_canonical(
             results["connections"], results["maxima_info"]
         )
         params = results.get("input_params", {})
@@ -1163,9 +1386,10 @@ def get_pore_dia_mgr_winding2(
                         pld = guard_pld
                         # Recompute dfsd from guarded results
                         guard_dgrid = np.asarray(guard_results["dgrid"])
+                        dfsd_threshold = _dfsd_threshold(guard_plr, guard_results, kwargs)
                         axis_clusters, _, _ = percolation_all_axes_winding(
                             guard_results,
-                            guard_plr,
+                            dfsd_threshold,
                             graph=guard_graph,
                             base_region_labels=guard_labels,
                             include_dangling=include_dangling,
@@ -1175,6 +1399,16 @@ def get_pore_dia_mgr_winding2(
                         for groups in axis_clusters.values():
                             for labels in groups:
                                 percolating_labels.update(labels)
+                        percolating_labels = _expand_dfsd_labels_with_window_fingerprint(
+                            graph=guard_graph,
+                            base_region_labels=guard_labels,
+                            percolating_labels=percolating_labels,
+                            results=guard_results,
+                            dgrid=guard_dgrid,
+                            plr=float(guard_plr),
+                            kwargs=kwargs,
+                            atoms=atoms,
+                        )
                         dfsd = 0.0
                         if percolating_labels:
                             regions = np.asarray(guard_results["regions"])
@@ -1199,9 +1433,10 @@ def get_pore_dia_mgr_winding2(
                         )
 
     # --- Compute DFSD (original path, or when no rerun needed) ---
+    dfsd_threshold = _dfsd_threshold(plr, results, kwargs)
     axis_clusters, _, _ = percolation_all_axes_winding(
         results,
-        plr,
+        dfsd_threshold,
         graph=graph,
         base_region_labels=base_region_labels,
         include_dangling=include_dangling,
@@ -1211,6 +1446,16 @@ def get_pore_dia_mgr_winding2(
     for groups in axis_clusters.values():
         for labels in groups:
             percolating_labels.update(labels)
+    percolating_labels = _expand_dfsd_labels_with_window_fingerprint(
+        graph=graph,
+        base_region_labels=base_region_labels,
+        percolating_labels=percolating_labels,
+        results=results,
+        dgrid=dgrid,
+        plr=float(plr),
+        kwargs=kwargs,
+        atoms=mat_atoms,
+    )
 
     dfsd = 0.0
     if percolating_labels:
