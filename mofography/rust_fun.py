@@ -253,50 +253,6 @@ def seeded_watershed_det_parallel_rust(image, seeds, mask=None):
 
 
 
-def _compute_metric_inv_weights(cell_matrix, grid_shape, spacing, w_min=0.5, w_max=2.0):
-    """Compute 26 inverse metric weights for metric-aware watershed.
-
-    ``cell_matrix`` must be ASE ``Atoms.cell.array`` (lattice vectors as rows),
-    not :func:`_cell_matrix_for_rust` / ``cellpar_to_cell().T``.
-
-    Uses the Rust helper when available so weights match
-    ``seeded_watershed_det_metric`` exactly.
-    """
-    import numpy as np
-    import mgr_rust
-
-    cell = np.asarray(cell_matrix, dtype=np.float64)
-    nx, ny, nz = (int(grid_shape[0]), int(grid_shape[1]), int(grid_shape[2]))
-    if hasattr(mgr_rust, "compute_metric_inv_weights"):
-        return list(
-            mgr_rust.compute_metric_inv_weights(
-                cell, (nx, ny, nz), float(spacing), float(w_min), float(w_max)
-            )
-        )
-
-    step = cell.T @ np.diag([1.0 / nx, 1.0 / ny, 1.0 / nz])
-    metric = step.T @ step
-    neigh_offsets = [
-        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
-        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
-        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
-        (0, -1, -1), (0, -1, 0), (0, -1, 1),
-        (0, 0, -1),               (0, 0, 1),
-        (0, 1, -1), (0, 1, 0), (0, 1, 1),
-        (1, -1, -1), (1, -1, 0), (1, -1, 1),
-        (1, 0, -1), (1, 0, 0), (1, 0, 1),
-        (1, 1, -1), (1, 1, 0), (1, 1, 1),
-    ]
-    inv_w = []
-    for di, dj, dk in neigh_offsets:
-        n = np.array([di, dj, dk], dtype=float)
-        length = float(np.sqrt(n @ metric @ n))
-        l0 = spacing * np.sqrt(abs(di) + abs(dj) + abs(dk))
-        w = float(np.clip(length / l0 if l0 > 0 else 1.0, w_min, w_max))
-        inv_w.append(1.0 / w)
-    return inv_w
-
-
 def _seeded_watershed_backend(
     padded_grid,
     seeds,
@@ -320,12 +276,6 @@ def _seeded_watershed_backend(
         return mgr_rust.seeded_watershed_det(img, seeds_u32, mask_u8)
     if backend == "rust_det_parallel":
         return mgr_rust.seeded_watershed_det_parallel(img, seeds_u32, mask_u8)
-    if backend == "rust_det_metric":
-        if inv_metric_weights is None:
-            raise ValueError("inv_metric_weights required for rust_det_metric backend")
-        return mgr_rust.seeded_watershed_det_metric(
-            img, seeds_u32, inv_metric_weights, mask_u8
-        )
     if backend == "rust_det_blended":
         if inv_metric_weights is None:
             raise ValueError("edge_lengths required for rust_det_blended backend (pass via inv_metric_weights)")
@@ -344,14 +294,14 @@ def _seeded_watershed_backend(
         ).astype(np.uint32)
     raise ValueError(
         f"Unknown watershed_backend '{backend}'. Expected 'rust_bucket', 'rust_det', "
-        "'rust_det_metric', 'rust_det_blended', 'rust_det_parallel', or 'skimage'."
+        "'rust_det_blended', 'rust_det_parallel', or 'skimage'."
     )
 
 
 
 
 
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_bucket", watershed_connectivity=2, skip_endchannel_pairs=False):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_bucket", watershed_connectivity=2, skip_endchannel_pairs=True):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -399,7 +349,8 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     :type compute_connections: bool
     :param return_dgrid: Whether to include dgrid in output
     :type return_dgrid: bool
-    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), \"rust_det_metric\" (metric-aware for non-orthogonal cells), \"rust_det_blended\" (blended-priority metric watershed with dgrid_saddle*SCALE - path_length), \"rust_det_parallel\" (deterministic parallel), or \"skimage\".
+    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), \"rust_det_blended\" (blended-priority metric watershed with dgrid_saddle*SCALE - path_length), \"rust_det_parallel\" (deterministic parallel), or \"skimage\".
+    :param skip_endchannel_pairs: If True (default), do not merge tiny wall-touching end-channel slivers into neighbors. Set False only for cosmetic visualization cleanup.
     :type watershed_backend: str
     :param watershed_connectivity: Connectivity for skimage watershed (2=18-NN, 3=26-NN). Only used when watershed_backend="skimage".
     :type watershed_connectivity: int
@@ -509,15 +460,9 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         )
     )
 
-    # Precompute metric-aware weights for metric backends
+    # Precompute edge lengths for blended metric backend
     inv_metric_weights = None
-    if watershed_backend == "rust_det_metric":
-        inv_metric_weights = _compute_metric_inv_weights(
-            cell_matrix=_cell_matrix_for_metric_weights(mat_atoms),
-            grid_shape=dgrid.shape,
-            spacing=spacing,
-        )
-    elif watershed_backend == "rust_det_blended":
+    if watershed_backend == "rust_det_blended":
         inv_metric_weights = list(mgr_rust.compute_edge_lengths(
             _cell_matrix_for_metric_weights(mat_atoms),
             dgrid.shape,

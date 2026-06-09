@@ -1247,85 +1247,6 @@ const NEIGHBOR_OFFSETS_26: &[(isize, isize, isize)] = &[
     (1, 1, -1), (1, 1, 0), (1, 1, 1),
 ];
 
-fn metric_inv_weights_from_cell(
-    cell: &[[f64; 3]; 3],
-    nx: usize,
-    ny: usize,
-    nz: usize,
-    spacing: f64,
-    w_min: f64,
-    w_max: f64,
-) -> Vec<f32> {
-    let inv_n = [1.0 / nx as f64, 1.0 / ny as f64, 1.0 / nz as f64];
-
-    let mut step = [[0.0f64; 3]; 3];
-    for i in 0..3 {
-        for j in 0..3 {
-            step[i][j] = cell[j][i] * inv_n[j]; // cell^T @ diag(1/n)
-        }
-    }
-
-    let mut metric = [[0.0f64; 3]; 3];
-    for i in 0..3 {
-        for j in 0..3 {
-            let mut sum = 0.0;
-            for k in 0..3 {
-                sum += step[k][i] * step[k][j];
-            }
-            metric[i][j] = sum;
-        }
-    }
-
-    let mut inv_w = Vec::with_capacity(26);
-    for &(dx, dy, dz) in NEIGHBOR_OFFSETS_26 {
-        let n = [dx as f64, dy as f64, dz as f64];
-        let mut length_sq = 0.0;
-        for i in 0..3 {
-            for j in 0..3 {
-                length_sq += n[i] * metric[i][j] * n[j];
-            }
-        }
-        let length = length_sq.sqrt();
-        let axes_touched = dx.abs() + dy.abs() + dz.abs();
-        let l0 = spacing * (axes_touched as f64).sqrt();
-        let mut w = if l0 > 0.0 { length / l0 } else { 1.0 };
-        w = w.clamp(w_min, w_max);
-        inv_w.push((1.0 / w) as f32);
-    }
-    inv_w
-}
-
-#[pyfunction]
-#[pyo3(signature = (cell_matrix, grid_shape, spacing, w_min=0.5, w_max=2.0))]
-fn compute_metric_inv_weights(
-    cell_matrix: PyReadonlyArray2<'_, f64>,
-    grid_shape: (usize, usize, usize),
-    spacing: f64,
-    w_min: f64,
-    w_max: f64,
-) -> PyResult<Vec<f32>> {
-    let cell_arr = cell_matrix.as_array();
-    if cell_arr.dim() != (3, 3) {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "`cell_matrix` must have shape (3, 3)",
-        ));
-    }
-    let cell = [
-        [cell_arr[[0, 0]], cell_arr[[0, 1]], cell_arr[[0, 2]]],
-        [cell_arr[[1, 0]], cell_arr[[1, 1]], cell_arr[[1, 2]]],
-        [cell_arr[[2, 0]], cell_arr[[2, 1]], cell_arr[[2, 2]]],
-    ];
-    let (nx, ny, nz) = grid_shape;
-    if nx == 0 || ny == 0 || nz == 0 {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "grid_shape dimensions must be positive",
-        ));
-    }
-    Ok(metric_inv_weights_from_cell(
-        &cell, nx, ny, nz, spacing, w_min, w_max,
-    ))
-}
-
 // ============================================================================
 // Deterministic heap-based watershed with optional mask
 // ----------------------------------------------------------------------------
@@ -1343,18 +1264,6 @@ fn seeded_watershed_det(
     mask: Option<PyReadonlyArray3<'_, u8>>,
 ) -> PyResult<Py<PyArray3<u32>>> {
     heap_watershed_impl(py, image, seeds, mask)
-}
-
-#[pyfunction]
-#[pyo3(text_signature = "(image, seeds, inv_metric_weights, mask=None)")]
-fn seeded_watershed_det_metric(
-    py: Python<'_>,
-    image: PyReadonlyArray3<'_, f32>,
-    seeds: PyReadonlyArray3<'_, u32>,
-    inv_metric_weights: Vec<f32>,
-    mask: Option<PyReadonlyArray3<'_, u8>>,
-) -> PyResult<Py<PyArray3<u32>>> {
-    heap_watershed_metric_impl(py, image, seeds, mask, inv_metric_weights)
 }
 
 // ============================================================================
@@ -1616,118 +1525,6 @@ fn seeded_watershed_masked(
     mask: PyReadonlyArray3<'_, u8>,
 ) -> PyResult<Py<PyArray3<u32>>> {
     heap_watershed_impl(py, image, seeds, Some(mask))
-}
-
-// ============================================================================
-// Metric-aware deterministic heap watershed with bottleneck propagation.
-//
-// Weights neighbour priorities by the inverse of the physical edge-length
-// ratio so that shorter (in Cartesian space) paths receive higher priority.
-// This avoids the diagonal shortcut pathology present in the pure-index-space
-// 26‑NN graph when the unit cell is non-orthogonal.
-// ============================================================================
-fn heap_watershed_metric_impl(
-    py: Python<'_>,
-    image: PyReadonlyArray3<'_, f32>,
-    seeds: PyReadonlyArray3<'_, u32>,
-    mask: Option<PyReadonlyArray3<'_, u8>>,
-    inv_metric_weights: Vec<f32>,
-) -> PyResult<Py<PyArray3<u32>>> {
-    let img = image.as_array();
-    let seeds_arr = seeds.as_array();
-    if img.dim() != seeds_arr.dim() {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "`image` and `seeds` must have identical shapes",
-        ));
-    }
-
-    if inv_metric_weights.len() != 26 {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "`inv_metric_weights` must have exactly 26 elements (one per 26-NN offset)",
-        ));
-    }
-
-    if let Some(ref m) = mask {
-        if m.as_array().dim() != img.dim() {
-            return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                "`mask` shape must match `image`",
-            ));
-        }
-    }
-
-    let (nx, ny, nz) = img.dim();
-    let total_voxels = nx * ny * nz;
-
-    let img_flat: Vec<f32> = img.iter().copied().collect();
-    let mask_flat: Option<Vec<u8>> = mask.as_ref().map(|m| {
-        m.as_array()
-            .iter()
-            .map(|&v| if v != 0 { 1u8 } else { 0u8 })
-            .collect()
-    });
-
-    let mut labels: Vec<u32> = vec![0; total_voxels];
-    let to_flat = |i: usize, j: usize, k: usize| -> usize { i * ny * nz + j * nz + k };
-
-    use std::collections::BinaryHeap;
-    let mut heap: BinaryHeap<(NotNan<f32>, usize)> =
-        BinaryHeap::with_capacity(std::cmp::max(1, total_voxels / 8));
-
-    for ((i, j, k), &label) in seeds_arr.indexed_iter() {
-        if label == 0 {
-            continue;
-        }
-        let idx = to_flat(i, j, k);
-        if let Some(ref m_flat) = mask_flat {
-            if m_flat[idx] == 0 {
-                return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                    "Seed label found in location where mask==0",
-                ));
-            }
-        }
-        labels[idx] = label;
-        let priority = NotNan::new(img_flat[idx]).unwrap();
-        heap.push((priority, idx));
-    }
-
-
-    // BinaryHeap is a max-heap; (priority, flat_index) tie-break prefers higher
-    // flat indices, matching the Python prototype's deterministic ordering.
-    while let Some((prio, idx)) = heap.pop() {
-        let i = idx / (ny * nz);
-        let j = (idx / nz) % ny;
-        let k = idx % nz;
-        let current_label = labels[idx];
-        let prio_val = prio.into_inner();
-
-        for (nidx_offset, &(dx, dy, dz)) in NEIGHBOR_OFFSETS_26.iter().enumerate() {
-            let ni = i as isize + dx;
-            let nj = j as isize + dy;
-            let nk = k as isize + dz;
-            if ni < 0 || nj < 0 || nk < 0 {
-                continue;
-            }
-            let (ni_u, nj_u, nk_u) = (ni as usize, nj as usize, nk as usize);
-            if ni_u >= nx || nj_u >= ny || nk_u >= nz {
-                continue;
-            }
-            let nidx = to_flat(ni_u, nj_u, nk_u);
-            if let Some(ref m_flat) = mask_flat {
-                if m_flat[nidx] == 0 {
-                    continue;
-                }
-            }
-            if labels[nidx] == 0 {
-                labels[nidx] = current_label;
-                let cand = img_flat[nidx] * inv_metric_weights[nidx_offset];
-                let next_prio = cand.min(prio_val);
-                heap.push((NotNan::new(next_prio).unwrap(), nidx));
-            }
-        }
-    }
-
-    let out_arr = Array3::from_shape_vec((nx, ny, nz), labels).expect("shape mismatch");
-    Ok(PyArray3::from_owned_array(py, out_arr).to_owned())
 }
 
 // ============================================================================
@@ -6549,8 +6346,6 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_edge_lengths, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det_blended, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det, m)?)?;
-    m.add_function(wrap_pyfunction!(seeded_watershed_det_metric, m)?)?;
-    m.add_function(wrap_pyfunction!(compute_metric_inv_weights, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
