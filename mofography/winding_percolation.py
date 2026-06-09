@@ -1186,7 +1186,7 @@ def _has_suspicious_self_loop_asymmetry(
 ) -> bool:
     """Return True if any node's self-loop radii spread suggests watershed spill.
 
-    Deterministic watershed (rust_det, rust_det_max) can spill 1-2 voxels across
+    Deterministic watershed (rust_det) can spill 1-2 voxels across
     thin boundaries, inflating self-loop window radii in some directions.  When
     the spread of self-loop radii for a single node exceeds *threshold* × pocket
     radius, the segmentation is flagged as unreliable.
@@ -1325,7 +1325,7 @@ def get_pore_dia_mgr_winding2(
         backend = params.get("watershed_backend", "rust_bucket")
         mask = float(params.get("mask_thickness", 0.05))
 
-        if backend in ("rust_det", "rust_det_max", "rust_det_parallel", "skimage") and mask < 1.5:
+        if backend in ("rust_det", "rust_det_parallel", "skimage") and mask < 1.5:
             if _has_suspicious_self_loop_asymmetry(
                 edge_map, results["maxima_info"], dgrid
             ):
@@ -1466,6 +1466,212 @@ def get_pore_dia_mgr_winding2(
 
     return lcd, pld, dfsd, dgrid
 
+
+
+def _nearest_atom_distance(
+    frac_pos: np.ndarray, atoms, cell_matrix: np.ndarray
+) -> float:
+    """Return distance from fractional position to nearest atom (PBC-aware)."""
+    atom_frac = np.asarray(atoms.get_scaled_positions(wrap=True), dtype=float)
+    dr_frac = atom_frac - frac_pos.reshape(1, 3)
+    dr_frac -= np.round(dr_frac)
+    dr_cart = np.einsum("ni,ij->nj", dr_frac, cell_matrix)
+    dist = np.linalg.norm(dr_cart, axis=1)
+    return float(dist.min())
+
+
+def _prune_spill_edges(
+    graph: nx.MultiDiGraph,
+    results: Dict[str, object],
+    atoms,
+    spill_margin: float = 2.0,
+) -> nx.MultiDiGraph:
+    """Remove edges whose window centers are too far from any framework atom.
+
+    A real constriction must have framework atoms within ``wr + max_vdw`` of
+    the window center.  Spill-over windows float in empty pore space with
+    nearest atoms far away.  The check is:
+
+        nearest_atom_dist > wr_min + spill_margin  =>  spill artifact
+
+    Parameters
+    ----------
+    graph : MultiDiGraph
+        Pore graph with edge data containing ``window_radius_min`` and
+        ``window_positions``.
+    results : dict
+        Segmentation results (used for dgrid shape).
+    atoms : ase.Atoms
+        Framework atoms.
+    spill_margin : float
+        Extra tolerance in Angstroms beyond the window radius.  Accounts for
+        VDW radii and grid discretization.  Default 2.0 Å covers
+        max(CRC_vdw) ≈ 1.7 Å + 0.3 Å headroom.
+
+    Returns
+    -------
+    graph : MultiDiGraph
+        The *same* graph object with spill edges removed.
+    """
+    from ase.geometry import complete_cell
+
+    dgrid = np.asarray(results.get("dgrid"))
+    if dgrid.ndim != 3 or atoms is None:
+        return graph
+    shape = tuple(int(x) for x in dgrid.shape)
+    cell_matrix = complete_cell(atoms.get_cell()).T
+
+    edges_to_remove = []
+    for u, v, k, data in graph.edges(keys=True, data=True):
+        wr_min = float(data.get("window_radius_min", 0))
+        frac = _window_frac_from_edge_data(data, shape)
+        if frac is None:
+            continue
+        nearest = _nearest_atom_distance(np.asarray(frac), atoms, cell_matrix)
+        if nearest > wr_min + spill_margin:
+            edges_to_remove.append((u, v, k))
+
+    for u, v, k in edges_to_remove:
+        graph.remove_edge(u, v, k)
+
+    import logging
+    logger = logging.getLogger(__name__)
+    if edges_to_remove:
+        logger.info(
+            "Spill-edge pruning: removed %d edges (no resegmentation)",
+            len(edges_to_remove),
+        )
+
+    return graph
+
+
+def get_pore_dia_mgr_winding3(
+    mat_atoms=None,
+    dgrid: Optional[np.ndarray] = None,
+    kwargs: Optional[Dict[str, object]] = None,
+    results: Optional[Dict[str, object]] = None,
+    include_dangling: bool = True,
+    expand_components: bool = True,
+    spill_margin: float = 2.0,
+) -> Tuple[float, float, float, np.ndarray]:
+    """Compute pore diameters with spill-edge pruning (no resegmentation).
+
+    Identical to ``get_pore_dia_mgr_winding`` but instead of re-segmenting
+    with a thicker mask, this version detects and **removes** spill-over edges
+    from the pore graph.  A real constriction must have framework atoms near
+    the window center; spill artifacts float in empty pore space.
+
+    Detection: for each edge, compute PBC-aware distance from the window
+    center to the nearest framework atom.  If
+    ``nearest_atom_dist > wr_min + spill_margin``, the edge is a spill
+    artifact and is pruned.
+
+    Parameters
+    ----------
+    mat_atoms : ase.Atoms, optional
+        ASE Atoms object. Required if *results* is None.
+    dgrid : ndarray, optional
+        Pre-computed distance grid.
+    kwargs : dict, optional
+        Keyword arguments for ``do_periodic_segmentation_rust``.
+    results : dict, optional
+        Pre-computed segmentation results.
+    include_dangling : bool
+        Whether to include dangling edges.
+    expand_components : bool
+        Whether to expand components.
+    spill_margin : float
+        Extra tolerance (Å) beyond window radius for spill detection.
+        Default 2.0 Å covers max(CRC_vdw) + headroom.
+
+    Returns
+    -------
+    tuple[float, float, float, ndarray]
+        (lcd, pld, dfsd, dgrid)
+    """
+    if kwargs is None:
+        kwargs = {}
+
+    spacing = kwargs.get("spacing", 0.5)
+    if results is None:
+        if dgrid is None:
+            if mat_atoms is None:
+                raise ValueError("mat_atoms or results must be provided.")
+            dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        results = mgr.do_periodic_segmentation_rust(
+            dgrid,
+            mat_atoms,
+            mask_thickness=kwargs.get("mask_thickness", 0.05),
+            h=kwargs.get("h", 0.2),
+            spacing=spacing,
+            return_dgrid=True,
+            threshold_abs=kwargs.get("threshold_abs", 1.5),
+            min_distance=kwargs.get("min_distance", 1.5),
+            return_padded_regions=True,
+            extra_padding=kwargs.get("extra_padding", 2),
+            watershed_backend=kwargs.get("watershed_backend", "rust_det"),
+        )
+    else:
+        dgrid = np.asarray(results["dgrid"])
+
+    # Resolve atoms for spill detection
+    atoms = mat_atoms
+    if atoms is None and isinstance(results, dict):
+        atoms = results.get("mat_atoms")
+
+    graph = make_directed_graph_from_segmentation_results(results)
+    base_region_labels = build_base_region_labels_from_results(results)
+
+    # --- Spill-edge pruning (before PLR computation) ---
+    if atoms is not None:
+        graph = _prune_spill_edges(graph, results, atoms, spill_margin=spill_margin)
+
+    lcd = float(dgrid.max() * 2)
+    plr = find_pore_limiting_radius_winding(
+        results,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
+    if plr is None:
+        return lcd, 0.0, 0.0, dgrid
+
+    pld = float(plr * 2)
+
+    # --- Compute DFSD ---
+    dfsd_threshold = _dfsd_threshold(plr, results, kwargs)
+    axis_clusters, _, _ = percolation_all_axes_winding(
+        results,
+        dfsd_threshold,
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
+    percolating_labels = set()
+    for groups in axis_clusters.values():
+        for labels in groups:
+            percolating_labels.update(labels)
+    percolating_labels = _expand_dfsd_labels_with_window_fingerprint(
+        graph=graph,
+        base_region_labels=base_region_labels,
+        percolating_labels=percolating_labels,
+        results=results,
+        dgrid=dgrid,
+        plr=float(plr),
+        kwargs=kwargs,
+        atoms=atoms,
+    )
+
+    dfsd = 0.0
+    if percolating_labels:
+        regions = np.asarray(results["regions"])
+        mask = np.isin(regions, list(percolating_labels))
+        if mask.any():
+            dfsd = float(dgrid[mask].max() * 2)
+
+    return lcd, pld, dfsd, dgrid
 
 CORNER_LOOP_GRID = np.array(
     [
