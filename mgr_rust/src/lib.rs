@@ -1234,6 +1234,98 @@ fn seeded_watershed_bucket(
     Ok(PyArray3::from_owned_array(py, out_arr).to_owned())
 }
 
+// 26-neighbor offsets in the same order used by all watershed backends.
+const NEIGHBOR_OFFSETS_26: &[(isize, isize, isize)] = &[
+    (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
+    (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
+    (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
+    (0, -1, -1), (0, -1, 0), (0, -1, 1),
+    (0, 0, -1),                 (0, 0, 1),
+    (0, 1, -1), (0, 1, 0), (0, 1, 1),
+    (1, -1, -1), (1, -1, 0), (1, -1, 1),
+    (1, 0, -1), (1, 0, 0), (1, 0, 1),
+    (1, 1, -1), (1, 1, 0), (1, 1, 1),
+];
+
+fn metric_inv_weights_from_cell(
+    cell: &[[f64; 3]; 3],
+    nx: usize,
+    ny: usize,
+    nz: usize,
+    spacing: f64,
+    w_min: f64,
+    w_max: f64,
+) -> Vec<f32> {
+    let inv_n = [1.0 / nx as f64, 1.0 / ny as f64, 1.0 / nz as f64];
+
+    let mut step = [[0.0f64; 3]; 3];
+    for i in 0..3 {
+        for j in 0..3 {
+            step[i][j] = cell[i][j] * inv_n[j];
+        }
+    }
+
+    let mut metric = [[0.0f64; 3]; 3];
+    for i in 0..3 {
+        for j in 0..3 {
+            let mut sum = 0.0;
+            for k in 0..3 {
+                sum += step[k][i] * step[k][j];
+            }
+            metric[i][j] = sum;
+        }
+    }
+
+    let mut inv_w = Vec::with_capacity(26);
+    for &(dx, dy, dz) in NEIGHBOR_OFFSETS_26 {
+        let n = [dx as f64, dy as f64, dz as f64];
+        let mut length_sq = 0.0;
+        for i in 0..3 {
+            for j in 0..3 {
+                length_sq += n[i] * metric[i][j] * n[j];
+            }
+        }
+        let length = length_sq.sqrt();
+        let axes_touched = dx.abs() + dy.abs() + dz.abs();
+        let l0 = spacing * (axes_touched as f64).sqrt();
+        let mut w = if l0 > 0.0 { length / l0 } else { 1.0 };
+        w = w.clamp(w_min, w_max);
+        inv_w.push((1.0 / w) as f32);
+    }
+    inv_w
+}
+
+#[pyfunction]
+#[pyo3(signature = (cell_matrix, grid_shape, spacing, w_min=0.5, w_max=2.0))]
+fn compute_metric_inv_weights(
+    cell_matrix: PyReadonlyArray2<'_, f64>,
+    grid_shape: (usize, usize, usize),
+    spacing: f64,
+    w_min: f64,
+    w_max: f64,
+) -> PyResult<Vec<f32>> {
+    let cell_arr = cell_matrix.as_array();
+    if cell_arr.dim() != (3, 3) {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "`cell_matrix` must have shape (3, 3)",
+        ));
+    }
+    let cell = [
+        [cell_arr[[0, 0]], cell_arr[[0, 1]], cell_arr[[0, 2]]],
+        [cell_arr[[1, 0]], cell_arr[[1, 1]], cell_arr[[1, 2]]],
+        [cell_arr[[2, 0]], cell_arr[[2, 1]], cell_arr[[2, 2]]],
+    ];
+    let (nx, ny, nz) = grid_shape;
+    if nx == 0 || ny == 0 || nz == 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "grid_shape dimensions must be positive",
+        ));
+    }
+    Ok(metric_inv_weights_from_cell(
+        &cell, nx, ny, nz, spacing, w_min, w_max,
+    ))
+}
+
 // ============================================================================
 // Deterministic heap-based watershed with optional mask
 // ----------------------------------------------------------------------------
@@ -1254,14 +1346,15 @@ fn seeded_watershed_det(
 }
 
 #[pyfunction]
-#[pyo3(text_signature = "(image, seeds, mask=None)")]
-fn seeded_watershed_det_max(
+#[pyo3(text_signature = "(image, seeds, inv_metric_weights, mask=None)")]
+fn seeded_watershed_det_metric(
     py: Python<'_>,
     image: PyReadonlyArray3<'_, f32>,
     seeds: PyReadonlyArray3<'_, u32>,
+    inv_metric_weights: Vec<f32>,
     mask: Option<PyReadonlyArray3<'_, u8>>,
 ) -> PyResult<Py<PyArray3<u32>>> {
-    heap_watershed_max_impl(py, image, seeds, mask)
+    heap_watershed_metric_impl(py, image, seeds, mask, inv_metric_weights)
 }
 
 // ============================================================================
@@ -1525,20 +1618,32 @@ fn seeded_watershed_masked(
     heap_watershed_impl(py, image, seeds, Some(mask))
 }
 
-// Deterministic heap watershed with path bottleneck priority.
-// Priority propagated to neighbors is min(current_priority, image[neighbor]),
-// which emulates barrier-aware flooding while preserving deterministic order.
-fn heap_watershed_max_impl(
+// ============================================================================
+// Metric-aware deterministic heap watershed with bottleneck propagation.
+//
+// Weights neighbour priorities by the inverse of the physical edge-length
+// ratio so that shorter (in Cartesian space) paths receive higher priority.
+// This avoids the diagonal shortcut pathology present in the pure-index-space
+// 26‑NN graph when the unit cell is non-orthogonal.
+// ============================================================================
+fn heap_watershed_metric_impl(
     py: Python<'_>,
     image: PyReadonlyArray3<'_, f32>,
     seeds: PyReadonlyArray3<'_, u32>,
     mask: Option<PyReadonlyArray3<'_, u8>>,
+    inv_metric_weights: Vec<f32>,
 ) -> PyResult<Py<PyArray3<u32>>> {
     let img = image.as_array();
     let seeds_arr = seeds.as_array();
     if img.dim() != seeds_arr.dim() {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
             "`image` and `seeds` must have identical shapes",
+        ));
+    }
+
+    if inv_metric_weights.len() != 26 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "`inv_metric_weights` must have exactly 26 elements (one per 26-NN offset)",
         ));
     }
 
@@ -1585,18 +1690,9 @@ fn heap_watershed_max_impl(
         heap.push((priority, idx));
     }
 
-    let neighbor_offsets: &[(isize, isize, isize)] = &[
-        (-1, -1, -1), (-1, -1, 0), (-1, -1, 1),
-        (-1, 0, -1), (-1, 0, 0), (-1, 0, 1),
-        (-1, 1, -1), (-1, 1, 0), (-1, 1, 1),
-        (0, -1, -1), (0, -1, 0), (0, -1, 1),
-        (0, 0, -1),                 (0, 0, 1),
-        (0, 1, -1), (0, 1, 0), (0, 1, 1),
-        (1, -1, -1), (1, -1, 0), (1, -1, 1),
-        (1, 0, -1), (1, 0, 0), (1, 0, 1),
-        (1, 1, -1), (1, 1, 0), (1, 1, 1),
-    ];
 
+    // BinaryHeap is a max-heap; (priority, flat_index) tie-break prefers higher
+    // flat indices, matching the Python prototype's deterministic ordering.
     while let Some((prio, idx)) = heap.pop() {
         let i = idx / (ny * nz);
         let j = (idx / nz) % ny;
@@ -1604,7 +1700,7 @@ fn heap_watershed_max_impl(
         let current_label = labels[idx];
         let prio_val = prio.into_inner();
 
-        for &(dx, dy, dz) in neighbor_offsets {
+        for (nidx_offset, &(dx, dy, dz)) in NEIGHBOR_OFFSETS_26.iter().enumerate() {
             let ni = i as isize + dx;
             let nj = j as isize + dy;
             let nk = k as isize + dz;
@@ -1623,7 +1719,8 @@ fn heap_watershed_max_impl(
             }
             if labels[nidx] == 0 {
                 labels[nidx] = current_label;
-                let next_prio = img_flat[nidx].min(prio_val);
+                let cand = img_flat[nidx] * inv_metric_weights[nidx_offset];
+                let next_prio = cand.min(prio_val);
                 heap.push((NotNan::new(next_prio).unwrap(), nidx));
             }
         }
@@ -6258,7 +6355,8 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(seeded_watershed_bucket, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det, m)?)?;
-    m.add_function(wrap_pyfunction!(seeded_watershed_det_max, m)?)?;
+    m.add_function(wrap_pyfunction!(seeded_watershed_det_metric, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_metric_inv_weights, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_det_parallel, m)?)?;
     m.add_function(wrap_pyfunction!(seeded_watershed_masked, m)?)?;
     m.add_function(wrap_pyfunction!(detect_maxima_h_morph, m)?)?;
@@ -6285,7 +6383,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bonds::covalent_bonds, m)?)?;
     m.add_function(wrap_pyfunction!(cif::read_cif, m)?)?;
     m.add_function(wrap_pyfunction!(aromatic::expand_aromatic_cycle_embeddings, m)?)?;
-    m.add("__all__", ["dgrid_from_atoms", "dgrid_from_atoms_aabb", "dgrid_from_atoms_aabb_interp", "egrid_from_atoms", "window_connections", "periodic_gaussian_filter", "seeded_watershed_bucket", "seeded_watershed", "seeded_watershed_det", "seeded_watershed_det_max", "seeded_watershed_det_parallel", "seeded_watershed_masked", "compute_pore_sizes_uniform","compute_pore_sizes_for_psd_pocketwise",  "detect_maxima_h_morph", "detect_maxima_h_morph_opening", "move_maxima_to_peaks", "detect_maxima_h_morph2", "detect_maxima_h_morph_simple", "detect_maxima_h_morph_no_spacing", "detect_maxima_adaptive_geometry", "detect_maxima_selective_smoothing", "detect_maxima_selective_smoothing_parallel", "detect_maxima_selective_smoothing_parallel2", "detect_maxima_percolation_guided", "detect_maxima_voronoi_based", "detect_maxima_multiscale_log", "detect_maxima_adaptive_h", "find_pore_limiting_radius", "rayon_num_threads", "read_cif", "covalent_bonds", "expand_aromatic_cycle_embeddings"])?;
+
 
     // By returning Ok(()), the module initialization is successful.
     Ok(())

@@ -1,0 +1,307 @@
+#+TITLE: Metric-Aware Watershed for Non-Orthogonal Cells
+#+AUTHOR: mofography team
+#+DATE: 2025-06-08
+
+* Executive Summary
+
+The priority-flood watershed in =heap_watershed_impl= (lib.rs:1637) uses 26-neighbor
+connectivity in pure grid-index space.  For non-orthogonal unit cells this creates
+/unequal/ physical edge lengths that the algorithm treats as equal, causing basin
+leakage through short diagonal shortcuts.  The proposed fix normalizes flood
+priorities by precomputed physical edge lengths derived from the cell metric tensor.
+Cost: one fused multiply with precomputed reciprocals per neighbor check.
+No resampling, no grid changes.
+
+---
+
+* Root Cause: Metric Mismatch in Grid-Index Space
+
+** What happens
+
+The grid is laid out along cell vectors a, b, c.  Grid point (i,j,k) sits at
+fractional coordinate f = (i/n_x, j/n_y, k/n_z).  Its Cartesian position is:
+
+#+BEGIN_SRC
+r = M @ f
+#+END_SRC
+
+where M = [a | b | c] is the 3×3 cell matrix.
+
+A grid-index neighbor offset n = (dx, dy, dz) corresponds to Cartesian displacement:
+
+#+BEGIN_SRC
+Δr = M @ (dx/n_x, dy/n_y, dz/n_z) = S @ n
+#+END_SRC
+
+where S = M · diag(1/n_x, 1/n_y, 1/n_z) is the /step matrix/.
+
+For an orthogonal cell, S ≈ spacing · I, and all 26 neighbors are at
+well-defined, isotropic distances (face=0.50, edge=0.71, corner=0.87 Å at sp=0.5).
+
+For a skewed cell, S has off-diagonal terms.  The 26 "one-hop" neighbors are at
+/heterogeneous/ physical distances.
+
+** Measured anisotropy (spacing = 0.5 Å)
+
+| Structure | Cell angles          | Face range      | Edge range      | Corner range    | Corner ratio | PLD error    |
+|-----------+----------------------+-----------------+-----------------+-----------------+--------------+--------------|
+| IRMOF-1   | 90°, 90°, 90°        | 0.500 (exact)   | 0.707 (exact)   | 0.866 (exact)   |         1.00 | None         |
+| TOVKOG    | 88°, 88°, 88°        | 0.480–0.498     | 0.592–0.774     | 0.657–0.894     |         1.05 | Mild         |
+| WUPNIF    | 101°, 107°, 73°      | 0.480–0.498     | 0.565–0.795     | 0.735–1.045     |         1.42 | Likely       |
+| VIGNOQ    | 96°, 105°, 104°      | 0.480–0.498     | 0.592–0.774     | 0.657–0.957     |         1.46 | Severe       |
+
+The anisotropy ratio of corner neighbors /correlates perfectly/ with PLD error
+severity across all tested structures.
+
+** Consequence
+
+The priority-flood pops voxels by decreasing dgrid.  All 26 neighbors of a
+popped voxel are pushed with priority = neighbor's dgrid value, regardless of
+physical edge length.  Short diagonals (e.g. 0.66 Å) let a basin "sneak"
+through constrictions that long diagonals (0.96 Å) would not, creating
+/artificial bypass paths/ that shift basin boundaries away from true
+constrictions toward the cell face.
+
+** What is NOT the cause
+
+- *Periodic padding*: wrap-mode padding is correct.  Edge lengths at the seam
+  are identical to interior edge lengths.
+- *Distance grid*: dgrid values are continuous across the seam and computed with
+  full MIC.
+- *Watershed algorithm*: priority-flood faithfully segments the graph it is
+  given.  The bug is in the /graph/, not the /flood/.
+- *Marker placement*: markers are correct.
+
+---
+
+* Proposed Fix: Metric-Aware Edge Weighting
+
+** Core idea
+
+Scale each neighbor's flood priority by the /physical/ edge length of that
+grid-offset, so that geometrically-long diagonals are penalized relative to
+short ones.
+
+** Mathematical formulation
+
+Define the /metric tensor in grid-index space/:
+
+#+BEGIN_SRC
+G = Sᵀ S    (3×3 symmetric positive-definite)
+#+END_SRC
+
+For any neighbor offset n = (dx, dy, dz), the squared physical edge length is:
+
+#+BEGIN_SRC
+|Δr|² = nᵀ G n
+#+END_SRC
+
+Precompute all 26 edge lengths:
+
+#+BEGIN_SRC
+for (dx, dy, dz) in neighbor_offsets:
+    length[dx,dy,dz] = sqrt(nᵀ G n)
+#+END_SRC
+
+Normalize by the orthogonal baseline for each offset class:
+
+#+BEGIN_SRC
+for each offset (dx, dy, dz):
+    axes_touched = |dx| + |dy| + |dz|   # 1 (face), 2 (edge), 3 (corner)
+    L0_orthogonal = spacing * sqrt(axes_touched)
+    weight[dx,dy,dz] = length[dx,dy,dz] / L0_orthogonal
+    weight[dx,dy,dz] = clamp(weight[dx,dy,dz], w_min, w_max)
+    inv_w[dx,dy,dz] = 1.0 / weight[dx,dy,dz]
+#+END_SRC
+
+For an orthogonal cell, length = L0_orthogonal for /every/ one of the 26
+offsets, so weight = 1.0 for all neighbors (no change).
+For a skewed cell, weight varies, correctly penalizing geometrically-long edges.
+
+** Modification to the watershed inner loop
+
+Current (lib.rs ~line 1711):
+
+#+BEGIN_SRC rust
+while let Some((_prio, idx)) = heap.pop() {
+    ...
+    for &(dx, dy, dz) in neighbor_offsets {
+        ...
+        let priority = NotNan::new(img_flat[nidx]).unwrap();
+        heap.push((priority, nidx));     // ← all edges equal
+    }
+}
+#+END_SRC
+
+Proposed:
+
+#+BEGIN_SRC rust
+while let Some((parent_prio, idx)) = heap.pop() {
+    ...
+    for (k, &(dx, dy, dz)) in neighbor_offsets.iter().enumerate() {
+        ...
+        let cand = img_flat[nidx] * inv_w[k];          // reciprocal multiply
+        let next = parent_prio.into_inner().min(cand); // bottleneck propagation
+        let priority = NotNan::new(next).unwrap();
+        heap.push((priority, nidx));                   // monotone priority flood
+    }
+}
+#+END_SRC
+
+** Cost
+
+- Precomputation: 26 evaluations of sqrt(nᵀ G n), done once per call.
+- Inner loop: one float multiply (=cand = dgrid * inv_w=) and one min
+  (=next = min(parent_prio, cand)=) per neighbor check.  No division in the
+  hot loop, no resampling, no grid changes.
+- Expected overhead: <1%.
+
+** Why this works
+
+The priority-flood must remain monotone: a child cannot be assigned a
+priority higher than the voxel from which it was reached.  The corrected
+transition is:
+
+#+BEGIN_SRC
+cand = dgrid[neighbor] / w[offset]
+next = min(parent_prio, cand)
+#+END_SRC
+
+This bottleneck propagation preserves the max-min (widest-path) invariant of
+priority flood and prevents non-physical "priority increases" along a path.
+With metric-aware weighting, this means:
+
+- Voxels reached via /short/ physical edges (weight < 1) get /higher/ priority
+  → processed first → basin expands along physically-close neighbors.
+- Voxels reached via /long/ physical edges (weight > 1) get /lower/ priority
+  → processed later → basin cannot shortcut through geometrically-distant
+    diagonals.
+
+For orthogonal cells, all weights = 1.0 for all 26 offsets, and the
+=next = min(parent_prio, dgrid)= step is exactly the standard monotone
+priority-flood update.
+
+---
+
+* Alternative Formulations Considered
+
+** Switch to 6-NN connectivity only
+
+- Simplest fix.  Removes all diagonal shortcuts.
+- Risk: may lose legitimate diagonal connections in pore geometries where
+  constrictions are aligned along non-axis directions.
+- Not recommended as the sole fix.
+
+** Resample dgrid to isotropic Cartesian grid
+
+- Transform dgrid from fractional to Cartesian coordinates via interpolation.
+- Makes 26-NN connectivity isotropic by construction.
+- Cost: interpolation introduces smoothing artifacts at constrictions (where
+  accuracy matters most).  Grid size may increase.
+- Not recommended.
+
+** Distance-weighted priority (the chosen approach)
+
+- Corrects the graph without modifying the grid.
+- Zero overhead, mathematically clean.
+- Preserves current behavior for orthogonal cells.
+- Recommended.
+
+---
+
+* Implementation Plan
+
+** Phase 1: Python prototype
+
+Write a standalone script that:
+
+1. Computes G from the cell matrix.
+2. Computes 26 edge weights.
+3. Runs a metric-aware priority-flood on VIGNOQ's padded dgrid.
+4. Compares boundary placement vs the current 26-NN flood.
+
+Success criterion: self-loop boundary dgrid at constriction (~1.28 Å),
+not at pocket interior (~4.14 Å).
+
+** Phase 2: Rust implementation
+
+Modify =heap_watershed_impl= in lib.rs:
+
+1. Accept cell matrix and grid dimensions as additional parameters.
+2. Compute edge weights at function entry.
+3. Compute =inv_w= at function entry from clamped metric weights
+   (=w_min <= w <= w_max= for extreme skew robustness).
+4. Apply reciprocal-multiply bottleneck update in the inner loop:
+   =cand = dgrid * inv_w=, =next = min(parent_prio, cand)=.
+5. Enforce deterministic ties with a secondary heap key
+   (e.g., linear voxel index).
+
+Keep backward compatibility: if cell matrix is not provided, all weights = 1.0
+(current behavior).
+
+** Phase 3: Pipeline integration
+
+Wire the cell matrix through the call chain:
+=compute.py= → =rust_fun.py= → =heap_watershed_impl=.
+
+** Phase 4: Validation
+
+Test on all 7 structures:
+
+| Structure  | Expected result                     |
+|------------+-------------------------------------|
+| VIGNOQ     | PLD ≈ 3.1 Å (zeo++ = 3.115)        |
+| TOVKOG     | PLD ≈ 12.9 Å (winding2 = 12.91)    |
+| IRMOF-1    | PLD unchanged (orthogonal)          |
+| REHHOD     | PLD unchanged (no self-loop issue)  |
+| CuBTC      | PLD unchanged (orthogonal)          |
+| NU-1000    | PLD unchanged (orthogonal)          |
+| WUPNIF     | PLD to be determined                |
+
+In addition to PLD, track:
+
+- Component count stability (no spurious merge/split vs baseline where expected).
+- Boundary dgrid histogram (boundary voxels should shift toward constriction
+  radii, away from pocket-interior radii).
+- Alpha ablation: compare alpha = 1.0 vs alpha = 0.5 in
+  =cand = dgrid / weight^alpha= with identical seeds/settings.
+
+---
+
+* Open Questions
+
+1. **Ablation for alpha parameter**: compare
+   =cand = dgrid / weight^alpha= at alpha = 1.0 (default) vs alpha = 0.5
+   (softer penalty).  Keep bottleneck propagation
+   =next = min(parent_prio, cand)= in both settings.
+
+2. **Interaction with existing fixes**: The spill-filter and DFSD threshold
+   relaxation from commit =b10999a= should remain orthogonal to this fix.
+   The metric-aware watershed addresses the /graph geometry/ root cause;
+   the other fixes address /post-segmentation/ issues.
+
+3. **Interaction with =mask_thickness=:** The mask excludes voxels with
+   dgrid < mask_thickness from watershed flooding.  This is independent of
+   the edge weighting and should not interact.
+
+4. **Deterministic ties**: when heap priorities are equal, use a stable
+   secondary key (e.g., voxel linear index) to ensure deterministic ordering
+   across platforms/runs.
+
+---
+
+* Key Formulas (Reference)
+
+#+BEGIN_SRC
+Cell matrix:       M = [a | b | c]              (3×3, columns = cell vectors)
+Step matrix:       S = M · diag(1/nx, 1/ny, 1/nz)
+Metric tensor:     G = Sᵀ S                      (3×3, symmetric)
+Edge length:       L(dx,dy,dz) = sqrt(nᵀ G n)   where n = [dx,dy,dz]ᵀ
+Axes touched:      a = |dx| + |dy| + |dz|       (1 face, 2 edge, 3 corner)
+Orthogonal ref:    L0(dx,dy,dz) = spacing * sqrt(a)
+Edge weight:       w = L / L0
+Clamped weight:    w_clamped = clamp(w, w_min, w_max)
+Reciprocal:        inv_w = 1 / w_clamped
+Candidate prio:    cand = dgrid[neighbor] * inv_w[offset]
+Propagated prio:   P(neighbor) = min(P(parent), cand)
+#+END_SRC
