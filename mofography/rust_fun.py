@@ -344,203 +344,8 @@ def _seeded_watershed_backend(
 
 
 
-def _metric_flood_regions_from_maxima_info(
-    maxima_info,
-    dgrid,
-    padding_thickness,
-    inv_metric_weights,
-    mask_thickness,
-    compactness=0,
-    watershed_connectivity=2,
-):
-    """Metric-aware seeded watershed on periodic maxima_info markers."""
-    original_shape = np.array(dgrid.shape, dtype=int)
-    padded_dgrid = np.pad(dgrid, padding_thickness, mode="wrap")
-    padded_void = np.pad(dgrid > mask_thickness, padding_thickness, mode="wrap")
-    markers = np.zeros_like(padded_dgrid, dtype=int)
-    for info in np.asarray(maxima_info, dtype=int):
-        pos = info[1:4] + padding_thickness + info[4:7] * original_shape
-        markers[tuple(pos)] = info[0]
 
-    padded_regions = _seeded_watershed_backend(
-        padded_dgrid,
-        markers,
-        padded_void,
-        "rust_det_metric",
-        inv_metric_weights=inv_metric_weights,
-        compactness=compactness,
-        watershed_connectivity=watershed_connectivity,
-    )
-    regions = padded_regions[
-        padding_thickness:-padding_thickness,
-        padding_thickness:-padding_thickness,
-        padding_thickness:-padding_thickness,
-    ].astype(np.uint32, copy=False)
-    return regions, padded_regions
-
-
-
-
-def _metric_flood_regions_from_merged_maxima(
-    merged_maxima,
-    dgrid,
-    padding_thickness,
-    inv_metric_weights,
-    mask_thickness,
-    compactness=0,
-    watershed_connectivity=2,
-):
-    """Metric-aware seeded watershed on unit-cell merged maxima (regions_pbc)."""
-    merged_maxima = np.asarray(merged_maxima, dtype=int)
-    markers = np.zeros_like(dgrid, dtype=int)
-    if merged_maxima.size:
-        markers[tuple(merged_maxima.T)] = np.arange(1, len(merged_maxima) + 1, dtype=int)
-
-    padded_dgrid = np.pad(dgrid, padding_thickness, mode="wrap")
-    padded_markers = np.pad(markers, padding_thickness, mode="wrap")
-    padded_void = np.pad(dgrid > mask_thickness, padding_thickness, mode="wrap")
-
-    padded_regions = _seeded_watershed_backend(
-        padded_dgrid,
-        padded_markers,
-        padded_void,
-        "rust_det_metric",
-        inv_metric_weights=inv_metric_weights,
-        compactness=compactness,
-        watershed_connectivity=watershed_connectivity,
-    )
-    regions_pbc = padded_regions[
-        padding_thickness:-padding_thickness,
-        padding_thickness:-padding_thickness,
-        padding_thickness:-padding_thickness,
-    ].astype(np.uint32, copy=False)
-    return regions_pbc, padded_regions
-
-
-def _rust_det_metric_segmentation(
-    dgrid,
-    mat_atoms,
-    bucket_scaffold=None,
-    mask_thickness=0.05,
-    h=0.2,
-    min_distance=1.5,
-    threshold_abs=1.5,
-    preserve_threshold=3.0,
-    smooth_threshold=6.0,
-    max_smooth_radius=2.0,
-    return_padded_regions=False,
-    spacing=None,
-    minimum_window_separation=None,
-    wall_thickness=0.05,
-    extra_padding=5,
-    compactness=0,
-    min_region_size=0.001,
-    disable_tqdm=False,
-    compute_connections=True,
-    return_dgrid=False,
-    watershed_connectivity=2,
-):
-    """Bucket metadata scaffold + metric floods on merged and unmerged markers."""
-    import mgr_rust
-    from mofography.compute import find_pore_limiting_radius
-
-    if minimum_window_separation is None:
-        minimum_window_separation = spacing * 3
-
-    if bucket_scaffold is None:
-        scaffold = do_periodic_segmentation_rust(
-            dgrid,
-            mat_atoms,
-            mask_thickness=mask_thickness,
-            h=h,
-            min_distance=min_distance,
-            threshold_abs=threshold_abs,
-            preserve_threshold=preserve_threshold,
-            smooth_threshold=smooth_threshold,
-            max_smooth_radius=max_smooth_radius,
-            return_padded_regions=True,
-            spacing=spacing,
-            minimum_window_separation=minimum_window_separation,
-            wall_thickness=wall_thickness,
-            extra_padding=extra_padding,
-            compactness=compactness,
-            min_region_size=min_region_size,
-            disable_tqdm=disable_tqdm,
-            compute_connections=False,
-            return_dgrid=return_dgrid,
-            watershed_backend="rust_bucket",
-            watershed_connectivity=watershed_connectivity,
-        )
-    else:
-        scaffold = bucket_scaffold
-
-    padding_thickness = int(scaffold["input_params"]["padding_thickness"])
-    inv_metric_weights = _compute_metric_inv_weights(
-        cell_matrix=_cell_matrix_for_metric_weights(mat_atoms),
-        grid_shape=dgrid.shape,
-        spacing=spacing,
-    )
-    effective_mask = float(
-        np.min([find_pore_limiting_radius(dgrid) - 0.25, mask_thickness])
-    )
-
-    regions_pbc, _ = _metric_flood_regions_from_merged_maxima(
-        scaffold["maxima_pbc"],
-        dgrid,
-        padding_thickness,
-        inv_metric_weights,
-        effective_mask,
-        compactness=compactness,
-        watershed_connectivity=watershed_connectivity,
-    )
-    regions, regions_padded = _metric_flood_regions_from_maxima_info(
-        scaffold["maxima_info"],
-        dgrid,
-        padding_thickness,
-        inv_metric_weights,
-        effective_mask,
-        compactness=compactness,
-        watershed_connectivity=watershed_connectivity,
-    )
-
-    scaffold["regions_pbc"] = regions_pbc
-    scaffold["regions"] = regions
-    scaffold["regions_padded"] = regions_padded
-
-    if not compute_connections:
-        if not return_padded_regions and "regions_padded" in scaffold:
-            del scaffold["regions_padded"]
-        return scaffold
-
-    from ase.geometry import cellpar_to_cell
-
-    A_unit = cellpar_to_cell(mat_atoms.cell.cellpar()).T
-    padded_grid = np.pad(dgrid, padding_thickness, mode="wrap")
-    connections_list = mgr_rust.window_connections(
-        regions_padded.astype(np.uint32),
-        padded_grid.astype(np.float32),
-        padding_thickness,
-        A_unit,
-        float(minimum_window_separation),
-    )
-    connections_list = [
-        np.array([c[0], c[1], c[2], c[3], c[4]], dtype="object")
-        for c in connections_list
-    ]
-    unit_cell_region_labels = np.delete(np.unique(regions), 0)
-    for c in connections_list:
-        if np.any(~np.isin(c[0], unit_cell_region_labels)):
-            c[2] = "periodic"
-    scaffold["connections"] = connections_list
-    scaffold["unique_regions"] = unit_cell_region_labels
-
-    if not return_padded_regions and "regions_padded" in scaffold:
-        del scaffold["regions_padded"]
-    return scaffold
-
-
-
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_bucket", watershed_connectivity=2, _metric_bucket_scaffold=None):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_bucket", watershed_connectivity=2, skip_endchannel_pairs=False):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -588,7 +393,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     :type compute_connections: bool
     :param return_dgrid: Whether to include dgrid in output
     :type return_dgrid: bool
-    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), \"rust_det_parallel\" (deterministic parallel), or \"skimage\".
+    :param watershed_backend: Which watershed backend to use: \"rust_bucket\" (default), \"rust_det\" (deterministic Rust heap), \"rust_det_metric\" (metric-aware deterministic for non-orthogonal cells), \"rust_det_parallel\" (deterministic parallel), or \"skimage\".
     :type watershed_backend: str
     :param watershed_connectivity: Connectivity for skimage watershed (2=18-NN, 3=26-NN). Only used when watershed_backend="skimage".
     :type watershed_connectivity: int
@@ -633,30 +438,6 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
 
     # print(f"timer started")
     logger.info(f"timer started")
-    if watershed_backend == "rust_det_metric":
-        return _rust_det_metric_segmentation(
-            dgrid,
-            mat_atoms,
-            bucket_scaffold=_metric_bucket_scaffold,
-            mask_thickness=mask_thickness,
-            h=h,
-            min_distance=min_distance,
-            threshold_abs=threshold_abs,
-            preserve_threshold=preserve_threshold,
-            smooth_threshold=smooth_threshold,
-            max_smooth_radius=max_smooth_radius,
-            return_padded_regions=return_padded_regions,
-            spacing=spacing,
-            minimum_window_separation=minimum_window_separation,
-            wall_thickness=wall_thickness,
-            extra_padding=extra_padding,
-            compactness=compactness,
-            min_region_size=min_region_size,
-            disable_tqdm=disable_tqdm,
-            compute_connections=compute_connections,
-            return_dgrid=return_dgrid,
-            watershed_connectivity=watershed_connectivity,
-        )
     # h = 0.11
 
     # Precompute metric-aware weights if needed by the selected backend (done
@@ -734,7 +515,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     merged_watershed_backend = watershed_backend
     if watershed_backend == "rust_det_metric":
         logger.info(
-            "rust_det_metric: routed to metric scaffold (merged + unmerged metric floods)"
+            "rust_det_metric: using metric weights in main pipeline"
         )
     dt = dgrid.copy()
     temp = np.ceil(merged_maxima)
@@ -994,9 +775,12 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         "time(s): %.2f computed regions without pbc\n"
         % np.round(time() - start_time, decimals=2)
     )
-    endchannel_pairs = find_end_channel_pairs(
-        regions_pbc, unmerged_regions, size_ratio=0.3
-    )
+    if skip_endchannel_pairs or watershed_backend == "rust_det_metric":
+        endchannel_pairs = []
+    else:
+        endchannel_pairs = find_end_channel_pairs(
+            regions_pbc, unmerged_regions, size_ratio=0.3
+        )
     # so we need to replace only if the removed label is far outside the unit cell
     wall_region_thicknesses = compute_wall_cells(
         mat_atoms, spacing, wall_thickness=wall_thickness
