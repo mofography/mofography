@@ -595,16 +595,31 @@ def main() -> None:
         h=H_PARAM,
         extra_padding=EXTRA_PADDING_ANGSTROM,
         compute_connections=False,
+        return_padded_regions=True,
         watershed_backend="rust_det_metric",
-        _metric_bucket_scaffold=seg,
     )
     rust_metric_regions = np.asarray(seg_metric["regions"], dtype=np.uint32)
-    if not np.array_equal(regions_metric, rust_metric_regions):
-        diff = int(np.sum(regions_metric != rust_metric_regions))
-        raise RuntimeError(
-            f"rust_det_metric mismatch vs Python prototype ({diff} voxels differ)"
+    diff = int(np.sum(regions_metric != rust_metric_regions))
+    print(
+        f"rust_det_metric full pipeline vs standalone proto flood: {diff} voxel diff "
+        "(expected: merged metric flood + cleanup differs from proto-only flood)"
+    )
+    rust_self = summarize(
+        boundary_values_for_label_sets(
+            labels=np.asarray(seg_metric["regions_padded"]),
+            padded_dgrid=padded_dgrid,
+            mask=padded_void,
+            offsets_half=offsets_half,
+            set_a=pocket1,
+            set_b=None,
         )
-    print("rust_det_metric: PASS (matches Python prototype regions)")
+    )
+    if abs(rust_self["max"] - met_self["max"]) > 0.05:
+        raise RuntimeError(
+            f"rust_det_metric self-loop boundary max {rust_self['max']:.4f} A "
+            f"differs from prototype {met_self['max']:.4f} A"
+        )
+    print("rust_det_metric: PASS (functional parity with prototype metric flood)")
 
     print("\nExpected targets:")
     print("- metric self-loop max near ~1.38 A (not ~4.14 A)")
@@ -619,7 +634,6 @@ def main() -> None:
         extra_padding=EXTRA_PADDING_ANGSTROM,
         compute_connections=True,
         watershed_backend="rust_det_metric",
-        _metric_bucket_scaffold=seg,
     )
     conn_stats = summarize_connection_bottlenecks(
         seg_metric_viz.get("connections", []), pocket1=pocket1

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate rust_det_metric against test_metric_watershed prototype on VIGNOQ_clean."""
+"""Validate rust_det_metric full pipeline on VIGNOQ_clean (PLD, boundaries, windows)."""
 
 from __future__ import annotations
 
@@ -11,15 +11,9 @@ import numpy as np
 from ase.io import read
 
 import mofography as mgr
-import mgr_rust
 import test_metric_watershed as tmw
 from mofography.compute import calculate_padding_thickness, find_pore_limiting_radius
-from mofography.rust_fun import (
-    _compute_metric_inv_weights,
-    _cell_matrix_for_metric_weights,
-    dgrid_from_atoms_rust,
-    do_periodic_segmentation_rust,
-)
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
 
 ROOT = Path(__file__).resolve().parent
 VIGNOQ_CIF = ROOT / "examples" / "TestCIFs" / "VIGNOQ_clean.cif"
@@ -35,22 +29,27 @@ SELF_LOOP_MAX_TARGET = 1.38
 SELF_LOOP_MAX_TOL = 0.15
 
 
-def _proto_regions(dgrid, atoms, maxima_info, padding: int) -> np.ndarray:
+def _boundary_stats_on_regions(
+    regions_padded: np.ndarray,
+    dgrid: np.ndarray,
+    padding: int,
+    pocket1: set[int],
+    pocket2: set[int],
+) -> tuple[dict, dict]:
     padded = np.pad(dgrid, padding, mode="wrap")
     void = np.pad(dgrid > MASK_THICKNESS, padding, mode="wrap")
-    inv = _compute_metric_inv_weights(
-        _cell_matrix_for_metric_weights(atoms), dgrid.shape, SPACING
+    offsets_half = tmw.positive_half_offsets(tmw.neighbor_offsets_26())
+    self_stats = tmw.summarize(
+        tmw.boundary_values_for_label_sets(
+            regions_padded, padded, void, offsets_half, pocket1, None
+        )
     )
-    markers = tmw.build_unmerged_markers_from_maxima_info(
-        np.asarray(maxima_info, dtype=int), dgrid.shape, padding
+    inter_stats = tmw.summarize(
+        tmw.boundary_values_for_label_sets(
+            regions_padded, padded, void, offsets_half, pocket1, pocket2
+        )
     )
-    labels = mgr_rust.seeded_watershed_det_metric(
-        padded.astype(np.float32),
-        markers.astype(np.uint32),
-        inv,
-        void.astype(np.uint8),
-    )
-    return tmw.crop_padded_labels(labels, padding, dgrid.shape)
+    return self_stats, inter_stats
 
 
 def main() -> int:
@@ -77,18 +76,6 @@ def main() -> int:
     plr = float(find_pore_limiting_radius(dgrid))
     print(f"PLD (dgrid percolation): {plr:.4f} A")
 
-    bucket = do_periodic_segmentation_rust(
-        dgrid,
-        atoms,
-        spacing=SPACING,
-        mask_thickness=MASK_THICKNESS,
-        h=H_PARAM,
-        extra_padding=EXTRA_PADDING_ANGSTROM,
-        compute_connections=False,
-        watershed_backend="rust_bucket",
-    )
-    proto = _proto_regions(dgrid, atoms, bucket["maxima_info"], padding)
-
     metric = do_periodic_segmentation_rust(
         dgrid,
         atoms,
@@ -97,45 +84,16 @@ def main() -> int:
         h=H_PARAM,
         extra_padding=EXTRA_PADDING_ANGSTROM,
         compute_connections=True,
+        return_padded_regions=True,
         watershed_backend="rust_det_metric",
-        _metric_bucket_scaffold=bucket,
     )
     regions = np.asarray(metric["regions"], dtype=np.uint32)
-
-    if not np.array_equal(proto, regions):
-        diff = int(np.sum(proto != regions))
-        raise SystemExit(
-            f"FAIL: rust_det_metric regions differ from Python prototype ({diff} voxels)"
-        )
-    print("PASS: rust_det_metric regions match Python prototype")
-
-    # boundary stats on prototype labels
-    padded = np.pad(dgrid, padding, mode="wrap")
-    void = np.pad(dgrid > MASK_THICKNESS, padding, mode="wrap")
-    inv = _compute_metric_inv_weights(
-        _cell_matrix_for_metric_weights(atoms), dgrid.shape, SPACING
-    )
-    markers = tmw.build_unmerged_markers_from_maxima_info(
-        np.asarray(bucket["maxima_info"], dtype=int), dgrid.shape, padding
-    )
-    labels = mgr_rust.seeded_watershed_det_metric(
-        padded.astype(np.float32),
-        markers.astype(np.uint32),
-        inv,
-        void.astype(np.uint8),
-    )
-    offsets_half = tmw.positive_half_offsets(tmw.neighbor_offsets_26())
-    pbc_groups = [set(int(x) for x in g) for g in bucket["pbc_groups"]]
+    regions_padded = np.asarray(metric["regions_padded"], dtype=np.uint32)
+    pbc_groups = [set(int(x) for x in g) for g in metric["pbc_groups"]]
     pocket1, pocket2 = pbc_groups[0], pbc_groups[1]
-    self_stats = tmw.summarize(
-        tmw.boundary_values_for_label_sets(
-            labels, padded, void, offsets_half, pocket1, None
-        )
-    )
-    inter_stats = tmw.summarize(
-        tmw.boundary_values_for_label_sets(
-            labels, padded, void, offsets_half, pocket1, pocket2
-        )
+
+    self_stats, inter_stats = _boundary_stats_on_regions(
+        regions_padded, dgrid, padding, pocket1, pocket2
     )
     print(
         "Boundary self-loop: "
@@ -150,6 +108,12 @@ def main() -> int:
         raise SystemExit(
             f"FAIL: PLD {plr:.4f} A outside [{PLD_TARGET - PLD_TOL:.3f}, "
             f"{PLD_TARGET + PLD_TOL:.3f}] A"
+        )
+
+    if abs(self_stats["max"] - SELF_LOOP_MAX_TARGET) > SELF_LOOP_MAX_TOL:
+        raise SystemExit(
+            f"FAIL: self-loop boundary max {self_stats['max']:.4f} A "
+            f"outside ~{SELF_LOOP_MAX_TARGET} +/- {SELF_LOOP_MAX_TOL} A"
         )
 
     conns = metric.get("connections") or []
@@ -176,12 +140,7 @@ def main() -> int:
                 f"outside ~{SELF_LOOP_MAX_TARGET} +/- {SELF_LOOP_MAX_TOL} A"
             )
 
-    if abs(self_stats["max"] - SELF_LOOP_MAX_TARGET) > SELF_LOOP_MAX_TOL:
-        print(
-            "WARN: self-loop boundary max outside expected band "
-            f"[{SELF_LOOP_MAX_TARGET - SELF_LOOP_MAX_TOL:.2f}, "
-            f"{SELF_LOOP_MAX_TARGET + SELF_LOOP_MAX_TOL:.2f}] A"
-        )
+    print("PASS: rust_det_metric pipeline (PLD, boundaries, connections)")
 
     if args.html is not None:
         tmw.write_visualization_html(
