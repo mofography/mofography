@@ -1514,7 +1514,7 @@ def get_pore_dia_mgr_winding2(
             results["connections"], results["maxima_info"]
         )
         params = results.get("input_params", {})
-        backend = params.get("watershed_backend", "rust_bucket")
+        backend = params.get("watershed_backend", "rust_det")
         mask = float(params.get("mask_thickness", 0.05))
 
         if backend in ("rust_det", "rust_det_parallel", "skimage") and mask < 1.5:
