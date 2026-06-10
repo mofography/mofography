@@ -22,8 +22,9 @@ def build_padded_threejs_scene(cif_path, output_path=None, **kwargs):
     import sys
     from pathlib import Path
     repo_root = Path(__file__).resolve().parent.parent
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    scripts_dir = repo_root / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
     from make_padded_threejs_scene import build_padded_threejs_scene as _builder
     return _builder(cif_path=cif_path, output_path=output_path, **kwargs)
 

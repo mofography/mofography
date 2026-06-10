@@ -2208,3 +2208,40 @@ periodic_segmentation_quick_start_output.html
 
 # Very large Blender working file (regenerate locally if needed)
 outputs/blender_stages/mofography_tutorial_reveal.blend
+
+# --- AI agents & local tool state (keep locally, not in git) ---
+graphify-out/
+.letta/
+.serena/
+.leann/
+.zed/
+.opencode/
+.claude/
+.factory/
+.cursor/mcp.json
+*settings.local.json
+.vorg.db
+opencode.json
+.DS_Store
+
+# --- Root-level generated artifacts & scratch outputs ---
+/*.html
+/*.png
+/*.npz
+/*.pkl
+gltf_buffer_*.bin
+framework.gltf
+surface.gltf
+nu1000_analysis_summary.txt
+mgr_cli_ascii_logos.txt
+tmp_*.json
+debug_*.json
+debug_*.npz
+MOFOGRAPHY_VS_CLI_COMPARISON.md
+
+# Ad-hoc dev scripts live under scripts/dev/ (not repo root)
+/test_*.py
+/gen_*.py
+/generate_*.py
+/nu1000_visualization*.py
+/cubtc_visual_check.py

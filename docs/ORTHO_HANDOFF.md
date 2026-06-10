@@ -9,7 +9,7 @@ We built a `Figure3D` API (Plotly-like wrapper around `MovieFigure`) in `mofogra
 | `cubtc_static.html` | 55 MB | CuBTC: framework + cell + 3 surfaces (raw/PBC/cluster) + maxima + connections + windows |
 | `lta96_k_movie_v2.html` | 48 MB | LTA96: 50-frame K+ diffusion movie with framework + surface + pore graph + guests |
 
-**Regenerate with:** `python gen_cubtc_demo.py` (requires `mgr_env` conda environment).
+**Regenerate with:** `python scripts/dev/gen_cubtc_demo.py` (requires `mgr_env` conda environment).
 
 **Run tests:** `pytest mofography/tests/test_movies.py -v` (30 tests, all passing).
 
@@ -100,7 +100,7 @@ Possible remaining issues:
 ```bash
 # Regenerate both HTMLs
 cd /Users/arungopalan/repos/mofography
-/Users/arungopalan/miniforge3/envs/mgr_env/bin/python gen_cubtc_demo.py
+/Users/arungopalan/miniforge3/envs/mgr_env/bin/python scripts/dev/gen_cubtc_demo.py
 
 # Verify with Playwright
 /Users/arungopalan/miniforge3/envs/mgr_env/bin/python -c "

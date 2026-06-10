@@ -153,7 +153,7 @@ Figure3D = MovieFigure  # user-friendly alias
 
 | Script | CIF | Traces exercised | Weight |
 |--------|-----|-----------------|--------|
-| `test_cubtc.py` | P1-Cu-BTC.cif | surface, cell, framework, maxima, connections | **Primary** |
+| `scripts/dev/test_cubtc.py` | P1-Cu-BTC.cif | surface, cell, framework, maxima, connections | **Primary** |
 | `docs/generate_pore_graph_images.py` | P1-IRMOF-1.cif | surface, cell, framework, maxima, connections | **Primary** |
 | `docs/test_percolated_cluster_coloring.py` | NU-1000_S1.cif | percolated cluster meshes | **Unique** |
 
@@ -165,7 +165,7 @@ Add to `mofography/tests/test_movies.py` (or new `test_figure3d.py`):
 2. **test_jupyter_html**: Verify `_repr_html_()` returns valid IFrame wrapping `<html>` content
 3. **test_browser_show**: `show(renderer='browser')` writes temp file, verify file content
 4. **test_chainable**: Verify `fig.add_framework(...).add_cell(...).add_surface(...)` returns same fig instance
-5. **test_non_regression**: Compare trace counts (n_vertices, n_triangles, n_segments) against golden values from test_cubtc.py output
+5. **test_non_regression**: Compare trace counts (n_vertices, n_triangles, n_segments) against golden values from `scripts/dev/test_cubtc.py` output
 6. **test_periodic_hidden**: Verify periodic traces have visible=False when hide_periodic=True
 
 ### Repo CIFs available for testing

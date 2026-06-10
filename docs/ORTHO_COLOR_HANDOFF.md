@@ -86,7 +86,7 @@ Previous attempts to use `material.onBeforeCompile` to inject custom shader code
 ## How to Test
 ```bash
 cd /Users/arungopalan/repos/mofography
-python gen_cubtc_demo.py  # generates cubtc_static.html
+python scripts/dev/gen_cubtc_demo.py  # generates cubtc_static.html
 open cubtc_static.html     # opens in browser
 # Click "Ortho" button to switch, compare with perspective
 ```
