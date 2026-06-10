@@ -8763,31 +8763,49 @@ def select_percolation_threshold(percolation_history, probe_radius):
     return threshold, components, False, message
 
 
+def _merge_winding_kwargs(
+    results_dict,
+    window_fp_for_accessible: bool,
+    winding_kwargs=None,
+):
+    """Merge caller, results-dict, and default winding keyword arguments."""
+    merged: dict = {}
+    existing = results_dict.get("winding_kwargs")
+    if isinstance(existing, dict):
+        merged.update(existing)
+    if isinstance(winding_kwargs, dict):
+        merged.update(winding_kwargs)
+    merged["window_fp_for_accessible"] = bool(window_fp_for_accessible)
+    return merged
+
+
 def _accessible_percolating_region_labels(
     results_dict,
     probe_radius,
     percolation_history,
     mat_atoms=None,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
 ):
     """
     Region labels treated as probe-accessible for SA / void volume.
 
-    When ``results_dict['winding_kwargs']['window_fp_for_accessible']`` is set,
-    uses winding percolation at the probe plus optional window-fingerprint
-    rescue of sub-probe windows (see ``winding_percolation``).  Otherwise falls
-    back to the percolation-history component union used historically.
+    When *window_fp_for_accessible* is True (default), runs winding percolation
+    at the requested probe and applies window-fingerprint bridging for sub-probe
+    graph windows (grid-sampling correction when percolation exists).  When
+    False, falls back to the legacy percolation-history component union.
     """
-    winding_kwargs = results_dict.get("winding_kwargs")
-    if isinstance(winding_kwargs, dict) and bool(
-        winding_kwargs.get("window_fp_for_accessible", False)
-    ):
+    if bool(window_fp_for_accessible):
         from mofography.winding_percolation import percolating_region_labels_at_probe_winding
 
+        kwargs = _merge_winding_kwargs(
+            results_dict, window_fp_for_accessible, winding_kwargs
+        )
         atoms = results_dict.get("mat_atoms") or mat_atoms
         labels = percolating_region_labels_at_probe_winding(
             results_dict,
             float(probe_radius),
-            kwargs=winding_kwargs,
+            kwargs=kwargs,
             atoms=atoms,
         )
         return labels, float(probe_radius), True, (
@@ -8867,7 +8885,9 @@ def compute_surface_area_from_results(
     results_dict,
     mat_atoms,
     probe_radius=None,
-    return_details=False
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
 ):
     """
     Compute surface area analysis from pre-computed results dictionary.
@@ -8889,6 +8909,13 @@ def compute_surface_area_from_results(
         Probe radius for surface area calculation. If None, uses helium radius.
     return_details : bool, optional
         If True, returns detailed intermediate results. Default False.
+    window_fp_for_accessible : bool, optional
+        When True (default), accessible regions use winding percolation at the
+        probe plus window-fingerprint bridging for sub-probe graph windows.
+        Set False for the legacy percolation-history label union.
+    winding_kwargs : dict, optional
+        Extra keyword arguments for winding fingerprint bridging (merged over
+        ``results_dict['winding_kwargs']`` when present).
 
     Returns
     -------
@@ -8944,31 +8971,34 @@ def compute_surface_area_from_results(
         results_dict = compute_percolation_history_from_results(results_dict)
         logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
 
-    # Step 3: Get percolating regions using unified threshold selection
-    percolating_regions = set()
-    selected_threshold = None
-
+    # Step 3: Get percolating regions (winding + window FP by default, or history)
     percolation_history = results_dict.get('percolation_history', [])
 
-    threshold, components, exact_match, message = select_percolation_threshold(
-        percolation_history, probe_radius
+    percolating_regions, selected_threshold, exact_match, message = (
+        _accessible_percolating_region_labels(
+            results_dict,
+            probe_radius,
+            percolation_history,
+            mat_atoms=mat_atoms,
+            window_fp_for_accessible=window_fp_for_accessible,
+            winding_kwargs=winding_kwargs,
+        )
     )
+    threshold = selected_threshold
 
     logger.info(message)
 
-    if threshold is not None:
-        selected_threshold = threshold
-        # Extract percolating regions from selected threshold
-        for axis, comp_list in components.items():
-            for comp in comp_list:
-                percolating_regions.update(comp)
-
-        if not exact_match:
-            logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
-    else:
-        # No percolation case
-        percolating_regions = set()
+    if not percolating_regions:
         logger.info(f"No percolation at probe radius {probe_radius:.3f} Å - accessible surface area will be zero")
+    elif threshold is not None and not exact_match:
+        logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
+
+    components = None
+    if threshold is not None and percolation_history:
+        for t, c in percolation_history:
+            if abs(t - threshold) < 1e-10:
+                components = c
+                break
 
     # Step 3: Get surface area meshes for each region
     submeshes = get_isosurface_submeshes(
@@ -9153,6 +9183,8 @@ def compute_surface_area_from_results_mc(
     n_samples=20000,
     shell_thickness=0.5,
     return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
 ):
     """
     Experimental Monte Carlo shell-based surface area estimator.
@@ -9180,6 +9212,13 @@ def compute_surface_area_from_results_mc(
         Thickness of the shell around probe_radius used for the estimator.
     return_details : bool, optional
         If True, returns additional diagnostic information.
+    window_fp_for_accessible : bool, optional
+        When True (default), accessible regions use winding percolation at the
+        probe plus window-fingerprint bridging for sub-probe graph windows.
+        Set False for the legacy percolation-history label union.
+    winding_kwargs : dict, optional
+        Extra keyword arguments for winding fingerprint bridging (merged over
+        ``results_dict['winding_kwargs']`` when present).
 
     Returns
     -------
@@ -9228,7 +9267,12 @@ def compute_surface_area_from_results_mc(
     percolation_history = results_dict.get("percolation_history", [])
 
     percolating_regions, threshold, exact_match, message = _accessible_percolating_region_labels(
-        results_dict, probe_radius, percolation_history, mat_atoms=mat_atoms
+        results_dict,
+        probe_radius,
+        percolation_history,
+        mat_atoms=mat_atoms,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
     )
     logger.info(message)
     if not percolating_regions:
@@ -9366,7 +9410,9 @@ def compute_void_volume_from_results(
     results_dict,
     mat_atoms,
     probe_radius=None,
-    return_details=False
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
 ):
     """
     Compute void volume analysis from pre-computed results dictionary with accessibility concerns.
@@ -9388,6 +9434,13 @@ def compute_void_volume_from_results(
         Probe radius for void volume calculation. If None, uses helium radius.
     return_details : bool, optional
         If True, returns detailed intermediate results. Default False.
+    window_fp_for_accessible : bool, optional
+        When True (default), accessible regions use winding percolation at the
+        probe plus window-fingerprint bridging for sub-probe graph windows.
+        Set False for the legacy percolation-history label union.
+    winding_kwargs : dict, optional
+        Extra keyword arguments for winding fingerprint bridging (merged over
+        ``results_dict['winding_kwargs']`` when present).
 
     Returns
     -------
@@ -9443,7 +9496,12 @@ def compute_void_volume_from_results(
 
     percolating_regions, selected_threshold, exact_match, message = (
         _accessible_percolating_region_labels(
-            results_dict, probe_radius, percolation_history, mat_atoms=mat_atoms
+            results_dict,
+            probe_radius,
+            percolation_history,
+            mat_atoms=mat_atoms,
+            window_fp_for_accessible=window_fp_for_accessible,
+            winding_kwargs=winding_kwargs,
         )
     )
     threshold = selected_threshold
