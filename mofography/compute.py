@@ -8763,6 +8763,49 @@ def select_percolation_threshold(percolation_history, probe_radius):
     return threshold, components, False, message
 
 
+def _accessible_percolating_region_labels(
+    results_dict,
+    probe_radius,
+    percolation_history,
+    mat_atoms=None,
+):
+    """
+    Region labels treated as probe-accessible for SA / void volume.
+
+    When ``results_dict['winding_kwargs']['window_fp_for_accessible']`` is set,
+    uses winding percolation at the probe plus optional window-fingerprint
+    rescue of sub-probe windows (see ``winding_percolation``).  Otherwise falls
+    back to the percolation-history component union used historically.
+    """
+    winding_kwargs = results_dict.get("winding_kwargs")
+    if isinstance(winding_kwargs, dict) and bool(
+        winding_kwargs.get("window_fp_for_accessible", False)
+    ):
+        from mofography.winding_percolation import percolating_region_labels_at_probe_winding
+
+        atoms = results_dict.get("mat_atoms") or mat_atoms
+        labels = percolating_region_labels_at_probe_winding(
+            results_dict,
+            float(probe_radius),
+            kwargs=winding_kwargs,
+            atoms=atoms,
+        )
+        return labels, float(probe_radius), True, (
+            f"Winding accessible labels (+ window FP): {len(labels)} regions at probe "
+            f"{float(probe_radius):.3f} Å"
+        )
+
+    threshold, components, exact_match, message = select_percolation_threshold(
+        percolation_history, probe_radius
+    )
+    percolating_regions = set()
+    if threshold is not None and components:
+        for comp_list in components.values():
+            for comp in comp_list:
+                percolating_regions.update(comp)
+    return percolating_regions, threshold, exact_match, message
+
+
 def compute_point_probe_reference(results_dict, mat_atoms):
     """
     Compute point probe (probe_radius = 0) surface area and void volume as reference.
@@ -9184,25 +9227,24 @@ def compute_surface_area_from_results_mc(
 
     percolation_history = results_dict.get("percolation_history", [])
 
-    # Determine percolating regions at this probe radius
-    threshold, components, exact_match, message = select_percolation_threshold(
-        percolation_history, probe_radius
+    percolating_regions, threshold, exact_match, message = _accessible_percolating_region_labels(
+        results_dict, probe_radius, percolation_history, mat_atoms=mat_atoms
     )
     logger.info(message)
-
-    percolating_regions = set()
-    if threshold is not None and components:
-        for axis, comp_list in components.items():
-            for comp in comp_list:
-                percolating_regions.update(comp)
-        if not exact_match:
-            logger.warning(
-                f"MC SA: Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate"
-            )
-    else:
+    if not percolating_regions:
         logger.info(
             f"MC SA: No percolation at probe radius {probe_radius:.3f} Å - accessible surface area will be zero"
         )
+    elif threshold is not None and not exact_match:
+        logger.warning(
+            f"MC SA: Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate"
+        )
+    components = None
+    if threshold is not None and percolation_history:
+        for t, c in percolation_history:
+            if abs(t - threshold) < 1e-10:
+                components = c
+                break
 
     shape = distance_grid.shape
     # Sample random fractional coordinates in [0,1)^3
@@ -9396,31 +9438,29 @@ def compute_void_volume_from_results(
         results_dict = compute_percolation_history_from_results(results_dict)
         logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
 
-    # Step 3: Get percolating regions using unified threshold selection
-    percolating_regions = set()
-    selected_threshold = None
-
+    # Step 3: Get percolating regions (winding + optional window FP, or history)
     percolation_history = results_dict.get('percolation_history', [])
 
-    threshold, components, exact_match, message = select_percolation_threshold(
-        percolation_history, probe_radius
+    percolating_regions, selected_threshold, exact_match, message = (
+        _accessible_percolating_region_labels(
+            results_dict, probe_radius, percolation_history, mat_atoms=mat_atoms
+        )
     )
+    threshold = selected_threshold
 
     logger.info(message)
 
-    if threshold is not None:
-        selected_threshold = threshold
-        # Extract percolating regions from selected threshold
-        for axis, comp_list in components.items():
-            for comp in comp_list:
-                percolating_regions.update(comp)
-
-        if not exact_match:
-            logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
-    else:
-        # No percolation case
-        percolating_regions = set()
+    if not percolating_regions:
         logger.info(f"No percolation at probe radius {probe_radius:.3f} Å - accessible void volume will be zero")
+    elif threshold is not None and not exact_match:
+        logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
+
+    components = None
+    if threshold is not None and percolation_history:
+        for t, c in percolation_history:
+            if abs(t - threshold) < 1e-10:
+                components = c
+                break
 
     # Step 4: Calculate void volume by individual region
     # Create boolean mask for regions
