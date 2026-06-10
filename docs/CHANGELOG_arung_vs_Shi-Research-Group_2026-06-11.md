@@ -5,9 +5,9 @@
 **Upstream fork:** [Shi-Research-Group/mofography](https://github.com/Shi-Research-Group/mofography) (`master`)  
 **Source repo:** [arung-northwestern/mofography](https://github.com/arung-northwestern/mofography) — branch **`master`** (same tip as `clean-master`)
 
-This document summarizes what **`arung-northwestern/mofography` @ `c1e38db`** contains that **Shi-Research-Group/mofography** (`master`, last pushed **2026-03-25**) does not. It is intended for manual fork updates on GitHub.
+This document summarizes what **`arung-northwestern/mofography` @ `2d63da9`** contains that **Shi-Research-Group/mofography** (`master`, last pushed **2026-03-25**) does not. It is intended for manual fork updates on GitHub.
 
-> **Ready for GitHub UI:** As of **2026-06-11**, `master` and `clean-master` on `arung-northwestern/mofography` both point to **`c1e38db`** and are pushed. You can open a cross-fork PR **now** (see [Fork update workflow](#fork-update-workflow-github-ui) below).
+> **Ready for GitHub UI:** As of **2026-06-11**, `master` and `clean-master` on `arung-northwestern/mofography` both point to **`2d63da9`** and are pushed. You can open a cross-fork PR **now** (see [Fork update workflow](#fork-update-workflow-github-ui) below).
 
 > **Note on org name:** the Shi group repo is under **`Shi-Research-Group`**, not `shi-group-github`.
 
@@ -18,22 +18,23 @@ This document summarizes what **`arung-northwestern/mofography` @ `c1e38db`** co
 | Metric | Value |
 |--------|------:|
 | Common ancestor | `1444c2e` — *consolidate the overlap leakage stats* (2026-03-25) |
-| Commits on Northwestern `master` since ancestor | **106** |
+| Commits on Northwestern `master` since ancestor | **107** |
 | Shi `master` tip | `1cce57f` (merge from `arung-northwestern:master`, 2026-03-25 era) |
-| Northwestern tip (`master` **=** `clean-master`) | **`c1e38db`** (2026-06-11) |
-| Ahead / behind vs Shi `master` | **106 ahead**, **40 behind** (Shi merge commits only) |
+| Northwestern tip (`master` **=** `clean-master`) | **`2d63da9`** (2026-06-11) |
+| Ahead / behind vs Shi `master` | **107 ahead**, **40 behind** (Shi merge commits only) |
 
 **Branch naming (updated):** Northwestern development lived on `clean-master` during the spring; **`master` and `clean-master` are now identical** on `arung-northwestern/mofography`. For Shi fork updates, use **`arung-northwestern/mofography` → `master`** (simplest — matches Shi’s default branch name).
 
-**Shi-only history:** Shi `master` contains ~40 merge commits (`Merge branch 'arung-northwestern:master' into master`) not on Northwestern `master`. These are integration noise, not separate feature work. The substantive delta is the **106 commits** since `1444c2e`.
+**Shi-only history:** Shi `master` contains ~40 merge commits (`Merge branch 'arung-northwestern:master' into master`) not on Northwestern `master`. These are integration noise, not separate feature work. The substantive delta is the **107 commits** since `1444c2e`.
 
-### Commits after the first changelog draft (`6c36b13` → `c1e38db`)
+### Commits after the first changelog draft (`6c36b13` → `2d63da9`)
 
 | Commit | Summary |
 |--------|---------|
 | `b487af5` | Drop failed metric/blended watershed prototypes; default **`rust_det`**; add this changelog. |
 | `840ee9a` | Untrack agent state (`graphify-out/`, Letta, Serena, …); move root dev scripts to `scripts/dev/`; repo hygiene. |
 | `c1e38db` | Update this changelog for synced `master`/`clean-master` and GitHub UI fork instructions. |
+| `2d63da9` | Changelog tip/hash alignment (doc-only). |
 
 ---
 
@@ -288,11 +289,12 @@ The per-axis NINT bug in `dgrid_from_atoms_cpu_no_aabb` and `dgrid_from_atoms_gp
 
 ---
 
-## Full commit list (`1444c2e..c1e38db`, 106 commits)
+## Full commit list (`1444c2e..2d63da9`, 107 commits)
 
 Newest first. Use `git show <hash>` on `master` for patches.
 
 ```
+2d63da9 docs(changelog): set handoff tip to c1e38db (106 commits)
 c1e38db docs(changelog): update fork handoff for master @ 840ee9a
 840ee9a chore: untrack agent state, graphify cache, and root clutter
 b487af5 fix(watershed): drop failed metric/blended backends; default rust_det
@@ -405,7 +407,7 @@ df1a1b3 feat(devtools): add camera and background controls to animation script
 
 ## Fork update workflow (GitHub UI)
 
-**Status: ready now.** Northwestern `master` and `clean-master` are pushed and identical at `c1e38db`. No need to wait for further commits before opening the PR.
+**Status: ready now.** Northwestern `master` and `clean-master` are pushed and identical at `2d63da9`. No need to wait for further commits before opening the PR.
 
 ### Option A — Cross-fork pull request (recommended for Shi group)
 
@@ -413,7 +415,7 @@ df1a1b3 feat(devtools): add camera and background controls to animation script
    - **base repository:** `Shi-Research-Group/mofography`, branch **`master`**  
    - **head repository:** `arung-northwestern/mofography`, branch **`master`**  
    (If the link 404s, use **New pull request** → **compare across forks** and set those branches manually.)
-2. Title suggestion: *Sync from arung-northwestern/mofography master (106 commits, through c1e38db)*  
+2. Title suggestion: *Sync from arung-northwestern/mofography master (107 commits, through 2d63da9)*  
 3. Attach or link this changelog: `docs/CHANGELOG_arung_vs_Shi-Research-Group_2026-06-11.md`
 4. Review conflicts — expect few on library code; possible noise on Shi-side merge commits. Resolve by keeping Northwestern feature commits for `mofography/`, `mgr_rust/`, `docs/`.
 5. **Merge** when CI/review passes (merge commit or squash per Shi group preference).
@@ -443,7 +445,7 @@ git fetch origin master
 git fetch https://github.com/Shi-Research-Group/mofography.git master:shi/master
 
 git rev-list --left-right --count shi/master...origin/master
-# → 40  106  (Shi merge commits vs Northwestern feature commits)
+# → 40  107  (Shi merge commits vs Northwestern feature commits)
 
 git log shi/master..origin/master --oneline --no-merges | wc -l
 git diff --stat shi/master..origin/master -- mofography mgr_rust docs examples scripts
@@ -451,4 +453,4 @@ git diff --stat shi/master..origin/master -- mofography mgr_rust docs examples s
 
 ---
 
-*Handoff to Shi Research Group. Northwestern: `master` = `clean-master` @ `c1e38db` (2026-06-11).*
+*Handoff to Shi Research Group. Northwestern: `master` = `clean-master` @ `2d63da9` (2026-06-11).*
