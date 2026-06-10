@@ -914,6 +914,160 @@ def _expand_dfsd_labels_with_window_fingerprint(
     return percolating_labels
 
 
+def _window_fp_params(kwargs: Optional[Dict[str, object]]) -> Dict[str, float]:
+    kw = kwargs or {}
+    return {
+        "shell_radius": float(kw.get("window_fp_shell_radius", 3.5)),
+        "sim_thresh": float(kw.get("window_fp_sim_thresh", 0.88)),
+        "size_tol": float(kw.get("window_fp_size_tol", 0.20)),
+        "ref_tol": float(kw.get("window_fp_ref_tol", 0.12)),
+        "cand_tol": float(kw.get("window_fp_candidate_tol", 0.12)),
+        "subprobe_gap": float(kw.get("window_fp_subprobe_gap", 0.5)),
+    }
+
+
+def _collect_window_fp_reference_vectors(
+    graph: nx.MultiDiGraph,
+    nodes: set,
+    min_window_radius: float,
+) -> List[np.ndarray]:
+    """Collect fingerprint vectors from open windows on the given node set."""
+    ref_vectors: List[np.ndarray] = []
+    for node in nodes:
+        for _u, _v, _k, data in _incident_edge_records(graph, int(node)):
+            if float(data.get("window_radius", 0.0)) < float(min_window_radius):
+                continue
+            if not data.get("window_fp_ready", False):
+                continue
+            ref_vectors.append(np.asarray(data.get("window_fp_vec"), dtype=float))
+    return ref_vectors
+
+
+def _expand_percolating_labels_with_window_fingerprint(
+    *,
+    graph: nx.MultiDiGraph,
+    base_region_labels: Dict[int, set],
+    percolating_labels: set,
+    results: Dict[str, object],
+    probe_radius: float,
+    kwargs: Optional[Dict[str, object]] = None,
+    atoms=None,
+) -> set:
+    """Rescue watershed regions behind sub-probe windows with matching fingerprints.
+
+    When winding percolation at *probe_radius* excludes interior pockets because
+    connecting graph windows are slightly below the probe (grid/watershed
+    discretization), this BFS adds neighbor nodes whose sub-probe windows share
+    a chemical shell fingerprint with windows already open at the probe.
+
+  Controlled by ``window_fp_for_accessible`` in *kwargs* (off by default).
+    """
+    if kwargs is None or not bool(kwargs.get("window_fp_for_accessible", False)):
+        return percolating_labels
+    if not percolating_labels:
+        return percolating_labels
+
+    params = _window_fp_params(kwargs)
+    annotate_graph_edges_with_window_fingerprints(
+        graph,
+        results,
+        atoms=atoms or results.get("mat_atoms"),
+        shell_radius=params["shell_radius"],
+    )
+
+    percolating_nodes = {
+        int(node)
+        for node, labels in base_region_labels.items()
+        if set(labels).intersection(percolating_labels)
+    }
+    if not percolating_nodes:
+        return percolating_labels
+
+    ref_vectors = _collect_window_fp_reference_vectors(
+        graph,
+        percolating_nodes,
+        float(probe_radius) - params["ref_tol"],
+    )
+    if not ref_vectors:
+        return percolating_labels
+
+    expanded_labels = set(percolating_labels)
+    active_nodes = set(percolating_nodes)
+    visited_edges: set = set()
+    queue: deque = deque(active_nodes)
+    probe = float(probe_radius)
+
+    while queue:
+        node = int(queue.popleft())
+        for u, v, key, data in _incident_edge_records(graph, node):
+            edge_id = (min(int(u), int(v)), max(int(u), int(v)), int(key))
+            if edge_id in visited_edges:
+                continue
+            visited_edges.add(edge_id)
+
+            other = int(v) if int(u) == node else int(u)
+            wr = float(data.get("window_radius", 0.0))
+            if wr >= probe:
+                if other not in active_nodes:
+                    active_nodes.add(other)
+                    expanded_labels.update(base_region_labels.get(other, ()))
+                    queue.append(other)
+                continue
+
+            gap = probe - wr
+            if gap > params["subprobe_gap"]:
+                continue
+            if not data.get("window_fp_ready", False):
+                continue
+            cvec = np.asarray(data.get("window_fp_vec"), dtype=float)
+            if not any(
+                _cosine_similarity_safe(cvec, rvec) >= params["sim_thresh"]
+                for rvec in ref_vectors
+            ):
+                continue
+            if other not in active_nodes:
+                active_nodes.add(other)
+                expanded_labels.update(base_region_labels.get(other, ()))
+                queue.append(other)
+
+    return expanded_labels
+
+
+def percolating_region_labels_at_probe_winding(
+    results: Dict[str, object],
+    probe_radius: float,
+    kwargs: Optional[Dict[str, object]] = None,
+    graph: Optional[nx.MultiDiGraph] = None,
+    base_region_labels: Optional[Dict[int, set]] = None,
+    include_dangling: bool = True,
+    expand_components: bool = True,
+    atoms=None,
+) -> set:
+    """Region labels that are probe-accessible under winding percolation (+ optional FP rescue)."""
+    graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
+    axis_clusters, _, _ = percolation_all_axes_winding(
+        results,
+        float(probe_radius),
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=include_dangling,
+        expand_components=expand_components,
+    )
+    labels: set = set()
+    for groups in axis_clusters.values():
+        for group in groups:
+            labels.update(group)
+    return _expand_percolating_labels_with_window_fingerprint(
+        graph=graph,
+        base_region_labels=base_region_labels,
+        percolating_labels=labels,
+        results=results,
+        probe_radius=float(probe_radius),
+        kwargs=kwargs,
+        atoms=atoms,
+    )
+
+
 def find_pore_limiting_radius_winding(
     results: Dict[str, object],
     min_threshold: Optional[float] = None,
