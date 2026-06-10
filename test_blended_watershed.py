@@ -102,6 +102,11 @@ def _run_watershed(padded_grid, padded_markers, padded_void, backend, **kw):
         if edge_lengths is None:
             raise ValueError("rust_det_blended requires edge_lengths")
         return wb.seeded_watershed_det_blended(img, seeds, edge_lengths, scale, mask)
+    elif backend == "rust_det_v1":
+        edge_lengths = kw.get("edge_lengths")
+        if edge_lengths is None:
+            raise ValueError("rust_det_v1 requires edge_lengths")
+        return wb.seeded_watershed_metric_v1(img, seeds, edge_lengths, mask)
 
     else:
         raise ValueError(f"Unknown backend: {backend}")
@@ -173,15 +178,17 @@ def do_periodic_segmentation_blended(
         cell_matrix=cell_for_metric, grid_shape=dgrid.shape, spacing=spacing
     )
     edge_lengths = wb.compute_edge_lengths(cell_for_metric, dgrid.shape)
-
     if backend == "rust_det_blended":
         el = np.array(edge_lengths)
         print(f"  edge_lengths: range=[{el.min():.4f}, {el.max():.4f}], mean={el.mean():.4f}")
         print(f"  scale={scale}")
+    elif backend == "rust_det_v1":
+        el = np.array(edge_lengths)
+        print(f"  edge_lengths: range=[{el.min():.4f}, {el.max():.4f}], mean={el.mean():.4f}")
+        print(f"  backend: rust_det_v1 (priority = dgrid / edge_length)")
     elif backend == "rust_det_metric":
         iw = np.array(inv_metric_weights)
         print(f"  inv_metric_weights: range=[{iw.min():.4f}, {iw.max():.4f}], mean={iw.mean():.4f}")
-
     dt = dgrid.copy()
     padding_thickness = calculate_padding_thickness(dgrid, mat_atoms, spacing) + np.ceil(
         extra_padding / spacing
@@ -209,13 +216,14 @@ def do_periodic_segmentation_blended(
     padded_grid = np.pad(dt, padding_thickness, mode="wrap")
     padded_markers = np.pad(markers, padding_thickness, mode="wrap")
     padded_void = np.pad(void_mask, padding_thickness, mode="wrap")
-
     ws_kw = {}
     if backend == "rust_det_metric":
         ws_kw["inv_metric_weights"] = inv_metric_weights
     elif backend == "rust_det_blended":
         ws_kw["edge_lengths"] = edge_lengths
         ws_kw["scale"] = scale
+    elif backend == "rust_det_v1":
+        ws_kw["edge_lengths"] = edge_lengths
 
     padded_regions = _run_watershed(
         padded_grid, padded_markers, padded_void, backend, **ws_kw
@@ -650,17 +658,15 @@ def write_html(result: dict, mat_atoms, dgrid, out_path: Path) -> None:
 
 
 # ── entry point ─────────────────────────────────────────────────────
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--cif", type=Path, default=ROOT / "examples/TestCIFs/NU-1000_S1.cif"
+        "--backend",
+        choices=["rust_det", "rust_det_metric", "rust_det_blended", "rust_det_v1"],
+        default="rust_det_v1",
     )
     parser.add_argument(
-        "--backend",
-        choices=["rust_det", "rust_det_metric", "rust_det_blended"],
-        default="rust_det_blended",
+        "--cif", type=Path, default=ROOT / "examples/TestCIFs/NU-1000_S1.cif"
     )
     parser.add_argument("--scale", type=float, default=200.0, help="Blended priority scale (default 200)")
     parser.add_argument(

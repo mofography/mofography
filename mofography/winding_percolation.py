@@ -926,21 +926,48 @@ def _window_fp_params(kwargs: Optional[Dict[str, object]]) -> Dict[str, float]:
     }
 
 
-def _collect_window_fp_reference_vectors(
+def _collect_window_fp_reference_edges(
     graph: nx.MultiDiGraph,
     nodes: set,
     min_window_radius: float,
-) -> List[np.ndarray]:
-    """Collect fingerprint vectors from open windows on the given node set."""
-    ref_vectors: List[np.ndarray] = []
+) -> List[Tuple[np.ndarray, float]]:
+    """Collect (fingerprint, window_radius) from open windows on the given node set."""
+    ref_edges: List[Tuple[np.ndarray, float]] = []
     for node in nodes:
         for _u, _v, _k, data in _incident_edge_records(graph, int(node)):
-            if float(data.get("window_radius", 0.0)) < float(min_window_radius):
+            wr = float(data.get("window_radius", 0.0))
+            if wr < float(min_window_radius):
                 continue
             if not data.get("window_fp_ready", False):
                 continue
-            ref_vectors.append(np.asarray(data.get("window_fp_vec"), dtype=float))
-    return ref_vectors
+            ref_edges.append(
+                (np.asarray(data.get("window_fp_vec"), dtype=float), wr)
+            )
+    return ref_edges
+
+
+def _window_fp_matches_reference_edges(
+    cvec: np.ndarray,
+    wr: float,
+    ref_edges: List[Tuple[np.ndarray, float]],
+    *,
+    sim_thresh: float,
+    ref_minus_cand_max: float,
+) -> bool:
+    """True when candidate matches a reference edge in shell cosine and window size.
+
+    Uses a **one-sided** radius gate: the candidate may be sub-probe relative to
+    the reference open mouth, but not by more than *ref_minus_cand_max* (defaults
+    to ``window_fp_subprobe_gap``).  This blocks annex bridges like XALDOE
+    (wr_ref − wr_cand ≈ 0.7–0.8 Å) while allowing Mechanism B grid undershoot
+    (≈ 0.4–0.5 Å below the same mouth).
+    """
+    for rvec, rwr in ref_edges:
+        if (float(rwr) - float(wr)) > float(ref_minus_cand_max):
+            continue
+        if _cosine_similarity_safe(cvec, rvec) >= float(sim_thresh):
+            return True
+    return False
 
 
 def _expand_percolating_labels_with_window_fingerprint(
@@ -958,7 +985,10 @@ def _expand_percolating_labels_with_window_fingerprint(
     When winding percolation at *probe_radius* excludes interior pockets because
     connecting graph windows are slightly below the probe (grid/watershed
     discretization), this BFS adds neighbor nodes whose sub-probe windows share
-    a chemical shell fingerprint with windows already open at the probe.
+    a chemical shell fingerprint with windows already open at the probe and
+    whose ``window_radius`` is at most ``window_fp_subprobe_gap`` (or
+    ``window_fp_ref_minus_cand_tol``) **smaller** than the matched reference
+    open edge (one-sided; blocks annex bridges with much smaller throats).
 
   Controlled by ``window_fp_for_accessible`` in *kwargs* (off by default).
     """
@@ -983,12 +1013,12 @@ def _expand_percolating_labels_with_window_fingerprint(
     if not percolating_nodes:
         return percolating_labels
 
-    ref_vectors = _collect_window_fp_reference_vectors(
+    ref_edges = _collect_window_fp_reference_edges(
         graph,
         percolating_nodes,
         float(probe_radius) - params["ref_tol"],
     )
-    if not ref_vectors:
+    if not ref_edges:
         return percolating_labels
 
     expanded_labels = set(percolating_labels)
@@ -1020,9 +1050,17 @@ def _expand_percolating_labels_with_window_fingerprint(
             if not data.get("window_fp_ready", False):
                 continue
             cvec = np.asarray(data.get("window_fp_vec"), dtype=float)
-            if not any(
-                _cosine_similarity_safe(cvec, rvec) >= params["sim_thresh"]
-                for rvec in ref_vectors
+            ref_minus_cand_max = float(
+                kwargs.get("window_fp_ref_minus_cand_tol", params["subprobe_gap"])
+                if kwargs
+                else params["subprobe_gap"]
+            )
+            if not _window_fp_matches_reference_edges(
+                cvec,
+                wr,
+                ref_edges,
+                sim_thresh=params["sim_thresh"],
+                ref_minus_cand_max=ref_minus_cand_max,
             ):
                 continue
             if other not in active_nodes:
