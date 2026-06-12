@@ -842,7 +842,7 @@ fig3.plot_windows_from_results_3js(
 fig3.to_html("/tmp/P1-Cu-BTC_main_threejs.html")
 #+end_src
 
-=show_mof_threejs= shortcut (periodic layers on load when requested):
+=show_mof_threejs= shortcut (periodic layers hidden on load; toggle in HUD):
 
 #+begin_src python
 from mofography.workflow import show_mof_threejs
@@ -851,11 +851,13 @@ show_mof_threejs(
     results, mat_atoms, typed_result=typed, framework_atoms=mat_updated,
     output_html="examples/viz_outputs/P1-Cu-BTC_show_mof_threejs.html",
     plot_framework_representation="instanced",
-    plot_connections_periodic=True,
-    plot_windows_periodic=True,
     plot_layout="white",
 )
 #+end_src
+
+When connection or window traces are present, the Three.js HUD includes a *Min window (Å)* field: connections and window markers whose radii are all below the threshold are hidden dynamically. Periodic connections are trimmed with =trim_connections_to_unique_regions= (at least one endpoint in =unique_regions=) but start hidden unless =plot_connections_periodic=True=.
+
+Runnable generator: =examples/gen_cubtc_plotting_guide_threejs.py= → =examples/viz_outputs/P1-Cu-BTC_plotting_guide_threejs.html=.
 
 # )
 #+end_src
