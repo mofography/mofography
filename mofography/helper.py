@@ -695,10 +695,11 @@ def estimate_h_from_percolation_history(distance_grid):
 
 
 def trim_connections_to_unique_regions(connections, unique_regions):
-    """Keep connections whose both endpoint labels are in *unique_regions*.
+    """Keep connections with at least one endpoint label in *unique_regions*.
 
-    For unit-cell pore graphs / plotting: only edges between regions with
-    voxels inside the central cell (``unique_regions`` from periodic seg).
+    For unit-cell pore graphs / plotting: edges touching at least one region
+    with voxels inside the central cell (``unique_regions`` from periodic seg).
+    Periodic edges with one endpoint outside the cell are retained.
 
     Parameters
     ----------
@@ -718,7 +719,7 @@ def trim_connections_to_unique_regions(connections, unique_regions):
     unique = np.asarray(unique_regions, dtype=int)
     if unique.size == 0:
         return list(connections)
-    return [c for c in connections if np.all(np.isin(c[0], unique))]
+    return [c for c in connections if np.any(np.isin(c[0], unique))]
 
 
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):

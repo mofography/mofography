@@ -557,9 +557,16 @@ def assign_pocket_types(segmentation_results, atoms, method='env_cluster', **kwa
     Reuses ``segmentation_results['pocket_psds']`` when set (see
     :func:`enrich_segmentation_with_pocket_psds`).
 
+    By default ``typing_radii='bondi_crc_fallback'``: ``max_r`` bands use a
+    second Bondi/CRC distance grid while segmentation ``dgrid`` (CRC/Mendeleev/
+    user radii) still drives PSD, windows, and framework fingerprints.  Pass
+    ``typing_radii='segmentation'`` for the legacy behaviour where typing reads
+    the same ``dgrid`` as the rest of the analysis.
+
     :param segmentation_results: dict from do_periodic_segmentation_rust
     :param atoms: ASE Atoms object
     :param method: 'env_cluster' (default, SH fingerprint + connectivity)
+    :param typing_radii: VDW table for typing max_r only (see pocket_typing)
     :return: PocketTypingResult
     """
     from mofography.pocket_typing import assign_pocket_types_from_segmentation
@@ -729,7 +736,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
     )
     _stepsize = int(defaults.get("plot_surface_step_size", 1))
 
-    # Trim: both endpoints must be unique_regions (unit-cell pore graph)
+    # Trim: at least one endpoint in unique_regions (periodic edges with one outside image kept)
     from mofography.helper import trim_connections_to_unique_regions
 
     connections_trimmed = trim_connections_to_unique_regions(connections, unique_regions)

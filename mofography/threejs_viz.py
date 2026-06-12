@@ -242,29 +242,17 @@ def plot_connections_as_it_is(connections, maxima, shape, ase_atoms, plot_period
         from mofography.helper import trim_connections_to_unique_regions
         connections = trim_connections_to_unique_regions(connections, unique_regions)
     seg = seg_from_connections(connections, maxima, shape)
-    payload = _serialize_connection_traces(seg, ase_atoms)
     name = kwargs.pop("name", "Connections")
     trace_id = kwargs.pop("trace_id", None)
     if trace_id is None:
         trace_id = _trace_id_from_name(name, "connections")
-    style_lines = kwargs.pop("style", "internal_connections")
-    def _line(suffix, pos_key, hover_key, periodic):
-        positions = payload[pos_key]
-        return _make_trace(trace_id=f"{trace_id}_{suffix}", trace_type="line_segments",
-            name=f"{name} ({'periodic' if periodic else 'internal'})",
-            data={"positions": positions, "n_segments": len(positions)//6},
-            style="periodic_connections" if periodic else style_lines, hover=payload[hover_key],
-            visible=plot_periodic if periodic else True)
-    return {"internal_lines": _line("internal","internal_segments","internal_hover",False),
-            "periodic_lines": _line("periodic","periodic_segments","periodic_hover",True),
-            "internal_nodes": _make_trace(trace_id=f"{trace_id}_internal_nodes", trace_type="points",
-                name=f"{name} internal nodes", data={"positions": payload["internal_points"],
-                "n_points": len(payload["internal_points"])//3}, style="internal_nodes",
-                hover=payload["internal_points_hover"], visible=True),
-            "periodic_nodes": _make_trace(trace_id=f"{trace_id}_periodic_nodes", trace_type="points",
-                name=f"{name} periodic nodes", data={"positions": payload["periodic_points"],
-                "n_points": len(payload["periodic_points"])//3}, style="periodic_nodes",
-                hover=payload["periodic_points_hover"], visible=plot_periodic), "payload": payload}
+    kwargs.pop("style", None)
+    kwargs.pop("cscale", None)
+    bundle = make_connections_trace(seg, ase_atoms, name=name, trace_id=trace_id)
+    if not plot_periodic:
+        bundle["periodic_lines"]["visible"] = False
+        bundle["periodic_nodes"]["visible"] = False
+    return bundle
 
 def plot_windows(connections_or_seg, name="Windows", marker_color=None, marker_size=10, marker_opacity=0.8, **kwargs):
     """Plot window positions between connected pores (Three.js backend).
