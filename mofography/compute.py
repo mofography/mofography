@@ -6463,6 +6463,60 @@ def add_best_optuna_trial_to_rag(
         for node, trial in zip(rag.nodes, best_trials):
             rag.nodes[node]["best_trial_{}".format(molecule_name)] = trial
     return rag
+
+
+def add_best_optuna_trial_to_rag_serial(
+    rag,
+    ref_coords,
+    energy_interpolator,
+    molecule_name,
+    cluster_key="cluster_energy_pbc",
+    one_per_cluster=True,
+    n_trials=50,
+    n_jobs=1,
+    random_seed=42,
+):
+    """Like :func:`add_best_optuna_trial_to_rag` but without ``dask.bag``.
+
+    Use this when the caller already parallelizes over materials (e.g. Dask
+    ``Client``).  Avoids nested schedulers and per-pocket task fragmentation.
+    """
+    import networkx as nx
+    import numpy as np
+
+    if one_per_cluster:
+        cluster_dict = nx.get_node_attributes(rag, cluster_key)
+        keys_list = np.array(list(cluster_dict.keys()))
+        _, unique_indices, _ = np.unique(
+            list(cluster_dict.values()), return_index=True, return_inverse=True
+        )
+        nodes_to_test_at = keys_list[unique_indices]
+        for node in nodes_to_test_at:
+            trial = optimize_molecule_at_node(
+                node,
+                rag=rag,
+                ref_coords=ref_coords,
+                energy_interpolator=energy_interpolator,
+                n_trials=n_trials,
+                n_jobs=n_jobs,
+                random_seed=random_seed,
+            )
+            rag.nodes[node][f"best_trial_{molecule_name}"] = trial
+    else:
+        for node in rag.nodes:
+            if rag.nodes[node]["maxima_radii"] <= 1.5:
+                continue
+            trial = optimize_molecule_at_node(
+                node,
+                rag=rag,
+                ref_coords=ref_coords,
+                energy_interpolator=energy_interpolator,
+                n_trials=n_trials,
+                n_jobs=n_jobs,
+                random_seed=random_seed,
+            )
+            rag.nodes[node][f"best_trial_{molecule_name}"] = trial
+    return rag
 def pad_periodic(arr):
     import numpy as np
     """Pad array with periodic boundaries."""
