@@ -295,6 +295,38 @@ class TestPLDPercolation:
         assert isinstance(fig, go.Figure)
 
 
+class TestPocketTypesOnRag:
+    def test_add_pocket_types_to_rag_stamps_cluster_env_pbc(self):
+        import networkx as nx
+        from mofography.compute import (
+            CLUSTER_ENV_PBC,
+            add_pocket_types_to_rag,
+        )
+
+        rag = nx.Graph()
+        rag.add_node(1, labels=[1])
+        rag.add_node(2, labels=[2])
+        rag.add_node(3, labels=[3])
+        pbc_groups = [[1, 3], [2]]
+        rep_to_type = {1: 0, 2: 1}
+
+        out = add_pocket_types_to_rag(rag, rep_to_type, pbc_groups)
+        assert out.nodes[1][CLUSTER_ENV_PBC] == "0"
+        assert out.nodes[3][CLUSTER_ENV_PBC] == "0"
+        assert out.nodes[2][CLUSTER_ENV_PBC] == "1"
+        assert CLUSTER_ENV_PBC not in rag.nodes[1]
+
+    def test_segmentation_input_params_include_vdw_radii(self):
+        from ase import Atoms
+        from mofography.rust_fun import _segmentation_input_params_vdw
+
+        atoms = Atoms("Cu2", positions=[(0, 0, 0), (2, 0, 0)], cell=[5, 5, 5], pbc=True)
+        meta = _segmentation_input_params_vdw(atoms)
+        assert meta["vdw_radii_set"] == "bondi_crc_fallback"
+        assert "Cu" in meta["vdw_radii_by_symbol"]
+        assert meta["vdw_radii_by_symbol"]["Cu"] > 0
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

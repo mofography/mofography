@@ -286,7 +286,22 @@ def _seeded_watershed_backend(
 
 
 
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_det", watershed_connectivity=2, skip_endchannel_pairs=True):
+def _segmentation_input_params_vdw(
+    mat_atoms,
+    *,
+    vdw_radii_set=None,
+    vdw_radii_angstrom=None,
+) -> dict:
+    from .vdw_radii import vdw_radii_input_metadata
+
+    return vdw_radii_input_metadata(
+        mat_atoms,
+        radii=vdw_radii_angstrom,
+        radii_set=vdw_radii_set,
+    )
+
+
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_det", watershed_connectivity=2, skip_endchannel_pairs=True, vdw_radii_set=None, vdw_radii_angstrom=None):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -339,6 +354,11 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     :type watershed_backend: str
     :param watershed_connectivity: Connectivity for skimage watershed (2=18-NN, 3=26-NN). Only used when watershed_backend="skimage".
     :type watershed_connectivity: int
+    :param vdw_radii_set: Name of the VDW table used to build ``dgrid`` (e.g.
+        ``bondi_crc_fallback``, ``mendeleev``). Recorded in ``input_params``;
+        default ``bondi_crc_fallback``.
+    :param vdw_radii_angstrom: Per-atom radii (Å) used for ``dgrid``, if recording
+        a custom array (sets ``vdw_radii_set`` to ``array`` when omitted).
     :return: Dictionary containing segmentation results including maxima, regions, connections, etc.
     :rtype: dict
     """
@@ -956,6 +976,11 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             "extra_padding": extra_padding,
             "padding_thickness": padding_thickness,
             "min_region_size": min_region_size,
+            **_segmentation_input_params_vdw(
+                mat_atoms,
+                vdw_radii_set=vdw_radii_set,
+                vdw_radii_angstrom=vdw_radii_angstrom,
+            ),
         }
         if return_padded_regions:
             outputs["regions_padded"] = regions_padded
@@ -1121,6 +1146,11 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             "extra_padding": extra_padding,
             "padding_thickness": padding_thickness,
             "min_region_size": min_region_size,
+            **_segmentation_input_params_vdw(
+                mat_atoms,
+                vdw_radii_set=vdw_radii_set,
+                vdw_radii_angstrom=vdw_radii_angstrom,
+            ),
         }
         if return_padded_regions:
             outputs["regions_padded"] = regions_padded_copy

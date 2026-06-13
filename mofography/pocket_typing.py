@@ -17,6 +17,15 @@ Typical call::
     out = assign_pocket_types_from_segmentation(segmentation_results, atoms)
     results["regions_cluster"] = out.regions_cluster
 
+Stamp types on the RAG for plotting (parallel to ``cluster_geom_pbc``)::
+
+    from mofography.compute import add_env_cluster_pocket_types_to_rag, CLUSTER_ENV_PBC
+
+    rag = add_env_cluster_pocket_types_to_rag(rag, out, pbc_groups)
+    psd_traces = mgr.plot_pocket_psds_on_rag(
+        rag, pbc_groups, cluster_key=CLUSTER_ENV_PBC,
+    )
+
 ``max_r`` typing bands default to a separate Bondi/CRC distance grid
 (``typing_radii="bondi_crc_fallback"``); segmentation ``dgrid`` is unchanged
 for PSD, windows, and reporting.  Use ``typing_radii="segmentation"`` for the

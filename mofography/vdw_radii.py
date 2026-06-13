@@ -292,6 +292,56 @@ def mendeleev_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
     )
 
 
+VDW_RADII_SET_BONDI_CRC = "bondi_crc_fallback"
+VDW_RADII_SET_MENDELEEV = "mendeleev"
+VDW_RADII_SET_ARRAY = "array"
+
+
+def vdw_radii_input_metadata(
+    ase_atoms,
+    radii=None,
+    radii_set: str | None = None,
+) -> dict:
+    """Compact VDW radii provenance for segmentation ``input_params``.
+
+    Stores the radii-set name and per-element radii (Å) for symbols present in
+    the structure — not the full per-atom array.
+    """
+    import numpy as np
+
+    if radii is not None:
+        radii_arr = np.asarray(radii, dtype=float)
+        if radii_set is None:
+            radii_set = VDW_RADII_SET_ARRAY
+        else:
+            radii_set = str(radii_set)
+    else:
+        key = str(radii_set or VDW_RADII_SET_BONDI_CRC).lower().replace("-", "").replace("_", "")
+        if key in {"segmentation", "same", "none", "analysis"}:
+            key = VDW_RADII_SET_BONDI_CRC
+        if key in {"bondicrcfallback", "bondicrc", "typing", "default", "bondi"}:
+            radii_arr = typing_vdw_radii_angstrom(ase_atoms)
+            radii_set = VDW_RADII_SET_BONDI_CRC
+        elif key in {"mendeleev", "crc", "webapp", "legacy"}:
+            radii_arr = mendeleev_vdw_radii_angstrom(ase_atoms)
+            radii_set = VDW_RADII_SET_MENDELEEV
+        else:
+            radii_arr = default_vdw_radii_angstrom(ase_atoms)
+            radii_set = str(radii_set)
+
+    by_symbol: dict = {}
+    for sym, r in zip(ase_atoms.get_chemical_symbols(), radii_arr):
+        val = round(float(r), 4)
+        prev = by_symbol.get(sym)
+        if prev is None or abs(prev - val) > 1e-6:
+            by_symbol[sym] = val
+
+    return {
+        "vdw_radii_set": radii_set,
+        "vdw_radii_by_symbol": by_symbol,
+    }
+
+
 def typing_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
     """Stable VDW radii for pocket typing (Bondi/CRC + Mendeleev fallback).
 
