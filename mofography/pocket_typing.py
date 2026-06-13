@@ -17,6 +17,11 @@ Typical call::
     out = assign_pocket_types_from_segmentation(segmentation_results, atoms)
     results["regions_cluster"] = out.regions_cluster
 
+``max_r`` typing bands default to a separate Bondi/CRC distance grid
+(``typing_radii="bondi_crc_fallback"``); segmentation ``dgrid`` is unchanged
+for PSD, windows, and reporting.  Use ``typing_radii="segmentation"`` for the
+legacy single-grid behaviour.
+
 ``segmentation_results`` is the dict produced by periodic segmentation (``dgrid``,
 ``regions``, ``regions_pbc``, ``maxima_info``, ``connections``, ``unique_regions``,
 optionally ``ase_atoms``). A CIF path is optional (unused when segmentation is
@@ -80,6 +85,12 @@ METHOD_MAX_PROBE_RADIUS = "max_probe_radius"
 METHOD_SHAPE_REFINED = "shape_refined"
 METHOD_ENV_CLUSTER = "env_cluster"
 DEFAULT_METHOD = METHOD_ENV_CLUSTER
+
+# max_r for typing bands: Bondi/CRC handbook (+ Mendeleev fill), not analysis dgrid
+TYPING_RADII_BONDI_CRC = "bondi_crc_fallback"
+# Legacy: max_r from the same dgrid as segmentation / PSD / windows
+TYPING_RADII_SEGMENTATION = "segmentation"
+DEFAULT_TYPING_RADII = TYPING_RADII_BONDI_CRC
 
 # env_cluster: physically motivated parameters (see assign_pocket_types_env_cluster)
 ENV_CLUSTER_INITIAL_BAND_GAP_A = 0.15    # initial band split: gap > this (< grid spacing)
@@ -169,6 +180,67 @@ def _edge_connected(data: dict) -> bool:
     return float(max_w) >= CONN_TRUST_MIN_A
 
 
+def _build_periodic_pocket_adjacency(
+    connections: Sequence,
+    maxima_info: np.ndarray,
+    unique_regions: Sequence[int],
+    pbc_groups: Sequence[Sequence[int]],
+    *,
+    conn_min_a: float = CONN_TRUST_MIN_A,
+    trusted_min_a: float = WINDOW_TRUST_MIN_A,
+) -> Tuple[Dict[int, List[int]], Dict[int, List[int]]]:
+    """Rep-level adjacency from canonical periodic edge map (winding pore graph).
+
+    Uses :func:`collect_periodic_edges_canonical` so all periodic images of a
+    connection collapse to one base-node edge with ``window_radius_max``.  This
+    matches :func:`make_directed_graph_from_segmentation_results` / PLD winding
+    and avoids asymmetric neighbor counts on symmetry-equivalent pockets.
+    """
+    from collections import defaultdict
+
+    from mofography.winding_percolation import (
+        _maxima_pbc_data,
+        collect_periodic_edges_canonical,
+    )
+
+    maxima_info = np.asarray(maxima_info)
+    unique_set = {int(x) for x in unique_regions}
+    _, orig_map, _ = _maxima_pbc_data(maxima_info)
+
+    base_to_rep: Dict[int, int] = {}
+    for group in pbc_groups:
+        if not group or 0 in group:
+            continue
+        rep = min(int(r) for r in group)
+        idxs = [i for i, row in enumerate(maxima_info) if int(row[0]) == rep]
+        if not idxs:
+            continue
+        base = int(orig_map[idxs[0]])
+        base_to_rep[base] = rep
+
+    edge_map, _ = collect_periodic_edges_canonical(connections, maxima_info)
+    conn_adj: Dict[int, set] = defaultdict(set)
+    trusted_adj: Dict[int, set] = defaultdict(set)
+    for (bi, bj, _off), data in edge_map.items():
+        if bi == bj:
+            continue
+        wr = float(data.get("window_radius_max", 0.0))
+        ri, rj = base_to_rep.get(int(bi)), base_to_rep.get(int(bj))
+        if ri is None or rj is None or ri == rj:
+            continue
+        if wr >= conn_min_a:
+            conn_adj[ri].add(rj)
+            conn_adj[rj].add(ri)
+        if wr >= trusted_min_a:
+            trusted_adj[ri].add(rj)
+            trusted_adj[rj].add(ri)
+
+    reps = sorted(base_to_rep.values())
+    pocket_adj = {r: sorted(trusted_adj.get(r, set())) for r in reps}
+    pocket_adj_conn = {r: sorted(conn_adj.get(r, set())) for r in reps}
+    return pocket_adj, pocket_adj_conn
+
+
 def _import_mgr():
     """Return a namespace with the RAG/PSD helpers from mofography.compute and .rust_fun.
 
@@ -189,6 +261,7 @@ def _import_mgr():
     ns.add_pbc_to_rag              = _compute.add_pbc_to_rag
     ns.add_maxima_to_rag           = _compute.add_maxima_to_rag
     ns.compute_psds_pocketwise_rust = _rust_fun.compute_psds_pocketwise_rust
+    ns.compute_pocket_psds_for_segmentation = _rust_fun.compute_pocket_psds_for_segmentation
 
     ns.add_csd_to_rag_with_pbc = _compute.add_csd_to_rag_with_pbc
     ns.add_pocket_psd_to_rag_with_pbc = _compute.add_pocket_psd_to_rag_with_pbc
@@ -208,6 +281,55 @@ def _bonds_from_atoms(atoms) -> Tuple[List, List]:
     bonds = bonded.info.get("covalent_bonds", [])
     orders = bonded.info.get("covalent_bond_orders", [])
     return bonds, orders
+
+
+def resolve_typing_vdw_radii(
+    atoms,
+    typing_radii: str | np.ndarray,
+) -> Optional[np.ndarray]:
+    """Per-atom VDW radii (Å) for typing ``max_r``, or ``None`` = use segmentation dgrid."""
+    if isinstance(typing_radii, np.ndarray):
+        return np.asarray(typing_radii, dtype=float)
+    key = str(typing_radii).lower().replace("-", "").replace("_", "")
+    if key in {"segmentation", "same", "none", "analysis"}:
+        return None
+    from mofography.vdw_radii import (
+        default_vdw_radii_angstrom,
+        mendeleev_vdw_radii_angstrom,
+        typing_vdw_radii_angstrom,
+    )
+
+    if key in {"bondicrcfallback", "bondicrc", "typing", "default"}:
+        return typing_vdw_radii_angstrom(atoms)
+    if key in {"bondi", "bondi1964", "crcbondi", "crc1964"}:
+        return default_vdw_radii_angstrom(atoms)
+    if key in {"crc", "mendeleev", "webapp"}:
+        return mendeleev_vdw_radii_angstrom(atoms)
+    if key in {"alvarez", "alv"}:
+        from mgr import vdw_radii as mcli_vr
+
+        return mcli_vr.alvarez_vdw_radii_angstrom(atoms)
+    raise ValueError(
+        f"unknown typing_radii={typing_radii!r}; use "
+        f"{TYPING_RADII_BONDI_CRC!r}, {TYPING_RADII_SEGMENTATION!r}, or a radii array"
+    )
+
+
+def compute_typing_dgrid(
+    atoms,
+    segmentation: Mapping[str, Any],
+    typing_radii: str | np.ndarray = DEFAULT_TYPING_RADII,
+) -> Optional[np.ndarray]:
+    """Distance grid for typing ``max_r`` only (same spacing as segmentation)."""
+    radii = resolve_typing_vdw_radii(atoms, typing_radii)
+    if radii is None:
+        return None
+    from mofography.rust_fun import dgrid_from_atoms_rust
+
+    spacing = float(segmentation.get("spacing", DEFAULT_SPACING_A))
+    return dgrid_from_atoms_rust(
+        atoms, spacing=spacing, radii=radii,
+    ).astype(np.float32)
 
 
 def build_pockets_from_segmentation(
@@ -284,34 +406,14 @@ def build_pockets_from_segmentation(
     else:
         psd_source = "missing_pocket_psd"
 
-    region_to_rep: Dict[int, int] = {}
-    for group in pbc_groups:
-        rep = min(group)
-        for reg in group:
-            region_to_rep[int(reg)] = rep
-
-    pocket_adj: Dict[int, List[int]] = {min(g): [] for g in pbc_groups}
-    # Loose connectivity adjacency: lower saddle-point threshold for the
-    # direction fingerprint.  Watershed boundaries naturally sit at dgrid
-    # local minima (~0.3-0.6 A for ZIF cages), so the strict 1.0 A gate
-    # would silence real cage-window connections.
-    pocket_adj_conn: Dict[int, List[int]] = {min(g): [] for g in pbc_groups}
-    for u, v, data in rag.edges(data=True):
-        ru, rv = region_to_rep.get(int(u)), region_to_rep.get(int(v))
-        if ru is None or rv is None or ru == rv:
-            continue
-        trusted  = _edge_trusted(data)
-        any_conn = _edge_connected(data)
-        if trusted:
-            if rv not in pocket_adj[ru]:
-                pocket_adj[ru].append(rv)
-            if ru not in pocket_adj[rv]:
-                pocket_adj[rv].append(ru)
-        if any_conn:
-            if rv not in pocket_adj_conn[ru]:
-                pocket_adj_conn[ru].append(rv)
-            if ru not in pocket_adj_conn[rv]:
-                pocket_adj_conn[rv].append(ru)
+    # Full connection list required: trimming to unique_regions drops periodic-image
+    # edges that collect_periodic_edges_canonical needs for symmetric base adjacency.
+    pocket_adj, pocket_adj_conn = _build_periodic_pocket_adjacency(
+        connections,
+        maxima_info,
+        unique_regions,
+        pbc_groups,
+    )
 
     bw = float(psd_bin_edges[1] - psd_bin_edges[0]) if len(psd_bin_edges) > 1 else 0.25
     d1_map: Dict[int, float] = {}
@@ -373,11 +475,22 @@ def compute_pocket_fingerprints(
     pbc_groups: Optional[Sequence[Sequence[int]]] = None,
     bonds: Optional[Sequence] = None,
     bond_orders: Optional[Sequence] = None,
+    typing_dgrid: Optional[np.ndarray] = None,
 ) -> Dict[int, PocketFingerprint]:
-    """Mouth-annulus fingerprints for all pockets (for typing and diagnostics)."""
+    """Mouth-annulus fingerprints for all pockets (for typing and diagnostics).
+
+    When ``typing_dgrid`` is set, ``max_probe_radius_a`` is taken from that grid
+    (stable Bondi/CRC radii) while void sampling and framework SH still use the
+    segmentation ``dgrid`` from the main analysis pipeline.
+    """
     regions = np.asarray(segmentation["regions"])
     regions_pbc = np.asarray(segmentation.get("regions_pbc", regions))
     dgrid = np.asarray(segmentation["dgrid"], dtype=float)
+    dgrid_max_r = (
+        np.asarray(typing_dgrid, dtype=float)
+        if typing_dgrid is not None
+        else dgrid
+    )
     shape = np.asarray(segmentation.get("shape", dgrid.shape))
 
     if bonds is None:
@@ -410,7 +523,7 @@ def compute_pocket_fingerprints(
             for r in frag_group
             if r in props_frag
         )
-        mr = max_probe_radius_for_fragment_group(regions, dgrid, frag_group)
+        mr = max_probe_radius_for_fragment_group(regions, dgrid_max_r, frag_group)
         psd_vec = p.get("psd_vec")
         fps[rep] = compute_pocket_fingerprint(
             regions_pbc,
@@ -490,7 +603,32 @@ def merge_singleton_max_r_bands(
         if best_other is not None and best_gap <= gap_tol_a:
             for rep in reps:
                 merged_band[rep] = best_other
-    return merged_band
+
+    # Collapse mutual singleton links (e.g. ZIF-8: two 1-pocket bands within gap_tol).
+    all_bands = sorted(set(merged_band.values()) | set(rep_to_band.values()))
+    parent = {b: b for b in all_bands}
+
+    def _find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for rep, orig in rep_to_band.items():
+        new = merged_band[int(rep)]
+        if int(orig) != int(new):
+            ra, rb = _find(int(orig)), _find(int(new))
+            if ra != rb:
+                parent[rb] = ra
+
+    remap: Dict[int, int] = {}
+    out: Dict[int, int] = {}
+    for rep, bi in merged_band.items():
+        root = _find(int(bi))
+        if root not in remap:
+            remap[root] = len(remap)
+        out[int(rep)] = remap[root]
+    return out
 
 
 def _mean_max_r(pids: Sequence[int], fps: Mapping[int, PocketFingerprint]) -> float:
@@ -754,6 +892,8 @@ def assign_pocket_types_env_cluster(
     merge_gap_threshold_a: float = ENV_CLUSTER_MERGE_GAP_THRESHOLD_A,
     merge_cosine: float = ENV_CLUSTER_MERGE_COSINE,
     merge_cosine_large_gap: float = ENV_CLUSTER_MERGE_COSINE_LARGE_GAP,
+    merge_singleton_bands: bool = True,
+    singleton_band_gap_a: float = DEFAULT_SINGLETON_BAND_GAP_A,
 ) -> Tuple[int, Dict[int, int], Dict[str, Any]]:
     """Pocket typing: max_r initial bands, fingerprint-driven merge only.
 
@@ -765,7 +905,10 @@ def assign_pocket_types_env_cluster(
     3. Iteratively merge adjacent bands (by mean max_r) when:
        - |mean_max_r_A − mean_max_r_B| ≤ merge_max_r_gap_a  (physical proximity)
        - mean cosine over all cross-pairs ≥ merge_cosine     (same environment)
-    4. Each remaining band → one pocket type.
+    4. Optionally merge 1-pocket max_r bands into the nearest neighbor when
+       peak radii are within ``singleton_band_gap_a`` (e.g. ZIF-8 corner vs
+       center cages, grid-offset max_r only).
+    5. Each remaining band → one pocket type.
 
     Parameters
     ----------
@@ -826,21 +969,45 @@ def assign_pocket_types_env_cluster(
                 changed = True
                 break  # restart after each merge
 
-    rep_to_type: Dict[int, int] = {}
-    for ti, grp in enumerate(bands):
-        for pid in grp:
-            rep_to_type[int(pid)] = ti
+    n_singleton_merges = 0
+    if merge_singleton_bands and len(bands) > 1:
+        rep_to_band = {int(pid): ti for ti, grp in enumerate(bands) for pid in grp}
+        before = dict(rep_to_band)
+        rep_to_band = merge_singleton_max_r_bands(
+            pockets, fps, rep_to_band, gap_tol_a=singleton_band_gap_a,
+        )
+        n_singleton_merges = sum(
+            1 for rep in rep_to_band if rep_to_band[rep] != before[rep]
+        )
+        if n_singleton_merges:
+            band_ids = sorted(set(rep_to_band.values()))
+            remap = {old: new for new, old in enumerate(band_ids)}
+            rep_to_type = {
+                int(rep): remap[int(rep_to_band[rep])] for rep in rep_to_band
+            }
+            bands = [
+                sorted(rep for rep, bi in rep_to_band.items() if remap[bi] == ti)
+                for ti in range(len(band_ids))
+            ]
+        else:
+            rep_to_type = {
+                int(pid): ti for ti, grp in enumerate(bands) for pid in grp
+            }
+    else:
+        rep_to_type = {int(pid): ti for ti, grp in enumerate(bands) for pid in grp}
 
     audit = {
         "method": METHOD_ENV_CLUSTER,
         "n_initial_bands": n_initial,
         "n_merges": n_merges,
+        "n_singleton_band_merges": n_singleton_merges,
         "n_types_final": len(bands),
         "initial_band_gap_a": initial_band_gap_a,
         "merge_max_r_gap_a": merge_max_r_gap_a,
         "merge_gap_threshold_a": merge_gap_threshold_a,
         "merge_cosine": merge_cosine,
         "merge_cosine_large_gap": merge_cosine_large_gap,
+        "singleton_band_gap_a": singleton_band_gap_a,
     }
     return len(bands), rep_to_type, audit
 
@@ -1046,6 +1213,8 @@ def assign_pocket_types_from_segmentation(
     merge_cosine: float = FP_MERGE_COSINE,
     probe_radius_psd: float = DEFAULT_PROBE_RADIUS_PSD_A,
     psd_bin_edges: Optional[np.ndarray] = None,
+    env_cluster_initial_band_gap_a: Optional[float] = None,
+    typing_radii: str | np.ndarray = DEFAULT_TYPING_RADII,
 ) -> PocketTypingResult:
     """Assign pocket types from periodic segmentation results.
 
@@ -1058,8 +1227,15 @@ def assign_pocket_types_from_segmentation(
     segmentation
         Dict with at least ``dgrid``, ``regions``, ``maxima_info``, ``all_maxima``,
         ``connections``, ``unique_regions``. Prefer ``regions_pbc`` when present.
+        The segmentation ``dgrid`` continues to drive PSD, windows, void sampling,
+        and framework fingerprints.
     atoms
         ASE Atoms; defaults to ``segmentation["ase_atoms"]``.
+    typing_radii
+        VDW table for typing ``max_r`` bands only (default
+        ``bondi_crc_fallback``: Bondi/CRC handbook + Mendeleev fill for missing
+        symbols).  Pass ``segmentation`` to use the analysis ``dgrid`` for
+        ``max_r`` as before, or a per-atom radii array (Å).
     cif_path
         Reserved for upstream Mofography; not required when segmentation is complete.
     """
@@ -1090,6 +1266,7 @@ def assign_pocket_types_from_segmentation(
                 err += f" (pocket PSD failed: {pocket_psd_error})"
             return PocketTypingResult(ok=False, error=err, method=method)
 
+        typing_dgrid = compute_typing_dgrid(atoms, segmentation, typing_radii)
         fps = compute_pocket_fingerprints(
             segmentation,
             atoms,
@@ -1097,13 +1274,20 @@ def assign_pocket_types_from_segmentation(
             pbc_groups=pbc_groups,
             bonds=bonds,
             bond_orders=bond_orders,
+            typing_dgrid=typing_dgrid,
         )
 
         used_method = method
         if method == METHOD_ENV_CLUSTER:
+            env_kw: Dict[str, float] = {}
+            if env_cluster_initial_band_gap_a is not None:
+                env_kw["initial_band_gap_a"] = float(env_cluster_initial_band_gap_a)
             n_types, rep_to_type, refine_audit = assign_pocket_types_env_cluster(
                 pockets,
                 fps,
+                merge_singleton_bands=merge_singleton_bands,
+                singleton_band_gap_a=singleton_band_gap_a,
+                **env_kw,
             )
             audit_extra = refine_audit
         elif method == METHOD_SHAPE_REFINED:
@@ -1152,6 +1336,12 @@ def assign_pocket_types_from_segmentation(
             "probe_radius_psd_a": probe_radius_psd,
             "spacing_a": segmentation.get("spacing", DEFAULT_SPACING_A),
             "mask_thickness_a": segmentation.get("mask_thickness", DEFAULT_MASK_THICKNESS_A),
+            "typing_radii": (
+                "segmentation"
+                if typing_dgrid is None
+                else (str(typing_radii) if isinstance(typing_radii, str) else "array")
+            ),
+            "typing_dgrid_separate": typing_dgrid is not None,
             "fragment_label_to_rep": label_to_rep,
             "fragment_label_to_type": label_to_type,
         }
