@@ -44,9 +44,10 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi
-        (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`.
-        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev table.
+    :param radii: Van der Waals radii for each atom. If None, uses Bondi (1964)
+        handbook radii with Mendeleev fill for undefined symbols
+        (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`).
+        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev-only table.
     :type radii: numpy.ndarray or None
     :return: 3D distance grid where values represent distances to atom surfaces
     :rtype: numpy.ndarray
@@ -77,9 +78,10 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     :type ase_atoms: ase.Atoms
     :param spacing: Grid spacing in Angstroms
     :type spacing: float
-    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi
-        (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`.
-        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev table.
+    :param radii: Van der Waals radii for each atom. If None, uses Bondi (1964)
+        handbook radii with Mendeleev fill for undefined symbols
+        (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`).
+        Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev-only table.
     :type radii: numpy.ndarray or None
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :type n_neighbors: int
@@ -109,7 +111,8 @@ def dgrid_from_atoms_aabb_interp_rust(
     :param ase_atoms: ASE Atoms object containing the atomic structure
     :param spacing: Grid spacing in Angstroms (fine grid)
     :param coarse_factor: Coarsening factor (>1) for the AABB sampling grid; 2 is a mild smoothing
-    :param radii: Van der Waals radii for each atom. If None, uses the CRC/Bondi (1964) VDW table from :func:`~mofography.vdw_radii.default_vdw_radii_angstrom`
+    :param radii: Van der Waals radii for each atom. If None, uses Bondi (1964)
+        handbook radii with Mendeleev fill (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`)
     :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
     :return: 3D distance grid (float32) with mild smoothing from interpolation
     """
@@ -1496,6 +1499,8 @@ def compute_accessible_psd_from_results(
     samples_per_region=10000,
     accessible_only=True,
     pb_normalization=False,
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
 ):
     """
     Compute a PoreBlazer-style accessible PSD by:
@@ -1568,6 +1573,12 @@ def compute_accessible_psd_from_results(
     # Mask regions to accessible only
     mask = np.isin(regions_pbc, list(accessible_region_ids))
     regions_accessible = np.where(mask, regions_pbc, 0)
+    if enforce_probe_center_occupiable:
+        probe_center_min_radius = float(probe_radius)
+    if probe_center_min_radius is not None and float(probe_center_min_radius) > 0:
+        regions_accessible = _effective_regions_pocket_psd_sampling(
+            regions_accessible, dgrid, float(probe_center_min_radius)
+        )
 
     # Per-region voxel counts (all voxels have same volume)
     region_ids_present = np.unique(regions_accessible)
@@ -1674,6 +1685,8 @@ def compute_psd_global_accessible(
     density=False,
     return_fig=False,
     material="Material",
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
 ):
     """Compute global accessible PSD (volume-weighted from percolating regions only).
 
@@ -1716,6 +1729,8 @@ def compute_psd_global_accessible(
         samples_per_region=samples_per_region,
         accessible_only=True,
         pb_normalization=False,
+        probe_center_min_radius=probe_center_min_radius,
+        enforce_probe_center_occupiable=enforce_probe_center_occupiable,
     )
 
     pdf = out["pdf"]
@@ -1765,6 +1780,8 @@ def compute_psds_pocketwise_accessible(
     bins=None,
     return_fig=False,
     material="Material",
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
 ):
     """Compute pocket-wise PSD restricted to accessible (percolating) regions only.
 
@@ -1803,6 +1820,8 @@ def compute_psds_pocketwise_accessible(
         samples_per_region=num_samples_per_region,
         accessible_only=True,
         pb_normalization=False,
+        probe_center_min_radius=probe_center_min_radius,
+        enforce_probe_center_occupiable=enforce_probe_center_occupiable,
     )
 
     per_region = out["per_region"]

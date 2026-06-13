@@ -277,14 +277,12 @@ MENDELEEV_VDW_RADII_PM = pd.Series(
 
 
 def default_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
-    """Per-atom VDW radii in Å for an ASE Atoms object.
+    """Per-atom VDW radii in Å for distance-grid calculations (default table).
 
-    Uses the CRC / Bondi (1964) radii by default.  For the legacy
-    Mendeleev table, call :func:`mendeleev_vdw_radii_angstrom` instead.
+    Uses Bondi (1964) / CRC handbook values with Mendeleev fill for symbols
+    missing from that table (same policy as pocket typing).
     """
-    return (
-        CRC_VDW_RADII_PM[ase_atoms.get_chemical_symbols()].values / 100.0
-    )
+    return typing_vdw_radii_angstrom(ase_atoms)
 
 
 def mendeleev_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
@@ -292,3 +290,20 @@ def mendeleev_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
     return (
         MENDELEEV_VDW_RADII_PM[ase_atoms.get_chemical_symbols()].values / 100.0
     )
+
+
+def typing_vdw_radii_angstrom(ase_atoms) -> np.ndarray:
+    """Stable VDW radii for pocket typing (Bondi/CRC + Mendeleev fallback).
+
+    Uses the CRC / Bondi (1964) handbook table for all known elements.  Symbols
+    missing from that table (superheavy / NaN entries) are filled from the
+    Mendeleev table so exotic compositions still get a finite radius.
+    """
+    bondi = (
+        CRC_VDW_RADII_PM[ase_atoms.get_chemical_symbols()].values / 100.0
+    ).astype(float, copy=True)
+    if np.all(np.isfinite(bondi)):
+        return bondi
+    mend = mendeleev_vdw_radii_angstrom(ase_atoms)
+    bondi[~np.isfinite(bondi)] = mend[~np.isfinite(bondi)]
+    return bondi
