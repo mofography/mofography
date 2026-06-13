@@ -5242,6 +5242,77 @@ def clustering_grid_from_regions(regions, rag2, cluster_key="cluster"):
     return regions_cluster
 
 
+CLUSTER_ENV_PBC = "cluster_env_pbc"
+
+
+def add_pocket_types_to_rag(
+    rag,
+    rep_to_type,
+    pbc_groups=None,
+    *,
+    cluster_key: str = CLUSTER_ENV_PBC,
+    as_string: bool = True,
+):
+    """Stamp pocket-type labels on RAG nodes (parallel to ``cluster_geom_pbc``).
+
+    After :func:`~mofography.workflow.assign_pocket_types` with ``env_cluster``,
+    use ``cluster_key="cluster_env_pbc"`` with :func:`clustering_grid_from_regions`
+    and :func:`~mofography.visualize.plot_pocket_psds_on_rag`.
+
+    :param rag: Region adjacency graph (NetworkX).
+    :param rep_to_type: ``{pbc_rep_region_id: type_id}`` (0-based), e.g.
+        ``typed.rep_to_type``.
+    :param pbc_groups: PBC fragment groups; when given, every periodic copy of a
+        pocket receives the representative's type.
+    :param cluster_key: Node attribute name (default ``cluster_env_pbc``).
+    :param as_string: Store labels as strings like ``cluster_geom_pbc``.
+    :returns: Deep-copied RAG with ``cluster_key`` on nodes.
+    """
+    import copy
+    from typing import Mapping, Sequence
+
+    G = copy.deepcopy(rag)
+    rep_to_type = {int(k): int(v) for k, v in dict(rep_to_type).items()}
+
+    def _store(node, type_id: int) -> None:
+        G.nodes[node][cluster_key] = str(type_id) if as_string else int(type_id)
+
+    if pbc_groups is not None:
+        from mofography.pocket_typing import build_fragment_label_to_rep
+
+        label_to_rep = build_fragment_label_to_rep(pbc_groups)
+        for node in G.nodes:
+            rep = label_to_rep.get(int(node), int(node))
+            if rep in rep_to_type:
+                _store(node, rep_to_type[rep])
+    else:
+        for node in G.nodes:
+            nid = int(node)
+            if nid in rep_to_type:
+                _store(node, rep_to_type[nid])
+    return G
+
+
+def add_env_cluster_pocket_types_to_rag(
+    rag,
+    typed,
+    pbc_groups=None,
+    *,
+    cluster_key: str = CLUSTER_ENV_PBC,
+    as_string: bool = True,
+):
+    """Convenience wrapper: stamp ``env_cluster`` types from :class:`PocketTypingResult`."""
+    if not getattr(typed, "ok", False):
+        raise ValueError(getattr(typed, "error", "pocket typing failed"))
+    return add_pocket_types_to_rag(
+        rag,
+        typed.rep_to_type,
+        pbc_groups,
+        cluster_key=cluster_key,
+        as_string=as_string,
+    )
+
+
 # region  # * Energy grid functions
 #######################################################
 ############################
