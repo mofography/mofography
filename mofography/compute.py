@@ -6652,17 +6652,34 @@ def get_pore_dia_mgr(mat_atoms, dgrid= None, kwargs={}):
     
     return lcd, pld, dfsd, distance_grid
 
-def compute_percolation_history_from_results(results):
+def compute_percolation_history_from_results(results, variant="v1"):
+    """Attach lattice percolation history (v1 by default; prefer v2 via variant='v2')."""
+    from mofography.percolation_results import store_percolation_history
+
+    if str(variant) == "v2":
+        return compute_percolation_history_from_results2(results)
     dgrid = results['dgrid']
     regions = results['regions']
-    # maxima_info = results['maxima_info']
     all_maxima = results['all_maxima']
     maxima = all_maxima[:regions.max()]
-    percolation_history, pld_locations, _, _,_ = compute_percolation_history(dgrid, regions, maxima)
-    results['percolation_history'] = percolation_history
+    percolation_history, pld_locations, _, _, _ = compute_percolation_history(
+        dgrid, regions, maxima
+    )
+    store_percolation_history(
+        results, "lattice", percolation_history, lattice_variant="v1", pld_locations=pld_locations
+    )
     results['pld_locations'] = pld_locations
-    # results['']
     return results
+
+
+def compute_percolation_history_from_results_lattice(results, variant="v2"):
+    """Attach lattice percolation history under ``percolation_history_lattice``."""
+    variant = str(variant)
+    if variant == "v2":
+        return compute_percolation_history_from_results2(results)
+    if variant == "v1":
+        return compute_percolation_history_from_results(results, variant="v1")
+    raise ValueError(f"Unknown lattice variant {variant!r}; use 'v1' or 'v2'.")
     
 def compute_percolation_history(distance_grid=None, regions=None, maxima=None, path_to_cif=None, kwargs={}):
     """
@@ -8930,40 +8947,38 @@ def normalize_pbc_groups_by_regions_pbc(pbc_groups, regions, regions_pbc):
     return out
 
 
-def _accessible_percolating_region_labels(
+def _accessible_percolating_region_labels_winding(
+    results_dict,
+    probe_radius,
+    mat_atoms=None,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Winding graph accessibility; *window_fp* toggles fingerprint rescue only."""
+    from mofography.winding_percolation import percolating_region_labels_at_probe_winding
+
+    kwargs = _merge_winding_kwargs(results_dict, bool(window_fp), winding_kwargs)
+    atoms = results_dict.get("mat_atoms") or mat_atoms
+    labels = percolating_region_labels_at_probe_winding(
+        results_dict,
+        float(probe_radius),
+        kwargs=kwargs,
+        atoms=atoms,
+    )
+    fp_note = " + window FP" if bool(window_fp) else ""
+    return labels, float(probe_radius), True, (
+        f"Winding accessible labels{fp_note}: {len(labels)} regions at probe "
+        f"{float(probe_radius):.3f} Å"
+    )
+
+
+def _accessible_percolating_region_labels_lattice(
     results_dict,
     probe_radius,
     percolation_history,
-    mat_atoms=None,
-    window_fp_for_accessible=True,
-    winding_kwargs=None,
+    lattice_variant="v2",
 ):
-    """
-    Region labels treated as probe-accessible for SA / void volume.
-
-    When *window_fp_for_accessible* is True (default), runs winding percolation
-    at the requested probe and applies window-fingerprint bridging for sub-probe
-    graph windows (grid-sampling correction when percolation exists).  When
-    False, falls back to the legacy percolation-history component union.
-    """
-    if bool(window_fp_for_accessible):
-        from mofography.winding_percolation import percolating_region_labels_at_probe_winding
-
-        kwargs = _merge_winding_kwargs(
-            results_dict, window_fp_for_accessible, winding_kwargs
-        )
-        atoms = results_dict.get("mat_atoms") or mat_atoms
-        labels = percolating_region_labels_at_probe_winding(
-            results_dict,
-            float(probe_radius),
-            kwargs=kwargs,
-            atoms=atoms,
-        )
-        return labels, float(probe_radius), True, (
-            f"Winding accessible labels (+ window FP): {len(labels)} regions at probe "
-            f"{float(probe_radius):.3f} Å"
-        )
-
+    """Lattice voxel-history accessibility (Zeo++-style); no window FP."""
     threshold, components, exact_match, message = select_percolation_threshold(
         percolation_history, probe_radius
     )
@@ -8975,90 +8990,113 @@ def _accessible_percolating_region_labels(
     return percolating_regions, threshold, exact_match, message
 
 
+def _accessible_percolating_region_labels(
+    results_dict,
+    probe_radius,
+    percolation_history,
+    mat_atoms=None,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+):
+    """Backward-compatible alias: always uses winding (window_fp controls FP only)."""
+    return _accessible_percolating_region_labels_winding(
+        results_dict,
+        probe_radius,
+        mat_atoms=mat_atoms,
+        window_fp=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+    )
+
+
+def _ensure_winding_history(results_dict, winding_kwargs=None):
+    from mofography.percolation_results import get_percolation_history, has_percolation_history
+    from mofography.winding_percolation import update_results_with_percolation_history_winding
+
+    if has_percolation_history(results_dict, "winding"):
+        return results_dict
+
+    logger.info(
+        "Winding percolation history not found; computing percolation_history_winding..."
+    )
+    history_kw = {}
+    if isinstance(winding_kwargs, dict):
+        for key in (
+            "step",
+            "min_threshold",
+            "max_threshold",
+            "thresholds",
+            "include_dangling",
+            "expand_components",
+            "graph",
+            "base_region_labels",
+        ):
+            if key in winding_kwargs:
+                history_kw[key] = winding_kwargs[key]
+    results_dict = update_results_with_percolation_history_winding(
+        results_dict,
+        **history_kw,
+    )
+    logger.info(
+        "Stored percolation_history_winding (%d entries)",
+        len(get_percolation_history(results_dict, "winding")),
+    )
+    return results_dict
+
+
+def _ensure_lattice_history(results_dict, lattice_variant="v2"):
+    from mofography.percolation_results import get_percolation_history, has_percolation_history
+
+    if has_percolation_history(results_dict, "lattice"):
+        return results_dict
+
+    logger.info(
+        "Lattice percolation history not found; computing percolation_history_lattice (%s)...",
+        lattice_variant,
+    )
+    results_dict = compute_percolation_history_from_results_lattice(
+        results_dict, variant=lattice_variant
+    )
+    logger.info(
+        "Stored percolation_history_lattice (%d entries)",
+        len(get_percolation_history(results_dict, "lattice")),
+    )
+    return results_dict
+
+
 def _ensure_percolation_history_for_accessibility(
     results_dict,
     window_fp_for_accessible=True,
     winding_kwargs=None,
 ):
-    """Attach percolation history when SA/vol callers need it and none is stored."""
-    if "percolation_history" in results_dict:
-        return results_dict
-
-    if bool(window_fp_for_accessible):
-        from mofography.winding_percolation import update_results_with_percolation_history_winding
-
-        logger.info(
-            "Percolation history not found in results. Computing winding percolation history..."
-        )
-        history_kw = {}
-        if isinstance(winding_kwargs, dict):
-            for key in (
-                "step",
-                "min_threshold",
-                "max_threshold",
-                "thresholds",
-                "include_dangling",
-                "expand_components",
-                "graph",
-                "base_region_labels",
-            ):
-                if key in winding_kwargs:
-                    history_kw[key] = winding_kwargs[key]
-        results_dict = update_results_with_percolation_history_winding(
-            results_dict,
-            **history_kw,
-        )
-        logger.info(
-            "Computed winding percolation history with %d entries",
-            len(results_dict.get("percolation_history", [])),
-        )
-    else:
-        logger.info(
-            "Percolation history not found in results. Computing lattice percolation history..."
-        )
-        results_dict = compute_percolation_history_from_results(results_dict)
-        logger.info(
-            "Computed lattice percolation history with %d entries",
-            len(results_dict.get("percolation_history", [])),
-        )
-    return results_dict
+    """Deprecated: use ``_ensure_winding_history`` or ``_ensure_lattice_history``."""
+    return _ensure_winding_history(results_dict, winding_kwargs=winding_kwargs)
 
 
-def _percolated_cluster_components(
-    results_dict,
-    probe_radius,
+def _percolated_cluster_components_winding(results_dict, probe_radius):
+    from mofography.winding_percolation import (
+        _prepare_graph_and_labels,
+        percolation_all_axes_winding,
+    )
+
+    graph, base_region_labels = _prepare_graph_and_labels(results_dict, None, None)
+    axis_clusters, _, _ = percolation_all_axes_winding(
+        results_dict,
+        float(probe_radius),
+        graph=graph,
+        base_region_labels=base_region_labels,
+        include_dangling=True,
+        expand_components=True,
+    )
+    if not any(axis_clusters.get(axis) for axis in axis_clusters):
+        return float(probe_radius), None
+    return float(probe_radius), axis_clusters
+
+
+def _percolated_cluster_components_lattice(
     percolation_history,
-    *,
+    probe_radius,
     threshold=None,
-    window_fp_for_accessible=True,
-    winding_kwargs=None,
-    mat_atoms=None,
 ):
-    """
-    Return (threshold, components) for ``by_percolated_cluster`` breakdowns.
-
-    Winding accessibility evaluates clusters live at *probe_radius* instead of
-    interpolating from a coarser history grid.
-    """
-    if bool(window_fp_for_accessible):
-        from mofography.winding_percolation import (
-            _prepare_graph_and_labels,
-            percolation_all_axes_winding,
-        )
-
-        graph, base_region_labels = _prepare_graph_and_labels(results_dict, None, None)
-        axis_clusters, _, _ = percolation_all_axes_winding(
-            results_dict,
-            float(probe_radius),
-            graph=graph,
-            base_region_labels=base_region_labels,
-            include_dangling=True,
-            expand_components=True,
-        )
-        if not any(axis_clusters.get(axis) for axis in axis_clusters):
-            return float(probe_radius), None
-        return float(probe_radius), axis_clusters
-
     components = None
     if threshold is not None and percolation_history:
         for t, components_candidate in percolation_history:
@@ -9070,6 +9108,24 @@ def _percolated_cluster_components(
             percolation_history, probe_radius
         )
     return threshold, components
+
+
+def _percolated_cluster_components(
+    results_dict,
+    probe_radius,
+    percolation_history,
+    *,
+    threshold=None,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    mat_atoms=None,
+    accessibility_method="winding",
+):
+    if str(accessibility_method).lower() == "lattice":
+        return _percolated_cluster_components_lattice(
+            percolation_history, probe_radius, threshold=threshold
+        )
+    return _percolated_cluster_components_winding(results_dict, probe_radius)
 
 
 def _percolated_clusters_dict(components):
@@ -9152,6 +9208,8 @@ def compute_surface_area_from_results(
     return_details=False,
     window_fp_for_accessible=True,
     winding_kwargs=None,
+    accessibility_method="winding",
+    lattice_variant="v2",
 ):
     """
     Compute surface area analysis from pre-computed results dictionary.
@@ -9174,12 +9232,15 @@ def compute_surface_area_from_results(
     return_details : bool, optional
         If True, returns detailed intermediate results. Default False.
     window_fp_for_accessible : bool, optional
-        When True (default), accessible regions use winding percolation at the
-        probe plus window-fingerprint bridging for sub-probe graph windows.
-        Set False for the legacy percolation-history label union.
+        Winding only: when True, apply window-fingerprint bridging. When False,
+        strict winding percolation without FP. Ignored for lattice.
     winding_kwargs : dict, optional
         Extra keyword arguments for winding fingerprint bridging (merged over
         ``results_dict['winding_kwargs']`` when present).
+    accessibility_method : str, optional
+        ``"winding"`` (default) or ``"lattice"``.
+    lattice_variant : str, optional
+        ``"v2"`` (recommended) or ``"v1"`` for lattice accessibility.
 
     Returns
     -------
@@ -9228,26 +9289,37 @@ def compute_surface_area_from_results(
             logger.warning(f"Setting total surface area to zero for probe radius {probe_radius:.3f} Å")
             total_surface_area = 0.0
 
-    # Step 2: Ensure percolation history is available
-    results_dict = _ensure_percolation_history_for_accessibility(
-        results_dict,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-    )
+    from mofography.percolation_results import get_percolation_history
 
-    # Step 3: Get percolating regions (winding + window FP by default, or history)
-    percolation_history = results_dict.get('percolation_history', [])
+    method = str(accessibility_method).lower()
+    # Step 2: Ensure percolation history for the chosen accessibility method
+    if method == "lattice":
+        results_dict = _ensure_lattice_history(results_dict, lattice_variant=lattice_variant)
+        percolation_history = get_percolation_history(results_dict, "lattice")
+    else:
+        results_dict = _ensure_winding_history(results_dict, winding_kwargs=winding_kwargs)
+        percolation_history = get_percolation_history(results_dict, "winding")
 
-    percolating_regions, selected_threshold, exact_match, message = (
-        _accessible_percolating_region_labels(
-            results_dict,
-            probe_radius,
-            percolation_history,
-            mat_atoms=mat_atoms,
-            window_fp_for_accessible=window_fp_for_accessible,
-            winding_kwargs=winding_kwargs,
+    # Step 3: Accessible fragment labels
+    if method == "lattice":
+        percolating_regions, selected_threshold, exact_match, message = (
+            _accessible_percolating_region_labels_lattice(
+                results_dict,
+                probe_radius,
+                percolation_history,
+                lattice_variant=lattice_variant,
+            )
         )
-    )
+    else:
+        percolating_regions, selected_threshold, exact_match, message = (
+            _accessible_percolating_region_labels_winding(
+                results_dict,
+                probe_radius,
+                mat_atoms=mat_atoms,
+                window_fp=window_fp_for_accessible,
+                winding_kwargs=winding_kwargs,
+            )
+        )
     threshold = selected_threshold
 
     logger.info(message)
@@ -9262,9 +9334,7 @@ def compute_surface_area_from_results(
         probe_radius,
         percolation_history,
         threshold=threshold,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-        mat_atoms=mat_atoms,
+        accessibility_method=method,
     )
 
     # Step 3: Get surface area meshes for each region (use raw regions; aggregate to PBC reps)
@@ -9459,6 +9529,8 @@ def compute_surface_area_from_results_mc(
     return_details=False,
     window_fp_for_accessible=True,
     winding_kwargs=None,
+    accessibility_method="winding",
+    lattice_variant="v2",
 ):
     """
     Experimental Monte Carlo shell-based surface area estimator.
@@ -9487,12 +9559,14 @@ def compute_surface_area_from_results_mc(
     return_details : bool, optional
         If True, returns additional diagnostic information.
     window_fp_for_accessible : bool, optional
-        When True (default), accessible regions use winding percolation at the
-        probe plus window-fingerprint bridging for sub-probe graph windows.
-        Set False for the legacy percolation-history label union.
+        Winding only: window-fingerprint bridging when True; strict winding when False.
     winding_kwargs : dict, optional
         Extra keyword arguments for winding fingerprint bridging (merged over
         ``results_dict['winding_kwargs']`` when present).
+    accessibility_method : str, optional
+        ``"winding"`` (default) or ``"lattice"``.
+    lattice_variant : str, optional
+        ``"v2"`` or ``"v1"`` for lattice accessibility.
 
     Returns
     -------
@@ -9534,23 +9608,29 @@ def compute_surface_area_from_results_mc(
     # Calculate mass for normalization
     mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # grams
 
-    # Ensure percolation history is available
-    results_dict = _ensure_percolation_history_for_accessibility(
-        results_dict,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-    )
+    from mofography.percolation_results import get_percolation_history
 
-    percolation_history = results_dict.get("percolation_history", [])
-
-    percolating_regions, threshold, exact_match, message = _accessible_percolating_region_labels(
-        results_dict,
-        probe_radius,
-        percolation_history,
-        mat_atoms=mat_atoms,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-    )
+    method = str(accessibility_method).lower()
+    if method == "lattice":
+        results_dict = _ensure_lattice_history(results_dict, lattice_variant=lattice_variant)
+        percolation_history = get_percolation_history(results_dict, "lattice")
+        percolating_regions, threshold, exact_match, message = (
+            _accessible_percolating_region_labels_lattice(
+                results_dict, probe_radius, percolation_history, lattice_variant=lattice_variant
+            )
+        )
+    else:
+        results_dict = _ensure_winding_history(results_dict, winding_kwargs=winding_kwargs)
+        percolation_history = get_percolation_history(results_dict, "winding")
+        percolating_regions, threshold, exact_match, message = (
+            _accessible_percolating_region_labels_winding(
+                results_dict,
+                probe_radius,
+                mat_atoms=mat_atoms,
+                window_fp=window_fp_for_accessible,
+                winding_kwargs=winding_kwargs,
+            )
+        )
     logger.info(message)
     if not percolating_regions:
         logger.info(
@@ -9565,9 +9645,7 @@ def compute_surface_area_from_results_mc(
         probe_radius,
         percolation_history,
         threshold=threshold,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-        mat_atoms=mat_atoms,
+        accessibility_method=method,
     )
 
     shape = distance_grid.shape
@@ -9682,6 +9760,8 @@ def compute_void_volume_from_results(
     return_details=False,
     window_fp_for_accessible=True,
     winding_kwargs=None,
+    accessibility_method="winding",
+    lattice_variant="v2",
 ):
     """
     Compute void volume analysis from pre-computed results dictionary with accessibility concerns.
@@ -9704,12 +9784,14 @@ def compute_void_volume_from_results(
     return_details : bool, optional
         If True, returns detailed intermediate results. Default False.
     window_fp_for_accessible : bool, optional
-        When True (default), accessible regions use winding percolation at the
-        probe plus window-fingerprint bridging for sub-probe graph windows.
-        Set False for the legacy percolation-history label union.
+        Winding only: window-fingerprint bridging when True; strict winding when False.
     winding_kwargs : dict, optional
         Extra keyword arguments for winding fingerprint bridging (merged over
         ``results_dict['winding_kwargs']`` when present).
+    accessibility_method : str, optional
+        ``"winding"`` (default) or ``"lattice"``.
+    lattice_variant : str, optional
+        ``"v2"`` or ``"v1"`` for lattice accessibility.
 
     Returns
     -------
@@ -9753,26 +9835,29 @@ def compute_void_volume_from_results(
         total_void_fraction = np.sum(distance_grid > probe_radius) / distance_grid.size
         total_void_volume = total_void_fraction * mat_atoms.get_volume() * 1e-24 / mass_g  # cm³/g
 
-    # Step 2: Ensure percolation history is available
-    results_dict = _ensure_percolation_history_for_accessibility(
-        results_dict,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-    )
+    from mofography.percolation_results import get_percolation_history
 
-    # Step 3: Get percolating regions (winding + optional window FP, or history)
-    percolation_history = results_dict.get('percolation_history', [])
-
-    percolating_regions, selected_threshold, exact_match, message = (
-        _accessible_percolating_region_labels(
-            results_dict,
-            probe_radius,
-            percolation_history,
-            mat_atoms=mat_atoms,
-            window_fp_for_accessible=window_fp_for_accessible,
-            winding_kwargs=winding_kwargs,
+    method = str(accessibility_method).lower()
+    if method == "lattice":
+        results_dict = _ensure_lattice_history(results_dict, lattice_variant=lattice_variant)
+        percolation_history = get_percolation_history(results_dict, "lattice")
+        percolating_regions, selected_threshold, exact_match, message = (
+            _accessible_percolating_region_labels_lattice(
+                results_dict, probe_radius, percolation_history, lattice_variant=lattice_variant
+            )
         )
-    )
+    else:
+        results_dict = _ensure_winding_history(results_dict, winding_kwargs=winding_kwargs)
+        percolation_history = get_percolation_history(results_dict, "winding")
+        percolating_regions, selected_threshold, exact_match, message = (
+            _accessible_percolating_region_labels_winding(
+                results_dict,
+                probe_radius,
+                mat_atoms=mat_atoms,
+                window_fp=window_fp_for_accessible,
+                winding_kwargs=winding_kwargs,
+            )
+        )
     threshold = selected_threshold
 
     logger.info(message)
@@ -9787,9 +9872,7 @@ def compute_void_volume_from_results(
         probe_radius,
         percolation_history,
         threshold=threshold,
-        window_fp_for_accessible=window_fp_for_accessible,
-        winding_kwargs=winding_kwargs,
-        mat_atoms=mat_atoms,
+        accessibility_method=method,
     )
 
     # Step 4: Calculate void volume by regions_pbc pocket (matches visualization labels)
@@ -9960,6 +10043,153 @@ def compute_void_volume_from_results(
         })
 
     return results
+
+
+def compute_surface_area_from_results_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Mesh surface area with winding accessibility (optional window FP)."""
+    return compute_surface_area_from_results(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        window_fp_for_accessible=window_fp,
+        winding_kwargs=winding_kwargs,
+        accessibility_method="winding",
+    )
+
+
+def compute_surface_area_from_results_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    variant="v2",
+):
+    """Mesh surface area with lattice (voxel) accessibility — Zeo++-style."""
+    return compute_surface_area_from_results(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        accessibility_method="lattice",
+        lattice_variant=variant,
+    )
+
+
+def compute_surface_area_from_results_mc_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Monte Carlo surface area with winding accessibility (optional window FP)."""
+    return compute_surface_area_from_results_mc(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        n_samples=n_samples,
+        shell_thickness=shell_thickness,
+        return_details=return_details,
+        window_fp_for_accessible=window_fp,
+        winding_kwargs=winding_kwargs,
+        accessibility_method="winding",
+    )
+
+
+def compute_surface_area_from_results_mc_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    variant="v2",
+):
+    """Monte Carlo surface area with lattice accessibility."""
+    return compute_surface_area_from_results_mc(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        n_samples=n_samples,
+        shell_thickness=shell_thickness,
+        return_details=return_details,
+        accessibility_method="lattice",
+        lattice_variant=variant,
+    )
+
+
+def compute_void_volume_from_results_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Void volume (voxel) with winding accessibility (optional window FP)."""
+    return compute_void_volume_from_results(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        window_fp_for_accessible=window_fp,
+        winding_kwargs=winding_kwargs,
+        accessibility_method="winding",
+    )
+
+
+def compute_void_volume_from_results_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    variant="v2",
+):
+    """Void volume (voxel) with lattice accessibility."""
+    return compute_void_volume_from_results(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        accessibility_method="lattice",
+        lattice_variant=variant,
+    )
+
+
+def get_pore_dia_lattice(
+    mat_atoms,
+    dgrid=None,
+    results=None,
+    variant="v2",
+    kwargs=None,
+):
+    """Lattice pore diameters; stores ``pore_dia_lattice`` on *results* when provided."""
+    from mofography.percolation_results import store_pore_dia
+
+    if kwargs is None:
+        kwargs = {}
+    variant = str(variant)
+    if variant == "v2":
+        lcd, pld, dfsd, dgrid_out = get_pore_dia_mgr2(mat_atoms, dgrid=dgrid, kwargs=kwargs)
+    elif variant == "v1":
+        lcd, pld, dfsd, dgrid_out = get_pore_dia_mgr(mat_atoms, dgrid=dgrid, kwargs=kwargs)
+    else:
+        raise ValueError(f"Unknown lattice variant {variant!r}; use 'v1' or 'v2'.")
+    store_pore_dia(results, "lattice", lcd, pld, dfsd, lattice_variant=variant)
+    return lcd, pld, dfsd, dgrid_out
+
+
 #**********************************************************
 # This is the updated functions for percolation with correct pbc, for testing
 #********************************************************
@@ -10203,14 +10433,18 @@ def get_pore_dia_mgr2(mat_atoms, dgrid=None, kwargs=None):
     return lcd, pld, dfsd, distance_grid
 #* compute the percolation history from results dict using the new percolation algorithm
 def compute_percolation_history_from_results2(results):
+    from mofography.percolation_results import store_percolation_history
+
     dgrid = results['dgrid']
     regions = results['regions']
-    # maxima_info = results['maxima_info']
     all_maxima = results['all_maxima']
     maxima = all_maxima[:regions.max()]
-    percolation_history, pld_locations, _, _,_ = compute_percolation_history2(dgrid, regions, maxima)
-    results['percolation_history'] = percolation_history
+    percolation_history, pld_locations, _, _, _ = compute_percolation_history2(
+        dgrid, regions, maxima
+    )
+    store_percolation_history(
+        results, "lattice", percolation_history, lattice_variant="v2", pld_locations=pld_locations
+    )
     results['pld_locations'] = pld_locations
-    # results['']
     return results
 
