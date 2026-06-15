@@ -57,8 +57,11 @@ def _winding_labels_no_fp(results, probe):
     return labels
 
 
-@pytest.mark.slow
-def test_dual_percolation_histories_on_same_results():
+def test_canonical_names_and_dual_percolation_histories():
+    assert callable(mgr.compute_surface_area_mesh_winding)
+    assert callable(mgr.compute_surface_area_mesh_lattice)
+    assert callable(mgr.compute_surface_area_mc_winding)
+    assert callable(mgr.compute_surface_area_mc_lattice)
     mat, results = _segment("examples/TestCIFs/P1-IRMOF-1.cif")
     results = dict(results)
     for k in (PERCOLATION_HISTORY_WINDING, PERCOLATION_HISTORY_LATTICE):
@@ -91,7 +94,7 @@ def test_chao_mc_matches_winding_without_fp():
         shell_thickness=0.5,
         return_details=True,
     )
-    ours = mgr.compute_surface_area_from_results_mc_winding(
+    ours = mgr.compute_surface_area_mc_winding(
         dict(results),
         mat,
         probe_radius=probe,
@@ -102,8 +105,6 @@ def test_chao_mc_matches_winding_without_fp():
     )
 
     chao_regs = chao["percolating_regions"]
-    ours_regs = ours.get("percolating_regions") or _winding_labels_no_fp(results, probe)
-  # return_details may not expose percolating_regions on ours — use helper
     from mofography.compute import _accessible_percolating_region_labels_winding
 
     ours_regs, _, _, _ = _accessible_percolating_region_labels_winding(
@@ -124,10 +125,10 @@ def test_window_fp_false_is_winding_not_lattice():
     probe = 1.2
     np.random.seed(1)
 
-    winding_no_fp = mgr.compute_surface_area_from_results_mc_winding(
+    winding_no_fp = mgr.compute_surface_area_mc_winding(
         dict(results), mat, probe_radius=probe, n_samples=15000, window_fp=False
     )
-    lattice = mgr.compute_surface_area_from_results_mc_lattice(
+    lattice = mgr.compute_surface_area_mc_lattice(
         dict(results), mat, probe_radius=probe, n_samples=15000, variant="v2"
     )
     # Methods are independent; accessible SA can differ

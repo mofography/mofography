@@ -9201,7 +9201,7 @@ def compute_point_probe_reference(results_dict, mat_atoms):
 
 
 
-def compute_surface_area_from_results(
+def compute_surface_area_mesh(
     results_dict,
     mat_atoms,
     probe_radius=None,
@@ -9520,7 +9520,7 @@ def compute_surface_area_from_results(
     return results
 
 
-def compute_surface_area_from_results_mc(
+def compute_surface_area_mc(
     results_dict,
     mat_atoms,
     probe_radius=None,
@@ -9580,7 +9580,7 @@ def compute_surface_area_from_results_mc(
 
         For now, per-region/pocket/cluster breakdowns are populated only for
         accessible (percolating) regions, mirroring the semantics of
-        compute_surface_area_from_results (by_region = accessible SA).
+        compute_surface_area_mesh (by_region = accessible SA).
     """
     import numpy as np
     from ase.data import vdw_radii
@@ -10045,7 +10045,7 @@ def compute_void_volume_from_results(
     return results
 
 
-def compute_surface_area_from_results_winding(
+def compute_surface_area_mesh_winding(
     results_dict,
     mat_atoms,
     probe_radius=None,
@@ -10053,8 +10053,8 @@ def compute_surface_area_from_results_winding(
     window_fp=True,
     winding_kwargs=None,
 ):
-    """Mesh surface area with winding accessibility (optional window FP)."""
-    return compute_surface_area_from_results(
+    """Mesh (marching-cubes) surface area with winding accessibility (optional window FP)."""
+    return compute_surface_area_mesh(
         results_dict,
         mat_atoms,
         probe_radius=probe_radius,
@@ -10065,6 +10065,89 @@ def compute_surface_area_from_results_winding(
     )
 
 
+def compute_surface_area_mesh_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    variant="v2",
+):
+    """Mesh (marching-cubes) surface area with lattice (voxel) accessibility — Zeo++-style."""
+    return compute_surface_area_mesh(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        accessibility_method="lattice",
+        lattice_variant=variant,
+    )
+
+
+def compute_surface_area_mc_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Monte Carlo shell surface area with winding accessibility (optional window FP)."""
+    return compute_surface_area_mc(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        n_samples=n_samples,
+        shell_thickness=shell_thickness,
+        return_details=return_details,
+        window_fp_for_accessible=window_fp,
+        winding_kwargs=winding_kwargs,
+        accessibility_method="winding",
+    )
+
+
+def compute_surface_area_mc_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    variant="v2",
+):
+    """Monte Carlo shell surface area with lattice accessibility."""
+    return compute_surface_area_mc(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        n_samples=n_samples,
+        shell_thickness=shell_thickness,
+        return_details=return_details,
+        accessibility_method="lattice",
+        lattice_variant=variant,
+    )
+
+
+def compute_surface_area_from_results_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+):
+    """Deprecated alias for :func:`compute_surface_area_mesh_winding`."""
+    return compute_surface_area_mesh_winding(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        window_fp=window_fp,
+        winding_kwargs=winding_kwargs,
+    )
+
+
 def compute_surface_area_from_results_lattice(
     results_dict,
     mat_atoms,
@@ -10072,14 +10155,13 @@ def compute_surface_area_from_results_lattice(
     return_details=False,
     variant="v2",
 ):
-    """Mesh surface area with lattice (voxel) accessibility — Zeo++-style."""
-    return compute_surface_area_from_results(
+    """Deprecated alias for :func:`compute_surface_area_mesh_lattice`."""
+    return compute_surface_area_mesh_lattice(
         results_dict,
         mat_atoms,
         probe_radius=probe_radius,
         return_details=return_details,
-        accessibility_method="lattice",
-        lattice_variant=variant,
+        variant=variant,
     )
 
 
@@ -10093,17 +10175,16 @@ def compute_surface_area_from_results_mc_winding(
     window_fp=True,
     winding_kwargs=None,
 ):
-    """Monte Carlo surface area with winding accessibility (optional window FP)."""
-    return compute_surface_area_from_results_mc(
+    """Deprecated alias for :func:`compute_surface_area_mc_winding`."""
+    return compute_surface_area_mc_winding(
         results_dict,
         mat_atoms,
         probe_radius=probe_radius,
         n_samples=n_samples,
         shell_thickness=shell_thickness,
         return_details=return_details,
-        window_fp_for_accessible=window_fp,
+        window_fp=window_fp,
         winding_kwargs=winding_kwargs,
-        accessibility_method="winding",
     )
 
 
@@ -10116,16 +10197,79 @@ def compute_surface_area_from_results_mc_lattice(
     return_details=False,
     variant="v2",
 ):
-    """Monte Carlo surface area with lattice accessibility."""
-    return compute_surface_area_from_results_mc(
+    """Deprecated alias for :func:`compute_surface_area_mc_lattice`."""
+    return compute_surface_area_mc_lattice(
         results_dict,
         mat_atoms,
         probe_radius=probe_radius,
         n_samples=n_samples,
         shell_thickness=shell_thickness,
         return_details=return_details,
-        accessibility_method="lattice",
-        lattice_variant=variant,
+        variant=variant,
+    )
+
+
+def compute_surface_area_from_results(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    accessibility_method="winding",
+    lattice_variant="v2",
+):
+    """Deprecated: use :func:`compute_surface_area_mesh_winding` or ``_mesh_lattice``."""
+    if str(accessibility_method).lower() == "lattice":
+        return compute_surface_area_mesh_lattice(
+            results_dict,
+            mat_atoms,
+            probe_radius=probe_radius,
+            return_details=return_details,
+            variant=lattice_variant,
+        )
+    return compute_surface_area_mesh_winding(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        return_details=return_details,
+        window_fp=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+    )
+
+
+def compute_surface_area_from_results_mc(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    accessibility_method="winding",
+    lattice_variant="v2",
+):
+    """Deprecated: use :func:`compute_surface_area_mc_winding` or ``_mc_lattice``."""
+    if str(accessibility_method).lower() == "lattice":
+        return compute_surface_area_mc_lattice(
+            results_dict,
+            mat_atoms,
+            probe_radius=probe_radius,
+            n_samples=n_samples,
+            shell_thickness=shell_thickness,
+            return_details=return_details,
+            variant=lattice_variant,
+        )
+    return compute_surface_area_mc_winding(
+        results_dict,
+        mat_atoms,
+        probe_radius=probe_radius,
+        n_samples=n_samples,
+        shell_thickness=shell_thickness,
+        return_details=return_details,
+        window_fp=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
     )
 
 
