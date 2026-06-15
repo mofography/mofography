@@ -1237,7 +1237,9 @@ def update_results_with_percolation_history_winding(
         expand_components=expand_components,
     )
     if plr is None:
-        results["percolation_history"] = []
+        from mofography.percolation_results import store_percolation_history
+
+        store_percolation_history(results, "winding", [])
         results["pld_locations"] = np.empty((0, 3), dtype=int)
         results.setdefault("plr_clusters_winding", {})
         return results
@@ -1259,12 +1261,14 @@ def update_results_with_percolation_history_winding(
         )
         if any(axis_clusters[axis] for axis in axis_clusters):
             history.append((float(threshold), axis_clusters))
-    results["percolation_history"] = history
     if results.get("dgrid") is not None:
         dgrid = np.asarray(results["dgrid"])
         pld_locations = np.argwhere(np.isclose(dgrid, plr, atol=1e-10))
     else:
         pld_locations = np.empty((0, 3), dtype=int)
+    from mofography.percolation_results import store_percolation_history
+
+    store_percolation_history(results, "winding", history, pld_locations=pld_locations)
     results["pld_locations"] = pld_locations
     return results
 
@@ -1283,8 +1287,12 @@ def compute_percolation_history_winding(
         expand_components=expand_components,
         **kwargs,
     )
-    percolation_history = results["percolation_history"]
-    pld_locations = results["pld_locations"]
+    from mofography.percolation_results import get_percolation_history
+
+    percolation_history = get_percolation_history(results, "winding")
+    pld_locations = results.get("pld_locations")
+    if pld_locations is None:
+        pld_locations = results.get("pld_locations_winding", np.empty((0, 3), dtype=int))
     final_clusters = results.get("plr_clusters_winding", {})
     return percolation_history, pld_locations, final_clusters
 
@@ -1656,6 +1664,16 @@ def get_pore_dia_mgr_winding2(
         if mask.any():
             dfsd = float(dgrid[mask].max() * 2)
 
+    from mofography.percolation_results import store_pore_dia
+
+    store_pore_dia(
+        results,
+        "winding",
+        lcd,
+        pld,
+        dfsd,
+        extra={"plr": float(plr)},
+    )
     return lcd, pld, dfsd, dgrid
 
 
