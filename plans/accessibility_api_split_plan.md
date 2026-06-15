@@ -25,8 +25,8 @@
 ### Winding (production default)
 
 ```python
-compute_surface_area_from_results_winding(results, atoms, probe_radius, *, window_fp=True, ...)
-compute_surface_area_from_results_mc_winding(results, atoms, probe_radius, *, window_fp=True, ...)
+compute_surface_area_mesh_winding(results, atoms, probe_radius, *, window_fp=True, ...)
+compute_surface_area_mc_winding(results, atoms, probe_radius, *, window_fp=True, ...)
 compute_void_volume_from_results_winding(results, atoms, probe_radius, *, window_fp=True, ...)
 
 compute_percolation_history_winding(results, ...)  # → percolation_history_winding
@@ -36,8 +36,8 @@ get_pore_dia_mgr_winding2(results=results, ...)    # → pore_dia_winding
 ### Lattice (Zeo++-style, explicit)
 
 ```python
-compute_surface_area_from_results_lattice(results, atoms, probe_radius, *, variant="v2", ...)
-compute_surface_area_from_results_mc_lattice(results, atoms, probe_radius, *, variant="v2", ...)
+compute_surface_area_mesh_lattice(results, atoms, probe_radius, *, variant="v2", ...)
+compute_surface_area_mc_lattice(results, atoms, probe_radius, *, variant="v2", ...)
 compute_void_volume_from_results_lattice(results, atoms, probe_radius, *, variant="v2", ...)
 
 compute_percolation_history_from_results_lattice(results, variant="v2")  # → percolation_history_lattice
