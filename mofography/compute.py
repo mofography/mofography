@@ -8975,6 +8975,120 @@ def _accessible_percolating_region_labels(
     return percolating_regions, threshold, exact_match, message
 
 
+def _ensure_percolation_history_for_accessibility(
+    results_dict,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+):
+    """Attach percolation history when SA/vol callers need it and none is stored."""
+    if "percolation_history" in results_dict:
+        return results_dict
+
+    if bool(window_fp_for_accessible):
+        from mofography.winding_percolation import update_results_with_percolation_history_winding
+
+        logger.info(
+            "Percolation history not found in results. Computing winding percolation history..."
+        )
+        history_kw = {}
+        if isinstance(winding_kwargs, dict):
+            for key in (
+                "step",
+                "min_threshold",
+                "max_threshold",
+                "thresholds",
+                "include_dangling",
+                "expand_components",
+                "graph",
+                "base_region_labels",
+            ):
+                if key in winding_kwargs:
+                    history_kw[key] = winding_kwargs[key]
+        results_dict = update_results_with_percolation_history_winding(
+            results_dict,
+            **history_kw,
+        )
+        logger.info(
+            "Computed winding percolation history with %d entries",
+            len(results_dict.get("percolation_history", [])),
+        )
+    else:
+        logger.info(
+            "Percolation history not found in results. Computing lattice percolation history..."
+        )
+        results_dict = compute_percolation_history_from_results(results_dict)
+        logger.info(
+            "Computed lattice percolation history with %d entries",
+            len(results_dict.get("percolation_history", [])),
+        )
+    return results_dict
+
+
+def _percolated_cluster_components(
+    results_dict,
+    probe_radius,
+    percolation_history,
+    *,
+    threshold=None,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    mat_atoms=None,
+):
+    """
+    Return (threshold, components) for ``by_percolated_cluster`` breakdowns.
+
+    Winding accessibility evaluates clusters live at *probe_radius* instead of
+    interpolating from a coarser history grid.
+    """
+    if bool(window_fp_for_accessible):
+        from mofography.winding_percolation import (
+            _prepare_graph_and_labels,
+            percolation_all_axes_winding,
+        )
+
+        graph, base_region_labels = _prepare_graph_and_labels(results_dict, None, None)
+        axis_clusters, _, _ = percolation_all_axes_winding(
+            results_dict,
+            float(probe_radius),
+            graph=graph,
+            base_region_labels=base_region_labels,
+            include_dangling=True,
+            expand_components=True,
+        )
+        if not any(axis_clusters.get(axis) for axis in axis_clusters):
+            return float(probe_radius), None
+        return float(probe_radius), axis_clusters
+
+    components = None
+    if threshold is not None and percolation_history:
+        for t, components_candidate in percolation_history:
+            if abs(t - threshold) < 1e-10:
+                components = components_candidate
+                break
+    if components is None and percolation_history:
+        threshold, components, _, _ = select_percolation_threshold(
+            percolation_history, probe_radius
+        )
+    return threshold, components
+
+
+def _percolated_clusters_dict(components):
+    """Build cluster_id -> fragment-region set from percolation components."""
+    if not components:
+        return {}
+    percolated_clusters = {}
+    cluster_id = 0
+    for axis, comp_list in components.items():
+        if not comp_list:
+            continue
+        for comp in comp_list:
+            cluster_regions = set(comp)
+            if cluster_regions:
+                percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
+                cluster_id += 1
+    return percolated_clusters
+
+
 def compute_point_probe_reference(results_dict, mat_atoms):
     """
     Compute point probe (probe_radius = 0) surface area and void volume as reference.
@@ -9115,10 +9229,11 @@ def compute_surface_area_from_results(
             total_surface_area = 0.0
 
     # Step 2: Ensure percolation history is available
-    if 'percolation_history' not in results_dict:
-        logger.info("Percolation history not found in results. Computing it now...")
-        results_dict = compute_percolation_history_from_results(results_dict)
-        logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
+    results_dict = _ensure_percolation_history_for_accessibility(
+        results_dict,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+    )
 
     # Step 3: Get percolating regions (winding + window FP by default, or history)
     percolation_history = results_dict.get('percolation_history', [])
@@ -9142,12 +9257,15 @@ def compute_surface_area_from_results(
     elif threshold is not None and not exact_match:
         logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
 
-    components = None
-    if threshold is not None and percolation_history:
-        for t, c in percolation_history:
-            if abs(t - threshold) < 1e-10:
-                components = c
-                break
+    threshold, components = _percolated_cluster_components(
+        results_dict,
+        probe_radius,
+        percolation_history,
+        threshold=threshold,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+        mat_atoms=mat_atoms,
+    )
 
     # Step 3: Get surface area meshes for each region (use raw regions; aggregate to PBC reps)
     submeshes = get_isosurface_submeshes(
@@ -9205,19 +9323,12 @@ def compute_surface_area_from_results(
         if accessible_pocket_area > 0:
             accessible_pocket_areas[pocket_id] = accessible_pocket_area
 
-    # Step 6: percolated clusters from the SAME components as select_percolation_threshold (no brittle history replay).
-    percolated_clusters = {}
-    if threshold is not None and components:
-        cluster_id = 0
-        for axis, comp_list in components.items():
-            if not comp_list:
-                continue
-            for comp in comp_list:
-                cluster_regions = set(comp)
-                if cluster_regions:
-                    percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
-                    cluster_id += 1
-        logger.info(f"Found {len(percolated_clusters)} percolated clusters at threshold {selected_threshold:.3f} Å")
+    # Step 6: percolated clusters aligned with the accessibility method.
+    percolated_clusters = _percolated_clusters_dict(components)
+    if percolated_clusters:
+        logger.info(
+            f"Found {len(percolated_clusters)} percolated clusters at threshold {threshold:.3f} Å"
+        )
     else:
         logger.info("No percolated clusters found - no accessible regions for cluster formation")
 
@@ -9413,6 +9524,9 @@ def compute_surface_area_from_results_mc(
 
     pbc_groups = normalize_pbc_groups_by_regions_pbc(pbc_groups, regions, regions_pbc)
 
+    if regions is None:
+        raise ValueError("MC surface area requires 'regions' in results_dict.")
+
     # Set probe radius
     if probe_radius is None:
         probe_radius = vdw_radii[2]  # helium radius
@@ -9421,10 +9535,11 @@ def compute_surface_area_from_results_mc(
     mass_g = mat_atoms.get_masses().sum() * _amu * 1000  # grams
 
     # Ensure percolation history is available
-    if "percolation_history" not in results_dict:
-        logger.info("Percolation history not found in results. Computing it now for MC SA...")
-        results_dict = compute_percolation_history_from_results(results_dict)
-        logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
+    results_dict = _ensure_percolation_history_for_accessibility(
+        results_dict,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+    )
 
     percolation_history = results_dict.get("percolation_history", [])
 
@@ -9445,12 +9560,15 @@ def compute_surface_area_from_results_mc(
         logger.warning(
             f"MC SA: Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate"
         )
-    components = None
-    if threshold is not None and percolation_history:
-        for t, c in percolation_history:
-            if abs(t - threshold) < 1e-10:
-                components = c
-                break
+    threshold, components = _percolated_cluster_components(
+        results_dict,
+        probe_radius,
+        percolation_history,
+        threshold=threshold,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+        mat_atoms=mat_atoms,
+    )
 
     shape = distance_grid.shape
     # Sample random fractional coordinates in [0,1)^3
@@ -9463,10 +9581,11 @@ def compute_surface_area_from_results_mc(
         ]
     )
 
-    # Interpolate distance and region labels at sample points
+    # Interpolate distance and region labels at sample points.
+    # percolating_regions are fragment labels (regions); do not sample regions_pbc here.
     d_samples = map_coordinates(distance_grid, coords, order=1, mode="wrap")
     reg_samples = map_coordinates(
-        regions_pbc.astype(float), coords, order=0, mode="wrap"
+        np.asarray(regions, dtype=float), coords, order=0, mode="wrap"
     ).astype(int)
 
     half_delta = shell_thickness / 2.0
@@ -9496,9 +9615,7 @@ def compute_surface_area_from_results_mc(
         total_surface_area = volume_cell * p_shell_total / shell_thickness * 1e-20 / mass_g
         accessible_surface_area = volume_cell * p_shell_acc / shell_thickness * 1e-20 / mass_g
 
-        # --- Per-region accessible SA (MC) ---
-        # We only build per-region SA for accessible (percolating) regions,
-        # mirroring compute_surface_area_from_results (by_region = accessible).
+        # --- Per-region accessible SA (MC): fragment labels (regions) ---
         by_region_mc = {}
         if n_shell_acc > 0 and percolating_regions:
             reg_shell_acc = reg_samples[shell_acc_mask]
@@ -9510,7 +9627,7 @@ def compute_surface_area_from_results_mc(
                 sa_r = volume_cell * p_shell_r / shell_thickness * 1e-20 / mass_g
                 by_region_mc[int(rid)] = sa_r
 
-        # --- Per-pocket (PBC group) accessible SA (MC) ---
+        # --- Per-pocket accessible SA (MC): sum fragments per PBC pocket (regions_pbc rep keys) ---
         by_pocket_mc = {}
         if by_region_mc:
             for pocket_id, region_set in pbc_groups.items():
@@ -9520,18 +9637,8 @@ def compute_surface_area_from_results_mc(
 
         # --- Per-percolated-cluster accessible SA (MC) ---
         by_cluster_mc = {}
-        if threshold is not None and components and percolating_regions:
-            percolated_clusters = {}
-            cluster_id = 0
-            for axis, comp_list in components.items():
-                if not comp_list:
-                    continue
-                for comp in comp_list:
-                    cluster_regions = set(comp)
-                    if cluster_regions:
-                        key = f"axis_{axis}_cluster_{cluster_id}"
-                        percolated_clusters[key] = cluster_regions
-                        cluster_id += 1
+        percolated_clusters = _percolated_clusters_dict(components)
+        if percolated_clusters and percolating_regions:
             for cid, region_set in percolated_clusters.items():
                 cluster_area = sum(by_region_mc.get(int(r), 0.0) for r in region_set)
                 if cluster_area > 0:
@@ -9647,10 +9754,11 @@ def compute_void_volume_from_results(
         total_void_volume = total_void_fraction * mat_atoms.get_volume() * 1e-24 / mass_g  # cm³/g
 
     # Step 2: Ensure percolation history is available
-    if 'percolation_history' not in results_dict:
-        logger.info("Percolation history not found in results. Computing it now...")
-        results_dict = compute_percolation_history_from_results(results_dict)
-        logger.info(f"Computed percolation history with {len(results_dict['percolation_history'])} entries")
+    results_dict = _ensure_percolation_history_for_accessibility(
+        results_dict,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+    )
 
     # Step 3: Get percolating regions (winding + optional window FP, or history)
     percolation_history = results_dict.get('percolation_history', [])
@@ -9674,12 +9782,15 @@ def compute_void_volume_from_results(
     elif threshold is not None and not exact_match:
         logger.warning(f"Using approximated threshold for probe radius {probe_radius:.3f} Å - results may be approximate")
 
-    components = None
-    if threshold is not None and percolation_history:
-        for t, c in percolation_history:
-            if abs(t - threshold) < 1e-10:
-                components = c
-                break
+    threshold, components = _percolated_cluster_components(
+        results_dict,
+        probe_radius,
+        percolation_history,
+        threshold=threshold,
+        window_fp_for_accessible=window_fp_for_accessible,
+        winding_kwargs=winding_kwargs,
+        mat_atoms=mat_atoms,
+    )
 
     # Step 4: Calculate void volume by regions_pbc pocket (matches visualization labels)
     region_ids = np.unique(regions_pbc)[1:]  # Skip background (0)
@@ -9731,26 +9842,24 @@ def compute_void_volume_from_results(
         if accessible_pocket_volume > 0:
             accessible_pocket_volumes[pocket_id] = accessible_pocket_volume
 
-    # Group percolated clusters from components returned by select_percolation_threshold.
-    percolated_clusters = {}
-    if threshold is not None and components:
-        cluster_id = 0
-        for axis, comp_list in components.items():
-            if not comp_list:
-                continue
-            for comp in comp_list:
-                cluster_regions = set(comp)
-                if cluster_regions:
-                    percolated_clusters[f"axis_{axis}_cluster_{cluster_id}"] = cluster_regions
-                    cluster_id += 1
-        logger.info(f"Found {len(percolated_clusters)} percolated clusters at threshold {selected_threshold:.3f} Å")
+    # Group percolated clusters from the accessibility method.
+    percolated_clusters = _percolated_clusters_dict(components)
+    if percolated_clusters:
+        logger.info(
+            f"Found {len(percolated_clusters)} percolated clusters at threshold {threshold:.3f} Å"
+        )
     else:
         logger.info("No percolated clusters found - no accessible regions for cluster formation")
 
-    # Calculate void volume by percolated cluster
+    # Calculate void volume by percolated cluster (fragment labels from winding/lattice clusters)
     percolated_cluster_volumes = {}
+    vol_by_fragment = fragment_region_volumes if fragment_region_volumes else {}
     for cluster_id, region_set in percolated_clusters.items():
-        cluster_volume = sum(accessible_region_volumes.get(region_id, 0) for region_id in region_set)
+        cluster_volume = sum(
+            vol_by_fragment.get(int(region_id), 0.0)
+            for region_id in region_set
+            if int(region_id) in percolating_regions
+        )
         if cluster_volume > 0:
             percolated_cluster_volumes[cluster_id] = cluster_volume
 
