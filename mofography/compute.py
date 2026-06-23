@@ -6104,6 +6104,73 @@ def get_energy_interpolator(egrid, neighborhood_size=4):
     energy_interpolator = RGI((xx, yy, zz), egrid_clean, method="slinear")
     return energy_interpolator
 
+
+def get_energy_interpolator_tricubic(egrid, egrid8, neighborhood_size=4):
+    """Create a tricubic energy interpolator from pre-built 8-channel grid.
+
+    Parameters
+    ----------
+    egrid : ndarray, shape (nx, ny, nz)
+        Scalar energy grid (used only for NaN detection/replacement).
+    egrid8 : ndarray, shape (8, nx, ny, nz)
+        8-channel tricubic grid with RASPA-scaled derivatives.
+    neighborhood_size : int
+        Size of neighborhood for NaN replacement in channel 0.
+
+    Returns
+    -------
+    callable
+        A function interpolator(fracs) -> ndarray where fracs
+        has shape (N, 3) and returns (N,) energies. Compatible with
+        the scipy RegularGridInterpolator calling convention.
+    """
+    import numpy as np
+    import warnings
+    from mofography.rust_fun import tricubic_interpolator_from_grid
+
+    egrid8 = np.asarray(egrid8, dtype=np.float64)
+    if egrid8.ndim != 4 or egrid8.shape[0] != 8:
+        raise ValueError(f"egrid8 must have shape (8, nx, ny, nz), got {egrid8.shape}")
+
+    # Handle NaN in channel 0 (same logic as get_energy_interpolator)
+    ch0 = egrid8[0].copy()
+    nan_indices = np.where(np.isnan(ch0))
+    if len(nan_indices[0]) > 0:
+        warnings.warn(f"Found {len(nan_indices[0])} NaN values in tricubic grid. Replacing.")
+        for idx in zip(*nan_indices):
+            x_min = max(0, idx[0] - neighborhood_size)
+            x_max = min(ch0.shape[0], idx[0] + neighborhood_size + 1)
+            y_min = max(0, idx[1] - neighborhood_size)
+            y_max = min(ch0.shape[1], idx[1] + neighborhood_size + 1)
+            z_min = max(0, idx[2] - neighborhood_size)
+            z_max = min(ch0.shape[2], idx[2] + neighborhood_size + 1)
+            nb = ch0[x_min:x_max, y_min:y_max, z_min:z_max]
+            valid = nb[~np.isnan(nb)]
+            high = np.max(valid) * 1.1 if len(valid) > 0 else 1e8
+            ch0[idx] = high
+            egrid8[0][idx] = high
+            # Zero derivatives at NaN locations (plan §7)
+            egrid8[1:, idx[0], idx[1], idx[2]] = 0.0
+
+    field = tricubic_interpolator_from_grid(np.ascontiguousarray(egrid8))
+
+    # Wrap as callable matching RGI interface
+    class _TricubicInterpolator:
+        def __init__(self, field):
+            self._field = field
+        def __call__(self, xi):
+            xi = np.atleast_2d(np.asarray(xi, dtype=np.float64))
+            if xi.shape[1] != 3:
+                xi = xi.T
+            if xi.shape[0] == 1:
+                return np.array([self._field.interpolate(xi[0].tolist())])
+            return self._field.interpolate_batch(xi)
+        @property
+        def grid(self):
+            return self._field
+
+    return _TricubicInterpolator(field)
+
 # def get_energy_interpolator(egrid):
 #     """
 #     This function creates a 3D regular grid interpolator for energy values given an input energy grid.
