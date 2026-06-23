@@ -1960,11 +1960,18 @@ def compute_psds_pocketwise_accessible(
 def egrid_tricubic_from_atoms_rust(
     ase_atoms, spacing, forcefield_mixed=None, cutoff=6.0, probe_symbol="He", return_ncells=False
 ):
-    """Build an 8-channel tricubic energy grid from atomic positions."""
-    import mgr_rust
-    import mofography as mgr
+    """Build an 8-channel tricubic energy grid from atomic positions.
+
+    Parameters match :func:`egrid_from_atoms_rust`.
+    Returns a numpy array of shape (8, nx, ny, nz) with RASPA-compatible
+    derivative scaling. Channel 0 = energy; channels 1-7 = scaled fractional
+    derivatives.
+
+    Uses R-tree spatial indexing (rstar) for O(N·log M) atom lookups
+    instead of O(N·M) brute-force.
+    """
+    import mgr_rust, mofography as mgr, numpy as np
     from ase.geometry import cellpar_to_cell
-    import numpy as np
 
     if forcefield_mixed is None:
         forcefield_mixed = mgr.mix_lorentz_berthelot(
@@ -1997,5 +2004,6 @@ def egrid_tricubic_from_atoms_rust(
         return egrid8, None
     else:
         return egrid8
+
 
 
