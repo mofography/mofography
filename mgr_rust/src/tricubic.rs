@@ -119,11 +119,10 @@ pub fn compute_coefficients(x: &[f64; 64]) -> [f64; 64] {
     for i in 0..64 {
         let row = &TRICUBIC_COEFFICIENTS[i];
         let mut sum = 0.0;
+        // No branch on zero: multiplying by 0.0 is free in SIMD FMAs;
+        // the branch was blocking auto-vectorization (reviewer P1).
         for j in 0..64 {
-            #[allow(clippy::float_cmp)]
-            if row[j] != 0.0 {
-                sum += row[j] * x[j];
-            }
+            sum += row[j] * x[j];
         }
         a[i] = sum;
     }
