@@ -712,7 +712,6 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
             f"grid: [{int(g[0])}, {int(g[1])}, {int(g[2])}]\n"
             f"xyz: ({float(p[0]):.3f}, {float(p[1]):.3f}, {float(p[2]):.3f})\n"
             f"pore radius (dgrid): {float(r):.3f} A\n"
-            f"maxima size: {float(s):.3f}\n"
             f"region: {int(rid)}"
         )
 
@@ -783,7 +782,6 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
                 f"grid: [{int(g[0])}, {int(g[1])}, {int(g[2])}]\n"
                 f"xyz: ({float(p[0]):.3f}, {float(p[1]):.3f}, {float(p[2]):.3f})\n"
                 f"pore radius (dgrid): {float(r):.3f} A\n"
-                f"maxima size: {float(s):.3f}\n"
                 f"region: {int(rid)}"
             )
             for i, (g, p, r, rid, s) in enumerate(zip(maxima_pbc, pbc_cart, pbc_radii, pbc_regions, pbc_sizes_arr, strict=False))
