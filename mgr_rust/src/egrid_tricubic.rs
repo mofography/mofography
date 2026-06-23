@@ -152,12 +152,14 @@ pub fn egrid_tricubic_from_atoms(
                 let f1 = -6.0 * arg1 * (2.0 * temp3 * temp3 - temp3) * inv_r2;
 
                 // Second derivative factor (cross-term): F2
-                let r4 = r2 * r2;
-                let f2 = 24.0 * arg1 * (7.0 * temp3 * temp3 - 2.0 * temp3) / r4;
+                // Use reciprocal multiplies instead of true division (reviewer P2):
+                // inv_r4 = 1/r^4, inv_r6 = 1/r^6 — cheaper than / r4 and / r6.
+                let inv_r4 = inv_r2 * inv_r2;
+                let f2 = 24.0 * arg1 * (7.0 * temp3 * temp3 - 2.0 * temp3) * inv_r4;
 
                 // Third derivative factor: F3
-                let r6 = r4 * r2;
-                let f3 = -96.0 * arg1 * (28.0 * temp3 * temp3 - 5.0 * temp3) / r6;
+                let inv_r6 = inv_r4 * inv_r2;
+                let f3 = -96.0 * arg1 * (28.0 * temp3 * temp3 - 5.0 * temp3) * inv_r6;
 
                 // Accumulate Cartesian derivatives
                 first_x += cart_x * f1;
