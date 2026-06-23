@@ -1955,3 +1955,47 @@ def compute_psds_pocketwise_accessible(
         return pocket_psds, fig
 
     return pocket_psds
+
+
+def egrid_tricubic_from_atoms_rust(
+    ase_atoms, spacing, forcefield_mixed=None, cutoff=6.0, probe_symbol="He", return_ncells=False
+):
+    """Build an 8-channel tricubic energy grid from atomic positions."""
+    import mgr_rust
+    import mofography as mgr
+    from ase.geometry import cellpar_to_cell
+    import numpy as np
+
+    if forcefield_mixed is None:
+        forcefield_mixed = mgr.mix_lorentz_berthelot(
+            ase_atoms, probe_symbol=probe_symbol
+        )
+    mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(
+        ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff
+    )
+    eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
+    sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
+
+    frac = mat_atoms_repeat.get_scaled_positions() - 0.5
+    cell = cellpar_to_cell(mat_atoms_repeat.cell.cellpar()).T
+
+    cell_lengths = np.linalg.norm(cell, axis=0)
+    nx = int(cell_lengths[0] / spacing) + 1
+    ny = int(cell_lengths[1] / spacing) + 1
+    nz = int(cell_lengths[2] / spacing) + 1
+
+    egrid8_flat = mgr_rust.egrid_tricubic_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff)
+    egrid8 = egrid8_flat.reshape(8, nx, ny, nz)
+
+    # Apply RASPA derivative scaling: divide by cells per axis
+    ncells = np.array([nx - 1, ny - 1, nz - 1], dtype=np.float64)
+    egrid8[1] /= ncells[0]; egrid8[2] /= ncells[1]; egrid8[3] /= ncells[2]
+    egrid8[4] /= ncells[0] * ncells[1]; egrid8[5] /= ncells[0] * ncells[2]
+    egrid8[6] /= ncells[1] * ncells[2]; egrid8[7] /= ncells[0] * ncells[1] * ncells[2]
+
+    if return_ncells:
+        return egrid8, None
+    else:
+        return egrid8
+
+
