@@ -310,10 +310,17 @@ impl TricubicField {
     /// Core interpolation: wrap `frac` into `[0, 1)`, locate the cell, gather
     /// corner data, compute coefficients, evaluate.
     fn _interpolate_impl(&self, frac: [f64; 3]) -> f64 {
-        // PBC wrap into [0, 1)
-        let fx = frac[0].rem_euclid(1.0);
-        let fy = frac[1].rem_euclid(1.0);
-        let fz = frac[2].rem_euclid(1.0);
+        // Map to [0, 1): wrap negative inputs positively, clamp s=1.0
+        // to just below 1.0 (RASPA-style: last-cell clamping via truncation).
+        let mut fx = frac[0];
+        if fx < 0.0 { fx += 1.0; }
+        let fx = if fx >= 1.0 { 1.0f64 - f64::EPSILON } else { fx };
+        let mut fy = frac[1];
+        if fy < 0.0 { fy += 1.0; }
+        let fy = if fy >= 1.0 { 1.0f64 - f64::EPSILON } else { fy };
+        let mut fz = frac[2];
+        if fz < 0.0 { fz += 1.0; }
+        let fz = if fz >= 1.0 { 1.0f64 - f64::EPSILON } else { fz };
 
         // Degenerate case: fewer than 2 grid points along any axis
         if self.nx < 2 || self.ny < 2 || self.nz < 2 {
@@ -325,7 +332,7 @@ impl TricubicField {
             return self.data[i * nynz + j * nz_ + k]; // channel 0 only
         }
 
-        // Cell indices and local coordinates
+        // Cell indices and local coordinates (RASPA lines 4080-4095)
         let x0_float = fx * (self.nx - 1) as f64;
         let x0 = (x0_float.floor() as usize).min(self.nx - 2);
         let sx = x0_float - x0 as f64;
