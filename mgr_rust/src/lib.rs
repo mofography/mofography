@@ -20,6 +20,7 @@ mod bonds;
 mod aromatic;
 mod dgrid_exp;
 pub(crate) mod tricubic;
+pub(crate) mod egrid_tricubic;
 
 // #[pyfunction]
 // #[pyo3(signature = (dgrid, cell, threshold_abs, min_distance=1.5))]
@@ -6174,6 +6175,8 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     // Helper to inspect Rayon thread pool
     m.add_function(wrap_pyfunction!(rayon_num_threads, m)?)?;
     m.add_class::<tricubic::TricubicField>()?;
+    use egrid_tricubic::egrid_tricubic_from_atoms;
+    m.add_function(wrap_pyfunction!(egrid_tricubic_from_atoms, m)?)?;
     // tricubic_interpolate_cell registered via class methods
     // m.add_function(wrap_pyfunction!(find_local_maxima_pbc, m)?)?;
     // m.add_function(wrap_pyfunction!(find_local_maxima_cart, m)?)?;
