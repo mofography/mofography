@@ -194,6 +194,34 @@ def egrid_from_atoms_rust(
         return egrid
 
 
+
+
+def tricubic_interpolator_from_grid(egrid8):
+    """Build a tricubic energy interpolator from an 8-channel energy grid.
+
+    Parameters
+    ----------
+    egrid8 : ndarray, float64
+        Shape (8, nx, ny, nz) in C order.
+        Channel 0 = energy, 1-3 = ∂E/∂s_{x,y,z}, 4-7 = mixed ∂²E / ∂³E.
+
+    Returns
+    -------
+    TricubicField
+        Rust-backed interpolator with ``.interpolate([fx, fy, fz]) -> float``
+        and ``.interpolate_batch(fracs) -> ndarray`` methods.
+
+    Notes
+    -----
+    This is the Phase-1 evaluator only (no grid build). For the complete
+    pipeline (build + interpolate), see ``egrid_tricubic_from_atoms_rust``
+    (Phase 2, planned).
+    """
+    import mgr_rust
+    return mgr_rust.TricubicField(np.ascontiguousarray(np.asarray(egrid8, dtype=np.float64)))
+
+
+
 def seeded_watershed_det_rust(image, seeds, mask=None):
     """Deterministic single-threaded seeded watershed wrapper around mgr_rust.
 
