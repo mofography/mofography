@@ -1,0 +1,804 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-06-16 Tue 01:37 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Accessibility and surface area — winding vs lattice, mesh vs MC</title>
+<meta name="author" content="Arun Gopalan" />
+<meta name="description" content="API guide for probe-accessible textural properties: winding/lattice percolation, mesh vs MC surface area, window FP, and dual storage on results dicts." />
+<meta name="generator" content="Org Mode" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+/* Simple dark theme for Org HTML export (Geometry-style) */
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --card: #1c2128;
+  --text: #e6edf3;
+  --muted: #9da7b3;
+  --accent: #58a6ff;
+  --accent2: #7ee787;
+  --border: #30363d;
+  --code: #0b1220;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.75;
+  font-size: 15px;
+}
+#content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+.title {
+  color: var(--text);
+  font-size: 2.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+.subtitle, #author, .date, .timestamp { color: var(--muted); font-size: 0.95rem; }
+
+/* Headings only — not body copy */
+#content h2,
+.outline-2 > h2 {
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 2.2rem 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+#content h3,
+.outline-3 > h3 {
+  color: var(--accent2);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+#content h4,
+.outline-4 > h4 {
+  color: var(--accent2);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+}
+
+/* Body text — explicit normal weight/size (fixes unclosed-h2 bleed) */
+.outline-text-2,
+.outline-text-3,
+.outline-text-4 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.75;
+}
+.outline-text-2 p,
+.outline-text-3 p,
+.outline-text-4 p,
+.outline-text-2 li,
+.outline-text-3 li,
+.outline-text-4 li,
+.outline-text-2 td,
+.outline-text-3 td {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.heading-permalink { display: none !important; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+p { margin: 0 0 0.9rem; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+li { margin-bottom: 0.35rem; }
+
+#table-of-contents { display: none; }
+
+code {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.88em;
+  background: var(--code);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+}
+.org-src-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.75rem 0 1.25rem;
+}
+.org-src-container.has-copy-btn pre,
+.org-src-container pre {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--code);
+  color: #dbeafe;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+  white-space: pre;
+}
+.org-src-container.has-copy-btn pre {
+  padding-top: 38px;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.code-copy-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0 1.25rem; }
+th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+th { background: #1e293b; color: var(--accent); }
+blockquote {
+  background: var(--bg2);
+  border-left: 4px solid var(--accent2);
+  padding: 14px 18px;
+  margin: 1rem 0 1.5rem;
+  border-radius: 6px;
+}
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+img { max-width: 100%; height: auto; border-radius: 6px; }
+#postamble, #text-footnotes {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ================================================================== */
+/* Foldable sections — collapsible outline containers                 */
+/* ================================================================== */
+
+/* Toggle chevron button prepended to each h2/h3 */
+.section-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  line-height: 1;
+  vertical-align: middle;
+  transition: transform 0.2s ease, color 0.15s;
+  user-select: none;
+  flex-shrink: 0;
+}
+.section-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.section-toggle.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Wrapper for heading + toggle */
+.section-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* Collapsed state: hide the content containers */
+.outline-2.collapsed > .outline-text-2,
+.outline-2.collapsed > .outline-3,
+.outline-3.collapsed > .outline-text-3,
+.outline-3.collapsed > .outline-4,
+.outline-4.collapsed > .outline-text-4 {
+  display: none;
+}
+
+/* Smooth transitions */
+.outline-text-2,
+.outline-text-3,
+.outline-text-4 {
+  transition: opacity 0.15s ease;
+}
+
+/* Plotly figure containers */
+.plotly-figure {
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg2);
+}
+.plotly-figure .js-plotly-plot {
+  background: var(--bg2) !important;
+}
+
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  /* --- Code copy buttons --- */
+  document.querySelectorAll('.org-src-container').forEach(function(box){
+    var pre=box.querySelector('pre');
+    if(!pre||box.querySelector('.code-copy-btn'))return;
+    box.classList.add('has-copy-btn');
+    var btn=document.createElement('button');
+    btn.type='button';btn.className='code-copy-btn';btn.textContent='Copy';
+    btn.addEventListener('click',function(){
+      var t=pre.innerText||pre.textContent||'';
+      (navigator.clipboard&&navigator.clipboard.writeText
+        ?navigator.clipboard.writeText(t)
+        :Promise.reject(new Error('clipboard')))
+      .then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},1400);})
+      .catch(function(){btn.textContent='Failed';setTimeout(function(){btn.textContent='Copy'},1400);});
+    });
+    box.insertBefore(btn,pre);
+  });
+
+  /* --- Foldable sections --- */
+  document.querySelectorAll('.outline-2,.outline-3,.outline-4').forEach(function(section){
+    var heading = section.querySelector('h2,h3,h4');
+    if(!heading) return;
+
+    /* Create toggle button */
+    var toggle = document.createElement('span');
+    toggle.className = 'section-toggle';
+    toggle.textContent = '\u25BC'; /* down-pointing triangle */
+
+    /* Wrap heading content in a flex container */
+    var wrapper = document.createElement('div');
+    wrapper.className = 'section-header';
+
+    /* Insert toggle before heading text */
+    heading.insertBefore(toggle, heading.firstChild);
+
+    /* Click handler on the heading */
+    heading.style.cursor = 'pointer';
+    heading.addEventListener('click', function(e){
+      /* Don't toggle if clicking a link inside heading */
+      if(e.target.tagName === 'A') return;
+      section.classList.toggle('collapsed');
+      toggle.classList.toggle('collapsed');
+    });
+  });
+});
+</script>
+<script>
+MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div id="content" class="content">
+<h1 class="title">Accessibility and surface area — winding vs lattice, mesh vs MC</h1>
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#org86baeeb">1. Overview</a>
+<ul>
+<li><a href="#orgcdd3eef">1.1. Recommendations</a></li>
+</ul>
+</li>
+<li><a href="#orgd40c06a">2. Accessibility methods</a>
+<ul>
+<li><a href="#org6ef9636">2.1. Winding (default for MOFs and polymers)</a></li>
+<li><a href="#org1d8850a">2.2. Lattice (explicit Zeo++-style)</a></li>
+<li><a href="#org2f957d2">2.3. window<sub>fp</sub> (winding only)</a></li>
+</ul>
+</li>
+<li><a href="#org1f012da">3. Surface area estimators</a>
+<ul>
+<li><a href="#org3eba45d">3.1. Mesh (<code>compute_surface_area_mesh_*</code>)</a></li>
+<li><a href="#orga2e107b">3.2. Monte Carlo (<code>compute_surface_area_mc_*</code>)</a></li>
+<li><a href="#org5554224">3.3. Void volume (<code>compute_void_volume_*</code>)</a></li>
+</ul>
+</li>
+<li><a href="#org881bf00">4. Function reference</a></li>
+<li><a href="#org91ca451">5. Results dict — dual storage</a></li>
+<li><a href="#org5e2d4bf">6. Examples</a>
+<ul>
+<li><a href="#org65b4381">6.1. Segmentation (once per structure)</a></li>
+<li><a href="#org0b4f648">6.2. Winding MC surface area (recommended)</a></li>
+<li><a href="#org5be2799">6.3. Strict winding without window FP (Chao-equivalent regions)</a></li>
+<li><a href="#orgf6f2b9f">6.4. Mesh surface area (faster, less robust)</a></li>
+<li><a href="#org96e8e3b">6.5. Lattice Zeo++-style comparison</a></li>
+<li><a href="#org156a99a">6.6. Store both percolation histories and pore diameters</a></li>
+</ul>
+</li>
+<li><a href="#org405bf4c">7. Decision flow</a></li>
+<li><a href="#org8339454">8. See also</a></li>
+</ul>
+</div>
+</div>
+<p>
+:ID:       accessibility-sa-api-2026-06
+:ROAM<sub>TAGS</sub>: mofography accessibility surface-area winding lattice mesh monte-carlo
+</p>
+<div id="outline-container-org86baeeb" class="outline-2">
+<h2 id="org86baeeb"><span class="section-number-2">1.</span> Overview</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+Textural surface area and void volume in mofography are built from <b><b>three independent choices</b></b>:
+</p>
+
+<ol class="org-ol">
+<li><b>Accessibility</b> — which fragment <code>regions</code> IDs count as probe-percolating (winding graph <b><b>or</b></b> lattice voxel history).</li>
+<li><b>Winding add-on</b> — optional window-fingerprint bridging (<b><b>winding only</b></b>; needs pore graph).</li>
+<li><b>Geometry estimator</b> — how area/volume is integrated after accessibility is fixed (mesh SA, MC SA, or voxel void volume).</li>
+</ol>
+
+<p>
+Winding and lattice are <b><b>never mixed</b></b> in one call. Both may be computed on the same material and stored side-by-side on the same <code>results</code> dict.
+</p>
+</div>
+<div id="outline-container-orgcdd3eef" class="outline-3">
+<h3 id="orgcdd3eef"><span class="section-number-3">1.1.</span> Recommendations</h3>
+<div class="outline-text-3" id="text-1-1">
+<ul class="org-ul">
+<li><b>Polymers and flexible / graph-sensitive frameworks</b>: use <b><b>winding</b></b> accessibility (pore graph captures connectivity Zeo++-style voxels can miss).</li>
+<li><b>Surface area accuracy</b>: prefer <b><b>MC</b></b> over <b><b>mesh</b></b> when possible — marching-cubes mesh SA can <b><b>drop triangles</b></b> at region boundaries and on thin/noisy isosurfaces; MC shell sampling is usually more robust (stochastic noise vs systematic mesh loss).</li>
+<li><b>Zeo++ comparison / legacy pipelines</b>: call explicit <b><b>lattice</b></b> functions (<code>variant</code>&ldquo;v2&rdquo;= recommended).</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="outline-container-orgd40c06a" class="outline-2">
+<h2 id="orgd40c06a"><span class="section-number-2">2.</span> Accessibility methods</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+<div id="outline-container-org6ef9636" class="outline-3">
+<h3 id="org6ef9636"><span class="section-number-3">2.1.</span> Winding (default for MOFs and polymers)</h3>
+<div class="outline-text-3" id="text-2-1">
+<ul class="org-ul">
+<li>Uses directed pore graph + winding-number loops (<code>mofography/winding_percolation.py</code>).</li>
+<li>Percolating fragment labels at probe <b>r</b>: <code>percolating_region_labels_at_probe_winding</code>.</li>
+<li>Stores history on results: <code>percolation_history_winding</code>.</li>
+<li>Pore diameters: <code>get_pore_dia_mgr_winding2</code> → <code>pore_dia_winding</code>.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org1d8850a" class="outline-3">
+<h3 id="org1d8850a"><span class="section-number-3">2.2.</span> Lattice (explicit Zeo++-style)</h3>
+<div class="outline-text-3" id="text-2-2">
+<ul class="org-ul">
+<li>Binary void mask on <code>dgrid</code>; percolation via voxel labeling (<code>percolation_all_axes_periodic</code> in v2).</li>
+<li>No window fingerprint (no graph).</li>
+<li>Stores history: <code>percolation_history_lattice</code> (+ <code>percolation_lattice_variant</code>).</li>
+<li>Pore diameters: <code>get_pore_dia_lattice(..., variant</code>&ldquo;v2&rdquo;)= → <code>pore_dia_lattice</code>.</li>
+</ul>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Rank</th>
+<th scope="col" class="org-left">Lattice variant</th>
+<th scope="col" class="org-left">PLR / history</th>
+<th scope="col" class="org-left">When to use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">1</td>
+<td class="org-left"><b>v2</b></td>
+<td class="org-left"><code>find_pore_limiting_radius2</code>, axis keys <code>x,y,z</code></td>
+<td class="org-left">Default lattice; better periodic BC</td>
+</tr>
+
+<tr>
+<td class="org-left">2 (deprecated)</td>
+<td class="org-left">v1</td>
+<td class="org-left"><code>find_pore_limiting_radius</code>, axis keys <code>0,1,2</code></td>
+<td class="org-left">Old results only</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="outline-container-org2f957d2" class="outline-3">
+<h3 id="org2f957d2"><span class="section-number-3">2.3.</span> window<sub>fp</sub> (winding only)</h3>
+<div class="outline-text-3" id="text-2-3">
+<p>
+Parameter <code>window_fp</code> on winding SA/vol functions (formerly <code>window_fp_for_accessible</code> on deprecated aliases).
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left"><code>window_fp</code></th>
+<th scope="col" class="org-left">Behaviour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>True</code> (default)</td>
+<td class="org-left">Winding percolation <b><b>plus</b></b> BFS rescue of fragments behind sub-probe graph windows matched by chemical shell fingerprint (see <code>docs/window_fingerprinting.org</code>).</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>False</code></td>
+<td class="org-left">Strict winding percolation only — same region logic as Chao&rsquo;s reference MC script (no fingerprint bridge).</td>
+</tr>
+
+<tr>
+<td class="org-left"><b>N/A on lattice</b></td>
+<td class="org-left">Lattice functions do not accept <code>window_fp</code>.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="outline-container-org1f012da" class="outline-2">
+<h2 id="org1f012da"><span class="section-number-2">3.</span> Surface area estimators</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+<div id="outline-container-org3eba45d" class="outline-3">
+<h3 id="org3eba45d"><span class="section-number-3">3.1.</span> Mesh (<code>compute_surface_area_mesh_*</code>)</h3>
+<div class="outline-text-3" id="text-3-1">
+<div class="org-src-container">
+<pre class="src src-text">  dgrid  &#8594;  marching cubes at isovalue probe_radius
+         &#8594;  trimesh.area (&#197;&#178;)  &#8594;  m&#178;/g
+         &#8594;  split triangles by watershed fragment (regions)
+         &#8594;  sum areas of percolating fragments only
+</pre>
+</div>
+
+<ul class="org-ul">
+<li>Deterministic; can fail or under-count when isosurface is fragmented or triangles span region boundaries (those triangles are discarded in per-fragment split).</li>
+<li>Inner helpers: <code>get_isosurface_mesh</code>, <code>get_isosurface_submeshes</code> (<code>mofography/visualize.py</code>).</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orga2e107b" class="outline-3">
+<h3 id="orga2e107b"><span class="section-number-3">3.2.</span> Monte Carlo (<code>compute_surface_area_mc_*</code>)</h3>
+<div class="outline-text-3" id="text-3-2">
+<div class="org-src-container">
+<pre class="src src-text">  random grid samples where |dgrid - probe| &#8804; shell_thickness/2
+  accessible SA &#8733; (hits in shell &#8745; percolating regions) / n_samples &#215; V_cell / &#948;
+</pre>
+</div>
+
+<ul class="org-ul">
+<li>Stochastic (~few % noise); samples <b><b>fragment</b></b> <code>regions</code> labels (not <code>regions_pbc</code>).</li>
+<li>Generally <b><b>more accurate</b></b> than mesh for the same accessibility set.</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org5554224" class="outline-3">
+<h3 id="org5554224"><span class="section-number-3">3.3.</span> Void volume (<code>compute_void_volume_*</code>)</h3>
+<div class="outline-text-3" id="text-3-3">
+<ul class="org-ul">
+<li>Voxel count where <code>dgrid &gt; probe</code> per fragment; not mesh-based.</li>
+<li>Pairs with same accessibility choice as SA (<code>_winding</code> / <code>_lattice</code>).</li>
+</ul>
+</div>
+</div>
+</div>
+<div id="outline-container-org881bf00" class="outline-2">
+<h2 id="org881bf00"><span class="section-number-2">4.</span> Function reference</h2>
+<div class="outline-text-2" id="text-4">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Public function</th>
+<th scope="col" class="org-left">Accessibility</th>
+<th scope="col" class="org-left">Geometry</th>
+<th scope="col" class="org-left">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>compute_surface_area_mesh_winding</code></td>
+<td class="org-left">winding</td>
+<td class="org-left">mesh</td>
+<td class="org-left">Optional <code>window_fp</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_surface_area_mesh_lattice</code></td>
+<td class="org-left">lattice v1/v2</td>
+<td class="org-left">mesh</td>
+<td class="org-left"><code>variant</code>&ldquo;v2&rdquo;= default</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_surface_area_mc_winding</code></td>
+<td class="org-left">winding</td>
+<td class="org-left">MC shell</td>
+<td class="org-left">Optional <code>window_fp</code>; <b><b>preferred SA</b></b></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_surface_area_mc_lattice</code></td>
+<td class="org-left">lattice v1/v2</td>
+<td class="org-left">MC shell</td>
+<td class="org-left">Zeo++-style comparison</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_void_volume_from_results_winding</code></td>
+<td class="org-left">winding</td>
+<td class="org-left">voxels</td>
+<td class="org-left">Optional <code>window_fp</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_void_volume_from_results_lattice</code></td>
+<td class="org-left">lattice</td>
+<td class="org-left">voxels</td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_percolation_history_winding</code></td>
+<td class="org-left">—</td>
+<td class="org-left">stores <code>percolation_history_winding</code></td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>compute_percolation_history_from_results_lattice</code></td>
+<td class="org-left">—</td>
+<td class="org-left">stores <code>percolation_history_lattice</code></td>
+<td class="org-left">&#xa0;</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>get_pore_dia_mgr_winding2</code></td>
+<td class="org-left">winding</td>
+<td class="org-left">LCD/PLD/DFSD</td>
+<td class="org-left">→ <code>pore_dia_winding</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>get_pore_dia_lattice</code></td>
+<td class="org-left">lattice</td>
+<td class="org-left">LCD/PLD/DFSD</td>
+<td class="org-left">→ <code>pore_dia_lattice</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Deprecated aliases (still work): <code>compute_surface_area_from_results</code> → mesh winding; <code>compute_surface_area_from_results_mc</code> → MC winding; <code>*_from_results_*</code> variants.
+</p>
+
+<p>
+Helpers: <code>mofography/percolation_results.py</code> (<code>get_percolation_history</code>, <code>store_pore_dia</code>, …).
+</p>
+</div>
+</div>
+<div id="outline-container-org91ca451" class="outline-2">
+<h2 id="org91ca451"><span class="section-number-2">5.</span> Results dict — dual storage</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+Both accessibility methods can coexist on one segmentation <code>results</code> object:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Key</th>
+<th scope="col" class="org-left">Written by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>percolation_history_winding</code></td>
+<td class="org-left"><code>compute_percolation_history_winding</code>, winding SA/vol auto-fill</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>percolation_history_lattice</code></td>
+<td class="org-left"><code>compute_percolation_history_from_results_lattice</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>percolation_lattice_variant</code></td>
+<td class="org-left"><code>v1</code> or <code>v2</code> when lattice history stored</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>pore_dia_winding</code></td>
+<td class="org-left"><code>get_pore_dia_mgr_winding2</code> (dict: lcd, pld, dfsd, plr, …)</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>pore_dia_lattice</code></td>
+<td class="org-left"><code>get_pore_dia_lattice</code></td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Legacy <code>percolation_history</code> is read-only fallback for old pickles; new code should use method-specific keys.
+</p>
+</div>
+</div>
+<div id="outline-container-org5e2d4bf" class="outline-2">
+<h2 id="org5e2d4bf"><span class="section-number-2">6.</span> Examples</h2>
+<div class="outline-text-2" id="text-6">
+</div>
+<div id="outline-container-org65b4381" class="outline-3">
+<h3 id="org65b4381"><span class="section-number-3">6.1.</span> Segmentation (once per structure)</h3>
+<div class="outline-text-3" id="text-6-1">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #b48ead;">import</span> mofography <span style="color: #b48ead;">as</span> mgr
+<span style="color: #b48ead;">from</span> ase.io <span style="color: #b48ead;">import</span> read
+
+<span style="color: #BF616A;">mat</span> = read(<span style="color: #A3BE8C;">"examples/TestCIFs/P1-IRMOF-1.cif"</span>)
+<span style="color: #BF616A;">dgrid</span> = mgr.dgrid_from_atoms_rust(mat, spacing=0.5)
+<span style="color: #BF616A;">results</span> = mgr.do_periodic_segmentation_rust(
+    dgrid, mat, spacing=0.5, return_dgrid=<span style="color: #D08770;">True</span>, compute_connections=<span style="color: #D08770;">True</span>
+)
+<span style="color: #BF616A;">probe</span> = 1.2  <span style="color: #65737E;"># </span><span style="color: #65737E;">&#197; probe radius (e.g. N2)</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org0b4f648" class="outline-3">
+<h3 id="org0b4f648"><span class="section-number-3">6.2.</span> Winding MC surface area (recommended)</h3>
+<div class="outline-text-3" id="text-6-2">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #BF616A;">sa_mc</span> = mgr.compute_surface_area_mc_winding(
+    results, mat, probe_radius=probe, n_samples=20000, window_fp=<span style="color: #D08770;">True</span>
+)
+<span style="color: #D08770;">print</span>(sa_mc[<span style="color: #A3BE8C;">"accessible_surface_area"</span>], <span style="color: #A3BE8C;">"m&#178;/g"</span>)
+<span style="color: #D08770;">print</span>(sa_mc[<span style="color: #A3BE8C;">"by_region"</span>])  <span style="color: #65737E;"># </span><span style="color: #65737E;">fragment IDs &#8594; accessible m&#178;/g</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org5be2799" class="outline-3">
+<h3 id="org5be2799"><span class="section-number-3">6.3.</span> Strict winding without window FP (Chao-equivalent regions)</h3>
+<div class="outline-text-3" id="text-6-3">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #BF616A;">sa_chao_style</span> = mgr.compute_surface_area_mc_winding(
+    results, mat, probe_radius=probe, window_fp=<span style="color: #D08770;">False</span>
+)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orgf6f2b9f" class="outline-3">
+<h3 id="orgf6f2b9f"><span class="section-number-3">6.4.</span> Mesh surface area (faster, less robust)</h3>
+<div class="outline-text-3" id="text-6-4">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #BF616A;">sa_mesh</span> = mgr.compute_surface_area_mesh_winding(results, mat, probe_radius=probe)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org96e8e3b" class="outline-3">
+<h3 id="org96e8e3b"><span class="section-number-3">6.5.</span> Lattice Zeo++-style comparison</h3>
+<div class="outline-text-3" id="text-6-5">
+<div class="org-src-container">
+<pre class="src src-python"><span style="color: #BF616A;">sa_lattice</span> = mgr.compute_surface_area_mc_lattice(
+    results, mat, probe_radius=probe, variant=<span style="color: #A3BE8C;">"v2"</span>
+)
+<span style="color: #BF616A;">vol_lattice</span> = mgr.compute_void_volume_from_results_lattice(
+    results, mat, probe_radius=probe, variant=<span style="color: #A3BE8C;">"v2"</span>
+)
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org156a99a" class="outline-3">
+<h3 id="org156a99a"><span class="section-number-3">6.6.</span> Store both percolation histories and pore diameters</h3>
+<div class="outline-text-3" id="text-6-6">
+<div class="org-src-container">
+<pre class="src src-python">mgr.compute_percolation_history_winding(results)
+mgr.compute_percolation_history_from_results_lattice(results, variant=<span style="color: #A3BE8C;">"v2"</span>)
+mgr.get_pore_dia_mgr_winding2(results=results, mat_atoms=mat, auto_rerun=<span style="color: #D08770;">False</span>)
+mgr.get_pore_dia_lattice(mat, dgrid=results[<span style="color: #A3BE8C;">"dgrid"</span>], results=results, variant=<span style="color: #A3BE8C;">"v2"</span>)
+
+<span style="color: #b48ead;">assert</span> <span style="color: #A3BE8C;">"percolation_history_winding"</span> <span style="color: #b48ead;">in</span> results
+<span style="color: #b48ead;">assert</span> <span style="color: #A3BE8C;">"percolation_history_lattice"</span> <span style="color: #b48ead;">in</span> results
+<span style="color: #b48ead;">assert</span> <span style="color: #A3BE8C;">"pore_dia_winding"</span> <span style="color: #b48ead;">in</span> results
+<span style="color: #b48ead;">assert</span> <span style="color: #A3BE8C;">"pore_dia_lattice"</span> <span style="color: #b48ead;">in</span> results
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-org405bf4c" class="outline-2">
+<h2 id="org405bf4c"><span class="section-number-2">7.</span> Decision flow</h2>
+<div class="outline-text-2" id="text-7">
+<div class="org-src-container">
+<pre class="src src-text">Need accessible SA or void at probe r?
+  &#9474;
+  &#9500;&#9472; Polymer / graph-sensitive MOF &#8594; accessibility = WINDING
+  &#9500;&#9472; Zeo++ paper comparison       &#8594; accessibility = LATTICE (v2)
+  &#9474;
+  &#9492;&#9472; Geometry:
+        SA  &#8594; prefer compute_surface_area_mc_*
+        SA quick viz &#8594; compute_surface_area_mesh_* (know triangle-loss risk)
+        Vol &#8594; compute_void_volume_from_results_*
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org8339454" class="outline-2">
+<h2 id="org8339454"><span class="section-number-2">8.</span> See also</h2>
+<div class="outline-text-2" id="text-8">
+<ul class="org-ul">
+<li><code>docs/window_fingerprinting.org</code> — Mechanism A/B, fingerprint kwargs</li>
+<li><code>plans/accessibility_api_split_plan.md</code> — implementation plan and migration notes</li>
+<li><code>tests/test_accessibility_api_split.py</code> — Chao MC regression + dual storage tests</li>
+</ul>
+</div>
+</div>
+</div>
+</body>
+</html>
