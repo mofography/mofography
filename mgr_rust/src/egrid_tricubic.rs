@@ -29,7 +29,8 @@ use rayon::prelude::*;
 ///
 /// `fpoints` should already be supercell-replicated by the Python wrapper.
 #[pyfunction]
-#[pyo3(text_signature = "(fpoints, cell, epsilons, sigmas, nx, ny, nz, cutoff)")]
+#[pyo3(signature = (fpoints, cell, epsilons, sigmas, nx, ny, nz, cutoff, extent_x=1.0, extent_y=1.0, extent_z=1.0))]
+#[pyo3(text_signature = "(fpoints, cell, epsilons, sigmas, nx, ny, nz, cutoff, extent_x=1.0, extent_y=1.0, extent_z=1.0)")]
 pub fn egrid_tricubic_from_atoms(
     py: Python<'_>,
     fpoints: numpy::PyReadonlyArray2<'_, f64>,
@@ -40,6 +41,9 @@ pub fn egrid_tricubic_from_atoms(
     ny: usize,
     nz: usize,
     cutoff: f64,
+    extent_x: f64,
+    extent_y: f64,
+    extent_z: f64,
 ) -> PyResult<Py<PyArray1<f64>>> {
     let fpoints = fpoints.as_array();
     let cell = cell.as_array();
@@ -81,10 +85,10 @@ pub fn egrid_tricubic_from_atoms(
             let j = (idx / nz) % ny;
             let k = idx % nz;
 
-            // Fractional coordinate on the uniform grid.
-            let x_frac = -0.5 + (i as f64) / ((nx - 1) as f64);
-            let y_frac = -0.5 + (j as f64) / ((ny - 1) as f64);
-            let z_frac = -0.5 + (k as f64) / ((nz - 1) as f64);
+            // Fractional coordinate on the uniform grid (optionally a sub-tile of the cell).
+            let x_frac = -0.5 + (i as f64) / ((nx - 1) as f64) * extent_x;
+            let y_frac = -0.5 + (j as f64) / ((ny - 1) as f64) * extent_y;
+            let z_frac = -0.5 + (k as f64) / ((nz - 1) as f64) * extent_z;
 
             // Cartesian position of this grid point.
             let gx = c00 * x_frac + c01 * y_frac + c02 * z_frac;

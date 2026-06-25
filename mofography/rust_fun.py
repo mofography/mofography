@@ -139,32 +139,50 @@ def dgrid_from_atoms_aabb_interp_rust(
     )
 
 
-def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing):
+def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing, cutoff):
     """
     Shared setup for scalar and tricubic unit-cell energy grids.
 
-    Grid nodes span the **unit cell** at ``-0.5 + i/(N-1)`` (RASPA / tricubic
-    convention).  Supercell-replicated atoms supply periodic images within
-    ``cutoff``; their Cartesian positions are expressed in the same centered
-    unit-cell fractional frame for MIC in Rust.
-
-    Do **not** build a supercell-sized grid and slice — that misplaces nodes by
-    up to ``O(n_cells)`` in fractional space.
+    Grid nodes span one unit cell at ``-0.5 + i/(N-1) * extent`` (RASPA /
+    tricubic convention).  When ``repeat_to_meet_cutoff`` expands the cell,
+    atoms stay in **supercell** centered fractional coordinates (no wrapping
+    into the principal cell) and ``extent = 1/n_cells`` per axis so grid nodes
+    tile the first unit cell.  When no repetition is needed, unit-cell atoms
+    and ``extent = 1`` suffice (MIC only).
     """
     import numpy as np
     from ase.geometry import cellpar_to_cell
-    from mofography.helper import get_fractional_coordinates
+    from mofography.compute import get_repetitions_to_meet_cutoff
 
     nx_unit, ny_unit, nz_unit = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
-    cell_unit = cellpar_to_cell(ase_atoms.cell.cellpar()).T
-
-    cart = mat_atoms_repeat.get_positions()
-    frac = get_fractional_coordinates(cart, ase_atoms)
-    frac = frac - np.floor(frac) - 0.5
+    nx_c, ny_c, nz_c = get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    extent_x = 1.0 / float(nx_c)
+    extent_y = 1.0 / float(ny_c)
+    extent_z = 1.0 / float(nz_c)
 
     eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
     sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
-    return frac, cell_unit, int(nx_unit), int(ny_unit), int(nz_unit), eps, sig
+
+    if nx_c == ny_c == nz_c == 1:
+        frac = ase_atoms.get_scaled_positions() - 0.5
+        cell = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+        extent_x = extent_y = extent_z = 1.0
+    else:
+        frac = mat_atoms_repeat.get_scaled_positions() - 0.5
+        cell = cellpar_to_cell(mat_atoms_repeat.cell.cellpar()).T
+
+    return (
+        frac,
+        cell,
+        int(nx_unit),
+        int(ny_unit),
+        int(nz_unit),
+        eps,
+        sig,
+        extent_x,
+        extent_y,
+        extent_z,
+    )
 
 
 def egrid_from_atoms_rust(
@@ -200,11 +218,12 @@ def egrid_from_atoms_rust(
     mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(
         ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff
     )
-    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig = _egrid_unit_cell_grid_inputs(
-        ase_atoms, mat_atoms_repeat, ff_repeat, spacing,
+    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig, ex, ey, ez = _egrid_unit_cell_grid_inputs(
+        ase_atoms, mat_atoms_repeat, ff_repeat, spacing, cutoff,
     )
     egrid = mgr_rust.egrid_from_atoms(
         frac, cell_unit, eps, sig, nx_unit, ny_unit, nz_unit, cutoff=cutoff,
+        extent_x=ex, extent_y=ey, extent_z=ez,
     )
 
     if return_ncells:
@@ -2000,12 +2019,13 @@ def egrid_tricubic_from_atoms_rust(
     mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(
         ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff
     )
-    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig = _egrid_unit_cell_grid_inputs(
-        ase_atoms, mat_atoms_repeat, ff_repeat, spacing,
+    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig, ex, ey, ez = _egrid_unit_cell_grid_inputs(
+        ase_atoms, mat_atoms_repeat, ff_repeat, spacing, cutoff,
     )
 
     egrid8_flat = mgr_rust.egrid_tricubic_from_atoms(
         frac, cell_unit, eps, sig, nx_unit, ny_unit, nz_unit, cutoff,
+        extent_x=ex, extent_y=ey, extent_z=ez,
     )
     egrid8 = egrid8_flat.reshape(8, nx_unit, ny_unit, nz_unit)
 
