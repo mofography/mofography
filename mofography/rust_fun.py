@@ -139,6 +139,34 @@ def dgrid_from_atoms_aabb_interp_rust(
     )
 
 
+def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing):
+    """
+    Shared setup for scalar and tricubic unit-cell energy grids.
+
+    Grid nodes span the **unit cell** at ``-0.5 + i/(N-1)`` (RASPA / tricubic
+    convention).  Supercell-replicated atoms supply periodic images within
+    ``cutoff``; their Cartesian positions are expressed in the same centered
+    unit-cell fractional frame for MIC in Rust.
+
+    Do **not** build a supercell-sized grid and slice — that misplaces nodes by
+    up to ``O(n_cells)`` in fractional space.
+    """
+    import numpy as np
+    from ase.geometry import cellpar_to_cell
+    from mofography.helper import get_fractional_coordinates
+
+    nx_unit, ny_unit, nz_unit = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
+    cell_unit = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+
+    cart = mat_atoms_repeat.get_positions()
+    frac = get_fractional_coordinates(cart, ase_atoms)
+    frac = frac - np.floor(frac) - 0.5
+
+    eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
+    sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
+    return frac, cell_unit, int(nx_unit), int(ny_unit), int(nz_unit), eps, sig
+
+
 def egrid_from_atoms_rust(
     ase_atoms, spacing, forcefield_mixed=None, cutoff=12.5, probe_symbol="He", return_ncells=False
 ):
@@ -163,7 +191,6 @@ def egrid_from_atoms_rust(
     """
     import mgr_rust
     import mofography as mgr
-    from ase.geometry import cellpar_to_cell
     from .compute import get_repetitions_to_meet_cutoff
     logger.info(f"Using {mgr_rust.rayon_num_threads()} threads for parallel processing")
     if forcefield_mixed is None:
@@ -173,20 +200,12 @@ def egrid_from_atoms_rust(
     mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(
         ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff
     )
-    eps, sig = ff_repeat[:, 0], ff_repeat[:, 1]
-    frac = mat_atoms_repeat.get_scaled_positions() - 0.5  # centre to [-0.5,0.5]
-    cell = cellpar_to_cell(mat_atoms_repeat.cell.cellpar()).T
-    # cell = mat_atoms_repeat.get_cell().complete().T        # 3×3 column-vector matrix
-    # nx, ny, nz = (mat_atoms_repeat.cell.cellpar()[:3] / spacing).astype(int) + 1
-    
-    # NOTE: define grid over just one unit cell, exactly like python version, and then repeat exactly
-    nx_unit, ny_unit, nz_unit = (ase_atoms.cell.cellpar()[:3]/spacing).astype(int) + 1
-    nx_cells, ny_cells, nz_cells = get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
-    nx, ny, nz = nx_unit * nx_cells, ny_unit * ny_cells, nz_unit * nz_cells # grid points for supercell
-    # compute supercell egrid using rust. this is easier for parallelization in rust since we don
-    # 't have a cell list
-    egrid_super = mgr_rust.egrid_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff=cutoff)
-    egrid = egrid_super[:nx_unit, :ny_unit, :nz_unit] # grab just one unit cell that's all we need
+    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig = _egrid_unit_cell_grid_inputs(
+        ase_atoms, mat_atoms_repeat, ff_repeat, spacing,
+    )
+    egrid = mgr_rust.egrid_from_atoms(
+        frac, cell_unit, eps, sig, nx_unit, ny_unit, nz_unit, cutoff=cutoff,
+    )
 
     if return_ncells:
         return egrid, get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
@@ -1963,15 +1982,16 @@ def egrid_tricubic_from_atoms_rust(
     """Build an 8-channel tricubic energy grid from atomic positions.
 
     Parameters match :func:`egrid_from_atoms_rust`.
-    Returns a numpy array of shape (8, nx, ny, nz) with RASPA-compatible
-    derivative scaling. Channel 0 = energy; channels 1-7 = scaled fractional
-    derivatives.
+    Returns a numpy array of shape ``(8, nx_unit, ny_unit, nz_unit)`` with
+    RASPA-compatible derivative scaling. Channel 0 = energy; channels 1-7 =
+    scaled fractional derivatives.
 
-    Uses R-tree spatial indexing (rstar) for O(N·log M) atom lookups
-    instead of O(N·M) brute-force.
+    Grid nodes span the **unit cell** at ``-0.5 + i/(N_unit-1)`` (same as
+    :func:`egrid_from_atoms_rust` and :class:`mgr_rust.TricubicField` query
+    convention).  Supercell-replicated atoms supply cutoff images.
     """
     import mgr_rust, mofography as mgr, numpy as np
-    from ase.geometry import cellpar_to_cell
+    from .compute import get_repetitions_to_meet_cutoff
 
     if forcefield_mixed is None:
         forcefield_mixed = mgr.mix_lorentz_berthelot(
@@ -1980,28 +2000,23 @@ def egrid_tricubic_from_atoms_rust(
     mat_atoms_repeat, ff_repeat = mgr.repeat_to_meet_cutoff(
         ase_atoms, forcefield_mixed=forcefield_mixed, cutoff=cutoff
     )
-    eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
-    sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
+    frac, cell_unit, nx_unit, ny_unit, nz_unit, eps, sig = _egrid_unit_cell_grid_inputs(
+        ase_atoms, mat_atoms_repeat, ff_repeat, spacing,
+    )
 
-    frac = mat_atoms_repeat.get_scaled_positions() - 0.5
-    cell = cellpar_to_cell(mat_atoms_repeat.cell.cellpar()).T
+    egrid8_flat = mgr_rust.egrid_tricubic_from_atoms(
+        frac, cell_unit, eps, sig, nx_unit, ny_unit, nz_unit, cutoff,
+    )
+    egrid8 = egrid8_flat.reshape(8, nx_unit, ny_unit, nz_unit)
 
-    cell_lengths = np.linalg.norm(cell, axis=0)
-    nx = int(cell_lengths[0] / spacing) + 1
-    ny = int(cell_lengths[1] / spacing) + 1
-    nz = int(cell_lengths[2] / spacing) + 1
-
-    egrid8_flat = mgr_rust.egrid_tricubic_from_atoms(frac, cell, eps, sig, nx, ny, nz, cutoff)
-    egrid8 = egrid8_flat.reshape(8, nx, ny, nz)
-
-    # Apply RASPA derivative scaling: divide by cells per axis
-    ncells = np.array([nx - 1, ny - 1, nz - 1], dtype=np.float64)
+    # RASPA derivative scaling uses unit-cell cell counts.
+    ncells = np.array([nx_unit - 1, ny_unit - 1, nz_unit - 1], dtype=np.float64)
     egrid8[1] /= ncells[0]; egrid8[2] /= ncells[1]; egrid8[3] /= ncells[2]
     egrid8[4] /= ncells[0] * ncells[1]; egrid8[5] /= ncells[0] * ncells[2]
     egrid8[6] /= ncells[1] * ncells[2]; egrid8[7] /= ncells[0] * ncells[1] * ncells[2]
 
     if return_ncells:
-        return egrid8, None
+        return egrid8, get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
     else:
         return egrid8
 
