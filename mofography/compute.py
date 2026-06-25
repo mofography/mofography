@@ -8980,20 +8980,20 @@ def select_percolation_threshold(percolation_history, probe_radius):
         threshold, components = exact_matches[0]
         return threshold, components, True, f"Exact threshold match: {threshold:.3f} Å"
 
-    # Case 3: Use largest threshold <= probe_radius with WARNING
-    valid_thresholds = [(t, c) for t, c in percolation_history if t <= probe_radius]
-    threshold, components = max(valid_thresholds, key=lambda x: x[0])
+    # Case 3: Use the smallest threshold ≥ probe_radius (conservative).
+    # A larger probe is harder to percolate — only mark accessible if
+    # a strictly larger probe also percolates.
+    valid_thresholds = [(t, c) for t, c in percolation_history if t >= probe_radius]
+    if valid_thresholds:
+        threshold, components = min(valid_thresholds, key=lambda x: x[0])
+    else:
+        # No threshold ≥ probe_radius exists — probe exceeds PLD
+        return None, None, False, f"Probe radius {probe_radius:.3f} Å exceeds PLD {max_threshold:.3f} Å - no percolation"
 
     nearest_threshold = min(available_thresholds, key=lambda t: abs(t - probe_radius))
     warning_msg = (f"Probe radius {probe_radius:.3f} Å not available in percolation history. "
                   f"Using threshold {threshold:.3f} Å (nearest available: {nearest_threshold:.3f} Å). "
                   f"Threshold step size is 0.05 Å - consider using available thresholds for exact results.")
-
-    # Log warning for threshold approximation
-    logger.warning(warning_msg)
-
-    message = f"Using threshold {threshold:.3f} Å for probe radius {probe_radius:.3f} Å (approximated)"
-    return threshold, components, False, message
 
 
 def _merge_winding_kwargs(
