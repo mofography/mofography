@@ -254,8 +254,8 @@ def tricubic_interpolator_from_grid(
         Channel 0 = energy, 1-3 = ∂E/∂s_{x,y,z}, 4-7 = mixed ∂²E / ∂³E.
     extent_x, extent_y, extent_z : float
         ASE fractional span per axis covered by ``egrid8`` (1.0 = full cell).
-        Query coordinates in ASE ``[0, 1)`` are folded into the first tile
-        before interpolation when any extent is below 1.
+        Query coordinates in ASE ``[0, 1)`` map directly to the grid (no folding);
+        extent is handled at grid-build time and in derivative scaling.
 
     Returns
     -------
@@ -2048,11 +2048,8 @@ def egrid_tricubic_from_atoms_rust(
     )
     egrid8 = egrid8_flat.reshape(8, nx_unit, ny_unit, nz_unit)
 
-    # RASPA derivative scaling uses unit-cell cell counts.
-    ncells = np.array([nx_unit - 1, ny_unit - 1, nz_unit - 1], dtype=np.float64)
-    egrid8[1] /= ncells[0]; egrid8[2] /= ncells[1]; egrid8[3] /= ncells[2]
-    egrid8[4] /= ncells[0] * ncells[1]; egrid8[5] /= ncells[0] * ncells[2]
-    egrid8[6] /= ncells[1] * ncells[2]; egrid8[7] /= ncells[0] * ncells[1] * ncells[2]
+    # Derivative scaling is now done inside the Rust kernel
+    # (see mgr_rust/src/egrid_tricubic.rs — extent/(N-1) per axis).
 
     if return_ncells:
         return egrid8, get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
