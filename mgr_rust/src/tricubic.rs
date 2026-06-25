@@ -385,7 +385,13 @@ impl TricubicField {
         );
 
         let a = compute_coefficients(&x);
-        interpolate_energy(&a, sx, sy, sz)
+        let val = interpolate_energy(&a, sx, sy, sz);
+
+        // RASPA corner clamp: prevent polynomial overshoot beyond the
+        // physically meaningful range of the surrounding 2×2×2 cell.
+        let corner_min = x[0..8].iter().cloned().reduce(f64::min).unwrap();
+        let corner_max = x[0..8].iter().cloned().reduce(f64::max).unwrap();
+        val.clamp(corner_min, corner_max)
     }
 }
 
