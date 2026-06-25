@@ -6051,7 +6051,9 @@ def get_energies_for_group2(
         return energies, all_group_scaled
     else:
         return energies
-def get_energy_interpolator(egrid, neighborhood_size=4):
+def get_energy_interpolator(
+    egrid, neighborhood_size=4, extent_x=1.0, extent_y=1.0, extent_z=1.0,
+):
     """
     Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them
     with a value higher than their local neighborhood maximum.
@@ -6102,10 +6104,30 @@ def get_energy_interpolator(egrid, neighborhood_size=4):
     zz = np.linspace(0, 1, egrid_clean.shape[2])
     
     energy_interpolator = RGI((xx, yy, zz), egrid_clean, method="slinear")
-    return energy_interpolator
+
+    if extent_x >= 1.0 and extent_y >= 1.0 and extent_z >= 1.0:
+        return energy_interpolator
+
+    from mofography.helper import ase_frac_to_egrid_query
+
+    class _ExtentRGI:
+        def __init__(self, rgi, ex, ey, ez):
+            self._rgi = rgi
+            self._ex, self._ey, self._ez = ex, ey, ez
+
+        def __call__(self, xi):
+            xi = np.atleast_2d(np.asarray(xi, dtype=np.float64))
+            if xi.shape[1] != 3:
+                xi = xi.T
+            q = ase_frac_to_egrid_query(xi, self._ex, self._ey, self._ez)
+            return self._rgi(q)
+
+    return _ExtentRGI(energy_interpolator, extent_x, extent_y, extent_z)
 
 
-def get_energy_interpolator_tricubic(egrid, egrid8, neighborhood_size=4):
+def get_energy_interpolator_tricubic(
+    egrid, egrid8, neighborhood_size=4, extent_x=1.0, extent_y=1.0, extent_z=1.0,
+):
     """Create a tricubic energy interpolator from pre-built 8-channel grid.
 
     Parameters
@@ -6152,7 +6174,9 @@ def get_energy_interpolator_tricubic(egrid, egrid8, neighborhood_size=4):
             # Zero derivatives at NaN locations (plan §7)
             egrid8[1:, idx[0], idx[1], idx[2]] = 0.0
 
-    field = tricubic_interpolator_from_grid(np.ascontiguousarray(egrid8))
+    field = tricubic_interpolator_from_grid(
+        np.ascontiguousarray(egrid8), extent_x, extent_y, extent_z,
+    )
 
     # Wrap as callable matching RGI interface
     class _TricubicInterpolator:

@@ -69,6 +69,25 @@ def get_fractional_coordinates(points, ase_atoms):
     frac_coords = np.dot(cell_inv, points.T).T
     return frac_coords
 
+
+def ase_frac_to_egrid_query(frac, extent_x=1.0, extent_y=1.0, extent_z=1.0):
+    """Map ASE fractional coordinates to egrid / tricubic query coords in ``[0, 1)``.
+
+    Grids built with ``extent < 1`` cover only the first unit-cell tile along
+    that axis (see :func:`mofography.rust_fun._egrid_unit_cell_grid_inputs`).
+    Periodic images are folded before indexing the interpolator.
+    """
+    import numpy as np
+
+    f = np.asarray(frac, dtype=np.float64)
+    out = f - np.floor(f)
+    extents = (float(extent_x), float(extent_y), float(extent_z))
+    for ax, ext in enumerate(extents):
+        if ext < 1.0 - 1.0e-15:
+            out[..., ax] -= np.floor(out[..., ax] / ext) * ext
+            out[..., ax] /= ext
+    return np.where(out >= 1.0, 1.0 - np.finfo(np.float64).eps, out)
+
 def zoom_grid(grid, zoom_factor):
     """
     It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by

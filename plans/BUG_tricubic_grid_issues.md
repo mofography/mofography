@@ -59,3 +59,13 @@ egrid8[1] /= ncells[0]   # etc.
 ```
 
 This uses `N−1` which matches the kernel's denominator. If the kernel switches to `i/N`, this scaling should switch to `N` accordingly.
+
+## 4. Extent tiling vs ASE query coords — **fixed Jun 2026**
+
+**Symptom:** When `get_repetitions_to_meet_cutoff` > 1 on an axis, the egrid covers only the first unit-cell tile (`extent = 1/n_cells`), but `TricubicField.interpolate` treated ASE `[0,1)³` as full-cell query coords. ~92% of DONNAW pocket translations with `y > 0.5` queried the wrong tile → catastrophic energies and flat `log_Z`.
+
+**Fix:**
+- `mgr_rust.TricubicField`: `extent_x/y/z` params; fold ASE frac → tile query in `_interpolate_impl`.
+- `tricubic_interpolator_from_grid(..., extent_*)`, `egrid_query_extent_from_atoms`, `ase_frac_to_egrid_query`.
+- `get_energy_interpolator` / `get_energy_interpolator_tricubic` accept optional extent.
+- Local `TricubicProbeFields.build_from_atoms` passes extent from cutoff replication.

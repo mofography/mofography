@@ -208,6 +208,10 @@ pub struct TricubicField {
     nx: usize,
     ny: usize,
     nz: usize,
+    /// ASE fractional span per axis covered by the grid (1.0 = full cell).
+    extent_x: f64,
+    extent_y: f64,
+    extent_z: f64,
 }
 
 #[pymethods]
@@ -217,7 +221,13 @@ impl TricubicField {
     /// `data` must be a numpy `f64` array of shape `(8, nx, ny, nz)`
     /// in C-contiguous order.
     #[new]
-    fn new(data: PyReadonlyArrayDyn<'_, f64>) -> PyResult<Self> {
+    #[pyo3(signature = (data, extent_x=1.0, extent_y=1.0, extent_z=1.0))]
+    fn new(
+        data: PyReadonlyArrayDyn<'_, f64>,
+        extent_x: f64,
+        extent_y: f64,
+        extent_z: f64,
+    ) -> PyResult<Self> {
         let arr = data.as_array();
         let shape = arr.shape();
         if arr.ndim() != 4 || shape[0] != 8 {
@@ -254,13 +264,17 @@ impl TricubicField {
             nx,
             ny,
             nz,
+            extent_x,
+            extent_y,
+            extent_z,
         })
     }
 
     /// Interpolate the energy at one fractional position.
     ///
-    /// `frac` is `[fx, fy, fz]` in `[0, 1)³`. Coordinates are wrapped
-    /// periodically (`frac - floor(frac)`). Returns `f64`.
+    /// `frac` is `[fx, fy, fz]` in ASE unit-cell fractional coordinates
+    /// (same convention as ``get_fractional_coordinates``). Values are wrapped
+    /// into the first periodic tile when ``extent_* < 1`` before interpolation.
     fn interpolate(&self, frac: Vec<f64>) -> PyResult<f64> {
         if frac.len() != 3 {
             return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -306,20 +320,32 @@ impl TricubicField {
 }
 
 impl TricubicField {
-    /// Core interpolation: wrap `frac` into `[0, 1)`, locate the cell, gather
-    /// corner data, compute coefficients, evaluate.
+    /// Map ASE fractional coordinate to interpolator query coord in `[0, 1)`.
+    ///
+    /// Grids built with ``extent < 1`` cover only the first unit-cell tile
+    /// along that axis; periodic images are folded before indexing.
+    fn ase_frac_to_query(ase_frac: f64, extent: f64) -> f64 {
+        let mut f = ase_frac - ase_frac.floor();
+        if f >= 1.0 {
+            f = 0.0;
+        }
+        if extent < 1.0 - 1.0e-15 {
+            f -= (f / extent).floor() * extent;
+            f /= extent;
+        }
+        if f >= 1.0 {
+            1.0f64 - f64::EPSILON
+        } else {
+            f
+        }
+    }
+
+    /// Core interpolation: fold ASE frac, locate the cell, gather corner data,
+    /// compute coefficients, evaluate.
     fn _interpolate_impl(&self, frac: [f64; 3]) -> f64 {
-        // Map to [0, 1): wrap negative inputs positively, clamp s=1.0
-        // to just below 1.0 (RASPA-style: last-cell clamping via truncation).
-        let mut fx = frac[0];
-        if fx < 0.0 { fx += 1.0; }
-        let fx = if fx >= 1.0 { 1.0f64 - f64::EPSILON } else { fx };
-        let mut fy = frac[1];
-        if fy < 0.0 { fy += 1.0; }
-        let fy = if fy >= 1.0 { 1.0f64 - f64::EPSILON } else { fy };
-        let mut fz = frac[2];
-        if fz < 0.0 { fz += 1.0; }
-        let fz = if fz >= 1.0 { 1.0f64 - f64::EPSILON } else { fz };
+        let fx = Self::ase_frac_to_query(frac[0], self.extent_x);
+        let fy = Self::ase_frac_to_query(frac[1], self.extent_y);
+        let fz = Self::ase_frac_to_query(frac[2], self.extent_z);
 
         // Degenerate case: fewer than 2 grid points along any axis
         if self.nx < 2 || self.ny < 2 || self.nz < 2 {
@@ -574,6 +600,9 @@ mod tests {
             nx,
             ny,
             nz,
+            extent_x: 1.0,
+            extent_y: 1.0,
+            extent_z: 1.0,
         };
 
         // Test a few points
@@ -595,6 +624,53 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn test_ase_frac_to_query_folding() {
+        assert!((TricubicField::ase_frac_to_query(0.75, 0.5) - 0.5).abs() < 1e-12);
+        assert!((TricubicField::ase_frac_to_query(0.25, 1.0) - 0.25).abs() < 1e-12);
+        assert!((TricubicField::ase_frac_to_query(0.6, 0.5) - 0.2).abs() < 1e-12);
+        assert!((TricubicField::ase_frac_to_query(-0.1, 1.0) - 0.9).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_extent_tile_folding_constant_field() {
+        let nx = 3;
+        let ny = 3;
+        let nz = 3;
+        let mut data = vec![0.0f64; 8 * nx * ny * nz];
+        for c in 0..8 {
+            let val = if c == 0 { 42.0 } else { 0.0 };
+            for i in 0..(nx * ny * nz) {
+                data[c * nx * ny * nz + i] = val;
+            }
+        }
+
+        let field_unit = TricubicField {
+            data: data.clone(),
+            nx,
+            ny,
+            nz,
+            extent_x: 1.0,
+            extent_y: 1.0,
+            extent_z: 1.0,
+        };
+        let field_half_y = TricubicField {
+            data,
+            nx,
+            ny,
+            nz,
+            extent_x: 1.0,
+            extent_y: 0.5,
+            extent_z: 1.0,
+        };
+
+        let v_ref = field_unit._interpolate_impl([0.1, 0.25, 0.3]);
+        let v_fold = field_half_y._interpolate_impl([0.1, 0.75, 0.3]);
+        assert!((v_ref - 42.0).abs() < 1e-10);
+        assert!((v_fold - 42.0).abs() < 1e-10);
+        assert!((v_ref - v_fold).abs() < 1e-10);
     }
 
     #[test]
