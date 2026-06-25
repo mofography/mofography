@@ -8945,19 +8945,23 @@ def do_periodic_segmentation_basic(
         outputs['dgrid'] = dgrid
     return outputs
 
-def select_percolation_threshold(percolation_history, probe_radius):
+def select_percolation_threshold(percolation_history, probe_radius, *, conservative=False):
     """
-    Select the appropriate threshold for percolation analysis with proper warning logging.
+    Select the appropriate threshold for percolation analysis.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     percolation_history : list
-        List of (threshold, components) tuples from compute_percolation_history
+        List of (threshold, components) tuples.
     probe_radius : float
-        Requested probe radius in Angstroms
+        Requested probe radius in Angstroms.
+    conservative : bool
+        If True, use smallest threshold ≥ probe_radius (harder to percolate,
+        suitable for accessibility gating). Default False: largest threshold
+        ≤ probe_radius (permissive, suitable for surface area / void volume).
 
-    Returns:
-    --------
+    Returns
+    -------
     tuple
         (selected_threshold, threshold_components, exact_match, message)
     """
@@ -8980,15 +8984,16 @@ def select_percolation_threshold(percolation_history, probe_radius):
         threshold, components = exact_matches[0]
         return threshold, components, True, f"Exact threshold match: {threshold:.3f} Å"
 
-    # Case 3: Use the smallest threshold ≥ probe_radius (conservative).
-    # A larger probe is harder to percolate — only mark accessible if
-    # a strictly larger probe also percolates.
-    valid_thresholds = [(t, c) for t, c in percolation_history if t >= probe_radius]
-    if valid_thresholds:
-        threshold, components = min(valid_thresholds, key=lambda x: x[0])
+    # Case 3: No exact match — use conservative or permissive threshold
+    if conservative:
+        valid = [(t, c) for t, c in percolation_history if t >= probe_radius]
+        if valid:
+            threshold, components = min(valid, key=lambda x: x[0])
+        else:
+            return None, None, False, f"Probe radius {probe_radius:.3f} Å exceeds PLD {max_threshold:.3f} Å - no percolation"
     else:
-        # No threshold ≥ probe_radius exists — probe exceeds PLD
-        return None, None, False, f"Probe radius {probe_radius:.3f} Å exceeds PLD {max_threshold:.3f} Å - no percolation"
+        valid = [(t, c) for t, c in percolation_history if t <= probe_radius]
+        threshold, components = max(valid, key=lambda x: x[0])
 
     nearest_threshold = min(available_thresholds, key=lambda t: abs(t - probe_radius))
     logger.warning(
