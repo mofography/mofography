@@ -8991,9 +8991,14 @@ def select_percolation_threshold(percolation_history, probe_radius):
         return None, None, False, f"Probe radius {probe_radius:.3f} Å exceeds PLD {max_threshold:.3f} Å - no percolation"
 
     nearest_threshold = min(available_thresholds, key=lambda t: abs(t - probe_radius))
-    warning_msg = (f"Probe radius {probe_radius:.3f} Å not available in percolation history. "
-                  f"Using threshold {threshold:.3f} Å (nearest available: {nearest_threshold:.3f} Å). "
-                  f"Threshold step size is 0.05 Å - consider using available thresholds for exact results.")
+    logger.warning(
+        f"Probe radius {probe_radius:.3f} Å not available in percolation history. "
+        f"Using threshold {threshold:.3f} Å (nearest available: {nearest_threshold:.3f} Å). "
+        f"Threshold step size is 0.05 Å - consider using available thresholds for exact results."
+    )
+
+    message = f"Using threshold {threshold:.3f} Å for probe radius {probe_radius:.3f} Å (approximated)"
+    return threshold, components, False, message
 
 
 def _merge_winding_kwargs(
