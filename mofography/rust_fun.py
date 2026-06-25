@@ -232,9 +232,19 @@ def egrid_from_atoms_rust(
         return egrid
 
 
+def egrid_query_extent_from_atoms(ase_atoms, cutoff=12.5):
+    """ASE fractional span per axis covered by a unit-cell egrid (1.0 = full cell)."""
+    from mofography.compute import get_repetitions_to_meet_cutoff
+
+    nx_c, ny_c, nz_c = get_repetitions_to_meet_cutoff(ase_atoms, cutoff=cutoff)
+    if nx_c == ny_c == nz_c == 1:
+        return (1.0, 1.0, 1.0)
+    return (1.0 / float(nx_c), 1.0 / float(ny_c), 1.0 / float(nz_c))
 
 
-def tricubic_interpolator_from_grid(egrid8):
+def tricubic_interpolator_from_grid(
+    egrid8, extent_x=1.0, extent_y=1.0, extent_z=1.0,
+):
     """Build a tricubic energy interpolator from an 8-channel energy grid.
 
     Parameters
@@ -242,6 +252,10 @@ def tricubic_interpolator_from_grid(egrid8):
     egrid8 : ndarray, float64
         Shape (8, nx, ny, nz) in C order.
         Channel 0 = energy, 1-3 = ∂E/∂s_{x,y,z}, 4-7 = mixed ∂²E / ∂³E.
+    extent_x, extent_y, extent_z : float
+        ASE fractional span per axis covered by ``egrid8`` (1.0 = full cell).
+        Query coordinates in ASE ``[0, 1)`` are folded into the first tile
+        before interpolation when any extent is below 1.
 
     Returns
     -------
@@ -256,7 +270,12 @@ def tricubic_interpolator_from_grid(egrid8):
     (Phase 2, planned).
     """
     import mgr_rust
-    return mgr_rust.TricubicField(np.ascontiguousarray(np.asarray(egrid8, dtype=np.float64)))
+    return mgr_rust.TricubicField(
+        np.ascontiguousarray(np.asarray(egrid8, dtype=np.float64)),
+        extent_x,
+        extent_y,
+        extent_z,
+    )
 
 
 
