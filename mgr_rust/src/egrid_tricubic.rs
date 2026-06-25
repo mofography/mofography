@@ -7,10 +7,9 @@
 //!
 //! # Channel layout (RASPA-compatible)
 //!
-//! Channel 0 = energy
-//! Channel 1–3 = ∂E/∂s_x, ∂E/∂s_y, ∂E/∂s_z       (÷ ncells after build)
-//! Channel 4–6 = ∂²E/∂s_x∂s_y, ∂²E/∂s_x∂s_z, ∂²E/∂s_y∂s_z  (÷ product)
-//! Channel 7   = ∂³E/∂s_x∂s_y∂s_z                  (÷ triple product)
+//! Channel 1–3 = ∂E/∂s_x, ∂E/∂s_y, ∂E/∂s_z       (grid-step units)
+//! Channel 4–6 = ∂²E/∂s_x∂s_y, ∂²E/∂s_x∂s_z, ∂²E/∂s_y∂s_z  (grid-step units)
+//! Channel 7   = ∂³E/∂s_x∂s_y∂s_z                  (grid-step units)
 //!
 //! Reference: RASPA3 `framework_molecule_grid.cpp`,
 //!   `calculateTricubicFractionalAtPosition` +
@@ -200,6 +199,20 @@ pub fn egrid_tricubic_from_atoms(
                 + t_yyz * (c10 * c21 * c12 + c10 * c11 * c22 + c20 * c11 * c12)
                 + t_yzz * (c20 * c11 * c22 + c10 * c21 * c22 + c20 * c21 * c12)
                 + t_zzz * c20 * c21 * c22;
+
+            // Scale derivatives from fractional-space to grid-step units that
+            // the Lekien-Marsden polynomial in _interpolate_impl expects.
+            // ∂/∂(grid_index) = ∂/∂(frac_ase) × extent/(N-1) per axis.
+            let sx_scl = extent_x / ((nx - 1) as f64);
+            let sy_scl = extent_y / ((ny - 1) as f64);
+            let sz_scl = extent_z / ((nz - 1) as f64);
+            let first_sx  = first_sx  * sx_scl;
+            let first_sy  = first_sy  * sy_scl;
+            let first_sz  = first_sz  * sz_scl;
+            let second_sx_sy = second_sx_sy * sx_scl * sy_scl;
+            let second_sx_sz = second_sx_sz * sx_scl * sz_scl;
+            let second_sy_sz = second_sy_sz * sy_scl * sz_scl;
+            let third_sxsysz = third_sxsysz * sx_scl * sy_scl * sz_scl;
 
             vec![
                 energy, first_sx, first_sy, first_sz,

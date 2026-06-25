@@ -60,12 +60,15 @@ egrid8[1] /= ncells[0]   # etc.
 
 This uses `N−1` which matches the kernel's denominator. If the kernel switches to `i/N`, this scaling should switch to `N` accordingly.
 
-## 4. Extent tiling vs ASE query coords — **fixed Jun 2026**
+## 4. Extent tiling vs ASE query coords — **PARTIAL FIX (Jun 2026); OPEN for large cutoff**
 
 **Symptom:** When `get_repetitions_to_meet_cutoff` > 1 on an axis, the egrid covers only the first unit-cell tile (`extent = 1/n_cells`), but `TricubicField.interpolate` treated ASE `[0,1)³` as full-cell query coords. ~92% of DONNAW pocket translations with `y > 0.5` queried the wrong tile → catastrophic energies and flat `log_Z`.
 
-**Fix:**
+**Partial fix (commit `5fe820c`):**
 - `mgr_rust.TricubicField`: `extent_x/y/z` params; fold ASE frac → tile query in `_interpolate_impl`.
 - `tricubic_interpolator_from_grid(..., extent_*)`, `egrid_query_extent_from_atoms`, `ase_frac_to_egrid_query`.
 - `get_energy_interpolator` / `get_energy_interpolator_tricubic` accept optional extent.
 - Local `TricubicProbeFields.build_from_atoms` passes extent from cutoff replication.
+- Grid-node parity passes (NU-1000 @ 12.5 Å, `scripts/dev/parity_egrid_nu1000.py`).
+
+**Still broken:** xylene integral screening at `cutoff=12.5` on elongated cells (DONNAW: `n_cells=(2,4,3)`, `extent=(0.5,0.25,0.33)`) → `n_kept=0`, `winner=None`. Works at `cutoff=6.0`. See **`plans/BUG_tricubic_extent_cutoff12p5_integral.md`** for reproduction.

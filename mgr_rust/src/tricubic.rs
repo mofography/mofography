@@ -322,16 +322,15 @@ impl TricubicField {
 impl TricubicField {
     /// Map ASE fractional coordinate to interpolator query coord in `[0, 1)`.
     ///
-    /// Grids built with ``extent < 1`` cover only the first unit-cell tile
-    /// along that axis; periodic images are folded before indexing.
-    fn ase_frac_to_query(ase_frac: f64, extent: f64) -> f64 {
+    /// The grid always covers one full unit cell (nx_unit points distributed
+    /// across the first unit-cell tile of the supercell).  The query coordinate
+    /// maps directly: ``frac → frac`` (no extent folding).  Extent is handled
+    /// at grid-build time and in the derivative scaling inside
+    /// ``egrid_tricubic_from_atoms``.
+    fn ase_frac_to_query(ase_frac: f64, _extent: f64) -> f64 {
         let mut f = ase_frac - ase_frac.floor();
         if f >= 1.0 {
             f = 0.0;
-        }
-        if extent < 1.0 - 1.0e-15 {
-            f -= (f / extent).floor() * extent;
-            f /= extent;
         }
         if f >= 1.0 {
             1.0f64 - f64::EPSILON
@@ -627,15 +626,18 @@ mod tests {
     }
 
     #[test]
-    fn test_ase_frac_to_query_folding() {
-        assert!((TricubicField::ase_frac_to_query(0.75, 0.5) - 0.5).abs() < 1e-12);
+    fn test_ase_frac_to_query_wrap_only() {
+        // No extent folding — just wrap to [0, 1).
+        assert!((TricubicField::ase_frac_to_query(0.75, 0.5) - 0.75).abs() < 1e-12);
         assert!((TricubicField::ase_frac_to_query(0.25, 1.0) - 0.25).abs() < 1e-12);
-        assert!((TricubicField::ase_frac_to_query(0.6, 0.5) - 0.2).abs() < 1e-12);
-        assert!((TricubicField::ase_frac_to_query(-0.1, 1.0) - 0.9).abs() < 1e-12);
+        assert!((TricubicField::ase_frac_to_query(0.6,  0.5) - 0.60).abs() < 1e-12);
+        assert!((TricubicField::ase_frac_to_query(-0.1, 1.0) - 0.90).abs() < 1e-12);
     }
 
     #[test]
-    fn test_extent_tile_folding_constant_field() {
+    fn test_constant_field_with_extent() {
+        // Constant field (always 42.0, derivatives 0) — any extent or
+        // coordinate should still return 42.0 regardless of folding.
         let nx = 3;
         let ny = 3;
         let nz = 3;
