@@ -25,7 +25,11 @@ egrid = egrid_super[:nx_unit, :ny_unit, :nz_unit]  # ← this is missing in tric
 
 **Fix:** slice `egrid8[:, :nx_unit, :ny_unit, :nz_unit]` before returning (same as `egrid_from_atoms_rust`), OR compute `nx` from unit-cell lengths and grid only the unit cell.
 
-**Status (Jun 2026):** fixed — build on **unit-cell** ``(nx_unit, ny_unit, nz_unit)`` with unit-cell matrix; supercell atoms only for cutoff images (no supercell grid + slice).
+**Status (Jun 2026):** fixed — unit-cell grid with `extent = 1/n_cells` per axis when replicated; supercell atom frac (no wrap); `extent=1` + unit-cell atoms when `n_cells=1`.
+
+### 1b. Duplicate atom inflation (latent in first unit-cell fix)
+
+Wrapping supercell Cartesian positions into principal-cell fractional coords collapses all periodic images onto the same site → Rust sums LJ `n_cells³` times (e.g. 6× for rep `(3,2,1)`). Fixed by keeping supercell `get_scaled_positions()-0.5` when replicated.
 
 ## 2. Grid point formula `-0.5 + i/(N-1)` vs `find_coord_from_indices` `i/N`
 
