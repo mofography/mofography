@@ -8,8 +8,8 @@
 
 This is part of the MOFography tutorial series. For the main quick start guide, see:
 - [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) - Complete workflow
-- [Region Segmentation](region_segmentation.md) - Segmentation fundamentals
-- [Connections and Windows](connections_and_windows.md) - Window detection
+- [Region Segmentation](region_segmentation.qmd) - Segmentation fundamentals
+- [Connections and Windows](connections_and_windows.qmd) - Window detection
 
 ---
 
@@ -98,7 +98,7 @@ When working with crystalline materials, **periodic boundary conditions (PBC)** 
 - Basic graph analysis with NetworkX
 
 ❌ **What this tutorial does NOT cover:**
-- Pocket type classification - see [Pockets Detection](pockets_detection.ipynb)
+- Pocket type classification - see [Pockets Detection](pockets_detection.qmd)
 - Percolation analysis - see [PLD & Percolation](pld_and_percolation.ipynb)
 - Path finding - see [Percolated Paths Tutorial](percolated_paths_tutorial.ipynb)
 - Graph neural networks
@@ -123,7 +123,7 @@ By the end of this tutorial, you'll be able to:
 - Python 3.8+
 - MOFography installed (`uv pip install -e .`)
 - [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) completed
-- [Region Segmentation](region_segmentation.md) completed
+- [Region Segmentation](region_segmentation.qmd) completed
 - NetworkX installed
 - (Optional) ASE for structure handling
 
@@ -456,8 +456,8 @@ for node in list(rag.nodes())[:3]:
 Now that you have a pore graph, you can:
 
 ### Learn More:
-- [Connections and Windows](connections_and_windows.md) - Detailed window analysis
-- [Pockets Detection](pockets_detection.ipynb) - Classify pore types
+- [Connections and Windows](connections_and_windows.qmd) - Detailed window analysis
+- [Pockets Detection](pockets_detection.qmd) - Classify pore types
 - [Winding Percolation](winding_percolation.md) - Percolation analysis
 
 ### Advanced Analysis:

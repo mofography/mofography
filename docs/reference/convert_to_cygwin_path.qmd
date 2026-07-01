@@ -1,0 +1,17 @@
+# convert_to_cygwin_path { #mofography.helper.convert_to_cygwin_path }
+
+```python
+helper.convert_to_cygwin_path(windows_path)
+```
+
+Convert a Windows path to a Cygwin-style path and escape spaces.
+
+Args:
+    windows_path: The Windows-style path to convert.
+
+Returns:
+    str: The converted Cygwin-style path with escaped spaces.
+
+Example:
+    >>> convert_to_cygwin_path(Path(r"C:\Program Files\MyApp"))
+    '/c/Program\ Files/MyApp'

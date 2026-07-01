@@ -1,0 +1,28 @@
+# dgrid_from_atoms_rust { #mofography.rust_fun.dgrid_from_atoms_rust }
+
+```python
+rust_fun.dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)
+```
+
+Compute a distance grid from atomic positions using the Rust backend.
+
+Uses optimized exact MIC (SoA, SIMD on orthogonal cells, Wassenaar 7-image
+fallback on skewed cells).
+
+This function calculates the distance field (dgrid) for a given atomic structure,
+where each grid point represents the minimum distance to the nearest atom surface,
+accounting for van der Waals radii.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name      | Type                  | Description                                                                                                                                                                                                                                                          | Default    |
+|-----------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms | ase.Atoms             | ASE Atoms object containing the atomic structure                                                                                                                                                                                                                     | _required_ |
+| spacing   | float                 | Grid spacing in Angstroms                                                                                                                                                                                                                                            | _required_ |
+| radii     | numpy.ndarray \| None | Van der Waals radii for each atom. If None, uses Bondi (1964) handbook radii with Mendeleev fill for undefined symbols (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`). Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev-only table. | `None`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                                                        |
+|--------|---------------|--------------------------------------------------------------------|
+|        | numpy.ndarray | 3D distance grid where values represent distances to atom surfaces |

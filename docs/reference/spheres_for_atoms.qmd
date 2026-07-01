@@ -1,20 +1,29 @@
 # spheres_for_atoms { #mofography.visualize.spheres_for_atoms }
 
-`visualize.spheres_for_atoms(ase_atoms, radii=None, scale=0.8, colormap=None, theta_resolution=10, phi_resolution=10)`
+```python
+visualize.spheres_for_atoms(
+    ase_atoms,
+    radii=None,
+    scale=0.8,
+    colormap=None,
+    theta_resolution=10,
+    phi_resolution=10,
+)
+```
 
 It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
 radius and center corresponding to the atom's covalent radius and position.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type   | Description                                                                                 | Default    |
-|-------------|--------|---------------------------------------------------------------------------------------------|------------|
-| `ase_atoms` |        | an ase atoms object                                                                         | _required_ |
-| `radii`     |        | the radii of the spheres. If None, the covalent radii from ase.data.covalent_radii are used | `None`     |
-| `scale`     |        | the scale of the sphere radius                                                              | `0.8`      |
+| Name      | Type   | Description                                                                                 | Default    |
+|-----------|--------|---------------------------------------------------------------------------------------------|------------|
+| ase_atoms |        | an ase atoms object                                                                         | _required_ |
+| radii     |        | the radii of the spheres. If None, the covalent radii from ase.data.covalent_radii are used | `None`     |
+| scale     |        | the scale of the sphere radius                                                              | `0.8`      |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                |
-|--------|----------------------------|
-|        | A list of trimesh objects. |
+| Name   | Type   | Description                |
+|--------|--------|----------------------------|
+|        |        | A list of trimesh objects. |

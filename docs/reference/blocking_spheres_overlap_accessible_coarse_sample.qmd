@@ -1,0 +1,40 @@
+# blocking_spheres_overlap_accessible_coarse_sample { #mofography.raspa_helper.blocking_spheres_overlap_accessible_coarse_sample }
+
+```python
+raspa_helper.blocking_spheres_overlap_accessible_coarse_sample(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    *,
+    sample_spacing=0.5,
+    fine_spacing=None,
+    accessible_dgrid_ge_probe=False,
+    atol=0.0001,
+    chunk_size=65536,
+)
+```
+
+Same intent as :func:`blocking_spheres_overlap_into_accessible_regions`, but
+**sample** accessible void on a coarser grid (e.g. 0.5 Å) for speed.
+
+Each coarse cell center maps to the **nearest** fine segmentation voxel
+(same fractional mapping as :func:`mofography.compute.dask_grid_over_atoms`).
+A sample point counts as **accessible** if that fine voxel lies in a label
+that **percolates** at ``probe_radius`` (and optionally ``dgrid >= probe``).
+
+Returns label sets, fine-grid counts for context, and a per-label
+breakdown of how many coarse samples per percolating region fell inside the
+blocking-sphere union (MIC and raw).
+
+Implemented via :func:`blocking_spheres_overlap_leakage` (``resolution="coarse"``,
+``per_label=True``).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+sample_spacing : float
+    Coarse probe grid in Å (e.g. 0.5).
+fine_spacing : float, optional
+    Spacing of ``results['regions']``; inferred if omitted.

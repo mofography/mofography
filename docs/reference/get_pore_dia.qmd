@@ -1,0 +1,6 @@
+# get_pore_dia { #mofography.percolation_results.get_pore_dia }
+
+```python
+percolation_results.get_pore_dia(results, method='winding')
+```
+

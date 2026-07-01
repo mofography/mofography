@@ -1,21 +1,29 @@
 # gpd_aabb { #mofography.compute.gpd_aabb }
 
-`compute.gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0)`
+```python
+compute.gpd_aabb(
+    grid_points,
+    ase_atoms,
+    radii,
+    n_neighbors=10,
+    probe_radius=0.0,
+)
+```
 
 This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
 Bounding Box method  as implemented by the Glotzer group from Univ. of Michigan.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type                  | Description                                                                                     | Default    |
-|----------------|-----------------------|-------------------------------------------------------------------------------------------------|------------|
-| `grid_points`  | numpy array of floats | (N,3) array of the cartesian coordinates of the grid points                                     | _required_ |
-| `ase_atoms`    | ase.atoms obj         | ase atoms object containing the framework information                                           | _required_ |
-| `n_neighbors`  | int, optional         | number of neighbors of each grid point checked for the shortest dist to surface, defaults to 10 | `10`       |
-| `probe_radius` | float, optional       | radius of the distance grid calculation probe, defaults to 0.0                                  | `0.0`      |
+| Name         | Type                  | Description                                                                                     | Default    |
+|--------------|-----------------------|-------------------------------------------------------------------------------------------------|------------|
+| grid_points  | numpy array of floats | (N,3) array of the cartesian coordinates of the grid points                                     | _required_ |
+| ase_atoms    | ase.atoms obj         | ase atoms object containing the framework information                                           | _required_ |
+| n_neighbors  | (int, optional)       | number of neighbors of each grid point checked for the shortest dist to surface, defaults to 10 | `10`       |
+| probe_radius | (float, optional)     | radius of the distance grid calculation probe, defaults to 0.0                                  | `0.0`      |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type                  | Description                                                              |
-|-----------------------|--------------------------------------------------------------------------|
-| numpy array of floats | (N,1) array of the shortest distance corresponding to the N grid points. |
+| Name   | Type                  | Description                                                              |
+|--------|-----------------------|--------------------------------------------------------------------------|
+|        | numpy array of floats | (N,1) array of the shortest distance corresponding to the N grid points. |

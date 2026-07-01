@@ -1,0 +1,23 @@
+# add_pocket_psds_to_rag_from_segmentation { #mofography.compute.add_pocket_psds_to_rag_from_segmentation }
+
+```python
+compute.add_pocket_psds_to_rag_from_segmentation(
+    rag,
+    segmentation,
+    atoms,
+    *,
+    pocket_psds=None,
+    props=None,
+    pbc_groups=None,
+    probe_radius_psd=None,
+    **kwargs,
+)
+```
+
+Attach probe pocket PSDs to a RAG built from segmentation.
+
+Uses ``segmentation['pocket_psds']`` when present (see
+:func:`~mofography.workflow.enrich_segmentation_with_pocket_psds`);
+otherwise runs :func:`~mofography.rust_fun.compute_pocket_psds_for_segmentation`.
+
+Node keys written: ``pocket_psd_x_pbc`` / ``pocket_psd_y_pbc``.

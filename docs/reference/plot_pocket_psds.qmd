@@ -1,0 +1,13 @@
+# plot_pocket_psds { #mofography.visualize.plot_pocket_psds }
+
+```python
+visualize.plot_pocket_psds(
+    pore_sizes,
+    sample_points_labels,
+    pocket_psds,
+    bins,
+    material_name='Test Material',
+)
+```
+
+Create and display plotly figure comparing overall PSD with individual pocket PSDs.

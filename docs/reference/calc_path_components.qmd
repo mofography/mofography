@@ -1,12 +1,14 @@
 # calc_path_components { #mofography.compute.calc_path_components }
 
-`compute.calc_path_components(rag, path)`
+```python
+compute.calc_path_components(rag, path)
+```
 
 Calculate the PCA components of a path in a RAG.
 
 
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
 rag : nx.Graph
     The RAG to calculate the PCA components for.
@@ -15,7 +17,7 @@ path : list
 
 
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
 np.ndarray
     The PCA components of the path.

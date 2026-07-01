@@ -1,0 +1,19 @@
+# make_framework_instanced_trace { #mofography.movies.make_framework_instanced_trace }
+
+```python
+movies.make_framework_instanced_trace(
+    atoms,
+    bonds='auto',
+    style=None,
+    name='Framework',
+    trace_id='framework',
+    atom_scale=0.65,
+    bond_color=None,
+    representation='ball_and_stick',
+)
+```
+
+Framework as InstancedMesh spheres + cylinder mesh bonds.
+
+Sends compact atom data for instanced spheres; browser builds sphere geometry.
+representation: "ball_and_stick" (default) or "stick" (two-tone CPK bonds).

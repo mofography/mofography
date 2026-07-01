@@ -1,0 +1,42 @@
+# blocking_spheres_for_probe_radius { #mofography.raspa_helper.blocking_spheres_for_probe_radius }
+
+```python
+raspa_helper.blocking_spheres_for_probe_radius(
+    results,
+    ase_atoms,
+    probe_radius,
+    radius_scale=1.0,
+    method='largest_including',
+    greedy_spacing=None,
+    **percolation_kwargs,
+)
+```
+
+Convenience: inaccessible regions at ``probe_radius``, then blocking spheres.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results, ase_atoms
+    Segmentation results and framework.
+probe_radius : float
+    Percolation threshold (Å).
+radius_scale : float
+    Passed to the blocking builder.
+method : str
+    * ``"largest_including"`` — :func:`blocking_spheres_largest_including`.
+    * ``"greedy"`` — :func:`blocking_spheres_greedy` with
+      ``block_accessible=False`` (standard ``BlockPockets``).
+greedy_spacing : float, optional
+    Grid spacing for ``method="greedy"``; inferred from ``results`` if omitted.
+**percolation_kwargs
+    Forwarded to :func:`percolated_region_labels_winding`.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+spheres : list of [sx, sy, sz, r]
+percolated : set of int
+inaccessible : set of int

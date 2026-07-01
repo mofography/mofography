@@ -1,0 +1,23 @@
+# make_command { #mofography.helper.make_command }
+
+```python
+helper.make_command(path_to_cif, executable_path, flags='')
+```
+
+Create a command string for running a Cygwin executable with a CIF file.
+
+Args:
+    path_to_cif: The path to the CIF file.
+
+    executable_path: The path to the executable.
+    flags: Additional flags to include in the command.
+
+Returns:
+    str: The command string to be executed in Cygwin.
+
+Example:
+    >>> command = make_command(Path(r"C:\path       oile.cif"), Path(r"C:\path     o\executable"), "-ha -res")
+
+    >>> print(command)
+
+    'C:/path/to/executable -ha -res C:/path/to/file.cif'

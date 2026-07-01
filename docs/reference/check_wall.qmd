@@ -1,0 +1,6 @@
+# check_wall { #mofography.helper.check_wall }
+
+```python
+helper.check_wall(maxima, ase_atoms, spacing, wall_thickness=0.075)
+```
+

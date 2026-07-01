@@ -1,0 +1,14 @@
+# run_cygwin_from_jupyter { #mofography.helper.run_cygwin_from_jupyter }
+
+```python
+helper.run_cygwin_from_jupyter(cygwin_command, cygwin_path='C:\\cygwin64\\bin')
+```
+
+Run a Cygwin command from a Jupyter notebook.
+
+Args:
+    cygwin_command: The command to run in Cygwin.
+    cygwin_path: The path to the Cygwin installation (default is r"C:\cygwin64in").
+
+Returns:
+    None: This function prints the output and errors directly.

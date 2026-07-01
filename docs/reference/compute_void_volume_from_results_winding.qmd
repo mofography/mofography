@@ -1,0 +1,14 @@
+# compute_void_volume_from_results_winding { #mofography.compute.compute_void_volume_from_results_winding }
+
+```python
+compute.compute_void_volume_from_results_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+)
+```
+
+Void volume (voxel) with winding accessibility (optional window FP).

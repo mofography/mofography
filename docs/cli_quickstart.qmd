@@ -1,0 +1,549 @@
+---
+title: "CLI Quick Start"
+description: "Run MOFography from the command line with mgrcli — process a CIF, get pore graphs, PSD, RAG, and textural properties in one shot"
+image: tutorial_images/pore_graph_concept.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## Overview
+
+`mgrcli` is the command-line companion to the MOFography Python API. It wraps the
+same Rust-accelerated pipeline (`dgrid_from_atoms_rust` → `do_periodic_segmentation_rust`
+→ downstream analysis) so you can analyze one or many CIFs without writing any
+Python.
+
+The main entry is `mgrcli process`:
+
+```bash
+mgrcli process <cifs...> [flags]
+```
+
+A single invocation can produce:
+
+- **Per-CIF `*_results.npz`** — the same segmentation dict you'd get from the
+  Python API (dgrid, maxima, regions, connections, RAG-as-arrays).
+- **Pore-diameter CSV** with LCD, PLD, DFSD, and percolation history (with `--pore-dia`).
+- **PSD CSVs** — uniform, pocketwise, and accessible variants (with `--psd`,
+  `--psd-accessible`).
+- **Surface-area and void-volume CSVs + Plotly bar charts** (with `--sa` / `--vol`).
+- **RAG pickle** — a NetworkX graph of the pore network (with `--rag`).
+- **Pocket types** — `env_cluster` multi-modal fingerprints (with `--types`).
+- **HTML visualizations** — Plotly or Three.js (with `--plot-html`).
+
+This tutorial walks through installation, the canonical command, every key
+flag, the output layout, and how to drop down to the Python API when the
+CLI is not enough.
+
+## Prerequisites
+
+- A working MOFography environment (see the [Installation](install.qmd) guide).
+- A CIF file. The tutorials use `docs/IRMOF-1.cif` from this repo.
+- About 5–10 seconds per CIF on a modern laptop for the canonical flags
+  (`--pore-dia --psd --rag --types` on IRMOF-1 takes ~4 s end-to-end on M-series).
+
+## Installation
+
+### From PyPI (recommended)
+
+```bash
+pip install mgrcli
+```
+
+This pulls in `mgrcli` plus its pinned runtime dependencies
+(`ase`, `pymatgen`, `plotly`, `scikit-image`, `networkx`, …) and the prebuilt
+Rust extension for your platform.
+
+### From source (editable)
+
+If you want to hack on the CLI or pin a development branch:
+
+```bash
+git clone https://github.com/arung-northwestern/mgr_cli_py.git
+cd mgr_cli_py/python_cli
+pip install -e .
+```
+
+`pip install -e .` picks up your local edits to `mgrcli/cli.py` without a
+reinstall.
+
+### Sanity check
+
+```bash
+mgrcli --version     # prints the package version
+mgrcli --help        # top-level subcommand list
+```
+
+In a Python notebook, you can also confirm the binary is on `PATH` and report
+its version:
+
+```{python}
+import shutil, subprocess
+print("mgrcli on PATH:", shutil.which("mgrcli"))
+print(subprocess.run(["mgrcli", "--version"], capture_output=True, text=True).stdout.strip())
+```
+
+## The canonical command
+
+For most MOFs — IRMOF-1, UiO-66, ZIF-8, HKUST-1 — this one command is
+all you need to get the full pore-network picture:
+
+```bash
+mgrcli process IRMOF-1.cif \
+  --dgrid-method rust_exact \
+  --vdw-radii-set bondi \
+  --b rust_det \
+  --pore-dia \
+  --psd \
+  --rag
+```
+
+It:
+
+1. Computes the **distance grid** with the thread-parallel `rust_exact`
+   backend (default-correct for all cell types).
+2. Runs **periodic segmentation** with the deterministic `rust_det`
+   watershed.
+3. Adds **pore-diameter analysis** (LCD, PLD, DFSD + percolation history).
+4. Adds the **PSD** (uniform + pocketwise probe sampling).
+5. Saves the **RAG** as a pickle for downstream graph work.
+
+Add `--types` to also detect pocket-type families via `env_cluster`:
+
+```bash
+mgrcli process IRMOF-1.cif \
+  --dgrid-method rust_exact --vdw-radii-set bondi --b rust_det \
+  --pore-dia --psd --rag --types
+```
+
+This is the command to copy-paste for a "one-shot full analysis".
+
+## End-to-end smoke test
+
+Run the canonical command from inside this docs folder. The output lands in
+`hts_output/IRMOF-1/` (the convention used by the Streamlit HTS tab — any
+directory you pass to `-o` works, but `hts_output/<stem>/` is the standard
+layout for batch HTS runs).
+
+```{python}
+import os, subprocess, shutil, pathlib
+from pathlib import Path
+
+os.chdir(Path("/Users/arungopalan/repos/mofography/docs"))
+
+out_dir = Path("hts_output/IRMOF-1")
+if out_dir.exists():
+    shutil.rmtree(out_dir)
+
+result = subprocess.run(
+    [
+        "mgrcli", "process", "IRMOF-1.cif",
+        "-o", str(out_dir),
+        "--dgrid-method", "rust_exact",
+        "--vdw-radii-set", "bondi",
+        "--b", "rust_det",
+        "--pore-dia", "--psd", "--rag", "--types",
+        "--disable-tqdm",
+    ],
+    capture_output=True, text=True, timeout=300,
+)
+print("returncode:", result.returncode)
+print("--- stdout (tail) ---")
+print("\n".join(result.stdout.splitlines()[-20:]))
+if result.returncode != 0:
+    print("--- stderr (tail) ---")
+    print("\n".join(result.stderr.splitlines()[-20:]))
+```
+
+The expected return code is `0`; the tail of stdout should show the per-region
+PSD stats, the env_cluster type count, and the final `Results saved to: ..._results.npz` line.
+
+## Output directory structure
+
+After the smoke test, `hts_output/IRMOF-1/` contains:
+
+```{python}
+for p in sorted(out_dir.iterdir()):
+    print(f"{p.stat().st_size:>9,d}  {p.name}")
+```
+
+| File pattern | Produced by | Contents |
+|--------------|-------------|----------|
+| `IRMOF-1_results.npz` | always | Compressed NumPy archive with dgrid, maxima, regions, regions_pbc, unique_regions, connections, pocket typing, etc. — the same dict shape returned by the Python API. |
+| `IRMOF-1_pore_dia.csv` | `--pore-dia` | `LCD`, `PLD`, `DFSD` in Å + the percolation history point count. |
+| `IRMOF-1_psd_psd_uniform.csv` | `--psd` | Globally sampled pore-size distribution (the doubled `psd_psd` is intentional — `save_psd_csv` always appends `_psd_uniform` / `_psd_pockets` to its base). |
+| `IRMOF-1_psd_psd_pockets.csv` | `--psd` | Per-pocket probe-occupiable PSDs. |
+| `IRMOF-1_psd_accessible_psd_uniform.csv` | `--psd-accessible` | PSD restricted to the percolating cluster at `--probe-radius`. |
+| `IRMOF-1_psd_accessible_psd_pockets.csv` | `--psd-accessible` | Same, per pocket. |
+| `IRMOF-1_sa_surface_area.csv` | `--sa` | Surface-area breakdown (geometric / accessible / framework-touching). |
+| `IRMOF-1_vol_void_volume.csv` | `--vol` | Void-volume breakdown. |
+| `IRMOF-1_surface_area_plot.html` | `--sa` + `--sa-plot-html` | Plotly bar chart of SA components. |
+| `IRMOF-1_void_volume_plot.html` | `--vol` + `--vol-plot-html` | Plotly bar chart of volume components. |
+| `IRMOF-1_rag_clustered.pkl` | `--rag` or `--types` | Pickled NetworkX region-adjacency graph; load with `pickle.load` / `networkx.readwrite.read_gpickle`. |
+| `IRMOF-1.html` | `--plot-html` | Standalone 3D visualization of the segmentation (Plotly or Three.js). |
+| `IRMOF-1_percolation.html` | `--percolation-plot` | Percolation cluster growth, useful for sanity-checking the LCD/PLD. |
+
+```{python}
+import pandas as pd
+print("--- IRMOF-1_pore_dia.csv ---")
+print(pd.read_csv(out_dir / "IRMOF-1_pore_dia.csv").to_string(index=False))
+```
+
+## Reading the .npz back in Python
+
+The CLI saves a compressed NumPy archive so you can mix batch CLI runs with
+custom Python post-processing without re-running segmentation.
+
+```{python}
+import numpy as np
+
+# The CLI's results .npz contains object arrays (connections, pocket_type_summary,
+# mat_atoms, ...), so allow_pickle=True is required.
+with np.load(out_dir / "IRMOF-1_results.npz", allow_pickle=True) as z:
+    print("keys:", sorted(z.files))
+    print(f"  dgrid shape:           {z['dgrid'].shape}")
+    print(f"  regions_pbc shape:     {z['regions_pbc'].shape}")
+    print(f"  n maxima (pbc):        {len(z['maxima_pbc'])}")
+    conns = z['connections']
+    # Stored as a 0-d object array — .item() unpacks the inner Python list
+    conn_list = conns.item() if conns.dtype == object and conns.shape == () else conns
+    print(f"  n connections:         {len(conn_list)}")
+    if 'pocket_type_summary' in z.files:
+        summary = z['pocket_type_summary']
+        # Stored as a 0-d object array containing a Python list[dict]
+        if summary.dtype == object and summary.shape == ():
+            summary = summary.item()
+        print(f"  n pocket types:        {len(summary)}")
+        for t in summary:
+            print(f"    type {t['type_id']}: n={t['n_pockets']}, "
+                  f"max_r ∈ [{t['max_r_min_a']:.2f}, {t['max_r_max_a']:.2f}] Å, "
+                  f"vol ∈ [{t['volume_min_a3']:.0f}, {t['volume_max_a3']:.0f}] Å³")
+```
+
+> For richer, typed Python access (e.g. the `PocketTypingResult` object
+> with `.n_types`, `.type_summary`, `.rep_to_type`), use the Python API —
+> see [Pocket Type Detection](pockets_detection.qmd) and the
+> [CLI → Python workflow section](#when-to-drop-down-to-the-python-api) below.
+
+## Key flags reference
+
+The `process` subcommand has ~30 flags. They split into five groups:
+**input/output**, **analysis parameters**, **boolean flags**, **analysis
+options**, and **visualization**. The defaults mirror the Streamlit web app
+so a CLI run produces the same numbers as a click-through on the site.
+
+### Distance-grid method (`--dgrid-method`)
+
+| Value | Backend | When to use |
+|-------|---------|-------------|
+| `rust_exact` | Thread-parallel Rust, voxel-exact | **Default.** Correct for all cell types, including non-orthorhombic. |
+| `rust_aabb` | R-tree accelerated | Large unit cells; trades a small approximation for ~2-5× less RAM. See [Distance Grid tutorial](distance_grid.qmd). |
+| `rust_aabb_interp` | Coarse R-tree + trilinear interp | Very large cells where even `rust_aabb` is heavy. |
+| `python_aabb` | Pure-Python AABB | Slowest; use only for parity checks against the Python API. |
+
+> **Do not** use the deprecated `dgrid_from_atoms_gpu` or
+> `dgrid_from_atoms_cpu_no_aabb` paths — they mis-handle non-orthorhombic
+> cells. The `*_rust` backends are the only correct path on skewed cells.
+
+Tuning knobs for the AABB backends:
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--dgrid-block-size` | 50000 | Voxels per block for `python_aabb`. Lower = less RAM, more Python overhead. |
+| `--dgrid-n-neighbors` | 10 | R-tree neighbor count for `rust_aabb` / `rust_aabb_interp`. Higher = more accurate, slower. |
+| `--dgrid-coarse-factor` | 2 | Coarsening factor for `rust_aabb_interp` only. Higher = much faster, coarser approximation. |
+
+For most MOFs the auto policy is fine: by default `mgrcli` will
+**auto-switch from `rust_exact` to `rust_aabb` for very large cells**.
+Pass `--no-auto-dgrid` to disable that policy and stay on `rust_exact`.
+
+### Watershed backend (`-b` / `--backend` / `--watershed-backend`)
+
+| Value | Backend | When to use |
+|-------|---------|-------------|
+| `rust_det` | Deterministic Rust watershed | **Default.** Deterministic, fast, matches the web app. |
+| `rust_det_parallel` | Same algorithm, parallelized | Larger cells where serial `rust_det` is the bottleneck. |
+| `rust_bucket` | Rust 0-arg bucket queue | Legacy. Faster on some inputs but the basin order can differ — keep `rust_det` for reproducibility. |
+| `skimage` | scikit-image `watershed` | Pure-Python; only useful as a cross-check. Requires `scikit-image`. |
+
+### VDW radii set (`--vdw-radii-set`)
+
+| Value | Source | Notes |
+|-------|--------|-------|
+| `bondi` | Bondi (1964) | **Default.** Matches the web app and the validated canonical workflow. |
+| `crc` | CRC Handbook | Slightly smaller radii on metals; can change pocket-typing band counts. |
+| `alvarez` | Alvarez (2018) | Heavier on metals; recommended when probing open-metal sites. |
+
+See [VDW Radii Comparison](vdw_radii_comparison.md) for the full
+sensitivity study.
+
+### Surface area integration (`--sa-method`)
+
+| Value | Algorithm |
+|-------|-----------|
+| `mc` (default) | Monte Carlo shell sampling. Fast, accurate; same as web app. |
+| `mesh` | Marching-cubes surface area. Slower; closer to `pymatgen`-style estimates. |
+
+### Accessibility method (`--accessibility-method`, `--lattice-variant`)
+
+Drives the percolation test that decides which pockets are reachable from
+outside the unit cell:
+
+| Value | What it does |
+|-------|--------------|
+| `winding` (default) | Winding-number percolation. Fast, robust, matches web app. |
+| `lattice` | Lattice-based percolation. `--lattice-variant` chooses `v1` (older) or `v2` (newer, default). |
+
+Accessibility applies to `--pore-dia`, `--sa`, and `--vol`. Combine with
+`--no-window-fp` to disable the window-fingerprint rescue for accessible
+SA / vol (only meaningful with `winding`).
+
+### Segmentation parameters
+
+These map 1:1 to the Python API parameters of `do_periodic_segmentation_rust`:
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `-s`, `--spacing` | 0.5 Å | Grid resolution. Halve → 8× more voxels; the single most expensive knob. |
+| `-H`, `--h` | 0.2 Å | H-maxima persistence. Higher = fewer, larger pockets. |
+| `-mt`, `--mask-thickness` | 0.05 Å | Void-space threshold. Increase to merge nearby pockets. |
+| `-ta`, `--threshold-abs` | 1.5 Å | Maxima must be at least this far from the framework. |
+| `-md`, `--min-distance` | 1.5 Å | Minimum separation between distinct maxima. |
+| `-ms`, `--minimum-window-separation` | 1.0 Å | Minimum separation between detected windows. |
+| `-wt`, `--wall-thickness` | 0.05 | Wall-thickness fraction for window detection. |
+| `-ep`, `--extra-padding` | 5.0 Å | Extra PBC padding beyond the +5 Å default. |
+| `-mrs`, `--min-region-size` | 0.001 | Filter regions smaller than this fraction of the padded grid. |
+
+> **Heads up:** the legacy "batch" profile used `mask_thickness=0.5` and
+> `rust_bucket` (see `mgrcli generate-config --profile legacy`). The web /
+> default profile is the validated one for pocket typing — keep it unless
+> you have a specific reason to regress.
+
+### Probe radius
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--probe-radius` | 1.2 Å (He) | Probe for surface area, void volume, and accessible PSD. |
+| `--probe-radius-psd` | 1.2 Å | Probe for the pocket PSD used in `env_cluster` typing. |
+
+### Pocket typing (`--types` / `--pocket-typing`)
+
+| Value | Algorithm |
+|-------|-----------|
+| `env_cluster` (default with `--types`) | Multi-modal fingerprinting: pocket PSD + framework SH + connectivity SH. The validated, recommended method. |
+| `legacy_js` | Older RAG + Jensen-Shannon divergence clustering. Kept for regression; less stable. |
+| `none` (default without `--types`) | Skip typing — just save the RAG. |
+
+`--types` is a shorthand for `--pocket-typing env_cluster`. It always saves
+the RAG pickle (`<stem>_rag_clustered.pkl`) in addition to running the
+typing pass.
+
+### Boolean flags
+
+| Flag | Effect |
+|------|--------|
+| `--no-connections` | Skip window + connection detection. Faster, but you lose the pore graph. |
+| `--no-auto-dgrid` | Disable auto-switch from `rust_exact` → `rust_aabb` for large cells. |
+| `--no-window-fp` | Disable window-fingerprint rescue for accessible SA / vol (winding). |
+| `--return-padded-regions` | Include the padded region array in the .npz (default off). |
+| `--return-dgrid` | Keep dgrid in the .npz (default on). |
+| `--disable-tqdm` | Suppress progress bars (good for log files). |
+| `--plot-html` | Save a standalone 3D HTML viewer after processing. |
+| `--no-stylize` | Disable stylized framework rendering in plots. |
+| `--pore-dia` | Compute LCD/PLD/DFSD + percolation history. |
+| `--percolation-plot` | Save `<stem>_percolation.html` (cluster growth). |
+| `--sa-plot-html` | Save `<stem>_surface_area_plot.html`. |
+| `--vol-plot-html` | Save `<stem>_void_volume_plot.html`. |
+| `--psd` | Compute pore size distribution. |
+| `--psd-accessible` | Compute accessible (percolation-filtered) PSD at `--probe-radius`. |
+| `--sa` | Compute surface area. |
+| `--vol` | Compute void volume. |
+| `--auto-params` | Auto-estimate optimal parameters from the cell geometry. |
+| `--types` | Detect pocket types via `env_cluster`. |
+| `--rag` | Save the RAG pickle (no typing). |
+| `--theme {dark,white}` | Plot theme (default `dark`). |
+
+### Visualization backends
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--plot-html` | off | Save `<stem>.html` viewer. |
+| `--plot-backend {plotly,threejs}` | `plotly` | Viewer engine. Three.js exports smaller, more portable HTML. |
+| `--percolation-plot-backend {plotly,threejs}` | `threejs` | Percolation plot engine. |
+| `--html-dir` | same as `-o` | Separate folder for HTML outputs. |
+
+## Re-running from a saved config
+
+If you've been clicking around the web app and want to capture the exact
+parameter set as a JSON config:
+
+```bash
+mgrcli generate-config -o my_run.json
+# edit my_run.json …
+mgrcli process IRMOF-1.cif -c my_run.json
+```
+
+`generate-config` writes a config matching the current defaults (web
+profile by default; `--profile legacy` for the older batch defaults). The
+process subcommand accepts it via `-c/--config`.
+
+## Processing many CIFs
+
+The positional argument is variadic — pass as many CIFs as you like:
+
+```bash
+mgrcli process mofs/*.cif -o ./results/ --pore-dia --psd --rag --disable-tqdm
+```
+
+Each CIF is processed in turn; outputs are prefixed with the CIF stem
+(`<stem>_results.npz`, `<stem>_pore_dia.csv`, …). Failed CIFs are
+logged and skipped — a single bad file does not abort the run.
+
+## Plotting an existing .npz
+
+If you already saved a `*_results.npz` (via the CLI or the Python API) and
+want to (re)render its HTML viewer:
+
+```bash
+mgrcli plot IRMOF-1_results.npz -o ./plots/ --plot-backend threejs --theme dark
+```
+
+`plot` reads the .npz, attaches a `.html` viewer with the same name stem
+into the output directory, and respects the same `--plot-backend` /
+`--theme` / `--no-stylize` / `--surface-taubin-intensity` knobs as
+`--plot-html` on `process`.
+
+## Launching the web app
+
+If you'd rather click through, `mgrcli interactive` boots the same
+Streamlit app you can use locally:
+
+```bash
+mgrcli interactive             # default port
+mgrcli interactive --port 8501 # specific port
+mgrcli interactive --clean     # kill stale Streamlit processes first
+```
+
+`interactive` is the same backend as the deployed Hugging Face Space; the
+CLI just removes the need to clone + install the Streamlit code by hand.
+
+## When to drop down to the Python API
+
+The CLI is the right tool for:
+
+- **One-shot analysis** of a handful of MOFs.
+- **Batch HTS-style runs** on hundreds to thousands of CIFs.
+- **Capturing reproducible parameter sets** in a JSON config.
+- Producing **standardized artifacts** (`.npz` + CSVs) for downstream
+  pipelines.
+
+But the Python API is strictly more flexible. Drop down to Python when you need:
+
+- **Custom post-processing** on the segmentation dict
+  (`dgrid`, `regions_pbc`, `connections`, `pbc_groups`).
+- **Typed `PocketTypingResult`** with `.n_types`, `.n_pockets`,
+  `.type_summary`, `.rep_to_type`, `.regions_cluster`
+  (see [Pocket Type Detection](pockets_detection.qmd)).
+- **Custom visualizations** (e.g. `show_mof_plotly(seg, atoms, typed_result=...)`).
+- **Tighter integration** with Dask, MOFDB, or GCN pipelines
+  (see [HTS Dask](hts_using_mofography.ipynb) and the
+  [GCN tutorial](graph_convolution_on_rags_ccr.ipynb)).
+- **Access to `close_or_inside_maxima`** (voxel coords of pockets' interior
+  maxima) or other low-level arrays the CLI does not surface.
+
+The handoff is clean: every artifact the CLI writes is also a valid input
+to the Python API. You can read the .npz with `numpy.load`, or just
+re-load the CIF and re-run a single step from the CLI's
+`compute_*` functions (they are importable from `mgrcli.cli`).
+
+## Full flag cheat-sheet
+
+For one-line reference, this is the entire `process` flag surface:
+
+| Short | Long | Type / Choices | Default |
+|-------|------|----------------|---------|
+| `-i` | `--input` | path | (positional) |
+| `-o` | `--output-dir` | path | `.` |
+| `-c` | `--config` | path | — |
+| `-s` | `--spacing` | float | 0.5 |
+| | `--dgrid-method` | `rust_exact` / `python_aabb` / `rust_aabb` / `rust_aabb_interp` | `rust_exact` |
+| | `--dgrid-block-size` | int | 50000 |
+| | `--dgrid-n-neighbors` | int | 10 |
+| | `--dgrid-coarse-factor` | int | 2 |
+| `-H` | `--h` | float | 0.2 |
+| `-mt` | `--mask-thickness` | float | 0.05 |
+| `-ta` | `--threshold-abs` | float | 1.5 |
+| `-md` | `--min-distance` | float | 1.5 |
+| `-ms` | `--minimum-window-separation` | float | 1.0 |
+| `-wt` | `--wall-thickness` | float | 0.05 |
+| `-ep` | `--extra-padding` | float | 5.0 |
+| `-mrs` | `--min-region-size` | float | 0.001 |
+| `-b` | `--backend`, `--watershed-backend` | `rust_det` / `rust_bucket` / `rust_det_parallel` / `skimage` | `rust_det` |
+| | `--vdw-radii-set` | `bondi` / `crc` / `alvarez` | `bondi` |
+| | `--sa-method` | `mc` / `mesh` | `mc` |
+| | `--accessibility-method` | `winding` / `lattice` | `winding` |
+| | `--lattice-variant` | `v1` / `v2` | `v2` |
+| | `--probe-radius` | float | 1.2 |
+| | `--probe-radius-psd` | float | 1.2 |
+| | `--pocket-typing` | `env_cluster` / `legacy_js` / `none` | `none` |
+| | `--js-threshold` | float | 0.15 |
+| | `--no-connections` | flag | off |
+| | `--no-auto-dgrid` | flag | off |
+| | `--no-window-fp` | flag | off |
+| | `--return-padded-regions` | flag | off |
+| | `--return-dgrid` | flag | on |
+| | `--disable-tqdm` | flag | off |
+| | `--plot-html` | flag | off |
+| | `--plot-backend` | `plotly` / `threejs` | `plotly` |
+| | `--html-dir` | path | (= `-o`) |
+| | `--no-stylize` | flag | off |
+| | `--pore-dia` | flag | off |
+| | `--percolation-plot` | flag | off |
+| | `--percolation-plot-backend` | `plotly` / `threejs` | `threejs` |
+| | `--sa-plot-html` | flag | off |
+| | `--vol-plot-html` | flag | off |
+| | `--psd` | flag | off |
+| | `--psd-accessible` | flag | off |
+| | `--auto-params` | flag | off |
+| | `--theme` | `dark` / `white` | `dark` |
+| | `--types` | flag (shorthand) | off |
+| | `--rag` | flag | off |
+| | `--sa` | flag | off |
+| | `--vol` | flag | off |
+| | `--no-surface-taubin` | flag | off |
+| | `--surface-taubin-intensity` | float (0–1) | 0.05 |
+
+## Tips
+
+- **Start with the canonical command**, then add flags. Defaults mirror
+  the web app and are validated against IRMOF-1, UiO-66, ZIF-8, HKUST-1,
+  NU-1000, and ZIF-20.
+- **Use `-o hts_output/<stem>/`** so the per-CIF artifacts live in a
+  predictable folder layout — that's what the Streamlit HTS tab expects.
+- **Reproducibility:** pair `-c my_run.json` with `--disable-tqdm` for
+  clean logs you can diff between runs.
+- **For very large cells**, the default auto-AABB policy already switches
+  to `rust_aabb` — you only need to override `--dgrid-method` if you want
+  to force one specific backend.
+- **VDW sensitivity:** if pocket-type counts look wrong, re-run with
+  `--vdw-radii-set bondi` and compare against `crc` / `alvarez`. See the
+  [VDW Sensitivity Problem](pocket-typing-radii-sensitivity-problem.md)
+  deep dive.
+- **The CLI hides nothing the API exposes** — every artifact on disk is
+  also reachable from Python. The `*_results.npz` is the canonical
+  handoff.
+
+## Next Steps
+
+- [Quick Cluster tutorial](quick_cluster.qmd) — the canonical Python
+  workflow this CLI wraps.
+- [Distance Grid tutorial](distance_grid.qmd) — the dgrid backends in
+  detail, including the AABB and interp variants.
+- [Pocket Type Detection](pockets_detection.qmd) — `env_cluster` typing
+  via the Python API.
+- [Pore Graph](pore_graph.md) — what to do with the RAG pickle.
+- [Installation](install.qmd) — environment setup if `mgrcli --version`
+  fails.
+- [VDW Radii Comparison](vdw_radii_comparison.md) — full Bondi vs CRC vs
+  Alvarez sensitivity study.

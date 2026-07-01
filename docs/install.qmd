@@ -6,27 +6,27 @@ eval: false
 ---
 
 
-::: {.callout-warning}
+:::: {.callout-note}
 
-Currently, mofography works only with `numpy == 1.23.*`.
-We are working on making it compatible with the latest versions of numpy.
+MOFography is tested with `numpy >= 1.20`, including the current `2.x` series. If you hit a deprecation or type-promotion warning, please open an issue with the failing `numpy` version.
 
-:::
+::::
 
 ### Install dependencies, Add path and Use. ⏩
 You can simply try out mofography after installing just the dependencies. In fact, I would recommend this approach, since mofography is still in active development
 
-::: {.callout-caution}
-MOFography has been tested with `Python 3.9`, it should work with other version of python, but, if you do encounter any issues, please let us know by opening an issue. Hence, feel free to create a new Python 3.9 environment for this package like this before using 
+:::: {.callout-caution}
+MOFography has been tested with `Python 3.10`–`3.12`; the `mgrcli` companion supports `3.8`–`3.12`. We recommend creating a fresh `Python 3.11` environment for new installs:
 
 ```bash
-conda create -n mgr_env python=3.9
+conda create -n mgr_env python=3.11
 conda activate mgr_env
 ```
-:::
 
-- Install the dependencies using conda or pip. You may create a new conda environment with python 3.9 for this, but it is not necessary. 
+If you hit any issues on a different Python version, please open an issue.
+::::
 
+- Install the dependencies using conda or pip. A fresh `Python 3.11` environment is recommended but not required.
 ### Install Dependencies using Conda 
 
 ::: {.callout-note}
@@ -35,7 +35,7 @@ conda activate mgr_env
 
 
 ```bash
-conda create -n mgr_env python=3.9
+conda create -n mgr_env python=3.11
 conda activate mgr_env
 ```
 
@@ -79,9 +79,44 @@ sys.path.append(os.path.abspath('path_to_mofography'))
 ```
 
 of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine. This way we are not installing anything yet, so if there are changes to the source code, you can simply pull the latest changes using `git pull` and use them withouth having to reinstall the package everytime.
-`
+
+### Install the CLI companion (`mgrcli`) ⌨️
+
+If you mostly want to run MOFography on one or many CIFs without writing a notebook, install the `mgrcli` companion. It ships the same Rust-accelerated pipeline (`dgrid_from_atoms_rust` → `do_periodic_segmentation_rust`) plus a prebuilt extension, and bundles its own dependency set so no manual install is needed:
+
+```bash
+pip install mgrcli
+```
+
+Verify the install:
+
+```bash
+mgrcli --version
+mgrcli --help
+```
+
+One-shot full analysis on a CIF:
+
+```bash
+mgrcli process IRMOF-1.cif \
+  --dgrid-method rust_exact \
+  --vdw-radii-set bondi \
+  --b rust_det \
+  --pore-dia --psd --rag --types
+```
+
+To install from source (e.g. for hacking on the CLI), clone the companion repo and install editable:
+
+```bash
+git clone https://github.com/arung-northwestern/mgr_cli_py.git
+cd mgr_cli_py/python_cli
+pip install -e .
+```
+
+For the full flag reference, output layout, and how to drop down to the Python API when the CLI is not enough, see the [CLI Quick Start](./cli_quickstart.qmd) tutorial.
+
 ### Test the installation 🧪
-- Import mofography to see if it works. There are CIF files in the `mofography/examples/TestCIFs` folder, which you can use to test the package. Let's use a full-on clustering workflow with default parameters on the IRMOF-1 structure. More information on the inner workings of the workflow are provided in the [Quick cluster](./quick_cluster.ipynb) tutorial.
+- Import mofography to see if it works. There are CIF files in the `mofography/examples` folder, which you can use to test the package. For a full walkthrough of the canonical workflow, see the [Quick Start](./quick_cluster.qmd) tutorial.
 
 ```{python}
 import mofography as mgr

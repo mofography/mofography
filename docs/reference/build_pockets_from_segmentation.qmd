@@ -1,0 +1,13 @@
+# build_pockets_from_segmentation { #mofography.pocket_typing.build_pockets_from_segmentation }
+
+```python
+pocket_typing.build_pockets_from_segmentation(
+    segmentation,
+    atoms,
+    *,
+    probe_radius_psd=DEFAULT_PROBE_RADIUS_PSD_A,
+    psd_bin_edges=None,
+)
+```
+
+Build pocket records (id, d1, neighbors) from segmentation + PSD on RAG.

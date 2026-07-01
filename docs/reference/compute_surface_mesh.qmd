@@ -1,0 +1,7 @@
+# compute_surface_mesh { #mofography.movies.compute_surface_mesh }
+
+```python
+movies.compute_surface_mesh(atoms, dgrid, regions, isovalue=1.0, step_size=1)
+```
+
+Compute marching-cubes isosurface mesh from distance grid and region labels.

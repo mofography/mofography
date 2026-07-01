@@ -1,0 +1,69 @@
+# compute_surface_area_mc { #mofography.compute.compute_surface_area_mc }
+
+```python
+compute.compute_surface_area_mc(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    n_samples=20000,
+    shell_thickness=0.5,
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    accessibility_method='winding',
+    lattice_variant='v2',
+)
+```
+
+Experimental Monte Carlo shell-based surface area estimator.
+
+This function reuses the existing distance grid, region labels, and
+percolation history to estimate total and accessible surface area at a
+given probe radius by sampling points in a thin shell around the
+isosurface f(x) = probe_radius.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results_dict : dict
+    Results dictionary containing at minimum:
+    - 'dgrid' or 'distance_grid': Distance grid array
+    - 'pbc_groups': PBC groups dictionary
+    - 'regions_pbc': Periodic regions array
+    - Optional: 'percolation_history' from compute_percolation_history
+mat_atoms : ase.Atoms
+    Atomic structure for mass calculation and coordinate transformations.
+probe_radius : float, optional
+    Probe radius for surface area calculation. If None, uses helium radius.
+n_samples : int, optional
+    Number of Monte Carlo samples per structure.
+shell_thickness : float, optional
+    Thickness of the shell around probe_radius used for the estimator.
+return_details : bool, optional
+    If True, returns additional diagnostic information.
+window_fp_for_accessible : bool, optional
+    Winding only: window-fingerprint bridging when True; strict winding when False.
+winding_kwargs : dict, optional
+    Extra keyword arguments for winding fingerprint bridging (merged over
+    ``results_dict['winding_kwargs']`` when present).
+accessibility_method : str, optional
+    ``"winding"`` (default) or ``"lattice"``.
+lattice_variant : str, optional
+    ``"v2"`` or ``"v1"`` for lattice accessibility.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+dict
+    Dictionary with at least:
+    - 'total_surface_area': Total SA (m²/g), MC estimate
+    - 'accessible_surface_area': Accessible SA (percolated regions) (m²/g)
+    - 'accessible_fraction': Accessible / total
+    - 'probe_radius': Probe radius used
+    - 'sa_mc_diagnostics': Dict with sampling diagnostics
+
+    For now, per-region/pocket/cluster breakdowns are populated only for
+    accessible (percolating) regions, mirroring the semantics of
+    compute_surface_area_mesh (by_region = accessible SA).

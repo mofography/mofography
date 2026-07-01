@@ -1,0 +1,12 @@
+# build_padded_threejs_scene { #mofography.workflow.build_padded_threejs_scene }
+
+```python
+workflow.build_padded_threejs_scene(cif_path, output_path=None, **kwargs)
+```
+
+Build a Three.js HTML scene with padded transparent segmentation surfaces.
+
+Thin wrapper that delegates to the stand-alone script's builder so it
+stays in one place.  Any keyword argument is forwarded to the builder
+(``spacing``, ``isovalue``, ``mask_thickness``, ``h``, ``threshold_abs``,
+``min_distance``, ``extra_padding``, ``preserve_threshold``, …).

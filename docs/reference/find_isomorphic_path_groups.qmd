@@ -1,4 +1,6 @@
 # find_isomorphic_path_groups { #mofography.compute.find_isomorphic_path_groups }
 
-`compute.find_isomorphic_path_groups(list_of_paths, rag, cluster=True)`
+```python
+compute.find_isomorphic_path_groups(list_of_paths, rag, cluster=True)
+```
 

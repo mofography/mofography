@@ -1,24 +1,32 @@
 # find_aromatic_cycles_in_sgraph { #mofography.analyze.find_aromatic_cycles_in_sgraph }
 
-`analyze.find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5, 6, 7, 8, 9])`
+```python
+analyze.find_aromatic_cycles_in_sgraph(
+    sgraph,
+    default_ring_sizes=[5, 6, 7, 8, 9],
+)
+```
 
-> Find all cycles in the graph, then find all cycles that are composed of double bonds, then find
-all unique cycles, then find all isomorphic cycles. 
+Find all aromatic cycles in the graph.
 
-The function returns a list of lists, where each list contains the indices of the atoms in the
-aromatic cycle. 
+Returns a list of lists, where each inner list contains the indices of atoms
+in an aromatic cycle (all edges are double bonds).
 
-Let's try it out on our example molecule:
+For large graphs (> _MAX_NODES_FOR_EXPANSION), the isomorphism expansion
+step is skipped because GraphMatcher.subgraph_isomorphisms_iter() is
+O(|V|^k) on a k-node template and hangs on MOF-scale structures.
+The unique aromatic cycles (deduplicated by atom membership) are returned
+directly — they already contain every distinct ring embedding.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name                 | Type   | Description                                               | Default           |
-|----------------------|--------|-----------------------------------------------------------|-------------------|
-| `sgraph`             |        | The graph object that you want to find aromatic cycles in | _required_        |
-| `default_ring_sizes` |        | The ring sizes to consider                                | `[5, 6, 7, 8, 9]` |
+| Name               | Type   | Description                                               | Default           |
+|--------------------|--------|-----------------------------------------------------------|-------------------|
+| sgraph             |        | The graph object that you want to find aromatic cycles in | _required_        |
+| default_ring_sizes |        | The ring sizes to consider                                | `[5, 6, 7, 8, 9]` |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                |
-|--------|------------------------------------------------------------|
-|        | A list of lists of nodes that are part of aromatic cycles. |
+| Name   | Type   | Description                                                |
+|--------|--------|------------------------------------------------------------|
+|        |        | A list of lists of nodes that are part of aromatic cycles. |

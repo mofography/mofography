@@ -1,0 +1,7 @@
+# compute_percolation_history_from_results_lattice { #mofography.compute.compute_percolation_history_from_results_lattice }
+
+```python
+compute.compute_percolation_history_from_results_lattice(results, variant='v2')
+```
+
+Attach lattice percolation history under ``percolation_history_lattice``.

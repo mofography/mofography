@@ -1,0 +1,12 @@
+# get_percolation_history { #mofography.percolation_results.get_percolation_history }
+
+```python
+percolation_results.get_percolation_history(
+    results,
+    method='winding',
+    *,
+    lattice_variant=None,
+)
+```
+
+Return stored percolation history for *method*, with legacy fallback.

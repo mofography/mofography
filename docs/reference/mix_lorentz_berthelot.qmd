@@ -1,19 +1,25 @@
 # mix_lorentz_berthelot { #mofography.data.mix_lorentz_berthelot }
 
-`data.mix_lorentz_berthelot(ase_atoms, forcefield=forcefields['uff'], probe_symbol='He')`
+```python
+data.mix_lorentz_berthelot(
+    ase_atoms,
+    forcefield=forcefields['uff'],
+    probe_symbol='He',
+)
+```
 
 It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                           | Default              |
-|----------------|--------|-----------------------------------------------------------------------|----------------------|
-| `ase_atoms`    |        | the atoms object from ASE                                             | _required_           |
-| `forcefield`   |        | a dictionary of force field parameters for the atoms in the framework | `forcefields['uff']` |
-| `probe_symbol` |        | the symbol of the probe atom, defaults to He (optional)               | `'He'`               |
+| Name         | Type   | Description                                                           | Default              |
+|--------------|--------|-----------------------------------------------------------------------|----------------------|
+| ase_atoms    |        | the atoms object from ASE                                             | _required_           |
+| forcefield   |        | a dictionary of force field parameters for the atoms in the framework | `forcefields['uff']` |
+| probe_symbol |        | the symbol of the probe atom, defaults to He (optional)               | `'He'`               |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                              |
-|--------|----------------------------------------------------------|
-|        | The mixed sigma and epsilon values for the interactions. |
+| Name   | Type   | Description                                              |
+|--------|--------|----------------------------------------------------------|
+|        |        | The mixed sigma and epsilon values for the interactions. |

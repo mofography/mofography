@@ -1,0 +1,18 @@
+# enrich_segmentation_with_pocket_psds { #mofography.workflow.enrich_segmentation_with_pocket_psds }
+
+```python
+workflow.enrich_segmentation_with_pocket_psds(
+    segmentation,
+    atoms,
+    *,
+    inplace=True,
+    raise_on_error=False,
+    probe_radius_psd=None,
+    **kwargs,
+)
+```
+
+Run pocket-wise Rust PSDs once and store on the segmentation dict.
+
+Call before :func:`assign_pocket_types` and/or
+:func:`~mofography.compute.add_pocket_psds_to_rag_from_segmentation`.

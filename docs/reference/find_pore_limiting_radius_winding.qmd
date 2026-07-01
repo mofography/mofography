@@ -1,0 +1,14 @@
+# find_pore_limiting_radius_winding { #mofography.winding_percolation.find_pore_limiting_radius_winding }
+
+```python
+winding_percolation.find_pore_limiting_radius_winding(
+    results,
+    min_threshold=None,
+    max_threshold=None,
+    graph=None,
+    base_region_labels=None,
+    include_dangling=True,
+    expand_components=True,
+)
+```
+

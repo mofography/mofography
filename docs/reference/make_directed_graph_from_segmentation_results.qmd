@@ -1,0 +1,11 @@
+# make_directed_graph_from_segmentation_results { #mofography.winding_percolation.make_directed_graph_from_segmentation_results }
+
+```python
+winding_percolation.make_directed_graph_from_segmentation_results(
+    results,
+    dgrid=None,
+)
+```
+
+Convenience helper to build a MultiDiGraph directly from the deduplicated
+edge map returned by *make_edges_set_from_connections*.

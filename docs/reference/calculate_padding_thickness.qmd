@@ -1,0 +1,14 @@
+# calculate_padding_thickness { #mofography.compute.calculate_padding_thickness }
+
+```python
+compute.calculate_padding_thickness(dgrid, ase_atoms, spacing)
+```
+
+Calculate required padding thickness for periodic calculations.
+
+Args:
+    ase_atoms: ASE Atoms object containing cell information
+    spacing: Grid spacing in Angstroms
+
+Returns:
+    Minimum number of padding cells needed to handle periodicity correctly

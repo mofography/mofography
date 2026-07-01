@@ -1,0 +1,11 @@
+# max_probe_radius_for_fragment_group { #mofography.pocket_framework_env.max_probe_radius_for_fragment_group }
+
+```python
+pocket_framework_env.max_probe_radius_for_fragment_group(
+    regions,
+    dgrid,
+    fragment_labels,
+)
+```
+
+Largest probe radius (Å) over all periodic fragment labels in one PBC pocket.

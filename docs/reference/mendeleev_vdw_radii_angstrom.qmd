@@ -1,0 +1,7 @@
+# mendeleev_vdw_radii_angstrom { #mofography.vdw_radii.mendeleev_vdw_radii_angstrom }
+
+```python
+vdw_radii.mendeleev_vdw_radii_angstrom(ase_atoms)
+```
+
+Per-atom Mendeleev VDW radii in Å (legacy table, larger for metals).

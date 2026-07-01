@@ -1,0 +1,15 @@
+# widest_path_bottleneck_from_seed { #mofography.widest_path_resegment.widest_path_bottleneck_from_seed }
+
+```python
+widest_path_resegment.widest_path_bottleneck_from_seed(
+    dgrid,
+    mask,
+    seed,
+    offsets=None,
+)
+```
+
+Max-bottleneck distances from ``seed`` on the void graph (26-NN).
+
+``bottleneck[v] = max over paths seed→v of min(dgrid along path)``.
+Unreachable voxels remain ``-1``.

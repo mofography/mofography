@@ -1,0 +1,12 @@
+# compute_percolation_history_winding { #mofography.winding_percolation.compute_percolation_history_winding }
+
+```python
+winding_percolation.compute_percolation_history_winding(
+    results,
+    include_dangling=True,
+    expand_components=True,
+    **kwargs,
+)
+```
+
+Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata.

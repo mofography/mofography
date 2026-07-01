@@ -1,0 +1,6 @@
+# neighbor_offsets_26 { #mofography.widest_path_resegment.neighbor_offsets_26 }
+
+```python
+widest_path_resegment.neighbor_offsets_26()
+```
+

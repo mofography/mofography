@@ -1,0 +1,14 @@
+# embedded_movie_dict_from_snapshots { #mofography.movies.embedded_movie_dict_from_snapshots }
+
+```python
+movies.embedded_movie_dict_from_snapshots(
+    snapshots,
+    *,
+    source,
+    inferred_format,
+    frame_stride,
+    position_decimals,
+)
+```
+
+Compact per-frame dict for the legacy devtools Three.js HTML (positions + radii only).

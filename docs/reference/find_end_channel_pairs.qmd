@@ -1,0 +1,6 @@
+# find_end_channel_pairs { #mofography.helper.find_end_channel_pairs }
+
+```python
+helper.find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3)
+```
+

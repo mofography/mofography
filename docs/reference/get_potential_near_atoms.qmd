@@ -1,0 +1,29 @@
+# get_potential_near_atoms { #mofography.visualize.get_potential_near_atoms }
+
+```python
+visualize.get_potential_near_atoms(
+    atoms,
+    potential,
+    grid_shape,
+    element='Zn',
+    radius=1.0,
+)
+```
+
+Get potential values near atoms of a specific element.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type   | Description                                    | Default    |
+|------------|--------|------------------------------------------------|------------|
+| atoms      |        | ASE Atoms object                               | _required_ |
+| potential  |        | 3D array of potential values                   | _required_ |
+| grid_shape |        | Shape of the potential grid                    | _required_ |
+| element    |        | Element symbol to look for                     | `'Zn'`     |
+| radius     |        | Radius around the atom to check (in Angstroms) | `1.0`      |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                       |
+|--------|--------|---------------------------------------------------|
+|        |        | List of potential values near the specified atoms |

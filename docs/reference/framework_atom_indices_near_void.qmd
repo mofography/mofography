@@ -1,0 +1,11 @@
+# framework_atom_indices_near_void { #mofography.pocket_framework_env.framework_atom_indices_near_void }
+
+```python
+pocket_framework_env.framework_atom_indices_near_void(
+    atoms,
+    void_cart,
+    r_cut=R_CUT_FRAMEWORK_A,
+)
+```
+
+MIC: keep framework atoms with min distance to any void sample <= r_cut.

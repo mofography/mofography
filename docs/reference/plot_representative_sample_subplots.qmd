@@ -1,0 +1,33 @@
+# plot_representative_sample_subplots { #mofography.data.plot_representative_sample_subplots }
+
+```python
+data.plot_representative_sample_subplots(
+    full,
+    sample,
+    strat_cols=None,
+    nbins_hist=40,
+    n_sample=None,
+    title=None,
+)
+```
+
+Build a 2x2 Plotly figure comparing full vs sample histograms for each
+stratification column (surface area, void fraction, LCD, PLD). Use to verify
+that a representative sample matches the full distribution.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type   | Description                                                              | Default    |
+|------------|--------|--------------------------------------------------------------------------|------------|
+| full       |        | Full population DataFrame (MOFdb-style columns).                         | _required_ |
+| sample     |        | Sampled DataFrame from sample_representative_mofdb.                      | _required_ |
+| strat_cols |        | Columns to plot; defaults to MOFDB_STRAT_COLS.                           | `None`     |
+| nbins_hist |        | Number of histogram bins per subplot.                                    | `40`       |
+| n_sample   |        | Number to show in title (default: len(sample)).                          | `None`     |
+| title      |        | Main figure title. If None, uses "Representative subset (N={n_sample})". | `None`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description    |
+|--------|--------|----------------|
+|        |        | Plotly Figure. |

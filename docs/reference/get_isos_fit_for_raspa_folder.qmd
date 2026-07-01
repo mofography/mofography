@@ -1,0 +1,15 @@
+# get_isos_fit_for_raspa_folder { #mofography.raspa_helper.get_isos_fit_for_raspa_folder }
+
+```python
+raspa_helper.get_isos_fit_for_raspa_folder(path_to_folder, T, order)
+```
+
+* Description
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name           | Type    | Description                                                | Default    |
+|----------------|---------|------------------------------------------------------------|------------|
+| path_to_folder | string  | Path to the RASPA folder with all the output_*.data files  | _required_ |
+| T              | float   | Temperature                                                | _required_ |
+| order          | integer | Order of the Legendre polynomials to be used in regression | _required_ |

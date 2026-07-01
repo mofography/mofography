@@ -1,0 +1,20 @@
+# make_framework_scatter_trace { #mofography.movies.make_framework_scatter_trace }
+
+```python
+movies.make_framework_scatter_trace(
+    atoms,
+    bonds='auto',
+    style=None,
+    name='Framework',
+    trace_id='framework',
+    atom_scale=0.65,
+    bond_color=None,
+    bond_linewidth=8.0,
+    depth_test=True,
+)
+```
+
+Framework as scatter points + line segments (fast, no mesh geometry).
+
+Returns {"atoms": trace, "bonds": trace} — suitable for MovieFigure.add_trace().
+When *depth_test* is False the framework is always rendered on top.

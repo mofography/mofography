@@ -99,7 +99,7 @@ PLD ≤ DFSD ≤ LCD
 
 ❌ **What this tutorial does NOT cover:**
 - Basic periodic segmentation - see [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md)
-- Distance grid computation - see [Distance Grid Quick Start](distance_grid_quick_start.md)
+- Distance grid computation - see [Distance Grid Tutorial](distance_grid.qmd)
 - Pore graph construction basics - see [Pore Graph Tutorial](pore_graph.md)
 - Surface area and void volume calculations
 - Energy-based percolation
@@ -107,7 +107,7 @@ PLD ≤ DFSD ≤ LCD
 
 🔗 **Prerequisites:**
 1. Complete [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md)
-2. Complete [Distance Grid Quick Start](distance_grid_quick_start.md)
+2. Complete [Distance Grid Tutorial](distance_grid.qmd)
 3. Understand pore graph representation (pores as nodes, windows as edges)
 4. Basic understanding of periodic boundary conditions
 5. MOFography installed with all modules
@@ -611,9 +611,9 @@ Z: ❌ Not percolating
 
 ### Learn More:
 - [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) - Required prerequisite
-- [Distance Grid Quick Start](distance_grid_quick_start.md) - Understanding the distance field
+- [Distance Grid Tutorial](distance_grid.qmd) - Understanding the distance field
 - [Pore Graph Tutorial](pore_graph.md) - Understanding pore networks
-- [Pockets Detection](pockets_detection.md) - Classifying pocket types
+- [Pockets Detection](pockets_detection.qmd) - Classifying pocket types
 
 ### Advanced Topics:
 - **Percolation anisotropy**: Different percolation behavior in different directions

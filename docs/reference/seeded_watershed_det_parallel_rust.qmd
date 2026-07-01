@@ -1,0 +1,19 @@
+# seeded_watershed_det_parallel_rust { #mofography.rust_fun.seeded_watershed_det_parallel_rust }
+
+```python
+rust_fun.seeded_watershed_det_parallel_rust(image, seeds, mask=None)
+```
+
+Deterministic parallel seeded watershed wrapper around mgr_rust.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+image : ndarray, float32
+    3D scalar field; larger values flood first. For a distance grid, pass
+    the raw ``dgrid`` (do NOT negate).
+seeds : ndarray, uint32
+    3D array of markers (0 = background).
+mask : ndarray, uint8 or bool, optional
+    3D mask array; voxels with mask == 0 are never labeled.

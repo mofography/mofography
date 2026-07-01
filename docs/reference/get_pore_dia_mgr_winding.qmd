@@ -1,0 +1,13 @@
+# get_pore_dia_mgr_winding { #mofography.winding_percolation.get_pore_dia_mgr_winding }
+
+```python
+winding_percolation.get_pore_dia_mgr_winding(
+    mat_atoms=None,
+    dgrid=None,
+    kwargs=None,
+    results=None,
+    include_dangling=True,
+    expand_components=True,
+)
+```
+

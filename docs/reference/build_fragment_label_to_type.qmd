@@ -1,0 +1,12 @@
+# build_fragment_label_to_type { #mofography.pocket_typing.build_fragment_label_to_type }
+
+```python
+pocket_typing.build_fragment_label_to_type(rep_to_type, pbc_groups)
+```
+
+Map every fragment label → 1-based pocket type id (via PBC rep).
+
+Types are keyed by the PBC representative (``min(group)``), matching
+``regions_pbc`` / RAG pocket ids. All periodic copies in the group share
+the same type, analogous to ``clustering_grid_from_regions`` painting each
+RAG node's ``labels[0]`` with the merged cluster id.

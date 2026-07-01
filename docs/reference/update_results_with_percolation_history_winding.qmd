@@ -1,0 +1,16 @@
+# update_results_with_percolation_history_winding { #mofography.winding_percolation.update_results_with_percolation_history_winding }
+
+```python
+winding_percolation.update_results_with_percolation_history_winding(
+    results,
+    thresholds=None,
+    step=0.05,
+    min_threshold=None,
+    max_threshold=None,
+    graph=None,
+    base_region_labels=None,
+    include_dangling=True,
+    expand_components=True,
+)
+```
+

@@ -1,0 +1,20 @@
+# add_best_optuna_trial_to_rag_serial { #mofography.compute.add_best_optuna_trial_to_rag_serial }
+
+```python
+compute.add_best_optuna_trial_to_rag_serial(
+    rag,
+    ref_coords,
+    energy_interpolator,
+    molecule_name,
+    cluster_key='cluster_energy_pbc',
+    one_per_cluster=True,
+    n_trials=50,
+    n_jobs=1,
+    random_seed=42,
+)
+```
+
+Like :func:`add_best_optuna_trial_to_rag` but without ``dask.bag``.
+
+Use this when the caller already parallelizes over materials (e.g. Dask
+``Client``).  Avoids nested schedulers and per-pocket task fragmentation.

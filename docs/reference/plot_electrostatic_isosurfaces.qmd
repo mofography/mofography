@@ -1,0 +1,31 @@
+# plot_electrostatic_isosurfaces { #mofography.visualize.plot_electrostatic_isosurfaces }
+
+```python
+visualize.plot_electrostatic_isosurfaces(
+    potential_V,
+    atoms,
+    isovals=None,
+    num_isosurfaces=10,
+    cscale='viridis',
+    step=1,
+    base_opacity=0.3,
+)
+```
+
+Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type   | Description                                                                           | Default    |
+|--------------|--------|---------------------------------------------------------------------------------------|------------|
+| potential_V  |        | 3D array of potential values in volts                                                 | _required_ |
+| cell         |        | Cell matrix                                                                           | _required_ |
+| atoms        |        | ASE Atoms object                                                                      | _required_ |
+| step         |        | Step size for marching cubes algorithm. Higher values result in coarser surfaces.     | `1`        |
+| base_opacity |        | Base opacity for the surfaces. Adjust this to make surfaces more or less transparent. | `0.3`      |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                           |
+|--------|--------|---------------------------------------|
+|        |        | A single combined Plotly Mesh3d trace |

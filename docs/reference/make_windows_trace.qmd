@@ -1,0 +1,14 @@
+# make_windows_trace { #mofography.movies.make_windows_trace }
+
+```python
+movies.make_windows_trace(
+    seg,
+    style='internal_windows',
+    name='Windows',
+    trace_id='windows',
+    atoms=None,
+    spacing=None,
+    reclassify_far_outside=True,
+)
+```
+

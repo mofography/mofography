@@ -1,4 +1,6 @@
 # plot_rag { #mofography.visualize.plot_rag }
 
-`visualize.plot_rag(G, plot_with='maxima', **kwargs)`
+```python
+visualize.plot_rag(G, plot_with='maxima', **kwargs)
+```
 

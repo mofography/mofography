@@ -1,0 +1,6 @@
+# add_trace { #mofography.threejs_viz.add_trace }
+
+```python
+threejs_viz.add_trace(fig, trace)
+```
+

@@ -1,0 +1,11 @@
+# compute_typing_dgrid { #mofography.pocket_typing.compute_typing_dgrid }
+
+```python
+pocket_typing.compute_typing_dgrid(
+    atoms,
+    segmentation,
+    typing_radii=DEFAULT_TYPING_RADII,
+)
+```
+
+Distance grid for typing ``max_r`` only (same spacing as segmentation).

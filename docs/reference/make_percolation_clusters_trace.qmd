@@ -1,0 +1,23 @@
+# make_percolation_clusters_trace { #mofography.movies.make_percolation_clusters_trace }
+
+```python
+movies.make_percolation_clusters_trace(
+    percolation_history,
+    distance_grid,
+    regions,
+    atoms,
+    probe_radius=None,
+    isovalue=1.6,
+    cscale=None,
+    style='surface',
+    trace_id='percolation_clusters',
+    cluster_opacity=1.0,
+    step_size=1,
+    taubin_smooth=False,
+    taubin_iterations=10,
+    taubin_lambda=0.5,
+    taubin_nu=-0.53,
+)
+```
+
+Build Three.js mesh traces for percolated clusters at a given probe radius.

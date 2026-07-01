@@ -1,0 +1,7 @@
+# pocket_typing_result_for_app { #mofography.pocket_typing.pocket_typing_result_for_app }
+
+```python
+pocket_typing.pocket_typing_result_for_app(out)
+```
+
+Convert :class:`PocketTypingResult` to the dict shape used by Streamlit/CLI.

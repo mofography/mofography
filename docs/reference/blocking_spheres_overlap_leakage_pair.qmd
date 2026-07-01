@@ -1,0 +1,45 @@
+# blocking_spheres_overlap_leakage_pair { #mofography.raspa_helper.blocking_spheres_overlap_leakage_pair }
+
+```python
+raspa_helper.blocking_spheres_overlap_leakage_pair(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    *,
+    resolution='fine',
+    sample_spacing=0.5,
+    fine_spacing=None,
+    accessible_dgrid_ge_probe=False,
+    restrict_to_rag_adjacent_accessible=True,
+    require_face_neighbor_inaccessible=True,
+    per_label=False,
+    atol=0.0001,
+    chunk_size=65536,
+    inaccessible_resolution=None,
+)
+```
+
+Pair of :func:`blocking_spheres_overlap_leakage` runs for **BlockPockets** QA.
+
+When spheres are built to cover **inaccessible** void, you usually want both:
+
+1. **Leakage** — ``denominator_domain="accessible"``: among accessible sample
+   points, what fraction fall **inside** the sphere union (spill into transport
+   void)?
+2. **Coverage gap** — ``denominator_domain="inaccessible"``: among inaccessible
+   sample points, what fraction fall **outside** the union (missed cages)?
+   Reported as ``frac_covered_inaccessible_mic`` and ``frac_missed_inaccessible_mic``.
+
+``resolution`` is passed to the **accessible** leg. The **inaccessible** leg uses
+the same resolution except when ``resolution="interface"`` (interface is only
+defined for accessible); then inaccessible defaults to ``"fine"`` unless you set
+``inaccessible_resolution``.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+inaccessible_resolution : str, optional
+    ``"fine"`` or ``"coarse"`` for the inaccessible leg. Default: same as
+    ``resolution``, or ``"fine"`` if ``resolution=="interface"``.

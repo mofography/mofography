@@ -1,0 +1,44 @@
+# blocking_spheres_overlap_into_accessible_near_interface { #mofography.raspa_helper.blocking_spheres_overlap_into_accessible_near_interface }
+
+```python
+raspa_helper.blocking_spheres_overlap_into_accessible_near_interface(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    *,
+    sample_spacing=0.5,
+    fine_spacing=None,
+    accessible_dgrid_ge_probe=False,
+    restrict_to_rag_adjacent_accessible=True,
+    require_face_neighbor_inaccessible=True,
+    atol=0.0001,
+    chunk_size=65536,
+)
+```
+
+Cheaper overlap diagnostic: sample **coarse** grid points (default 0.5 Å)
+that lie on **interface** accessible voxels (see :func:`accessible_interface_voxel_mask`).
+
+Each coarse voxel center is classified by **nearest** fine-grid voxel
+(same fractional mapping as :func:`mofography.compute.dask_grid_over_atoms`).
+
+The reported fraction is **only** over this interface sample — not over all
+accessible void. A **high** percentage here often means the blocking union
+covers the narrow gasket next to pockets (expected for large including
+spheres), not that the bulk percolating channel is blocked; compare with
+:func:`blocking_spheres_overlap_into_accessible_regions` for a global
+accessible denominator (much more expensive).
+
+Implemented via :func:`blocking_spheres_overlap_leakage` (``resolution="interface"``).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+sample_spacing : float
+    Spacing (Å) for probe points; coarser => fewer distance evaluations.
+fine_spacing : float, optional
+    Spacing of ``results['regions']``; inferred if omitted.
+restrict_to_rag_adjacent_accessible, require_face_neighbor_inaccessible
+    Passed to :func:`accessible_interface_voxel_mask`.

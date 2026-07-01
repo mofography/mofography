@@ -1,0 +1,26 @@
+# accessible_interface_voxel_mask { #mofography.raspa_helper.accessible_interface_voxel_mask }
+
+```python
+raspa_helper.accessible_interface_voxel_mask(
+    results,
+    probe_radius,
+    *,
+    percolated_labels=None,
+    inaccessible_labels=None,
+    restrict_to_rag_adjacent_accessible=True,
+    require_face_neighbor_inaccessible=True,
+    accessible_dgrid_ge_probe=False,
+)
+```
+
+Boolean mask (same shape as ``results['regions']``) for **accessible**
+voxels near inaccessible void, for overlap / leakage estimates.
+
+*Optional RAG filter:* keep only voxels whose region label lies in
+:func:`labels_accessible_adjacent_to_inaccessible_via_rag`.
+
+*Optional grid filter:* keep only voxels with a 6-neighbor (periodic)
+belonging to an **inaccessible** region (face contact on the segmentation
+grid).
+
+Percolation at ``probe_radius`` matches :func:`percolated_region_labels_winding`.

@@ -1,24 +1,34 @@
 # dgrid_from_atoms_cpu { #mofography.compute.dgrid_from_atoms_cpu }
 
-`compute.dgrid_from_atoms_cpu(ase_atoms, radii=None, spacing=0.25, block_size=50000, n_neighbors=10, probe_radius=0, precompute=True)`
+```python
+compute.dgrid_from_atoms_cpu(
+    ase_atoms,
+    radii=None,
+    spacing=0.25,
+    block_size=50000,
+    n_neighbors=10,
+    probe_radius=0,
+    precompute=True,
+)
+```
 
 This function generates a distance grid over atoms using Dask arrays and pandas, with an option to
 precompute the grid.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                                                                                                                                                                                                                                                                                                                | Default    |
-|----------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `ase_atoms`    |        | The `ase_atoms` parameter in the `dgrid_from_atoms_cpu` function is expected to be an ASE Atoms object, which represents a collection of atoms and their positions in space. This object typically contains information about the atomic species, positions, and unit cell of a molecular system                                                           | _required_ |
-| `radii`        |        | The `radii` parameter in the `dgrid_from_atoms_cpu` function is used to specify the atomic radii for the atoms in the input `ase_atoms` object. If the `radii` parameter is not provided by the user, a default set of van der Waals radii                                                                                                                 | `None`     |
-| `spacing`      |        | The `spacing` parameter in the `dgrid_from_atoms_cpu` function represents the distance between grid points in the mesh grid that is created over the atoms. It determines how finely the grid is sampled in space. A smaller spacing value will result in a denser grid with more grid points, while                                                       | `0.25`     |
-| `block_size`   |        | The `block_size` parameter in the `dgrid_from_atoms_cpu` function is used to specify the size of each block when processing the grid points. It determines how the grid points are divided into smaller blocks for computation. A larger block size can lead to better performance in terms of memory usage and, defaults to 50000 (optional)              | `50000`    |
-| `n_neighbors`  |        | The `n_neighbors` parameter in the `dgrid_from_atoms_cpu` function represents the number of nearest neighbors to consider when computing the distance grid. It is used in the calculation of the distance grid based on the provided atoms and radii. Increasing the `n_neighbors` value will result in a, defaults to 10 (optional)                       | `10`       |
-| `probe_radius` |        | The `probe_radius` parameter in the `dgrid_from_atoms_cpu` function represents the radius of the probe used for computing the distance grid. It is used in conjunction with the atomic radii to determine the distance between atoms and the grid points. The probe radius helps in defining the spatial constraints for, defaults to 0 (optional)         | `0`        |
-| `precompute`   |        | The `precompute` parameter in the `dgrid_from_atoms_cpu` function determines whether the computation of the distance grid should be immediately executed and the final result returned (`precompute=True`), or if a lazy Dask array representing the computation should be returned without executing it (`precompute=False`), defaults to True (optional) | `True`     |
+| Name         | Type   | Description                                                                                                                                                                                                                                                                                                                                                | Default    |
+|--------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms    |        | The `ase_atoms` parameter in the `dgrid_from_atoms_cpu` function is expected to be an ASE Atoms object, which represents a collection of atoms and their positions in space. This object typically contains information about the atomic species, positions, and unit cell of a molecular system                                                           | _required_ |
+| radii        |        | The `radii` parameter in the `dgrid_from_atoms_cpu` function is used to specify the atomic radii for the atoms in the input `ase_atoms` object. If the `radii` parameter is not provided by the user, a default set of van der Waals radii                                                                                                                 | `None`     |
+| spacing      |        | The `spacing` parameter in the `dgrid_from_atoms_cpu` function represents the distance between grid points in the mesh grid that is created over the atoms. It determines how finely the grid is sampled in space. A smaller spacing value will result in a denser grid with more grid points, while                                                       | `0.25`     |
+| block_size   |        | The `block_size` parameter in the `dgrid_from_atoms_cpu` function is used to specify the size of each block when processing the grid points. It determines how the grid points are divided into smaller blocks for computation. A larger block size can lead to better performance in terms of memory usage and, defaults to 50000 (optional)              | `50000`    |
+| n_neighbors  |        | The `n_neighbors` parameter in the `dgrid_from_atoms_cpu` function represents the number of nearest neighbors to consider when computing the distance grid. It is used in the calculation of the distance grid based on the provided atoms and radii. Increasing the `n_neighbors` value will result in a, defaults to 10 (optional)                       | `10`       |
+| probe_radius |        | The `probe_radius` parameter in the `dgrid_from_atoms_cpu` function represents the radius of the probe used for computing the distance grid. It is used in conjunction with the atomic radii to determine the distance between atoms and the grid points. The probe radius helps in defining the spatial constraints for, defaults to 0 (optional)         | `0`        |
+| precompute   |        | The `precompute` parameter in the `dgrid_from_atoms_cpu` function determines whether the computation of the distance grid should be immediately executed and the final result returned (`precompute=True`), or if a lazy Dask array representing the computation should be returned without executing it (`precompute=False`), defaults to True (optional) | `True`     |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                                                                                                              |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `dgrid_from_atoms_cpu` returns the computed distance grid. If `precompute` is set to True, it returns the computed distance grid as a Dask array. If `precompute` is set to False, it returns the Dask array without computing it, allowing for further computations to be performed later. |
+| Name   | Type   | Description                                                                                                                                                                                                                                                                                              |
+|--------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `dgrid_from_atoms_cpu` returns the computed distance grid. If `precompute` is set to True, it returns the computed distance grid as a Dask array. If `precompute` is set to False, it returns the Dask array without computing it, allowing for further computations to be performed later. |

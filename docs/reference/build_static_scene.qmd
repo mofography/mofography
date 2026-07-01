@@ -1,0 +1,59 @@
+# build_static_scene { #mofography.movies.build_static_scene }
+
+```python
+movies.build_static_scene(
+    atoms,
+    dgrid=None,
+    regions=None,
+    seg=None,
+    *,
+    isovalue=1.0,
+    hide_periodic=True,
+    spacing=0.25,
+    bonds='auto',
+    show_aromatics=True,
+    eye=(2.0, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+)
+```
+
+Build a static Three.js scene from framework atoms + optional segmentation.
+
+This is the simplest entry point for the common tutorial pattern:
+framework + cell + surface + maxima + connections + windows.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+atoms
+    ASE Atoms with unit cell (framework structure).
+dgrid
+    Precomputed distance grid.  If *None* and *regions* / *seg* is not given
+    the segmentation traces are skipped.
+regions
+    Segmentation region labels (from ``do_periodic_segmentation_rust``).
+seg
+    Full segmentation dict as returned by ``compute_segmentation_for_snapshot``
+    or ``do_periodic_segmentation_rust``.  When provided the maxima, connections
+    and windows traces are added too.
+isovalue
+    Marching-cubes level for the surface.
+hide_periodic
+    If True, periodic maxima / connections / windows start hidden.
+spacing
+    Ignored unless *dgrid* must be computed on-the-fly (not yet implemented).
+bonds
+    Passed to ``make_framework_trace`` (*"auto"* uses ASE neighbourlist).
+show_aromatics
+    If True, detect and render aromatic ring outlines + fill discs.
+eye, center, up
+    Initial camera position.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+MovieFigure
+    Ready to export via ``.to_html()`` or ``.show()``.

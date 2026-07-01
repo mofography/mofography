@@ -1,0 +1,20 @@
+# print_blocking_accessible_coarse_overlap_comparison { #mofography.raspa_helper.print_blocking_accessible_coarse_overlap_comparison }
+
+```python
+raspa_helper.print_blocking_accessible_coarse_overlap_comparison(
+    stats_by_method,
+    *,
+    title='Coarse accessible overlap — method comparison',
+)
+```
+
+Compare outputs of :func:`blocking_spheres_overlap_accessible_coarse_sample`
+for several blocking builders (e.g. largest-including vs greedy).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+stats_by_method : dict
+    Maps method name (str) -> stats dict from
+    :func:`blocking_spheres_overlap_accessible_coarse_sample`.

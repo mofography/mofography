@@ -1,0 +1,21 @@
+# solve_poisson_spectral_gpu { #mofography.compute.solve_poisson_spectral_gpu }
+
+```python
+compute.solve_poisson_spectral_gpu(atoms, grid_spacing=0.2, epsilon_r=1.0)
+```
+
+Solve the Poisson equation using a spectral method for non-orthogonal, periodic systems.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type   | Description                         | Default    |
+|--------------|--------|-------------------------------------|------------|
+| atoms        |        | ASE Atoms object                    | _required_ |
+| grid_spacing |        | Desired grid spacing in Angstroms   | `0.2`      |
+| epsilon_r    |        | Relative permittivity of the system | `1.0`      |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                              |
+|--------|--------|----------------------------------------------------------|
+|        |        | Electrostatic potential (V), grid shape, and cell matrix |

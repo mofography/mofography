@@ -1,0 +1,6 @@
+# is_plotly_figure { #mofography.viz_backend.is_plotly_figure }
+
+```python
+viz_backend.is_plotly_figure(fig)
+```
+

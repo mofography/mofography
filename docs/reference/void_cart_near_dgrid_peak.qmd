@@ -1,0 +1,15 @@
+# void_cart_near_dgrid_peak { #mofography.pocket_framework_env.void_cart_near_dgrid_peak }
+
+```python
+pocket_framework_env.void_cart_near_dgrid_peak(
+    regions,
+    dgrid,
+    rep,
+    shape,
+    atoms,
+    *,
+    shell_a=VOID_SHELL_MAXIMUM_A,
+)
+```
+
+Void samples within ``shell_a`` of the local dgrid maximum (fragment).

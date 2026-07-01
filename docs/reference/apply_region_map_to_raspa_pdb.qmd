@@ -1,0 +1,27 @@
+# apply_region_map_to_raspa_pdb { #mofography.raspa_helper.apply_region_map_to_raspa_pdb }
+
+```python
+raspa_helper.apply_region_map_to_raspa_pdb(
+    pdb_file,
+    regions_cluster_super,
+    natoms_per_molecule=1,
+    index_list=None,
+)
+```
+
+It takes a pdb file and a region map and returns a dictionary of the number of atoms in each region
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                  | Type   | Description                                                                                      | Default    |
+|-----------------------|--------|--------------------------------------------------------------------------------------------------|------------|
+| pdb_file              |        | the pdb file you want to analyze                                                                 | _required_ |
+| regions_cluster_super |        | the supercell regions map                                                                        | _required_ |
+| natoms_per_molecule   |        | number of atoms per molecule. This is currently only implemented for 1, defaults to 1 (optional) | `1`        |
+| index_list            |        | list of indices of atoms to use in the pdb file. If None, all atoms are used                     | `None`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                               |
+|--------|--------|-------------------------------------------------------------------------------------------|
+|        |        | A dictionary with the number of atoms in each cluster type and the total number of atoms. |

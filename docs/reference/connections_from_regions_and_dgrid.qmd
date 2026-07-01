@@ -1,23 +1,33 @@
 # connections_from_regions_and_dgrid { #mofography.compute.connections_from_regions_and_dgrid }
 
-`compute.connections_from_regions_and_dgrid(region_labels, dgrid, maxima, ase_atoms, wall_windows=True, distance_threshold=1.0, wall_thickness=2)`
+```python
+compute.connections_from_regions_and_dgrid(
+    region_labels,
+    dgrid,
+    maxima,
+    ase_atoms,
+    wall_windows=True,
+    distance_threshold=1.0,
+    wall_thickness=2,
+)
+```
 
 It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
 threshold, and returns a list of connections between regions, and the centers of the windows between
 them
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name                 | Type   | Description                                                                            | Default    |
-|----------------------|--------|----------------------------------------------------------------------------------------|------------|
-| `region_labels`      |        | The labels of the regions, as returned by the skimage.measure.label function           | _required_ |
-| `maxima`             |        | the maxima of the image                                                                | _required_ |
-| `ase_atoms`          |        | ASE atoms object                                                                       | _required_ |
-| `wall_windows`       |        | If True, then the windows on the wall are also calculated, defaults to True (optional) | `True`     |
-| `distance_threshold` |        | The distance threshold for the agglomerative clustering                                | `1.0`      |
+| Name               | Type   | Description                                                                            | Default    |
+|--------------------|--------|----------------------------------------------------------------------------------------|------------|
+| region_labels      |        | The labels of the regions, as returned by the skimage.measure.label function           | _required_ |
+| maxima             |        | the maxima of the image                                                                | _required_ |
+| ase_atoms          |        | ASE atoms object                                                                       | _required_ |
+| wall_windows       |        | If True, then the windows on the wall are also calculated, defaults to True (optional) | `True`     |
+| distance_threshold |        | The distance threshold for the agglomerative clustering                                | `1.0`      |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                            |
-|--------|----------------------------------------|
-|        | A list of connections between regions. |
+| Name   | Type   | Description                            |
+|--------|--------|----------------------------------------|
+|        |        | A list of connections between regions. |

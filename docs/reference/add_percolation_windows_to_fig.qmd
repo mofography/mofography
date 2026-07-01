@@ -1,0 +1,27 @@
+# add_percolation_windows_to_fig { #mofography.workflow.add_percolation_windows_to_fig }
+
+```python
+workflow.add_percolation_windows_to_fig(
+    fig,
+    analysis_result,
+    pld_probe_radius=None,
+    pld_tolerance=0.25,
+)
+```
+
+Add window traces (regular + PLD-critical diamonds) to an existing figure.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name             | Type   | Description                                                     | Default    |
+|------------------|--------|-----------------------------------------------------------------|------------|
+| fig              |        | plotly Figure (go.Figure)                                       | _required_ |
+| analysis_result  |        | dict with 'connections' key from segmentation                   | _required_ |
+| pld_probe_radius |        | if given, highlight PLD-critical windows as red diamonds        | `None`     |
+| pld_tolerance    |        | radius tolerance for PLD-critical classification (default 0.25) | `0.25`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                     |
+|--------|--------|---------------------------------|
+|        |        | figure with window traces added |

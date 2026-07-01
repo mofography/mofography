@@ -1,0 +1,6 @@
+# is_threejs_figure { #mofography.viz_backend.is_threejs_figure }
+
+```python
+viz_backend.is_threejs_figure(fig)
+```
+

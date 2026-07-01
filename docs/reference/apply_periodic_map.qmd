@@ -1,19 +1,21 @@
 # apply_periodic_map { #mofography.compute.apply_periodic_map }
 
-`compute.apply_periodic_map(input_array, periodic_map)`
+```python
+compute.apply_periodic_map(input_array, periodic_map)
+```
 
 It takes an array of integers and a dictionary that maps integers to integers, and returns an array
 of integers that is the result of applying the dictionary to the input array
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                  | Default    |
-|----------------|--------|--------------------------------------------------------------|------------|
-| `input_array`  |        | a numpy array of integers                                    | _required_ |
-| `periodic_map` |        | a dictionary that maps the input values to the output values | _required_ |
+| Name         | Type   | Description                                                  | Default    |
+|--------------|--------|--------------------------------------------------------------|------------|
+| input_array  |        | a numpy array of integers                                    | _required_ |
+| periodic_map |        | a dictionary that maps the input values to the output values | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                             |
-|--------|-----------------------------------------|
-|        | the value of the key in the dictionary. |
+| Name   | Type   | Description                             |
+|--------|--------|-----------------------------------------|
+|        |        | the value of the key in the dictionary. |

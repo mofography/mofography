@@ -1,4 +1,26 @@
 # plot_snapshot_raspa_pdb { #mofography.visualize.plot_snapshot_raspa_pdb }
 
-`visualize.plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name='adsorbates', pbc=[1, 1, 1])`
+```python
+visualize.plot_snapshot_raspa_pdb(
+    pdb_file,
+    index,
+    natoms,
+    bonds_in_ref=[],
+    trace_name='adsorbates',
+    pbc=[1, 1, 1],
+)
+```
 
+Plots a snapshot of a RASPA PDB file.
+
+Args:
+    pdb_file (str): The path to the PDB file.
+    index (int): The index of the snapshot to plot.
+    natoms (int): The number of atoms in a single molecule.
+    bonds_in_ref (list, optional): A list of bonds to reference. Defaults to an empty list. If the list is empty, 
+    it assumes that the bonds are 1-2, 2-3, 3-4, etc.
+    trace_name (str, optional): The name of the trace for the plot. Defaults to 'adsorbates'.
+    pbc (list, optional): A list indicating periodic boundary conditions. Defaults to [1, 1, 1].
+
+Returns:
+    mol_mesh_trace: The mesh trace for the plotted molecules.

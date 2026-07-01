@@ -1,0 +1,33 @@
+# get_atoms_from_mofdb_df_parallel { #mofography.data.get_atoms_from_mofdb_df_parallel }
+
+```python
+data.get_atoms_from_mofdb_df_parallel(mofdb_df, scheduler='threads')
+```
+
+Parallel variant of ``atoms_from_mofdb_df`` for large MOFdb-style DataFrames.
+
+Uses Dask delayed to parse CIF strings into ASE Atoms objects in parallel.
+
+- Input df is expected to have columns:
+    - ``'cif'`` : CIF content as strings
+    - ``'name'``: material name (used to set ``atoms.info['name']``)
+- Each failed or malformed CIF is turned into the string ``'NaN'``,
+  matching the behavior of ``read_cif_string`` and ``atoms_from_mofdb_df``.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+mofdb_df : pandas.DataFrame
+    MOFdb-style dataframe from ``get_data_from_mofdb`` (or similar) with
+    at least ``'cif'`` and ``'name'`` columns.
+scheduler : str, optional
+    Dask scheduler to use for ``dask.compute`` (default: ``'threads'``).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+numpy.ndarray
+    1D object array of ASE Atoms objects or ``'NaN'`` entries, aligned
+    with the rows of ``mofdb_df``.

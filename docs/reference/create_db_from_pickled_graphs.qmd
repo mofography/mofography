@@ -1,13 +1,15 @@
 # create_db_from_pickled_graphs { #mofography.data.create_db_from_pickled_graphs }
 
-`data.create_db_from_pickled_graphs(db_path, pickle_path)`
+```python
+data.create_db_from_pickled_graphs(db_path, pickle_path)
+```
 
 The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled
 graphs in it from a given pickle file.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name          | Type   | Description                                                                                                                                                                                                                                                                                | Default    |
-|---------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `db_path`     |        | The `db_path` parameter is the path to the SQLite database where you want to store the graphs. This is the location where the graphs will be saved after being pickled, compressed, and inserted into the database                                                                         | _required_ |
-| `pickle_path` |        | The `pickle_path` parameter in the `create_db_from_pickled_graphs` function is the file path to the pickled collection of graphs that you want to store in the SQLite database. This file contains the serialized graphs that need to be unpickled, compressed, and stored in the database | _required_ |
+| Name        | Type   | Description                                                                                                                                                                                                                                                                                | Default    |
+|-------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| db_path     |        | The `db_path` parameter is the path to the SQLite database where you want to store the graphs. This is the location where the graphs will be saved after being pickled, compressed, and inserted into the database                                                                         | _required_ |
+| pickle_path |        | The `pickle_path` parameter in the `create_db_from_pickled_graphs` function is the file path to the pickled collection of graphs that you want to store in the SQLite database. This file contains the serialized graphs that need to be unpickled, compressed, and stored in the database | _required_ |

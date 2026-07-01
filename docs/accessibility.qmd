@@ -1,0 +1,299 @@
+---
+title: "Accessibility: Winding vs Lattice Percolation"
+description: "How to compute LCD, PLD, and DFSD with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius."
+image: tutorial_images/segmentation_cross_section.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## Overview
+
+A porous crystal does not just *have* pores — it has **accessible** pores. "Accessible" means a spherical probe of radius $r$ can travel from one face of the unit cell to the opposite face, weaving through windows that are at least as wide as the probe. The largest probe that can do this is the **Pore Limiting Diameter (PLD)**, and the act of testing whether such a path exists at a given $r$ is the **percolation** test.
+
+This tutorial covers the **winding** accessibility method — `mofography`'s default — and contrasts it with the **lattice** method, which is closer in spirit to the Zeo++ voxel-sweep approach. On a simple cubic MOF like **IRMOF-1** both methods give the same answer (modulo the voxel resolution); the differences emerge on contorted, low-symmetry frameworks where the winding algorithm's graph topology is more robust.
+
+You will:
+
+1. Run `do_periodic_segmentation_rust` to get a pore graph.
+2. Compute PLD / LCD / DFSD with `get_pore_dia_mgr_winding`.
+3. Step the probe radius and watch the percolating cluster grow / shrink with `compute_percolation_history_winding`.
+4. Run the equivalent **lattice v2** sweep and compare.
+5. Render an interactive Three.js scene with `show_percolation_threejs` for any chosen probe radius.
+
+Prerequisites: the [Distance Grid tutorial](distance_grid.qmd), [Region Segmentation](region_segmentation.qmd), and [Connections and Windows](connections_and_windows.qmd). The conceptual background for the two algorithms is in the [`face_merging_vs_winding.qmd`](face_merging_vs_winding.qmd) slides and in [`pore_limiting_diameter_pld_and_percolation.md`](pore_limiting_diameter_pld_and_percolation.md).
+
+## Why two algorithms?
+
+Both methods answer the same question — *is the void connected across the periodic cell at probe radius $r$?* — but on different representations:
+
+| Method | Representation | What it checks |
+|---|---|---|
+| **Winding** (graph) | The deduplicated pore graph (nodes = cage centres, edges = windows). Each edge carries a `window_radius` and a periodic relative offset $(di, dj, dk) \in \{-1, 0, 1\}^3$. | A BFS from a source node that tracks accumulated periodic offsets. If the BFS visits a node with offset $\Delta \ne 0$ along axis $a$, the cluster *wraps* across axis $a$ — percolation along $a$. |
+| **Lattice v2** (voxel) | The PBC-merged labeled `regions` array. Each face pair $(x_0, x_{N-1})$, $(y_0, y_{N-1})$, $(z_0, z_{N-1})$ is unioned via a UnionFind. | After the union, the percolating labels are those present on **both** faces of an axis. |
+
+The **winding** method is the better default because it:
+
+- Avoids the label-merging ambiguity that voxel methods suffer when two cages nearly touch across a periodic face.
+- Captures *topology* (which cages connect through which windows), not just voxel contiguity.
+- Is much faster on large cells — percolation is decided by walking the graph, not by re-labelling the grid at every probe radius.
+
+The **lattice** method is preserved mainly for **direct comparability with Zeo++** papers, which report `pld` from a voxel-sweep algorithm. The `variant='v2'` lattice path is the recommended lattice sweep; `v1` is the older UnionFind-only path retained for legacy comparisons.
+
+## Imports and setup
+
+```{python}
+import logging
+import warnings
+from pathlib import Path
+
+warnings.filterwarnings("ignore")
+logging.getLogger("mofography").setLevel(logging.ERROR)
+
+import numpy as np
+import mofography as mgr
+from ase.io import read
+```
+
+## Step 1: Load IRMOF-1 and build the distance grid
+
+IRMOF-1 is a cubic MOF ($a = b = c \approx 25.83$ Å) with two families of cages — small and large — connected through a 3D pore network. The cubic symmetry is convenient: any method that works correctly on a cubic cell will produce the same PLD up to a half-voxel.
+
+```{python}
+atoms = read("IRMOF-1.cif")
+print(f"IRMOF-1: {len(atoms)} atoms, cell = {atoms.cell.cellpar()[:3].round(2)} Å")
+
+spacing = 0.5                                  # Å — see distance_grid.qmd
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing)
+dgrid = dgrid.astype(np.float32)               # Rust kernel requires float32
+print(f"dgrid: {dgrid.shape}, void max = {dgrid.max():.2f} Å")
+```
+
+## Step 2: Run periodic segmentation
+
+`do_periodic_segmentation_rust` builds the pore graph. We pass back the `dgrid` so downstream functions do not have to recompute it. The `return_padded_regions=True` flag is required for the percolation routines — they need the periodic copies of the regions array to evaluate window connections across cell boundaries.
+
+```{python}
+results = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms,
+    mask_thickness=1.5, h=0.2, min_distance=1.5, threshold_abs=1.5,
+    spacing=spacing, return_dgrid=True,
+    return_padded_regions=True, extra_padding=2,
+)
+regions = results["regions"]
+print(f"regions: shape={regions.shape}, {int(regions.max())} unique labels")
+print(f"maxima_info: {results['maxima_info'].shape} (label, i, j, k, di, dj, dk)")
+print(f"connections: {len(results['connections'])} inter-region windows")
+```
+
+The result is a richly populated dictionary. The two keys the percolation routines need are `regions` (the labeled volume) and `maxima_info` (one row per local maximum, including the PBC image it belongs to). The `connections` list carries `(region_a, region_b, di, dj, dk, window_radius)` tuples — these become the edges of the pore graph.
+
+## Step 3: Compute PLD, LCD, DFSD via the winding algorithm
+
+`get_pore_dia_mgr_winding` is the one-shot entry point. Pass the segmentation `results` and the framework `atoms`; it builds the directed pore graph and returns the three classical textural properties:
+
+- **LCD** (Largest Cavity Diameter): $2 \times \max(\texttt{dgrid})$. The diameter of the single largest sphere that fits anywhere in the void — no connectivity requirement.
+- **PLD** (Pore Limiting Diameter): $2 \times r_{\max}$ where $r_{\max}$ is the largest probe radius at which the void percolates. The diameter of the largest sphere that can traverse the material end-to-end.
+- **DFSD** (Directional Free Sphere Diameter): $2 \times \max(\texttt{dgrid}[\text{percolating labels}])$. The largest sphere that fits inside a *percolating* region. Always $\text{DFSD} \le \text{LCD}$ by construction.
+
+```{python}
+lcd, pld, dfsd, _ = mgr.get_pore_dia_mgr_winding(atoms, dgrid=dgrid, results=results)
+print(f"LCD = {lcd:.3f} Å    (largest cavity anywhere)")
+print(f"PLD = {pld:.3f} Å    (largest traversing probe)")
+print(f"DFSD = {dfsd:.3f} Å   (largest cavity in a percolating region)")
+```
+
+The inequality $\text{PLD} \le \text{DFSD} \le \text{LCD}$ should hold — the PLD is bounded by the smallest window along the percolating route, the DFSD by the largest cavity along that same route, and the LCD by the largest cavity *anywhere* (which may be a dead-end pocket that the probe can never reach).
+
+## Step 4: Percolation history — probe by probe
+
+The single triple `(lcd, pld, dfsd)` is the answer to one question. The full **percolation history** answers a richer one: *as the probe grows, when does each axis stop percolating, and which regions drop out of the percolating cluster at each step?*
+
+```{python}
+hist_w, pld_locs_w, clusters_w = mgr.compute_percolation_history_winding(
+    results=results, step=0.1, min_threshold=0.0,
+)
+print(f"winding history: {len(hist_w)} entries from "
+      f"{hist_w[0][0]:.2f} Å to {hist_w[-1][0]:.2f} Å probe radius")
+print(f"  PLD locations: {pld_locs_w.shape}  (grid coords of the bottleneck)")
+print(f"  final clusters: {len(clusters_w)}  (one per percolating axis)")
+```
+
+The history is a list of `(probe_radius, axis_clusters)` tuples. `axis_clusters` is a dict `{"x": [...], "y": [...], "z": [...]}` where each value is a list of percolating groups; each group is a list of region labels in that group.
+
+Let me see how IRMOF-1 percolates as a function of probe radius:
+
+```{python}
+print(f"\n{'probe r (Å)':>12s}  {'x':>3s}  {'y':>3s}  {'z':>3s}  "
+      f"{'x cluster sizes':>20s}")
+print("-" * 50)
+for t, axes in hist_w[::4]:           # every 4th entry to keep output small
+    sizes_x = [len(g) for g in axes['x']]
+    print(f"{t:>12.2f}  "
+          f"{'Y' if axes['x'] else '.':>3s}  "
+          f"{'Y' if axes['y'] else '.':>3s}  "
+          f"{'Y' if axes['z'] else '.':>3s}  "
+          f"{str(sizes_x):>20s}")
+```
+
+IRMOF-1 is fully 3D-percolating at every probe radius up to ~3.9 Å: the x, y, and z channels are all open through the entire range. Above the PLD threshold (3.955 Å in the binary search that backs `get_pore_dia_mgr_winding`), no axis percolates. The `step=0.1` here is the history *display* step — the underlying PLD search uses a finer binary search.
+
+## Step 5: Final percolating cluster — what is connected at PLD?
+
+The third return value of `compute_percolation_history_winding` is `final_clusters`: a dict keyed by cluster id, with metadata for each percolating cluster at the last probe radius where percolation still exists.
+
+```{python}
+for cid, cdata in clusters_w.items():
+    print(f"\ncluster {cid}:")
+    print(f"  regions ({len(cdata['regions'])}): {cdata['regions'][:8]}"
+          f"{' …' if len(cdata['regions']) > 8 else ''}")
+    print(f"  nodes  ({len(cdata['nodes'])}):  {cdata['nodes']}")
+    print(f"  edges  ({len(cdata['edges'])}):  {cdata['edges'][:4]}"
+          f"{' …' if len(cdata['edges']) > 4 else ''}")
+    print(f"  axes percolating: {cdata['axes']}")
+```
+
+A few things to notice:
+
+- `edges` are triples `(u, v, axis_index)` recording which window (which periodic direction) carries the percolation. On a cubic MOF the windows along the three axes are geometrically equivalent; the algorithm still distinguishes them by relative offset.
+- `dangling_nodes` is empty here. On a more contorted MOF it would list pockets that touch the percolating cluster through only one window — a topological "leaf" that the probe can enter but not exit. See [`pore_limiting_diameter_pld_and_percolation.md`](pore_limiting_diameter_pld_and_percolation.md) for the dangling-node discussion.
+- The percolating cluster is the same along x, y, and z because IRMOF-1 is cubic. The winding algorithm returns one cluster per *axis*, not one cluster per *direction* — on a chiral MOF with a 1D channel you would see one entry here, for the axis the channel runs along.
+
+## Step 6: Compare with the lattice (Zeo++-style) algorithm
+
+`compute_percolation_history_from_results2` runs the **lattice v2** sweep on the same segmentation and stores the history under `percolation_history_lattice`. This is the same data the CLI reports with `--accessibility-method lattice --lattice-variant v2`.
+
+```{python}
+mgr.compute_percolation_history_from_results2(results)
+
+hist_l = results["percolation_history_lattice"]
+pld_locs_l = results.get("pld_locations_lattice", np.empty((0, 3)))
+print(f"lattice v2 history: {len(hist_l)} entries from "
+      f"{hist_l[0][0]:.2f} Å to {hist_l[-1][0]:.2f} Å probe radius")
+print(f"  PLD locations: {pld_locs_l.shape}  (one per voxel of the limiting window)")
+```
+
+Side-by-side comparison of the two methods on IRMOF-1:
+
+```{python}
+def last_percolating_radius(history):
+    """Return the largest probe radius in `history` that still has any axis percolating."""
+    last = 0.0
+    for t, axes in history:
+        if any(axes[a] for a in axes):
+            last = t
+    return last
+
+pld_radius_winding   = last_percolating_radius(hist_w)
+pld_radius_lattice   = last_percolating_radius(hist_l)
+pld_diam_winding     = 2.0 * pld_radius_winding
+pld_diam_lattice     = 2.0 * pld_radius_lattice
+
+print(f"\n{'method':<14s}  {'r_max (Å)':>10s}  {'PLD (Å)':>10s}")
+print("-" * 38)
+print(f"{'winding':<14s}  {pld_radius_winding:>10.3f}  {pld_diam_winding:>10.3f}")
+print(f"{'lattice v2':<14s}  {pld_radius_lattice:>10.3f}  {pld_diam_lattice:>10.3f}")
+print(f"{'winding 1-shot':<14s}  {pld/2:>10.3f}  {pld:>10.3f}    "
+      f"(from get_pore_dia_mgr_winding — binary search, finer step)")
+print(f"\ndifference (lattice - winding, diameter): "
+      f"{(pld_diam_lattice - pld_diam_winding):+.3f} Å")
+```
+
+Both methods agree to within the grid resolution. With `spacing=0.5 Å`, a half-voxel is 0.25 Å, so the expected agreement is $\pm 0.25$ Å. The `get_pore_dia_mgr_winding` one-shot value (3.955 Å × 2 = 7.91 Å) sits between the two histories because it uses a finer binary search than the 0.1 Å step we asked for above. This is the expected behaviour on a cubic, well-behaved MOF.
+
+Where the two methods differ is on **non-cubic, contorted pore networks** — for example NU-1000 (see [`face_merging_vs_winding.qmd`](face_merging_vs_winding.qmd)). There, the lattice method can miss wind-around paths that require the probe to leave the cell, wrap around, and re-enter, because its UnionFind only tracks face-touching labels, not the offset between them. The winding method tracks offsets explicitly and recovers the path.
+
+## Step 7: Visualise the percolating cluster interactively
+
+`show_percolation_threejs` returns a self-contained HTML string with an interactive Three.js scene: the framework as ball-and-stick, the pore maxima, the connections, and — at the chosen probe radius — the **percolating regions** as isosurface meshes and the **PLD-critical windows** highlighted. You can orbit, zoom, and toggle the layer visibility from the scene's UI.
+
+The function needs an `analysis` dict with the percolation history attached; we already have one inside `results`. We save the HTML to a file (it is too large to embed inline) and link to it from the tutorial.
+
+```{python}
+analysis = {
+    "dgrid": results["dgrid"],
+    "regions": results["regions"],
+    "maxima": results.get("all_maxima"),
+    "connections": results.get("connections", []),
+    "pld_locations": results.get("pld_locations"),
+    "percolation_history": results.get("percolation_history_winding", []),
+    "isovalue": 1.6,
+}
+
+# Pick a probe radius just below the PLD so we still see the percolating cluster
+# fully intact (3.5 Å gives the full cluster with a comfortable margin to the limit).
+probe_radius = 3.5
+html = mgr.show_percolation_threejs(analysis, atoms, probe_radius=probe_radius)
+
+out_path = Path("accessibility_percolation_irmof1.html")
+out_path.write_text(html, encoding="utf-8")
+print(f"wrote {out_path}  ({len(html) / 1024:.1f} KB)")
+```
+
+Open [accessibility_percolation_irmof1.html](accessibility_percolation_irmof1.html) in a browser. You should see:
+
+- The IRMOF-1 framework as a ball-and-stick model.
+- The percolating cluster at the chosen probe radius as a coloured isosurface (one trace per percolating axis).
+- The connections between regions as lines.
+- The PLD-critical windows — windows within 0.25 Å of the percolation cutoff — highlighted separately.
+
+Try changing `probe_radius` to smaller values (`2.0`, `2.5`, `3.0`) and re-rendering: the percolating cluster stays the same on IRMOF-1 because the pore network is fully 3D-connected across the entire range. The interesting case is when you reach the PLD — above 3.955 Å the cluster is empty.
+
+## Step 8: Probe-by-probe visualisation with the lattice method
+
+For direct visual comparison, build the same scene from the lattice history. The `analysis` dict is method-agnostic — only the `percolation_history` key changes.
+
+```{python}
+analysis_lattice = {
+    "dgrid": results["dgrid"],
+    "regions": results["regions"],
+    "maxima": results.get("all_maxima"),
+    "connections": results.get("connections", []),
+    "pld_locations": results.get("pld_locations_lattice"),
+    "percolation_history": results.get("percolation_history_lattice", []),
+    "isovalue": 1.6,
+}
+probe_radius = 3.5
+html_lat = mgr.show_percolation_threejs(analysis_lattice, atoms, probe_radius=probe_radius)
+
+out_path_lat = Path("accessibility_percolation_irmof1_lattice.html")
+out_path_lat.write_text(html_lat, encoding="utf-8")
+print(f"wrote {out_path_lat}  ({len(html_lat) / 1024:.1f} KB)")
+```
+
+The two HTML files are visually similar on IRMOF-1, as expected. The differences would show up on a framework with a long, winding channel that touches the periodic boundary obliquely.
+
+## Step 9: Sanity checks on the result
+
+A few invariants that should always hold on the result of `compute_percolation_history_winding` + `get_pore_dia_mgr_winding`:
+
+```{python}
+# 1. PLD ≤ DFSD ≤ LCD
+assert pld <= dfsd <= lcd, f"PLD≤DFSD≤LCD violated: {pld=} {dfsd=} {lcd=}"
+print(f"  PLD ≤ DFSD ≤ LCD  ✓  ({pld:.3f} ≤ {dfsd:.3f} ≤ {lcd:.3f})")
+
+# 2. At the reported PLD, the winding history still shows at least one percolating axis
+last_t, last_axes = hist_w[-1]
+assert any(last_axes[a] for a in last_axes), "last history entry has no percolation"
+print(f"  history[-1] at r={last_t:.2f} Å percolates on "
+      f"{[a for a in last_axes if last_axes[a]]}")
+
+# 3. The one-shot PLD is within one grid step of the history's last percolating radius
+assert abs(pld / 2 - pld_radius_winding) < spacing, "one-shot PLD disagrees with history"
+print(f"  one-shot PLD/2 = {pld/2:.3f}, history last = {pld_radius_winding:.3f}  "
+      f"(Δ = {abs(pld/2 - pld_radius_winding):.3f} Å)")
+
+# 4. Winding and lattice agree to within one grid step
+assert abs(pld_diam_winding - pld_diam_lattice) < spacing, \
+    f"winding vs lattice disagree by {abs(pld_diam_winding - pld_diam_lattice):.3f} Å"
+print(f"  winding vs lattice PLD agree within {spacing} Å  ✓")
+```
+
+## What to read next
+
+- [`pore_limiting_diameter_pld_and_percolation.md`](pore_limiting_diameter_pld_and_percolation.md) — longer narrative tutorial on PLD, LCD, DFSD with the winding algorithm and a NU-1000 example.
+- [`face_merging_vs_winding.qmd`](face_merging_vs_winding.qmd) — the two-algorithm comparison in slide form, including the line-by-line walkthrough of `percolation_all_axes_periodic` (lattice) and `percolation_winding_multidigraph` (winding).
+- [`cli_quickstart.qmd`](cli_quickstart.qmd) — how to run the same analysis from the command line with `--accessibility-method` and `--lattice-variant`.
+- [`selective_smoothing.qmd`](selective_smoothing.qmd) — the upstream knobs (`preserve_threshold`, `smooth_threshold`, `max_smooth_radius`) that control the segmentation, hence the pore graph, hence the PLD.
+
+The `dgrid_methods.qmd` tutorial explains the four distance-grid backends; the `dgrid_from_atoms_gpu` and `dgrid_from_atoms_cpu_no_aabb` variants are broken on non-orthogonal cells and should not be used.

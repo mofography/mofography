@@ -1,0 +1,24 @@
+# make_movie_from_trajectory { #mofography.movies.make_movie_from_trajectory }
+
+```python
+movies.make_movie_from_trajectory(
+    movie_path,
+    cif_path,
+    out_html='movie.html',
+    *,
+    movie_format='auto',
+    max_frames=200,
+    frame_stride=1,
+    position_decimals=4,
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+    eye=(2.0, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    sidecar=False,
+)
+```
+
+Build a fixed-framework movie from any ASE-readable trajectory (or RASPA PDB) + CIF.

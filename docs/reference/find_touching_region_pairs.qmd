@@ -1,0 +1,26 @@
+# find_touching_region_pairs { #mofography.helper.find_touching_region_pairs }
+
+```python
+helper.find_touching_region_pairs(segmented_grid, connectivity=26)
+```
+
+Given a 3D grid of segmented regions (integer labels, with 0 as background),
+this function returns an array of unique pairs of region labels that are in contact.
+Works on padded grids without applying periodic boundary conditions.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+segmented_grid : np.ndarray
+    A 3D numpy array where 0 represents background and positive integers are region labels.
+connectivity : int, optional
+    Connectivity to use: 6 (face-adjacent), 18 (face and edge-adjacent), or 26 (fully adjacent).
+    Default is 26.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+np.ndarray
+    An array of shape (n, 2) where each row is a sorted pair of touching region labels.

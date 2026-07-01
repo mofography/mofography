@@ -1,0 +1,11 @@
+# ase_frac_to_egrid_query { #mofography.helper.ase_frac_to_egrid_query }
+
+```python
+helper.ase_frac_to_egrid_query(frac, extent_x=1.0, extent_y=1.0, extent_z=1.0)
+```
+
+Map ASE fractional coordinates to egrid / tricubic query coords in ``[0, 1)``.
+
+Grids built with ``extent < 1`` cover only the first unit-cell tile along
+that axis (see :func:`mofography.rust_fun._egrid_unit_cell_grid_inputs`).
+Periodic images are folded before indexing the interpolator.

@@ -1,0 +1,6 @@
+# plot_connections { #mofography.threejs_viz.plot_connections }
+
+```python
+threejs_viz.plot_connections(seg, atoms, hide_periodic=True, **kwargs)
+```
+

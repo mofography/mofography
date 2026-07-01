@@ -1,0 +1,73 @@
+# show_mof_plotly { #mofography.workflow.show_mof_plotly }
+
+```python
+workflow.show_mof_plotly(
+    seg,
+    atoms,
+    typed_result=None,
+    stylize=True,
+    framework_atoms=None,
+    **options,
+)
+```
+
+Build the full mofography visualization figure (Plotly backend).
+
+Reproduces the default interactive-app main visualization:
+
+- Framework mesh with aromatic rings
+- Unit cell
+- Raw region surface
+- PBC-merged region surface
+- Pocket-type surface (when *typed_result* is supplied and ``result.ok``)
+- Pore-graph connections trimmed to accessible (unique) regions
+- **Internal** windows only — red spheres with far-outside reclassification
+- Local maxima
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+seg : dict
+    Output of ``do_periodic_segmentation_rust``.
+atoms : ase.Atoms
+    Structure to visualize.
+typed_result : PocketTypingResult, optional
+    Output of ``assign_pocket_types``.  When supplied and ``result.ok``,
+    adds a pocket-type surface coloured by type id.
+stylize : bool
+    Apply PBR lighting tweaks (default ``True``).
+framework_atoms : ase.Atoms, optional
+    Atoms object used *only* for framework mesh and aromatic ring rendering.
+    Pass the output of ``update_with_covalent_bonds(atoms)`` here to get
+    proper ring highlighting, while keeping *atoms* (un-modified) for all
+    grid / segmentation / pocket-typing operations.  When omitted, *atoms*
+    is used for both.
+**options
+    Override any ``plot_*`` flag, e.g.::
+
+        show_mof_plotly(seg, atoms, plot_surface=False, plot_layout="white")
+
+    Recognised keys (all optional, shown with defaults):
+
+    .. code-block:: text
+
+        plot_cell               True
+        plot_framework          True
+        plot_framework_show_rings True
+        plot_maxima             True
+        plot_connections        True
+        plot_windows            True
+        plot_surface            True
+        plot_surface_pbc        True
+        plot_surface_isovalue   1.0
+        plot_surface_opacity    1.0
+        plot_surface_pbc_opacity  1.0
+        plot_surface_types_opacity 1.0
+        plot_layout             "dark"   # or "white"
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+plotly.graph_objects.Figure

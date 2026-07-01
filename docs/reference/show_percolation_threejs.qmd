@@ -1,0 +1,12 @@
+# show_percolation_threejs { #mofography.threejs_plotting.show_percolation_threejs }
+
+```python
+threejs_plotting.show_percolation_threejs(
+    analysis,
+    atoms,
+    probe_radius,
+    options=None,
+)
+```
+
+Build self-contained Three.js HTML for PLD / percolation tab parity.

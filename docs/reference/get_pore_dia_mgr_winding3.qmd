@@ -1,0 +1,52 @@
+# get_pore_dia_mgr_winding3 { #mofography.winding_percolation.get_pore_dia_mgr_winding3 }
+
+```python
+winding_percolation.get_pore_dia_mgr_winding3(
+    mat_atoms=None,
+    dgrid=None,
+    kwargs=None,
+    results=None,
+    include_dangling=True,
+    expand_components=True,
+    spill_margin=2.0,
+)
+```
+
+Compute pore diameters with spill-edge pruning (no resegmentation).
+
+Identical to ``get_pore_dia_mgr_winding`` but instead of re-segmenting
+with a thicker mask, this version detects and **removes** spill-over edges
+from the pore graph.  A real constriction must have framework atoms near
+the window center; spill artifacts float in empty pore space.
+
+Detection: for each edge, compute PBC-aware distance from the window
+center to the nearest framework atom.  If
+``nearest_atom_dist > wr_min + spill_margin``, the edge is a spill
+artifact and is pruned.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+mat_atoms : ase.Atoms, optional
+    ASE Atoms object. Required if *results* is None.
+dgrid : ndarray, optional
+    Pre-computed distance grid.
+kwargs : dict, optional
+    Keyword arguments for ``do_periodic_segmentation_rust``.
+results : dict, optional
+    Pre-computed segmentation results.
+include_dangling : bool
+    Whether to include dangling edges.
+expand_components : bool
+    Whether to expand components.
+spill_margin : float
+    Extra tolerance (Å) beyond window radius for spill detection.
+    Default 2.0 Å covers max(CRC_vdw) + headroom.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+tuple[float, float, float, ndarray]
+    (lcd, pld, dfsd, dgrid)

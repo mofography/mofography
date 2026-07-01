@@ -1,0 +1,28 @@
+# trim_connections_to_unique_regions { #mofography.helper.trim_connections_to_unique_regions }
+
+```python
+helper.trim_connections_to_unique_regions(connections, unique_regions)
+```
+
+Keep connections with at least one endpoint label in *unique_regions*.
+
+For unit-cell pore graphs / plotting: edges touching at least one region
+with voxels inside the central cell (``unique_regions`` from periodic seg).
+Periodic edges with one endpoint outside the cell are retained.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+connections : list
+    Each entry ``c`` has ``c[0]`` = pair of region label ints.
+unique_regions : array-like of int
+    Labels from ``do_periodic_segmentation*`` output.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+list
+    Filtered connections. If *unique_regions* is empty, returns a shallow
+    copy of *connections* unchanged.

@@ -1,17 +1,19 @@
 # trimesh_from_pyvista { #mofography.visualize.trimesh_from_pyvista }
 
-`visualize.trimesh_from_pyvista(pv_mesh)`
+```python
+visualize.trimesh_from_pyvista(pv_mesh)
+```
 
 `trimesh_from_pyvista(pv_mesh)` takes a PyVista mesh and returns a Trimesh mesh
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description           | Default    |
-|-----------|--------|-----------------------|------------|
-| `pv_mesh` |        | a pyvista mesh object | _required_ |
+| Name    | Type   | Description           | Default    |
+|---------|--------|-----------------------|------------|
+| pv_mesh |        | a pyvista mesh object | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description       |
-|--------|-------------------|
-|        | A trimesh object. |
+| Name   | Type   | Description       |
+|--------|--------|-------------------|
+|        |        | A trimesh object. |

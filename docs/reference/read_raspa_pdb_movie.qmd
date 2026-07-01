@@ -1,0 +1,12 @@
+# read_raspa_pdb_movie { #mofography.movies.read_raspa_pdb_movie }
+
+```python
+movies.read_raspa_pdb_movie(
+    path,
+    max_frames=None,
+    frame_stride=1,
+    position_decimals=4,
+)
+```
+
+Parse a RASPA PDB movie into canonical snapshot dictionaries.

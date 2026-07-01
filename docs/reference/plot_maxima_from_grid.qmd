@@ -1,0 +1,21 @@
+# plot_maxima_from_grid { #mofography.threejs_viz.plot_maxima_from_grid }
+
+```python
+threejs_viz.plot_maxima_from_grid(
+    dgrid,
+    maxima,
+    ase_atoms,
+    *,
+    regions=None,
+    name='Maxima',
+    cscale=None,
+    hide_periodic=False,
+    trace_id=None,
+    maxima_info=None,
+    maxima_pbc=None,
+    maxima_pbc_dict=None,
+    connections=None,
+    **kwargs,
+)
+```
+

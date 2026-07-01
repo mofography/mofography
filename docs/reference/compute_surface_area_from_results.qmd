@@ -1,0 +1,16 @@
+# compute_surface_area_from_results { #mofography.compute.compute_surface_area_from_results }
+
+```python
+compute.compute_surface_area_from_results(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    accessibility_method='winding',
+    lattice_variant='v2',
+)
+```
+
+Deprecated: use :func:`compute_surface_area_mesh_winding` or ``_mesh_lattice``.

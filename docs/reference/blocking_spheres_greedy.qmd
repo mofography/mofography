@@ -1,0 +1,55 @@
+# blocking_spheres_greedy { #mofography.raspa_helper.blocking_spheres_greedy }
+
+```python
+raspa_helper.blocking_spheres_greedy(
+    results,
+    ase_atoms,
+    threshold,
+    spacing=None,
+    block_accessible=False,
+    radius_scale=1.0,
+)
+```
+
+Greedy blocking spheres (org-note style): place spheres at pocket maxima for
+each target region, then repeatedly add the sphere with the largest
+remaining ``dgrid`` value until all masked voxels are covered.
+
+Coverage uses **Euclidean** distances in Å (**no** minimum-image / PBC).
+Use :func:`blocking_spheres_largest_including` if you need PBC-consistent
+including spheres on the same mask.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results : dict
+    Segmentation output: ``regions``, ``dgrid``, ``all_maxima``,
+    ``maxima_info``, plus fields required by winding percolation
+    (:func:`mofography.winding_percolation.percolation_all_axes_winding`).
+ase_atoms : ase.Atoms
+threshold : float
+    Probe radius (Å) for winding percolation / ``dgrid`` mask when
+    ``block_accessible`` is True.
+spacing : float, optional
+    Grid spacing (Å); must match ``results['regions']``. Inferred from
+    ``results`` / cell if omitted.
+block_accessible : bool, default False
+    * **False** — Mask all voxels in **non-percolating** regions at
+      ``threshold``. For standard RASPA ``BlockPockets`` (block side pockets).
+    * **True** — Mask voxels in **percolating** regions with
+      ``dgrid >= threshold``. For ``InvertBlockPockets``.
+radius_scale : float, default 1.0
+    Multiply every sphere radius by this factor; each radius is at least
+    0.5 Å (same floor as :func:`blocking_spheres_largest_including`).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+spheres : list of [sx, sy, sz, r_Å]
+    Fractional centers, radii in Å (RASPA convention).
+meta : dict
+    ``block_accessible``, ``percolation_labels``, ``inaccessible_labels``,
+    ``target_region_labels``, ``n_initial``, ``n_greedy``, ``grid_shape``,
+    ``n_masked_voxels``.

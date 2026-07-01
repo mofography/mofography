@@ -1,0 +1,39 @@
+# plot_pld_locations { #mofography.visualize.plot_pld_locations }
+
+```python
+visualize.plot_pld_locations(
+    dgrid,
+    pld_locations,
+    ase_atoms,
+    show_spheres=False,
+    sphere_opacity=0.5,
+    **kwargs,
+)
+```
+
+Generate a 3D scatter plot with markers representing PLD locations, and
+optionally display spheres around the PLD locations.
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+dgrid : numpy.ndarray
+    The distance grid of the structure.
+pld_locations : numpy.ndarray
+    Array of grid indices where PLD occurs.
+ase_atoms : ase.Atoms
+    The ASE Atoms object representing the structure.
+show_spheres : bool, optional
+    Whether to display spheres at the PLD locations. Default is False.
+sphere_opacity : float, optional
+    Opacity of the spheres. Default is 0.5.
+**kwargs : dict
+    Additional keyword arguments to customize the plot.
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+plotly.graph_objs.Scatter3d or tuple
+    Scatter3d plot, or tuple of (Scatter3d, Mesh3d) if show_spheres is True.

@@ -1,12 +1,17 @@
 project:
   type: website
   output-dir: _site
+jupyter: python3
+execute:
+  freeze: true
+  cache: true
+  warning: false
 website:
   page-navigation: true
   navbar:
     background: '#343a40'
-    search: true
-    logo:   logo.png
+    logo: logo-light.png
+    logo-dark: mofography_logo_outlined.png
     left:
     - text: Install
       file: install.qmd
@@ -22,10 +27,11 @@ website:
     - icon: github
       href: https://github.com/arung-northwestern/mofography
 format:
-  html:  
-    theme: cosmo
+  html:
+    theme:
+      light: cosmo
+      dark: darkly
     toc: true
-
 metadata-files:
 - _sidebar.yml
 quartodoc:
@@ -35,18 +41,26 @@ quartodoc:
   sections:
   - title: Compute
     package: mofography.compute
-    desc: Description of this module.
+    desc: Core algorithms for grids, regions, RAGs, paths, percolation, and surface
+      area.
     contents:
     - AABB_on_atoms
     - add_best_optuna_trial_to_rag
+    - add_best_optuna_trial_to_rag_serial
     - add_centroids_to_rag_with_pbc
     - add_clustering_to_rag
     - add_clustering_to_rag_energy
     - add_clustering_to_rag_energy_js
     - add_clustering_to_rag_geometry_js
     - add_clustering_to_rag_pca
+    - add_csd_to_rag
+    - add_csd_to_rag_with_pbc
+    - add_env_cluster_pocket_types_to_rag
     - add_maxima_to_rag
     - add_pbc_to_rag
+    - add_pocket_psd_to_rag_with_pbc
+    - add_pocket_psds_to_rag_from_segmentation
+    - add_pocket_types_to_rag
     - add_props_to_graph
     - add_props_to_rag
     - add_psd_to_rag
@@ -56,81 +70,157 @@ quartodoc:
     - apply_pbc
     - apply_periodic_map
     - calc_path_components
+    - calculate_padding_thickness
+    - check_percolation_periodic
+    - check_percolation_periodic2
     - clustering_grid_from_regions
     - compare_two_paths
+    - compute_percolation_history
+    - compute_percolation_history2
+    - compute_percolation_history_from_results
+    - compute_percolation_history_from_results2
+    - compute_percolation_history_from_results_lattice
+    - compute_pld
+    - compute_point_probe_reference
+    - compute_surface_area
+    - compute_surface_area_from_results
+    - compute_surface_area_from_results_lattice
+    - compute_surface_area_from_results_mc
+    - compute_surface_area_from_results_mc_lattice
+    - compute_surface_area_from_results_mc_winding
+    - compute_surface_area_from_results_winding
+    - compute_surface_area_mc
+    - compute_surface_area_mc_lattice
+    - compute_surface_area_mc_winding
+    - compute_surface_area_mesh
+    - compute_surface_area_mesh_lattice
+    - compute_surface_area_mesh_winding
+    - compute_void_volume
+    - compute_void_volume_from_results
+    - compute_void_volume_from_results_lattice
+    - compute_void_volume_from_results_winding
     - connections_from_regions_and_dgrid
     - dask_grid_over_atoms
+    - detect_periodic_maxima_direct
+    - detect_periodic_maxima_enhanced
     - dgrid_from_atoms
     - dgrid_from_atoms_cpu
+    - dgrid_from_atoms_cpu_hybrid
+    - dgrid_from_atoms_cpu_no_aabb
     - dgrid_from_atoms_gpu
+    - do_periodic_segmentation
+    - do_periodic_segmentation_basic
     - egrid_from_atoms2
     - filter_percolated_paths
     - find_isomorphic_path_groups
     - find_paths
+    - find_pore_limiting_radius
+    - find_pore_limiting_radius2
     - get_connections_for_rag
     - get_diametrically_opposite_points
     - get_distances_for_path
     - get_energies_for_group
     - get_energies_for_group2
     - get_energy_interpolator
+    - get_energy_interpolator_tricubic
+    - get_pbc_groups
     - get_percolated_paths_on_rag
     - get_periodic_map
     - get_pld_for_rag
     - get_pld_from_percolated_paths_path_windows
+    - get_pore_dia_lattice
+    - get_pore_dia_mgr
+    - get_pore_dia_mgr2
     - get_psd_on_rag
     - get_rag_from_regions_and_grid
     - get_region_props_for_regions
     - get_repetitions_to_meet_cutoff
     - get_sampling_paths_for_region
     - get_wall_windows2
+    - get_wall_windows3
     - gpd_aabb
+    - gpd_aabb_hybrid
     - gpe_aabb
     - gpe_aabb2
     - interpolate_dgrid
     - mark_points_with_largest_including_dia
+    - normalize_pbc_groups_by_regions_pbc
     - optimize_molecule_at_node
+    - pad_periodic
+    - pbc_groups_from_segmentation
+    - percolation_all_axes_periodic
     - rag_from_connections
     - regions_from_dgrid
     - repeat_to_meet_cutoff
     - sample_path
+    - select_percolation_threshold
+    - setup_poisson_spectral
+    - setup_poisson_spectral_gpu
+    - solve_poisson_spectral
+    - solve_poisson_spectral_gpu
   - title: Visualize
     package: mofography.visualize
-    desc: Description of this module.
+    desc: Plotly-based 3D figures and traces for frameworks, regions, and RAGs.
     contents:
     - add_hoverdata_to_atoms_traces
+    - add_traces_plotly
+    - batched_mesh_for_atoms
     - cylinders_for_bonds
     - draw_framework
     - get_default_colors
     - get_isosurface_mesh
+    - get_isosurface_submeshes
+    - get_pore_size_distribution_trace
+    - get_potential_near_atoms
     - make_bg_image
+    - make_fig_orthographic
+    - make_fig_orthographic_all_subplots
     - make_pore_size_distribution_fig_from_rag
     - mesh_for_atoms
     - plot_aromatic_rings
+    - plot_blocking_spheres
+    - plot_blocking_spheres_styled
     - plot_cell
+    - plot_connections
+    - plot_connections_as_it_is
+    - plot_csds
     - plot_cycle_highlights
+    - plot_dgrid_as_volume
+    - plot_electrostatic_isosurfaces
+    - plot_electrostatic_volume
     - plot_everything
     - plot_framework_as_mesh
     - plot_maxima
     - plot_mesh
     - plot_molecule_at_best_optuna_trials
     - plot_paths
+    - plot_percolated_cluster_meshes
+    - plot_percolation_windows
+    - plot_pld_locations
+    - plot_pocket_psds
+    - plot_pocket_psds_from_grid
+    - plot_pocket_psds_on_rag
     - plot_pore_graph
-    - plot_csds
     - plot_psds
     - plot_rag
+    - plot_rag_separate_traces
     - plot_snapshot_raspa_pdb
     - plot_subset_of_atoms
     - plot_surface_dgrid
     - plot_vdw_hists
     - plot_windows
+    - plot_windows_from_results
     - scatter3d
     - spheres_for_atoms
     - spheres_for_positions
     - trimesh_from_pyvista
   - title: Analyze
     package: mofography.analyze
-    desc: Description of this module.
+    desc: Cheminformatics, ring finding, functional groups, and graph conversions.
     contents:
+    - aabb_neighbors_on_atoms
+    - ase_to_rdkit
+    - compute_aromatic_cycles
     - detect_smiles_in_mol
     - find_aromatic_cycles_in_sgraph
     - find_chemically_unique_cycles
@@ -144,34 +234,342 @@ quartodoc:
     - get_bond_types
     - get_bonds_and_orders_without_replication
     - get_subset_atoms
+    - rings_by_size_rdkit
     - sgraph_from_atoms
     - update_with_covalent_bonds
     - voronoi_on_atoms
   - title: Data
     package: mofography.data
-    desc: Description of this module.
+    desc: MOFdb fetchers, SQLite graph store, and CIF/PDB readers.
     contents:
     - add_graph_to_db
     - atoms_from_mofdb_df
     - bound_fetch
     - create_db_from_pickled_graphs
     - fetch
+    - get_atoms_from_mofdb_df_parallel
     - get_data_from_mofdb
     - get_graph
     - get_mofdb_data
     - get_num_graphs
     - get_number_of_pages
     - mix_lorentz_berthelot
+    - plot_representative_sample_subplots
     - read_cif_string
     - read_raspa_pdb
+    - sample_representative_mofdb
     - show_percolated_paths_as_df
+    - write_cifs_from_mofdb_df
   - title: Helper
     package: mofography.helper
-    desc: Description of this module.
+    desc: Grid utilities, PBC helpers, PSD peak finding, and small math routines.
     contents:
+    - ase_frac_to_egrid_query
+    - check_wall
+    - check_wall_per_dim
     - compare_psd_peaks
+    - compute_psds_from_points_pocketwise
+    - compute_wall_cells
+    - convert_to_cygwin_path
+    - estimate_h_from_percolation_history
     - find_coord_from_indices
+    - find_end_channel_pairs
     - find_psd_peaks
+    - find_touching_region_pairs
     - get_fractional_coordinates
+    - get_min_distance
+    - get_perpendicular_voxel_lengths
     - interpolate_labels
+    - is_inside_or_close_to_boundary
+    - make_command
+    - merge_small_regions
+    - merge_small_regions_pbc
+    - move_maximum_to_peak
+    - periodic_gaussian_filter
+    - process_wall_maxima
+    - run_cygwin_from_jupyter
+    - run_cygwin_from_jupyter_rt
+    - spectral_smooth_3d
+    - trim_connections_to_unique_regions
     - zoom_grid
+  - title: Rust backend
+    package: mofography.rust_fun
+    desc: Python bindings to the Rust backend (distance/energy grids, segmentation,
+      watershed).
+    contents:
+    - compute_accessible_psd_from_results
+    - compute_pocket_psds_for_segmentation
+    - compute_pore_sizes_pocketwise_rust
+    - compute_pore_sizes_uniform_rust
+    - compute_psd_global_accessible
+    - compute_psd_uniform_rust
+    - compute_psds_pocketwise_accessible
+    - compute_psds_pocketwise_rust
+    - dgrid_from_atoms_aabb_interp_rust
+    - dgrid_from_atoms_aabb_rust
+    - dgrid_from_atoms_exp_rust
+    - dgrid_from_atoms_rust
+    - do_periodic_segmentation_rust
+    - egrid_from_atoms_rust
+    - egrid_query_extent_from_atoms
+    - egrid_tricubic_from_atoms_rust
+    - seeded_watershed_det_parallel_rust
+    - seeded_watershed_det_rust
+    - tricubic_interpolator_from_grid
+  - title: Workflows
+    package: mofography.workflow
+    desc: High-level pipelines that wire compute + visualize for common analyses.
+    contents:
+    - add_percolation_windows_to_fig
+    - assign_pocket_types
+    - build_padded_threejs_scene
+    - enrich_segmentation_with_pocket_psds
+    - pocket_regions_cluster
+    - quick_cluster
+    - show_mof_plotly
+    - show_mof_threejs
+    - show_percolation_threejs
+  - title: Three.js viz
+    package: mofography.threejs_viz
+    desc: Three.js trace helpers (Figure3JS / Figure3js) that mirror the Plotly API.
+    contents:
+    - Figure3D
+    - Figure3JS
+    - Figure3js
+    - MovieFigure
+    - add_trace
+    - add_traces
+    - draw_framework
+    - draw_framework_3js
+    - plot_cell
+    - plot_cell_3js
+    - plot_connections
+    - plot_connections_3js
+    - plot_connections_as_it_is
+    - plot_connections_as_it_is_3js
+    - plot_framework_as_mesh_3js
+    - plot_maxima
+    - plot_maxima_3js
+    - plot_maxima_from_grid
+    - plot_maxima_from_grid_3js
+    - plot_percolated_cluster_meshes
+    - plot_percolated_cluster_meshes_3js
+    - plot_percolation_windows
+    - plot_percolation_windows_3js
+    - plot_surface_dgrid
+    - plot_surface_dgrid_3js
+    - plot_windows
+    - plot_windows_3js
+    - plot_windows_from_results
+    - plot_windows_from_results_3js
+    - prepare_seg_threejs
+    - qualitative_colorscale
+    - seg_from_connections
+  - title: Three.js plotting
+    package: mofography.threejs_plotting
+    desc: Standalone Three.js HTML builders for percolation scenes.
+    contents:
+    - show_percolation_threejs
+  - title: Viz backend
+    package: mofography.viz_backend
+    desc: Backend dispatch utilities (Plotly vs Three.js) for figures and traces.
+    contents:
+    - ensure_plotly_figure
+    - ensure_plotly_trace
+    - ensure_threejs_figure
+    - ensure_threejs_trace
+    - is_plotly_figure
+    - is_plotly_trace
+    - is_threejs_figure
+    - is_threejs_trace
+    - iter_leaf_traces
+    - tag_threejs_trace
+    - validate_plotly_traces
+    - validate_threejs_traces
+  - title: Movies
+    package: mofography.movies
+    desc: Frame builders and movie-HTML helpers for time-varying scenes.
+    contents:
+    - build_fixed_framework_movie
+    - build_static_scene
+    - compute_cell_lines
+    - compute_connection_data
+    - compute_framework_mesh
+    - compute_maxima_data
+    - compute_segmentation_for_snapshot
+    - compute_sparse_segmentation_series
+    - compute_surface_mesh
+    - compute_windows_data
+    - embedded_movie_dict_from_path
+    - embedded_movie_dict_from_snapshots
+    - make_aromatic_rings_trace
+    - make_cell_trace
+    - make_connections_trace
+    - make_framework_instanced_trace
+    - make_framework_scatter_trace
+    - make_framework_trace
+    - make_guest_bonds_trace
+    - make_guest_trace
+    - make_maxima_trace
+    - make_movie_from_raspa_pdb
+    - make_movie_from_trajectory
+    - make_percolation_clusters_trace
+    - make_percolation_windows_trace
+    - make_sparse_multicomponent_movie
+    - make_surface_trace
+    - make_windows_trace
+    - read_movie_snapshots
+    - read_raspa_pdb_movie
+  - title: Winding percolation
+    package: mofography.winding_percolation
+    desc: Graph-winding-based accessibility and percolation routines.
+    contents:
+    - annotate_clusters
+    - annotate_graph_edges_with_window_fingerprints
+    - build_base_region_labels
+    - build_base_region_labels_from_results
+    - check_percolation_winding
+    - collect_periodic_edges
+    - collect_periodic_edges_canonical
+    - compute_percolation_history_winding
+    - detect_percolation_with_threshold
+    - find_pore_limiting_radius_winding
+    - get_pore_dia_mgr_winding
+    - get_pore_dia_mgr_winding2
+    - get_pore_dia_mgr_winding3
+    - make_directed_graph_from_segmentation_results
+    - make_periodic_graph_from_binary_grid
+    - percolating_region_labels_at_probe_winding
+    - percolation_all_axes_winding
+    - percolation_winding_multidigraph
+    - percolation_winding_on_binary_grid
+    - update_results_with_percolation_history_winding
+  - title: Pocket typing
+    package: mofography.pocket_typing
+    desc: Pocket classification (chemistry/shape) on segmentation results.
+    contents:
+    - assign_pocket_types_env_cluster
+    - assign_pocket_types_from_segmentation
+    - assign_pocket_types_shape_refined
+    - build_fragment_label_to_rep
+    - build_fragment_label_to_type
+    - build_pockets_from_segmentation
+    - build_rep_to_fragment_group
+    - compute_pocket_fingerprints
+    - compute_typing_dgrid
+    - fingerprints_similar_adjacent_bands
+    - group_pockets_by_d1_coarse
+    - merge_adjacent_groups_by_fingerprint
+    - merge_singleton_max_r_bands
+    - pocket_typing_result_for_app
+    - psd_bins
+    - regions_cluster_from_rag
+    - regions_cluster_from_rep_types
+    - resolve_typing_vdw_radii
+    - split_band_by_max_r_subpeaks
+    - summarize_types
+  - title: Pocket framework env
+    package: mofography.pocket_framework_env
+    desc: Framework fingerprints and probe-radius helpers for pocket typing.
+    contents:
+    - adaptive_shell_radius
+    - assign_pocket_types_by_max_probe_radius
+    - bond_type_from_order
+    - compute_connectivity_fingerprints
+    - compute_pocket_fingerprint
+    - expand_bond_closure
+    - fingerprint_cosine_similarity
+    - framework_atom_indices_near_void
+    - framework_indices_adaptive_shell
+    - max_probe_radius_at_peak
+    - max_probe_radius_for_fragment_group
+    - mic_vectors_from_centroid
+    - peak_cart_for_fragment_group
+    - pocket_centroid
+    - radial_histogram_normalized
+    - sh_power_spectrum_unit_dirs
+    - void_cart_for_pocket
+    - void_cart_mic_for_fragment_group
+    - void_cart_near_dgrid_peak
+    - void_cart_surface_pocket
+  - title: Widest-path resegment
+    package: mofography.widest_path_resegment
+    desc: Pore-graph widest-path resegmenting for PBC wrap repairs.
+    contents:
+    - apply_widest_path_fix_to_pair
+    - find_all_pbc_wrap_marker_pairs
+    - find_pbc_wrap_marker_pair
+    - marker_padded_position
+    - neighbor_offsets_26
+    - repartition_pair_widest_path
+    - widest_path_bottleneck_between_seeds
+    - widest_path_bottleneck_from_seed
+  - title: Window refinement
+    package: mofography.window_refinement
+    desc: Morphological window refinement on connections.
+    contents:
+    - refine_windows_via_morph_opening
+  - title: Export MP4
+    package: mofography.export_mp4
+    desc: MP4 export helpers for Plotly/Three.js figures.
+    contents:
+    - export_plotly_frames_to_mp4
+    - export_staged_figure_to_mp4
+    - kaleido_persistent_session
+    - set_traces_visible
+  - title: Percolation results
+    package: mofography.percolation_results
+    desc: Result-pack accessors for percolation history and pore diameter.
+    contents:
+    - get_percolation_history
+    - get_pore_dia
+    - has_percolation_history
+    - store_percolation_history
+    - store_pore_dia
+  - title: VDW radii
+    package: mofography.vdw_radii
+    desc: Van der Waals radii tables (Bondi, Mendeleev, typing) and metadata.
+    contents:
+    - default_vdw_radii_angstrom
+    - mendeleev_vdw_radii_angstrom
+    - typing_vdw_radii_angstrom
+    - vdw_radii_input_metadata
+  - title: CIF I/O
+    package: mofography.cif_io
+    desc: CIF parsing with large-file support.
+    contents:
+    - read_cif_to_ase
+  - title: RASPA helper
+    package: mofography.raspa_helper
+    desc: RASPA input/output helpers, blocking spheres, and accessibility masks.
+    contents:
+    - accessible_interface_voxel_mask
+    - apply_region_map_to_raspa_pdb
+    - apply_region_map_to_raspa_pdb_wrapped
+    - block_pockets_at_random_and_write
+    - block_specific_pockets_and_write
+    - blocking_spheres_for_probe_radius
+    - blocking_spheres_greedy
+    - blocking_spheres_largest_including
+    - blocking_spheres_overlap_accessible_coarse_sample
+    - blocking_spheres_overlap_into_accessible_near_interface
+    - blocking_spheres_overlap_into_accessible_regions
+    - blocking_spheres_overlap_leakage
+    - blocking_spheres_overlap_leakage_pair
+    - get_atoms_list_for_pdb
+    - get_isos_fit_for_multiple_raspa_folders
+    - get_isos_fit_for_raspa_folder
+    - get_isotherm_df_for_raspa_folder
+    - get_isotherms_dict_for_multiple_raspa_folders
+    - labels_accessible_adjacent_to_inaccessible_via_rag
+    - make_raspa_input_for_cif
+    - percolated_region_labels_winding
+    - percolation_region_labels_union_winding
+    - print_blocking_accessible_coarse_overlap_comparison
+    - print_blocking_accessible_coarse_overlap_report
+    - print_blocking_interface_overlap_stats
+    - print_blocking_overlap_stats
+    - print_blocking_spheres_overlap_pair_report
+    - print_blocking_spheres_overlap_report
+    - segmentation_spacing_from_results
+    - write_blocking_spheres_file

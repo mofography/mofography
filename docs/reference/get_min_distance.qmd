@@ -1,0 +1,25 @@
+# get_min_distance { #mofography.helper.get_min_distance }
+
+```python
+helper.get_min_distance(pos1, pos2, cell, original_shape)
+```
+
+Calculate minimum image distance between two points using ASE cell.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+pos1, pos2 : np.ndarray
+    Positions in grid coordinates
+cell : np.ndarray
+    ASE cell matrix
+original_shape : np.ndarray
+    Shape of the original grid
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+float
+    Minimum image distance in Angstroms

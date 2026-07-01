@@ -1,0 +1,16 @@
+# apply_widest_path_fix_to_pair { #mofography.widest_path_resegment.apply_widest_path_fix_to_pair }
+
+```python
+widest_path_resegment.apply_widest_path_fix_to_pair(
+    labels,
+    dgrid,
+    mask,
+    maxima_info,
+    pbc_groups,
+    dgrid_shape,
+    padding,
+    boundary_score_fn=None,
+)
+```
+
+Locate PBC wrap pair and re-partition; return labels unchanged if none found.

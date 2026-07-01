@@ -1,0 +1,7 @@
+# egrid_query_extent_from_atoms { #mofography.rust_fun.egrid_query_extent_from_atoms }
+
+```python
+rust_fun.egrid_query_extent_from_atoms(ase_atoms, cutoff=12.5)
+```
+
+ASE fractional span per axis covered by a unit-cell egrid (1.0 = full cell).

@@ -1,19 +1,21 @@
 # zoom_grid { #mofography.helper.zoom_grid }
 
-`helper.zoom_grid(grid, zoom_factor)`
+```python
+helper.zoom_grid(grid, zoom_factor)
+```
 
 It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by
 the zoom factor
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name          | Type   | Description                                                                                                                          | Default    |
-|---------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `grid`        |        | the grid to be zoomed                                                                                                                | _required_ |
-| `zoom_factor` |        | The zoom factor along the axes. If a float, zoom is the same for each axis. If an array, zoom should contain one value for each axis | _required_ |
+| Name        | Type   | Description                                                                                                                          | Default    |
+|-------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|------------|
+| grid        |        | the grid to be zoomed                                                                                                                | _required_ |
+| zoom_factor |        | The zoom factor along the axes. If a float, zoom is the same for each axis. If an array, zoom should contain one value for each axis | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description   |
-|--------|---------------|
-|        | A dask array  |
+| Name   | Type   | Description   |
+|--------|--------|---------------|
+|        |        | A dask array  |

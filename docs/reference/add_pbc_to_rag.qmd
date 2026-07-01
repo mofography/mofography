@@ -1,18 +1,20 @@
 # add_pbc_to_rag { #mofography.compute.add_pbc_to_rag }
 
-`compute.add_pbc_to_rag(rag, pbc_groups)`
+```python
+compute.add_pbc_to_rag(rag, pbc_groups)
+```
 
 It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name         | Type   | Description                                                                      | Default    |
-|--------------|--------|----------------------------------------------------------------------------------|------------|
-| `rag`        |        | the region adjacency graph                                                       | _required_ |
-| `pbc_groups` |        | a list of lists of labels that are in the same periodic boundary condition group | _required_ |
+| Name       | Type   | Description                                                                      | Default    |
+|------------|--------|----------------------------------------------------------------------------------|------------|
+| rag        |        | the region adjacency graph                                                       | _required_ |
+| pbc_groups |        | a list of lists of labels that are in the same periodic boundary condition group | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                            |
-|--------|--------------------------------------------------------|
-|        | A rag with the pbc_group attribute added to each node. |
+| Name   | Type   | Description                                            |
+|--------|--------|--------------------------------------------------------|
+|        |        | A rag with the pbc_group attribute added to each node. |

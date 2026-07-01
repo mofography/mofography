@@ -1,0 +1,48 @@
+# assign_pocket_types_from_segmentation { #mofography.pocket_typing.assign_pocket_types_from_segmentation }
+
+```python
+pocket_typing.assign_pocket_types_from_segmentation(
+    segmentation,
+    atoms=None,
+    *,
+    bonds=None,
+    bond_orders=None,
+    cif_path=None,
+    method=DEFAULT_METHOD,
+    band_gap_a=DEFAULT_MAX_R_BAND_GAP_A,
+    merge_singleton_bands=True,
+    singleton_band_gap_a=DEFAULT_SINGLETON_BAND_GAP_A,
+    subsplit_gap_a=DEFAULT_MAX_R_SUBSPLIT_GAP_A,
+    adjacent_merge_max_r_gap_a=DEFAULT_ADJACENT_BAND_MERGE_MAX_R_GAP_A,
+    merge_cosine=FP_MERGE_COSINE,
+    probe_radius_psd=DEFAULT_PROBE_RADIUS_PSD_A,
+    psd_bin_edges=None,
+    env_cluster_initial_band_gap_a=None,
+    typing_radii=DEFAULT_TYPING_RADII,
+)
+```
+
+Assign pocket types from periodic segmentation results.
+
+Default ``method`` is ``env_cluster`` (max_r initial bands + fingerprint merge).
+Use ``method="shape_refined"`` for the legacy d₁-first approach, or
+``method="max_probe_radius"`` for bands-only typing.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+segmentation
+    Dict with at least ``dgrid``, ``regions``, ``maxima_info``, ``all_maxima``,
+    ``connections``, ``unique_regions``. Prefer ``regions_pbc`` when present.
+    The segmentation ``dgrid`` continues to drive PSD, windows, void sampling,
+    and framework fingerprints.
+atoms
+    ASE Atoms; defaults to ``segmentation["ase_atoms"]``.
+typing_radii
+    VDW table for typing ``max_r`` bands only (default
+    ``bondi_crc_fallback``: Bondi/CRC handbook + Mendeleev fill for missing
+    symbols).  Pass ``segmentation`` to use the analysis ``dgrid`` for
+    ``max_r`` as before, or a per-atom radii array (Å).
+cif_path
+    Reserved for upstream Mofography; not required when segmentation is complete.

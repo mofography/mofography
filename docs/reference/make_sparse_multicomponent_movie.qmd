@@ -1,0 +1,38 @@
+# make_sparse_multicomponent_movie { #mofography.movies.make_sparse_multicomponent_movie }
+
+```python
+movies.make_sparse_multicomponent_movie(
+    component_movie_paths,
+    cif_path,
+    out_html='movie_sparse_multicomponent.html',
+    framework_movie_path=None,
+    snapshot_indices=None,
+    movie_format='auto',
+    framework_movie_format=None,
+    max_frames=None,
+    frame_stride=1,
+    position_decimals=4,
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+    eye=(2.0, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    sidecar=False,
+)
+```
+
+Build sparse-index movie with separate guest traces per component.
+
+
+
+## Notes {.doc-section .doc-section-notes}
+
+- If ``framework_movie_path`` is set, **framework mesh, unit cell, surface, maxima,
+  windows, and connection traces are stored per animation frame** so the viewer can
+  show a flexible framework and recomputed segmentation for each sparse snapshot.
+- If ``framework_movie_path`` is omitted, the framework comes from ``cif_path`` and
+  stays static (segmentation once); only guest traces animate.
+- Segmentation dictionaries are computed for every selected frame and returned in
+  the second tuple element for downstream analysis.

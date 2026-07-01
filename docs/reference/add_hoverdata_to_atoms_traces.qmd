@@ -1,4 +1,10 @@
 # add_hoverdata_to_atoms_traces { #mofography.visualize.add_hoverdata_to_atoms_traces }
 
-`visualize.add_hoverdata_to_atoms_traces(atoms_trace, ase_atoms, bond_rgba=[127, 128, 129, 255])`
+```python
+visualize.add_hoverdata_to_atoms_traces(
+    atoms_trace,
+    ase_atoms,
+    bond_rgba=[127, 128, 129, 255],
+)
+```
 

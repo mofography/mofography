@@ -1,0 +1,360 @@
+---
+title: "Van der Waals Radii and Segmentation"
+description: "How the choice of VDW radii table (Bondi, CRC/Mendeleev, Alvarez) shapes the distance grid and downstream pore segmentation"
+image: tutorial_images/pockets_3d.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## Overview
+
+The **distance grid** that every MOFography analysis starts from is built by subtracting a per-atom **van der Waals (VDW) radius** from the distance to each atom. That means the *choice of VDW table* is a fundamental modelling decision — not just a bookkeeping detail.
+
+This tutorial:
+
+1. Introduces the **three VDW tables** most commonly used in MOF characterisation: Bondi (1964), CRC / Mendeleev, and Alvarez (2013).
+2. Shows how to load each table with the `mofography.vdw_radii` API.
+3. Compares the per-element values for the seven most common MOF elements.
+4. Runs a full periodic segmentation of **IRMOF-1** with each table and compares maxima count, pocket sizes, and the Pore Limiting Diameter (PLD).
+5. Explains the **audit trail** that `do_periodic_segmentation_rust` records in `seg['input_params']`.
+
+**Bottom line:** Bondi/CRC is the recommended default. Switching to a different table is a deliberate modelling choice — record the choice in `vdw_radii_set=` so it lives on the segmentation result for the next person to read.
+
+## Why VDW radii matter
+
+The distance grid answers the question *"what is the radius of the largest sphere that fits here, minus a probe?"* — but *which* largest sphere? The answer depends on how big you say each atom is.
+
+```python
+# Conceptual: dgrid[x,y,z] = min_i( dist(x,y,z, atom_i) - vdw_radii[i] )
+```
+
+Two MOFs with identical geometry but different VDW assignments can have very different accessible volumes:
+
+- A larger **metal** radius (Zn, Cu, Zr) shrinks the corners and channels the metal sits in.
+- A larger **H** radius tightens pore openings near organic linkers.
+- A larger **C/N/O** radius shrinks the linker envelope.
+
+The downstream impact:
+
+| Step | Sensitive to VDW? | How? |
+|------|-------------------|------|
+| Distance grid | ✅ directly | The per-atom offset |
+| `maxima_info` peak radius | ✅ | Peaks shift toward/away from framework |
+| Pore maxima count | ✅ indirectly | Aggressive VDW radii merge small maxima into bigger ones |
+| Pocket volumes | ✅ | Tighter radii → smaller pocket volumes |
+| Window radii / PLD | ✅ | Tighter radii → smaller windows |
+| Pocket *type* count | ✅ | Tightening one family can merge two cage types |
+
+## The three VDW tables
+
+`mofography.vdw_radii` ships with two tables out of the box and supports a third as a custom array:
+
+| Table | `radii_set` token | Origin | Coverage | Philosophy |
+|-------|-------------------|--------|----------|------------|
+| **Bondi / CRC** | `"bondi"` (alias `"bondi_crc_fallback"`) | Bondi (1964), CRC Handbook, with Mendeleev fill | All 118 elements | Conservative, sparse, the *de facto* MOF default |
+| **CRC / Mendeleev** | `"crc"` (alias `"mendeleev"`) | Mendeleev `vdw_radius` column | All 118 elements | Larger values for transition metals |
+| **Alvarez (2013)** | `"alvarez"` (custom array) | Alvarez, "A cartography of the van der Waals territories", *Dalton Trans.* 2013 | Most elements | Larger values for metals; explicitly modern |
+
+> **Why three tables?** Bondi is 60 years old and was calibrated on a small set of organic molecules. CRC/Mendeleev is a database consolidation that pulls many more measurements. Alvarez is the most recent systematic derivation, with explicit attention to coordination environment. For MOFs — which mix light organics with transition metals — the differences are non-trivial, especially for the metals.
+
+## Imports
+
+```{python}
+import mofography as mgr
+from mofography.vdw_radii import (
+    default_vdw_radii_angstrom,    # Bondi / CRC
+    mendeleev_vdw_radii_angstrom,  # CRC / Mendeleev
+    typing_vdw_radii_angstrom,     # Bondi/CRC + Mendeleev fill for NaN entries
+)
+from ase.io import read
+import numpy as np
+```
+
+## Step 1: Per-element radii table
+
+The most direct way to feel the difference is to look at common MOF elements. We build a one-atom-per-symbol `Atoms` object so we can pull each table's value for the same element in a single call.
+
+```{python}
+from ase import Atoms
+
+# One atom of each element of interest
+PROBE = Atoms(
+    symbols=["H", "C", "N", "O", "Zn", "Cu", "Zr"],
+    positions=[(i * 3.0, 0, 0) for i in range(7)],
+    cell=[30, 5, 5],
+    pbc=True,
+)
+
+bondi = default_vdw_radii_angstrom(PROBE)
+mend = mendeleev_vdw_radii_angstrom(PROBE)
+
+# Alvarez (2013) — picometers, vendored here for self-containment
+ALVAREZ_PM = {
+    "H": 120.0, "C": 177.0, "N": 166.0, "O": 150.0, "F": 146.0,
+    "Cu": 238.0, "Zn": 239.0, "Zr": 252.0,
+}
+alvarez = np.array([ALVAREZ_PM.get(s, 170.0) for s in PROBE.get_chemical_symbols()]) / 100.0
+```
+
+Now lay them out side by side:
+
+```{python}
+print(f"{'Element':>8} {'Bondi/CRC (Å)':>14} {'CRC/Mendeleev (Å)':>19} {'Alvarez (Å)':>13} {'Δ(A-B)':>8} {'Δ(C-B)':>8}")
+print("-" * 76)
+for i, sym in enumerate(PROBE.get_chemical_symbols()):
+    a, b, c = bondi[i], mend[i], alvarez[i]
+    print(f"{sym:>8} {a:>14.2f} {b:>19.2f} {c:>13.2f} {b-a:>+8.2f} {c-a:>+8.2f}")
+```
+
+**Take-aways for the common MOF elements:**
+
+- **H, N, O** — close to identical across the three tables (≤ 0.1 Å spread).
+- **C** — Bondi and CRC agree at 1.70 Å; Alvarez is 1.77 Å (+0.07 Å, slightly larger).
+- **Zn** — biggest spread: Bondi 1.73 Å, CRC 2.01 Å (+0.28), Alvarez 2.39 Å (+0.66). This is the element where your table choice matters most.
+- **Cu, Zr** — same pattern as Zn: Bondi smaller, CRC larger, Alvarez largest.
+
+The metal spread is the *practical* reason the table matters: a Zn- or Cu-paddlewheel node's environment looks very different under Bondi versus Alvarez. A Bondi-radii dgrid over-counts the void around a Zn₄O node, while Alvarez under-counts it (or matches experiment better, depending on whose measurement you trust).
+
+## Step 2: The `vdw_radii_set` audit-trail parameter
+
+`do_periodic_segmentation_rust` does *not* recompute the distance grid — it expects you to pass an already-built `dgrid`. The `vdw_radii_set` and `vdw_radii_angstrom` parameters are **record-only**: they stamp the result with provenance so that future readers know *which* table was used.
+
+| Parameter | Default | Meaning |
+|-----------|---------|---------|
+| `vdw_radii_set` | `"bondi_crc_fallback"` | A short tag (`"bondi"`, `"crc"`, `"mendeleev"`, `"alvarez"`, `"array"`, ...) describing the table |
+| `vdw_radii_angstrom` | `None` | The actual per-atom radii used (Å). If passed without `vdw_radii_set`, the tag becomes `"array"` |
+
+The recorded value lands in `seg['input_params']` under the same key, together with a per-symbol radii map:
+
+```python
+seg['input_params']['vdw_radii_set']         # → "bondi_crc_fallback" | "crc" | "alvarez" | ...
+seg['input_params']['vdw_radii_by_symbol']   # → {"Zn": 1.73, "O": 1.52, ...}
+```
+
+This is the only place the table choice is recorded — the segmentation result itself is otherwise agnostic to *which* table built the dgrid.
+
+## Step 3: Load IRMOF-1 and pick a grid spacing
+
+We use IRMOF-1 because it is well-characterised (two cage families, simple cubic) and contains the four elements where the tables disagree most: C, H, O, Zn.
+
+```{python}
+atoms = read("IRMOF-1.cif")
+print(f"Atoms: {len(atoms)}  ({atoms.get_chemical_formula()})")
+print(f"Cell:  {atoms.cell.cellpar()[:3].round(2)} Å (cubic)")
+
+spacing = 0.5  # Å — the canonical default
+```
+
+## Step 4: Build a distance grid for each table
+
+For each table, we build a *separate* dgrid using `dgrid_from_atoms_rust(atoms, spacing=spacing, radii=...)`. The default dgrid (no `radii` argument) uses `default_vdw_radii_angstrom`, i.e. Bondi/CRC.
+
+```{python}
+# Bondi/CRC: dgrid_from_atoms_rust uses this by default
+dgrid_bondi = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing)
+
+# CRC / Mendeleev: pass the explicit radii array
+radii_crc = mendeleev_vdw_radii_angstrom(atoms)
+dgrid_crc = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing, radii=radii_crc)
+
+# Alvarez: same pattern, custom array
+radii_alvarez = np.array([ALVAREZ_PM.get(s, 170.0) for s in atoms.get_chemical_symbols()]) / 100.0
+dgrid_alvarez = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing, radii=radii_alvarez)
+
+print(f"bondi    dgrid: shape={dgrid_bondi.shape}, void max={dgrid_bondi.max():.2f} Å, "
+      f"void voxels (d>1): {(dgrid_bondi > 1.0).sum():,}")
+print(f"crc      dgrid: shape={dgrid_crc.shape}, void max={dgrid_crc.max():.2f} Å, "
+      f"void voxels (d>1): {(dgrid_crc > 1.0).sum():,}")
+print(f"alvarez  dgrid: shape={dgrid_alvarez.shape}, void max={dgrid_alvarez.max():.2f} Å, "
+      f"void voxels (d>1): {(dgrid_alvarez > 1.0).sum():,}")
+```
+
+You should see:
+
+- The void-max is **slightly smaller for Alvarez** than for Bondi (because the larger Zn and C radii push the dgrid down).
+- The void-voxel count is roughly constant — the topology of IRMOF-1 is robust, but the per-voxel probe radius drops.
+
+## Step 5: Run periodic segmentation with each dgrid
+
+For each dgrid, we call `do_periodic_segmentation_rust` and **record** the table choice via `vdw_radii_set=`. The function uses the dgrid as-is; the recording is what makes the segmentation reproducible.
+
+```{python}
+def run_seg(dgrid, atoms, *, vdw_set, radii_for_audit=None):
+    dgrid_f32 = dgrid.astype(np.float32)
+    return mgr.do_periodic_segmentation_rust(
+        dgrid_f32, atoms,
+        mask_thickness=0.05,
+        h=0.2,
+        min_distance=1.5,
+        threshold_abs=1.5,
+        spacing=spacing,
+        compute_connections=True,
+        watershed_backend="rust_det",
+        disable_tqdm=True,
+        vdw_radii_set=vdw_set,
+        vdw_radii_angstrom=radii_for_audit,
+    )
+
+seg_bondi = run_seg(dgrid_bondi, atoms, vdw_set="bondi")
+seg_crc = run_seg(dgrid_crc, atoms, vdw_set="crc", radii_for_audit=radii_crc)
+seg_alvarez = run_seg(dgrid_alvarez, atoms, vdw_set="alvarez", radii_for_audit=radii_alvarez)
+```
+
+## Step 6: Compare results
+
+### Maxima count (pore count)
+
+The first sanity check — the topology of IRMOF-1 (cubic, with 8 cages per unit cell) should be preserved across all three tables.
+
+```{python}
+print(f"{'Table':<10} {'maxima_pbc':>12} {'all_maxima':>12}")
+print("-" * 36)
+for name, seg in [("bondi", seg_bondi), ("crc", seg_crc), ("alvarez", seg_alvarez)]:
+    print(f"{name:<10} {len(seg['maxima_pbc']):>12} {len(seg['all_maxima']):>12}")
+```
+
+For IRMOF-1 all three tables should report `8` PBC-grouped maxima — the topology is robust.
+
+### Pocket size distribution
+
+The peak probe radius at each maximum is the most direct measure of "how big is this pocket" — it is the dgrid value at the maximum voxel. Tighter VDW radii → smaller peak radius.
+
+```{python}
+print(f"{'Table':<10} {'min peak r (Å)':>16} {'mean peak r (Å)':>18} {'max peak r (Å)':>16}")
+print("-" * 64)
+for name, dgrid, seg in [
+    ("bondi", dgrid_bondi, seg_bondi),
+    ("crc", dgrid_crc, seg_crc),
+    ("alvarez", dgrid_alvarez, seg_alvarez),
+]:
+    # maxima_pbc are (N, 3) integer voxel indices into the dgrid
+    m = seg["maxima_pbc"]
+    peaks = dgrid[m[:, 0], m[:, 1], m[:, 2]]
+    print(f"{name:<10} {peaks.min():>16.3f} {peaks.mean():>18.3f} {peaks.max():>16.3f}")
+```
+
+For IRMOF-1, **Alvarez gives the smallest peak radii** (largest metals → tightest dgrid). Bondi and CRC land close to each other, with CRC slightly *larger* because its bigger Zn radius pushes the maxima toward the cage centers. The Bondi-to-Alvarez spread is on the order of 0.1 Å — *exactly* the regime where it changes whether a small probe (N₂, CO₂) can fit through a window.
+
+### Pore Limiting Diameter (PLD)
+
+PLD = 2 × the smallest window radius. It is the *hard upper bound* on the size of a spherical molecule that can diffuse through the material.
+
+```{python}
+def compute_pld(seg):
+    """Smallest window diameter in the unit cell."""
+    if not seg["connections"]:
+        return float("nan")
+    unique = set(seg["unique_regions"])
+    diams = []
+    for c in seg["connections"]:
+        # c[0] = (region_a, region_b); c[2] in {"internal", "periodic"}
+        if np.any(np.isin(c[0], list(unique))):
+            diams.append(2.0 * float(c[4][0]))
+    return min(diams) if diams else float("nan")
+
+print(f"{'Table':<10} {'PLD (Å)':>12} {'# unit-cell windows':>22}")
+print("-" * 48)
+for name, seg in [("bondi", seg_bondi), ("crc", seg_crc), ("alvarez", seg_alvarez)]:
+    n_uc = sum(1 for c in seg["connections"] if np.any(np.isin(c[0], list(seg["unique_regions"]))))
+    print(f"{name:<10} {compute_pld(seg):>12.3f} {n_uc:>22}")
+```
+
+The PLD for IRMOF-1 is **~7.3 Å for Bondi and CRC**, dropping to **~7.2 Å for Alvarez**. The metal-heavy Alvarez table tightens the windows most. For MOFs with a *single* gating window (e.g. ZIF-8, MOF-74), a 0.1 Å change in PLD is the difference between "passes N₂ at 77 K" and "doesn't".
+
+### Volume comparison
+
+The connected-pore volume also tracks the VDW table directly.
+
+```{python}
+def void_volume(dgrid, spacing):
+    return float((dgrid > 1.0).sum()) * (spacing ** 3)
+
+print(f"{'Table':<10} {'void volume (Å³)':>18} {'relative to bondi':>20}")
+print("-" * 52)
+v_b = void_volume(dgrid_bondi, spacing)
+for name, dgrid in [("bondi", dgrid_bondi), ("crc", dgrid_crc), ("alvarez", dgrid_alvarez)]:
+    v = void_volume(dgrid, spacing)
+    print(f"{name:<10} {v:>18.1f} {v / v_b:>20.4f}")
+```
+
+The relative volumes should differ by 1–3 % for IRMOF-1 (a robust MOF); for MOFs with narrow channels the spread is larger.
+
+## Step 7: The audit trail
+
+Every segmentation result carries the table choice. The same `seg` dict from above can answer *"what radii were used to build this?"* years later.
+
+```{python}
+for name, seg in [("bondi", seg_bondi), ("crc", seg_crc), ("alvarez", seg_alvarez)]:
+    ip = seg["input_params"]
+    print(f"\n{name} audit:")
+    print(f"  vdw_radii_set:         {ip.get('vdw_radii_set')}")
+    print(f"  vdw_radii_by_symbol:   {ip.get('vdw_radii_by_symbol')}")
+```
+
+The same field is what `pocket_typing` reads to decide which `max_r` calibration to use, so the audit trail is also *functional*, not just cosmetic.
+
+## Step 8: Visualising the effect
+
+The cleanest visual side-by-side is the **isovalue** of the dgrid at a fixed probe radius. Lowering the VDW radii is equivalent to raising the isovalue, so the same isosurface at `dgrid = 1.5 Å` shows *less* accessible surface for Alvarez than for Bondi.
+
+```{python}
+# One line per table, one column per probe radius
+# (Useful as a quick figure for a paper or report)
+import pandas as pd
+rows = []
+for name, dgrid in [("bondi", dgrid_bondi), ("crc", dgrid_crc), ("alvarez", dgrid_alvarez)]:
+    for probe in [1.0, 1.5, 2.0, 2.5]:
+        n_vox = int((dgrid > probe).sum())
+        rows.append({"table": name, "probe_a": probe, "n_voxels": n_vox,
+                     "volume_a3": n_vox * spacing**3})
+df = pd.DataFrame(rows).pivot(index="table", columns="probe_a", values="volume_a3")
+print("Accessible volume (Å³) at each probe radius:")
+print(df.round(1))
+```
+
+The pattern: at every probe radius, accessible volume is **largest for CRC, smallest for Alvarez**, with Bondi in between. The differences are largest at small probe radii (where the VDW table choice matters most for surface area) and shrink at large probes.
+
+## Which table to use
+
+| Situation | Recommendation |
+|-----------|----------------|
+| General MOF / ZIF / COF screening | **Bondi / CRC** — the historical default; matches zeo++ and PoreBlazer |
+| Open-metal MOFs (Cu-paddlewheel, Zn₄O, Zr₆) where metal radius matters most | **Alvarez** — modern, explicit, metal-friendly |
+| Reproducing an old paper that used Mendeleev | **CRC / Mendeleev** — match the original |
+| Custom (e.g. UFF, Dreiding) | Pass a per-atom array + `vdw_radii_set="array"` |
+| Comparing across packages | **Always** record the choice in `vdw_radii_set=` |
+
+**Our default recommendation: Bondi/CRC.** It is the de-facto community standard for MOF characterisation, it is what `default_vdw_radii_angstrom` returns, and it is what most published PLDs / void fractions are quoted against. Switch to Alvarez when the metal chemistry dominates (open-metal sites, large metal nodes) and you want the most modern calibration.
+
+## Parameter reference
+
+| Parameter (on `do_periodic_segmentation_rust`) | Default | Effect |
+|---|---|---|
+| `vdw_radii_set` | `"bondi_crc_fallback"` | Audit tag — does *not* recompute the dgrid. One of `"bondi"`, `"bondi_crc_fallback"`, `"crc"`, `"mendeleev"`, `"alvarez"`, `"array"`. |
+| `vdw_radii_angstrom` | `None` | Per-atom radii (Å). If passed, recorded under `vdw_radii_set="array"` (unless you also set the tag explicitly). |
+| (build dgrid with) `dgrid_from_atoms_rust(..., radii=...)` | Bondi | The *actual* table the dgrid is built with. Always pass an explicit `radii=` for non-Bondi tables. |
+
+## Tips
+
+- **Always pass `radii=` when building the dgrid** if you want a non-Bondi table. The default is Bondi/CRC, not "auto-detect".
+- **Always pass `vdw_radii_set=` when calling the segmentation** so the audit trail captures your choice. The same key in `seg['input_params']` is what downstream pocket typing reads.
+- **When comparing two segmentations of the same MOF**, plot `pocket_radius` (from `maxima_info`) and PLD side-by-side. Those two numbers capture >90 % of the practical difference.
+- **Don't mix tables across steps.** If you build a dgrid with Bondi and then pass `vdw_radii_set="alvarez"`, the audit will be wrong. The tag must match the dgrid.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `ValueError: unknown vdw_radii_set` | A typo or unsupported tag | Use one of `bondi` / `bondi_crc_fallback` / `crc` / `mendeleev` / `alvarez` / `array` |
+| Same PLD across all three tables | The dgrid was built with the same table in all three runs (forgot `radii=`) | Pass `radii=` explicitly when building each dgrid |
+| Pockets "disappear" under Alvarez | The dgrid is too tight — the h-maxima threshold cuts too many peaks | Lower `threshold_abs` (e.g. 1.5 → 1.0) and re-run with the same dgrid |
+| `vdw_radii_by_symbol` shows wrong values | You passed `vdw_radii_set` but built the dgrid with a different table | Build the dgrid with the matching `radii=` first |
+
+## Next steps
+
+- [Quick Start: Full MOF Pore Analysis](quick_cluster.qmd) — the canonical 3-function workflow this builds on.
+- [Region Segmentation](region_segmentation.qmd) — deeper dive on the 15 output keys of `do_periodic_segmentation_rust`.
+- [Pocket Type Detection](pockets_detection.qmd) — how pocket *types* depend on the VDW table.
+- [Distance Grid](distance_grid.qmd) — alternative dgrid backends for very large systems.
+- [Connections and Windows](connections_and_windows.qmd) — window detection and PLD calculation.

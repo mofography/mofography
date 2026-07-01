@@ -1,0 +1,13 @@
+# compute_surface_area_mesh_lattice { #mofography.compute.compute_surface_area_mesh_lattice }
+
+```python
+compute.compute_surface_area_mesh_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    variant='v2',
+)
+```
+
+Mesh (marching-cubes) surface area with lattice (voxel) accessibility — Zeo++-style.

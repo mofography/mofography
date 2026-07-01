@@ -2245,3 +2245,5 @@ MOFOGRAPHY_VS_CLI_COMPARISON.md
 /generate_*.py
 /nu1000_visualization*.py
 /cubtc_visual_check.py
+docs/_site/
+docs/interactive/*.html

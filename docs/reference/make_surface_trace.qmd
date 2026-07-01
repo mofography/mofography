@@ -1,0 +1,21 @@
+# make_surface_trace { #mofography.movies.make_surface_trace }
+
+```python
+movies.make_surface_trace(
+    dgrid,
+    regions,
+    atoms,
+    isovalue=1.0,
+    step_size=2,
+    style='surface',
+    name='Surface',
+    trace_id='surface',
+    cscale=None,
+    hover_prefix=None,
+    taubin_smooth=False,
+    taubin_iterations=10,
+    taubin_lambda=0.5,
+    taubin_nu=-0.53,
+)
+```
+

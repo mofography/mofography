@@ -1,0 +1,31 @@
+# write_cifs_from_mofdb_df { #mofography.data.write_cifs_from_mofdb_df }
+
+```python
+data.write_cifs_from_mofdb_df(
+    mofdb_df,
+    folder,
+    name_column='name',
+    cif_column='cif',
+    skip_failed=True,
+)
+```
+
+Write CIF strings from a MOFdb-style DataFrame to .cif files in a folder.
+Creates the folder if it does not exist. Uses the name column for filenames
+(sanitized); duplicate names get _1, _2, ... appended.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type   | Description                                                                                                                          | Default    |
+|-------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|------------|
+| mofdb_df    |        | DataFrame with CIF data (e.g. from get_data_from_mofdb or sample_representative_mofdb). Must have columns for names and CIF strings. | _required_ |
+| folder      |        | Path or str to the output directory (created if missing).                                                                            | _required_ |
+| name_column |        | Column used for filenames (default "name").                                                                                          | `'name'`   |
+| cif_column  |        | Column containing CIF content as strings (default "cif").                                                                            | `'cif'`    |
+| skip_failed |        | If True, skip rows with missing or empty CIF (default True).                                                                         | `True`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                          |
+|--------|--------|--------------------------------------|
+|        |        | List of Paths of written .cif files. |

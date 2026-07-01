@@ -1,0 +1,30 @@
+# plot_pocket_psds_on_rag { #mofography.visualize.plot_pocket_psds_on_rag }
+
+```python
+visualize.plot_pocket_psds_on_rag(
+    rag,
+    pbc_groups,
+    cscale=None,
+    no_pbc=False,
+    cluster_key='cluster',
+)
+```
+
+Plot Rust pocketwise probe PSDs stored on the RAG.
+
+Requires :func:`mofography.compute.add_pocket_psd_to_rag_with_pbc` first
+(node keys ``pocket_psd_x_pbc`` / ``pocket_psd_y_pbc``).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+rag, pbc_groups, cscale, no_pbc, cluster_key
+    Same semantics as :func:`plot_csds` (``cluster_key`` colors lines only).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+list
+    Plotly ``Scatter`` traces.

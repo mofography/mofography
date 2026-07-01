@@ -1,4 +1,53 @@
 # get_connections_for_rag { #mofography.compute.get_connections_for_rag }
 
-`compute.get_connections_for_rag(rag, region_labels, maxima, ase_atoms, dgrid, minimum_window_separation=1.0, wall_windows=True, wall_thickness=2)`
+```python
+compute.get_connections_for_rag(
+    rag,
+    region_labels,
+    maxima,
+    ase_atoms,
+    dgrid,
+    minimum_window_separation=1.0,
+    wall_windows=True,
+    wall_thickness=2,
+)
+```
 
+Find connections between regions in a region adjacency graph (RAG) and identify window locations.
+
+This function analyzes a RAG to find connections between adjacent regions and identifies the window 
+locations where regions connect. It uses agglomerative clustering to group boundary points into windows
+and finds the optimal window centers based on distance values.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+rag : networkx.Graph
+    Region adjacency graph representing connections between regions
+region_labels : numpy.ndarray
+    3D array of region labels where each unique value represents a different region
+maxima : numpy.ndarray
+    Array containing the maxima points of each region
+ase_atoms : ase.Atoms
+    ASE Atoms object containing the structure information
+dgrid : numpy.ndarray
+    3D array of distance values on the grid
+minimum_window_separation : float, optional
+    Minimum distance between separate windows, by default 1.0
+wall_windows : bool, optional
+    Whether to calculate windows on periodic boundaries, by default True
+wall_thickness : int, optional
+    Thickness of wall region for finding periodic windows, by default 2
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+list
+    List of connections, where each connection is an array containing:
+    - [region1, region2]: The two connected region indices
+    - bool: Whether regions are connected
+    - str: Type of connection ("internal" or "wall")
+    - numpy.ndarray: Window center coordinates
+    - numpy.ndarray: Window radii

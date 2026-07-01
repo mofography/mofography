@@ -1,0 +1,14 @@
+# compute_surface_area_mesh_winding { #mofography.compute.compute_surface_area_mesh_winding }
+
+```python
+compute.compute_surface_area_mesh_winding(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp=True,
+    winding_kwargs=None,
+)
+```
+
+Mesh (marching-cubes) surface area with winding accessibility (optional window FP).

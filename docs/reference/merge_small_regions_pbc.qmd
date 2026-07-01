@@ -1,0 +1,15 @@
+# merge_small_regions_pbc { #mofography.helper.merge_small_regions_pbc }
+
+```python
+helper.merge_small_regions_pbc(labels, min_size)
+```
+
+Merge small labeled regions (< min_size voxels) into neighboring larger regions,
+accounting for periodic boundary conditions (PBC).
+
+Parameters:
+    labels (ndarray): 3D numpy array of labeled regions.
+    min_size (int): Minimum voxel count; regions smaller than this will be merged.
+
+Returns:
+    ndarray: Modified labels array with small regions merged.

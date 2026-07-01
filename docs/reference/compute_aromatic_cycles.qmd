@@ -1,0 +1,25 @@
+# compute_aromatic_cycles { #mofography.analyze.compute_aromatic_cycles }
+
+```python
+analyze.compute_aromatic_cycles(
+    ase_atoms,
+    *,
+    force_recompute=False,
+    expand_isomorphisms=True,
+    default_ring_sizes=None,
+)
+```
+
+Detect aromatic cycles and cache the result in ``ase_atoms.info``.
+
+Mirrors ``mgr.analyze.compute_aromatic_cycles``:
+
+1. Ensures covalent bonds are present (calls
+   :func:`update_with_covalent_bonds` if needed).
+2. Returns the cached ``ase_atoms.info["aromatic_cycles"]`` when
+   ``force_recompute=False`` and the info entry is already populated.
+3. Otherwise calls :func:`find_aromatic_cycles_in_sgraph`, stores the
+   result in ``ase_atoms.info["aromatic_cycles"]``, and returns it.
+
+Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
+when a pre-computed cycle list is not supplied.

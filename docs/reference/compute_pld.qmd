@@ -1,0 +1,27 @@
+# compute_pld { #mofography.compute.compute_pld }
+
+```python
+compute.compute_pld(path_to_cif, dgrid=None, kwargs={})
+```
+
+Compute the pore limiting diameter (PLD) from a CIF file.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+path_to_cif : Path
+    The path to the CIF file.
+kwargs : dict, optional
+    Additional keyword arguments. Default is an empty dictionary.
+    - spacing : float, optional
+        The spacing for the distance grid. Default is 0.5.
+    - block_size : int, optional
+        The block size for processing. Default is 50000.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+float or None
+    The pore limiting diameter if found, otherwise None.

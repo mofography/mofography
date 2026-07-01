@@ -1,21 +1,31 @@
 # get_energies_for_group2 { #mofography.compute.get_energies_for_group2 }
 
-`compute.get_energies_for_group2(group, regions, energy_interpolator=None, return_scaled_coords=False, **kwargs_egrid)`
+```python
+compute.get_energies_for_group2(
+    group,
+    regions,
+    energy_interpolator=None,
+    return_scaled_coords=False,
+    max_sample_limit=10000,
+    **kwargs_egrid,
+)
+```
 
 This function calculates the energies for a group of regions using an energy interpolator and
 returns the energies and scaled coordinates if specified.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name                   | Type   | Description                                                                                                                                                                                                                                                                                                                                               | Default    |
-|------------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `group`                |        | A list of labels for the regions in the group                                                                                                                                                                                                                                                                                                             | _required_ |
-| `regions`              |        | A 3D array representing a segmentation of a larger 3D volume into regions or objects. Each region is assigned a unique integer label                                                                                                                                                                                                                      | _required_ |
-| `energy_interpolator`  |        | A function that interpolates energies for a given set of coordinates. It is used to calculate the energies for a group of points in a region                                                                                                                                                                                                              | `None`     |
-| `return_scaled_coords` |        | A boolean parameter that determines whether the function should return the energies and the scaled coordinates of the points in the group or just the energies. If set to True, the function will return a tuple of two arrays: the energies and the scaled coordinates. If set to False, the function will only return the, defaults to False (optional) | `False`    |
+| Name                 | Type   | Description                                                                                                                                                                                                                                                                                                                                               | Default    |
+|----------------------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| group                |        | A list of labels for the regions in the group                                                                                                                                                                                                                                                                                                             | _required_ |
+| regions              |        | A 3D array representing a segmentation of a larger 3D volume into regions or objects. Each region is assigned a unique integer label                                                                                                                                                                                                                      | _required_ |
+| energy_interpolator  |        | A function that interpolates energies for a given set of coordinates. It is used to calculate the energies for a group of points in a region                                                                                                                                                                                                              | `None`     |
+| return_scaled_coords |        | A boolean parameter that determines whether the function should return the energies and the scaled coordinates of the points in the group or just the energies. If set to True, the function will return a tuple of two arrays: the energies and the scaled coordinates. If set to False, the function will only return the, defaults to False (optional) | `False`    |
+| max_sample_limit     |        | Maximum number of samples to take from the group, defaults to 10000 (optional). Use a larger max limit to get a smoother energy histogram, perhaps if you have a fine grid on a large pocket with nuanced surface features.                                                                                                                               | `10000`    |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                     |
-|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | either the energies for all the points in the specified group or the energies and scaled coordinates for all the points in the specified group, depending on the value of the `return_scaled_coords` parameter. |
+| Name   | Type   | Description                                                                                                                                                                                                     |
+|--------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | either the energies for all the points in the specified group or the energies and scaled coordinates for all the points in the specified group, depending on the value of the `return_scaled_coords` parameter. |

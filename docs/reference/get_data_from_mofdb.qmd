@@ -1,26 +1,12 @@
 # get_data_from_mofdb { #mofography.data.get_data_from_mofdb }
 
-`data.get_data_from_mofdb(url='https://mof.tech.northwestern.edu/mofs.json', params={'vf_min': 0.1, 'vf_max': 1.0, 'database': 'IZA', 'page': 1}, headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'}, npages=None, limit=1000)`
+```python
+data.get_data_from_mofdb(
+    url='https://mof.tech.northwestern.edu/mofs.json',
+    params={'vf_min': 0.1, 'vf_max': 1.0, 'database': 'IZA', 'page': 1},
+    headers={'loading': 'cm3(STP)/cm3', 'pressure': 'bar'},
+    npages=None,
+    limit=1000,
+)
+```
 
-This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api 
-It takes in a url, parameters, headers, number of pages and a path to the mofography repository and
-returns a pandas dataframe of the data. 
-
-The function is asynchronous and uses the aiohttp library to make multiple requests to the MOFDB
-API. 
-
-## Parameters
-
-| Name      | Type   | Description                                                                                                                               | Default                                                        |
-|-----------|--------|-------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
-| `url`     |        | The url of the MOF database, defaults to https://mof.tech.northwestern.edu/mofs/#.json (optional)                                         | `'https://mof.tech.northwestern.edu/mofs/#.json'`              |
-| `params`  |        | a dictionary of parameters to be passed to the url. The default parameters are: {'vf_min': 0.1, 'vf_max': 1.0, 'database':'IZA','page':1} | `{'vf_min': 0.1, 'vf_max': 1.0, 'database': 'IZA', 'page': 1}` |
-| `headers` |        | This is the headers that you want to pass to the MOFDB API. The default is to get the loading and pressure data                           | `{'loading': 'cm3(STP)/cm3', 'pressure': 'bar'}`               |
-| `npages`  |        | number of pages to be scraped. If None, then the number of pages is determined by the function to return all the pages                    | `None`                                                         |
-| `limit`   |        | maximum number of pages allowed in the query (no need to change this one unless overflow )                                                | `1000`                                                         |
-
-## Returns
-
-| Type   | Description                                |
-|--------|--------------------------------------------|
-|        | A dataframe with the results of the query. |

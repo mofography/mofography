@@ -1,0 +1,50 @@
+# compute_accessible_psd_from_results { #mofography.rust_fun.compute_accessible_psd_from_results }
+
+```python
+rust_fun.compute_accessible_psd_from_results(
+    results,
+    mat_atoms,
+    probe_radius,
+    bin_edges,
+    samples_per_region=10000,
+    accessible_only=True,
+    pb_normalization=False,
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
+)
+```
+
+Compute a PoreBlazer-style accessible PSD by:
+1) identifying percolating pockets at the given probe_radius via winding-number percolation,
+2) sampling pore sizes pocketwise (fixed samples per region),
+3) weighting each pocket's PDF by its voxel fraction to recover a volume-weighted global PSD.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results : dict
+    Segmentation results from do_periodic_segmentation_rust (needs regions_pbc, maxima_info, regions, connections, etc.).
+    If results does not contain 'dgrid', you must have passed return_dgrid=True when generating it, or supply dgrid separately.
+mat_atoms : ase.Atoms
+    ASE Atoms with the simulation cell (used only to build the cell matrix for sampling).
+probe_radius : float
+    Probe radius (Å) used as the percolation threshold.
+bin_edges : array-like
+    Bin edges for diameters (Å). Use PB-style bins for direct comparison.
+samples_per_region : int
+    Fixed number of samples per pocket for the pocketwise sampler.
+accessible_only : bool
+    If True, restrict to percolating (accessible) regions; if False, include all regions.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+dict with keys:
+    - pdf: global volume-weighted PDF over bin centers
+    - cum: cumulative (descending) of pdf
+    - psd: finite-difference derivative of cum
+    - bin_centers: centers from bin_edges
+    - per_region: dict of per-pocket PDFs (unweighted), voxel counts, and weights
+    - accessible_region_ids: list of region ids used

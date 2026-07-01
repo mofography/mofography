@@ -1,0 +1,15 @@
+# void_cart_mic_for_fragment_group { #mofography.pocket_framework_env.void_cart_mic_for_fragment_group }
+
+```python
+pocket_framework_env.void_cart_mic_for_fragment_group(
+    regions,
+    dgrid,
+    fragment_labels,
+    shape,
+    atoms,
+    *,
+    max_samples=MAX_VOID_SAMPLES,
+)
+```
+
+Void points for a full PBC pocket (all fragment copies, MIC-wrapped to peak).

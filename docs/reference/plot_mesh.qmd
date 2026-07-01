@@ -1,18 +1,20 @@
 # plot_mesh { #mofography.visualize.plot_mesh }
 
-`visualize.plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d)`
+```python
+visualize.plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d)
+```
 
 It takes a trimesh object and returns a plotly mesh3d object.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description                                                                                  | Default    |
-|-----------|--------|----------------------------------------------------------------------------------------------|------------|
-| `mesh`    |        | a list of trimesh objects                                                                    | _required_ |
-| `stylize` |        | If True, the mesh will be rendered with a nice lighting effect, defaults to False (optional) | `False`    |
+| Name    | Type   | Description                                                                                  | Default    |
+|---------|--------|----------------------------------------------------------------------------------------------|------------|
+| mesh    |        | a list of trimesh objects                                                                    | _required_ |
+| stylize |        | If True, the mesh will be rendered with a nice lighting effect, defaults to False (optional) | `False`    |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description          |
-|--------|----------------------|
-|        | A plotly mesh object |
+| Name   | Type   | Description          |
+|--------|--------|----------------------|
+|        |        | A plotly mesh object |

@@ -1,20 +1,26 @@
 # plot_cycle_highlights { #mofography.visualize.plot_cycle_highlights }
 
-`visualize.plot_cycle_highlights(sgraph, cycles_to_highlight, kwargs_highlight=dict(color='lightskyblue', opacity=0.3, alphahull=-1, name='Aromatic ring highlight'))`
+```python
+visualize.plot_cycle_highlights(
+    sgraph,
+    cycles_to_highlight,
+    kwargs_highlight=dict(color='lightskyblue', opacity=0.3, alphahull=(-1), name='Aromatic ring highlight'),
+)
+```
 
 It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
 used to plot the aromatic cycles
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name                         | Type   | Description                                                                                                                                          | Default    |
-|------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `sgraph`                     |        | the sgraph object                                                                                                                                    | _required_ |
-| `isomorphic_aromatic_cycles` |        | a list of lists of node indices that are aromatic rings. If you don't have this, you can set it to None and the function will try to find it for you | _required_ |
-| `highlight_color`            |        | The color of the highlighted aromatic rings, defaults to lightskyblue (optional)                                                                     | _required_ |
+| Name                       | Type   | Description                                                                                                                                          | Default    |
+|----------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| sgraph                     |        | the sgraph object                                                                                                                                    | _required_ |
+| isomorphic_aromatic_cycles |        | a list of lists of node indices that are aromatic rings. If you don't have this, you can set it to None and the function will try to find it for you | _required_ |
+| highlight_color            |        | The color of the highlighted aromatic rings, defaults to lightskyblue (optional)                                                                     | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                          |
-|--------|------------------------------------------------------|
-|        | A tuple of the data_circle and ring_highlight_traces |
+| Name   | Type   | Description                                          |
+|--------|--------|------------------------------------------------------|
+|        |        | A tuple of the data_circle and ring_highlight_traces |

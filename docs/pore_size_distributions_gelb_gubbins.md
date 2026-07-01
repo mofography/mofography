@@ -515,9 +515,9 @@ PSDs can be used as features for clustering pockets into types, similar to CSD b
 - [Outputs from Periodic Segmentation](outputs_from_periodic_segmentation.md) - Understanding segmentation outputs
 
 ### Explore Related Tutorials:
-- [Distance Grid](distance_grid.md) - Understanding distance fields
-- [Region Segmentation](region_segmentation.md) - Segmentation fundamentals
-- [Pocket Detection](pockets_detection.md) - Using CSD features for clustering
+- [Distance Grid](distance_grid.qmd) - Understanding distance fields
+- [Region Segmentation](region_segmentation.qmd) - Segmentation fundamentals
+- [Pocket Detection](pockets_detection.qmd) - Using CSD features for clustering
 
 ### Coming Soon:
 - Surface Area and Void Volume with Accessibility Criteria

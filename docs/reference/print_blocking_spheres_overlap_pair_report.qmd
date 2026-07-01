@@ -1,0 +1,7 @@
+# print_blocking_spheres_overlap_pair_report { #mofography.raspa_helper.print_blocking_spheres_overlap_pair_report }
+
+```python
+raspa_helper.print_blocking_spheres_overlap_pair_report(pair)
+```
+
+Print :func:`blocking_spheres_overlap_leakage_pair` results in plain language.

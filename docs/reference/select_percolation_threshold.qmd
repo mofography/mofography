@@ -1,0 +1,32 @@
+# select_percolation_threshold { #mofography.compute.select_percolation_threshold }
+
+```python
+compute.select_percolation_threshold(
+    percolation_history,
+    probe_radius,
+    *,
+    conservative=False,
+)
+```
+
+Select the appropriate threshold for percolation analysis.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+percolation_history : list
+    List of (threshold, components) tuples.
+probe_radius : float
+    Requested probe radius in Angstroms.
+conservative : bool
+    If True, use smallest threshold ≥ probe_radius (harder to percolate,
+    suitable for accessibility gating). Default False: largest threshold
+    ≤ probe_radius (permissive, suitable for surface area / void volume).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+tuple
+    (selected_threshold, threshold_components, exact_match, message)

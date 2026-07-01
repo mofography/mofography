@@ -1,0 +1,38 @@
+# compute_psds_pocketwise_accessible { #mofography.rust_fun.compute_psds_pocketwise_accessible }
+
+```python
+rust_fun.compute_psds_pocketwise_accessible(
+    results,
+    mat_atoms,
+    probe_radius,
+    num_samples_per_region=1000,
+    bins=None,
+    return_fig=False,
+    material='Material',
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
+)
+```
+
+Compute pocket-wise PSD restricted to accessible (percolating) regions only.
+
+Returns the same dict structure as compute_psds_pocketwise_rust for app compatibility:
+{region_id: {'hist', 'bin_centers', 'num_samples', 'mean_pore_size', 'std_pore_size'}}
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                   | Type                  | Description                                                                    | Default      |
+|------------------------|-----------------------|--------------------------------------------------------------------------------|--------------|
+| results                | dict                  | Segmentation results from do_periodic_segmentation_rust with return_dgrid=True | _required_   |
+| mat_atoms              | ase.Atoms             | ASE Atoms with the simulation cell                                             | _required_   |
+| probe_radius           | float                 | Probe radius (Å) for percolation threshold                                     | _required_   |
+| num_samples_per_region | int                   | Samples per pocket                                                             | `1000`       |
+| bins                   | numpy.ndarray \| None | Bin edges for histogram. If None, uses np.linspace(0, 50, 200)                 | `None`       |
+| return_fig             | bool                  | Whether to return a plotly figure                                              | `False`      |
+| material               | str                   | Name of the material for plot title                                            | `'Material'` |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                               | Description                                                                    |
+|--------|----------------------------------------------------|--------------------------------------------------------------------------------|
+|        | dict \| tuple\[dict, plotly.graph_objects.Figure\] | pocket_psds or (pocket_psds, fig) - same shape as compute_psds_pocketwise_rust |

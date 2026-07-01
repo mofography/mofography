@@ -1,0 +1,6 @@
+# collect_periodic_edges_canonical { #mofography.winding_percolation.collect_periodic_edges_canonical }
+
+```python
+winding_percolation.collect_periodic_edges_canonical(connections, maxima_info)
+```
+

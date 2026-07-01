@@ -1,0 +1,6 @@
+# has_percolation_history { #mofography.percolation_results.has_percolation_history }
+
+```python
+percolation_results.has_percolation_history(results, method)
+```
+

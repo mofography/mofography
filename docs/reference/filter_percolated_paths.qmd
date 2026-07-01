@@ -1,21 +1,23 @@
 # filter_percolated_paths { #mofography.compute.filter_percolated_paths }
 
-`compute.filter_percolated_paths(paths, path_windows, path_lengths, probe_size)`
+```python
+compute.filter_percolated_paths(paths, path_windows, path_lengths, probe_size)
+```
 
 The function filters paths based on whether their corresponding path windows meet a certain size
 threshold.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                                                                                                                                                                                        | Default    |
-|----------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `paths`        |        | The `paths` parameter in the `filter_percolated_paths` function is typically a list of lists, where each inner list represents a path. Each path consists of a series of points or pocket indices through which the path traverses | _required_ |
-| `path_windows` |        | The `path_windows` parameter seems to be a list of lists, where each inner list contains arrays representing windows of a path. Each array contains the radii of the windows along the path.                                       | _required_ |
-| `path_lengths` |        | The `path_lengths` parameter in the `filter_percolated_paths` function likely represents the lengths of the paths, basically the number of edges or jumps in the path.                                                             | _required_ |
-| `probe_size`   |        | Probe size is a parameter that represents the minimum size required for a path to be considered "open". Paths with all windows greater than this probe size are considered open paths                                              | _required_ |
+| Name         | Type   | Description                                                                                                                                                                                                                        | Default    |
+|--------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| paths        |        | The `paths` parameter in the `filter_percolated_paths` function is typically a list of lists, where each inner list represents a path. Each path consists of a series of points or pocket indices through which the path traverses | _required_ |
+| path_windows |        | The `path_windows` parameter seems to be a list of lists, where each inner list contains arrays representing windows of a path. Each array contains the radii of the windows along the path.                                       | _required_ |
+| path_lengths |        | The `path_lengths` parameter in the `filter_percolated_paths` function likely represents the lengths of the paths, basically the number of edges or jumps in the path.                                                             | _required_ |
+| probe_size   |        | Probe size is a parameter that represents the minimum size required for a path to be considered "open". Paths with all windows greater than this probe size are considered open paths                                              | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                                                                                                          |
-|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `filter_percolated_paths` returns three lists: `open_paths`, `open_path_windows`, and `open_path_lengths`. These lists contain the paths, path windows, and path lengths respectively, that meet the condition of having all windows in the path windows greater than the `probe_size`. |
+| Name   | Type   | Description                                                                                                                                                                                                                                                                                          |
+|--------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `filter_percolated_paths` returns three lists: `open_paths`, `open_path_windows`, and `open_path_lengths`. These lists contain the paths, path windows, and path lengths respectively, that meet the condition of having all windows in the path windows greater than the `probe_size`. |

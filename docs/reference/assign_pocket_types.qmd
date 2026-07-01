@@ -1,0 +1,38 @@
+# assign_pocket_types { #mofography.workflow.assign_pocket_types }
+
+```python
+workflow.assign_pocket_types(
+    segmentation_results,
+    atoms,
+    method='env_cluster',
+    **kwargs,
+)
+```
+
+Assign pocket types to segmentation results.
+
+Wraps pocket_typing.assign_pocket_types_from_segmentation.
+
+Reuses ``segmentation_results['pocket_psds']`` when set (see
+:func:`enrich_segmentation_with_pocket_psds`).
+
+By default ``typing_radii='bondi_crc_fallback'``: ``max_r`` bands use a
+second Bondi/CRC distance grid while segmentation ``dgrid`` (CRC/Mendeleev/
+user radii) still drives PSD, windows, and framework fingerprints.  Pass
+``typing_radii='segmentation'`` for the legacy behaviour where typing reads
+the same ``dgrid`` as the rest of the analysis.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                 | Type   | Description                                            | Default         |
+|----------------------|--------|--------------------------------------------------------|-----------------|
+| segmentation_results |        | dict from do_periodic_segmentation_rust                | _required_      |
+| atoms                |        | ASE Atoms object                                       | _required_      |
+| method               |        | 'env_cluster' (default, SH fingerprint + connectivity) | `'env_cluster'` |
+| typing_radii         |        | VDW table for typing max_r only (see pocket_typing)    | _required_      |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description        |
+|--------|--------|--------------------|
+|        |        | PocketTypingResult |

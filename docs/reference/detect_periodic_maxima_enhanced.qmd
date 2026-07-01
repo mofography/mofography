@@ -1,0 +1,22 @@
+# detect_periodic_maxima_enhanced { #mofography.compute.detect_periodic_maxima_enhanced }
+
+```python
+compute.detect_periodic_maxima_enhanced(
+    distance_grid,
+    ase_atoms,
+    spacing,
+    maxima_mask=0,
+    h=None,
+    threshold_abs=None,
+    min_distance=1.0,
+    padding_thickness=None,
+)
+```
+
+Enhanced periodic maxima detection that handles:
+1. Proper periodic influence regions
+2. Detection of missing symmetric maxima
+3. Merging of periodic copies
+4. Special handling of boundary-split maxima
+
+Parameters match detect_periodic_distance_maxima for consistency

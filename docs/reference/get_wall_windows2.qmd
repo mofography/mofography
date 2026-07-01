@@ -1,4 +1,6 @@
 # get_wall_windows2 { #mofography.compute.get_wall_windows2 }
 
-`compute.get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2)`
+```python
+compute.get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2)
+```
 

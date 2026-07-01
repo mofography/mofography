@@ -1,0 +1,6 @@
+# radial_histogram_normalized { #mofography.pocket_framework_env.radial_histogram_normalized }
+
+```python
+pocket_framework_env.radial_histogram_normalized(r, r_shell, n_bins)
+```
+

@@ -1,31 +1,31 @@
 # update_with_covalent_bonds { #mofography.analyze.update_with_covalent_bonds }
 
-`analyze.update_with_covalent_bonds(ase_atoms, nlist=None)`
+```python
+analyze.update_with_covalent_bonds(
+    ase_atoms,
+    nlist=None,
+    *,
+    timeout=None,
+    skip_if_atoms_above=None,
+    neighbor_method=None,
+)
+```
 
-It takes an ASE atoms object and returns an ASE atoms object with the covalent bonds and bond orders
-added to the info dictionary. 
+Compute covalent bonds using Rust (mgr_rust.covalent_bonds) — 100x+ faster than pymatgen.
 
-The function also takes an optional argument, nlist, which is a list of nearest neighbors. If nlist
-is not provided, the function will calculate the nearest neighbors using the voronoi_on_atoms
-function. 
+For bonds crossing periodic boundaries, creates image atoms (copies of atoms across
+periodic boundaries) so that bond vectors don't appear to wrap across the unit cell.
+The returned Atoms object includes these image atoms, and bond indices reference them.
 
-The function uses the pymatgen CovalentBond class to determine if two atoms are bonded. The
-CovalentBond class uses the bond length and bond tolerance to determine if two atoms are bonded. The
-bond length is the sum of the covalent radii of the two atoms. The bond tolerance is a user defined
-parameter. The default value is 0.1. 
+## Parameters {.doc-section .doc-section-parameters}
 
-The function also checks if the nearest image of an atom is in the unit cell. If not, the function
-will add that site to the structure even if it is across
+| Name      | Type   | Description                                                                                                                       | Default    |
+|-----------|--------|-----------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms |        | ASE Atoms object                                                                                                                  | _required_ |
+| nlist     |        | optional list of (i, j) neighbor pairs. If None, uses aabb_neighbors_on_atoms (env MOFOGRAPHY_BOND_NEIGHBORS=voronoi for legacy). | `None`     |
 
-## Parameters
+## Returns {.doc-section .doc-section-returns}
 
-| Name        | Type   | Description                                                                                                              | Default    |
-|-------------|--------|--------------------------------------------------------------------------------------------------------------------------|------------|
-| `ase_atoms` |        | the atoms object you want to update                                                                                      | _required_ |
-| `nlist`     |        | a list of pairs of atoms that are neighbors. If you don't have this, you can use the voronoi_on_atoms function to get it | `None`     |
-
-## Returns
-
-| Type   | Description                       |
-|--------|-----------------------------------|
-|        | AseAtomsAdaptor.get_atoms(struct) |
+| Name   | Type   | Description                                                                |
+|--------|--------|----------------------------------------------------------------------------|
+|        |        | ASE Atoms object with 'covalent_bonds' and 'covalent_bond_orders' in info. |

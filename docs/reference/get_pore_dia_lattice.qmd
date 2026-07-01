@@ -1,0 +1,13 @@
+# get_pore_dia_lattice { #mofography.compute.get_pore_dia_lattice }
+
+```python
+compute.get_pore_dia_lattice(
+    mat_atoms,
+    dgrid=None,
+    results=None,
+    variant='v2',
+    kwargs=None,
+)
+```
+
+Lattice pore diameters; stores ``pore_dia_lattice`` on *results* when provided.

@@ -1,0 +1,7 @@
+# marker_padded_position { #mofography.widest_path_resegment.marker_padded_position }
+
+```python
+widest_path_resegment.marker_padded_position(row, dgrid_shape, padding)
+```
+
+Padded-grid index for one ``maxima_info`` row.

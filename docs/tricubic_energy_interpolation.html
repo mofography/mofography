@@ -1,0 +1,1208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<!-- 2026-06-24 Wed 00:27 -->
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tricubic Energy Grid Interpolation for MOF Pore-Energy Landscapes</title>
+<meta name="author" content="Mofography (Rust backend: ~mgr_rust~)" />
+<meta name="generator" content="Org Mode" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+/* Simple dark theme for Org HTML export (Geometry-style) */
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --card: #1c2128;
+  --text: #e6edf3;
+  --muted: #9da7b3;
+  --accent: #58a6ff;
+  --accent2: #7ee787;
+  --border: #30363d;
+  --code: #0b1220;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.75;
+  font-size: 15px;
+}
+#content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+.title {
+  color: var(--text);
+  font-size: 2.1rem;
+  font-weight: 700;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+.subtitle, #author, .date, .timestamp { color: var(--muted); font-size: 0.95rem; }
+
+/* Headings only — not body copy */
+#content h2,
+.outline-2 > h2 {
+  color: var(--accent);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 2.2rem 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border);
+}
+#content h3,
+.outline-3 > h3 {
+  color: var(--accent2);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 1.5rem 0 0.5rem;
+}
+#content h4,
+.outline-4 > h4 {
+  color: var(--accent2);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1rem 0 0.4rem;
+}
+
+/* Body text — explicit normal weight/size (fixes unclosed-h2 bleed) */
+.outline-text-2,
+.outline-text-3,
+.outline-text-4 {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.75;
+}
+.outline-text-2 p,
+.outline-text-3 p,
+.outline-text-4 p,
+.outline-text-2 li,
+.outline-text-3 li,
+.outline-text-4 li,
+.outline-text-2 td,
+.outline-text-3 td {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.heading-permalink { display: none !important; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+p { margin: 0 0 0.9rem; }
+ul, ol { margin: 0 0 1rem; padding-left: 1.4rem; }
+li { margin-bottom: 0.35rem; }
+
+#table-of-contents { display: none; }
+
+code {
+  font-family: ui-monospace, "Cascadia Code", "Fira Code", monospace;
+  font-size: 0.88em;
+  background: var(--code);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+}
+.org-src-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  margin: 0.75rem 0 1.25rem;
+}
+.org-src-container.has-copy-btn pre,
+.org-src-container pre {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 16px 18px;
+  background: var(--code);
+  color: #dbeafe;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow-x: auto;
+  line-height: 1.55;
+  font-size: 0.88rem;
+  white-space: pre;
+}
+.org-src-container.has-copy-btn pre {
+  padding-top: 38px;
+}
+.code-copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+}
+.code-copy-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin: 0.75rem 0 1.25rem; }
+th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; }
+th { background: #1e293b; color: var(--accent); }
+blockquote {
+  background: var(--bg2);
+  border-left: 4px solid var(--accent2);
+  padding: 14px 18px;
+  margin: 1rem 0 1.5rem;
+  border-radius: 6px;
+}
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+img { max-width: 100%; height: auto; border-radius: 6px; }
+#postamble, #text-footnotes {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+</style>
+<script>
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.org-src-container').forEach(function(box){
+    var pre=box.querySelector('pre');
+    if(!pre||box.querySelector('.code-copy-btn'))return;
+    box.classList.add('has-copy-btn');
+    var btn=document.createElement('button');
+    btn.type='button';btn.className='code-copy-btn';btn.textContent='Copy';
+    btn.addEventListener('click',function(){
+      var t=pre.innerText||pre.textContent||'';
+      (navigator.clipboard&&navigator.clipboard.writeText
+        ?navigator.clipboard.writeText(t)
+        :Promise.reject(new Error('clipboard')))
+      .then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy'},1400);})
+      .catch(function(){btn.textContent='Failed';setTimeout(function(){btn.textContent='Copy'},1400);});
+    });
+    box.insertBefore(btn,pre);
+  });
+});
+</script>
+<script>
+MathJax = {
+  tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+<div id="content" class="content">
+<h1 class="title">Tricubic Energy Grid Interpolation for MOF Pore-Energy Landscapes</h1>
+<div id="table-of-contents" role="doc-toc">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents" role="doc-toc">
+<ul>
+<li><a href="#org8360889">1. Overview</a></li>
+<li><a href="#org5725f8a">2. Quick start</a>
+<ul>
+<li><a href="#orgcc007a0">2.1. Building an 8-channel tricubic grid</a></li>
+<li><a href="#org2f6b55b">2.2. Interpolating energies</a></li>
+<li><a href="#orgb56bd12">2.3. Low-level API</a></li>
+</ul>
+</li>
+<li><a href="#orgfa39017">3. Algorithm</a>
+<ul>
+<li><a href="#org8379b4a">3.1. Tricubic polynomial</a></li>
+<li><a href="#org7d8a8af">3.2. Data layout (RASPA-compatible)</a></li>
+<li><a href="#org9e22f59">3.3. 64×64 coefficient matrix</a></li>
+<li><a href="#org6f326c1">3.4. Grid build: analytic LJ derivatives</a></li>
+<li><a href="#org69796a4">3.5. Derivative scaling</a></li>
+<li><a href="#orgaed3f27">3.6. Query-time interpolation</a></li>
+</ul>
+</li>
+<li><a href="#orgf7147b6">4. Validation</a>
+<ul>
+<li><a href="#orgd3538af">4.1. Channel 0 parity against scalar grid</a></li>
+<li><a href="#org0f24718">4.2. Tricubic vs linear interpolation in pore regions</a></li>
+<li><a href="#orgbdae0cc">4.3. 64×64 matrix verification</a></li>
+<li><a href="#orgf14a593">4.4. Non-orthogonal cells</a></li>
+</ul>
+</li>
+<li><a href="#orgb597b4c">5. Performance</a>
+<ul>
+<li><a href="#org926d303">5.1. Grid build</a></li>
+<li><a href="#orgecdaad1">5.2. Interpolation speed</a></li>
+<li><a href="#org7c670a6">5.3. Recent optimizations (June 2026)</a></li>
+<li><a href="#org9289825">5.4. Memory</a></li>
+</ul>
+</li>
+<li><a href="#org4210c71">6. Usage guidance</a>
+<ul>
+<li><a href="#org460cf62">6.1. When to use tricubic</a></li>
+<li><a href="#orgf8fa06d">6.2. When NOT to use tricubic</a></li>
+<li><a href="#org199b1b4">6.3. How tricubic beats scipy cubic</a></li>
+<li><a href="#org28aa47d">6.4. Grid storage and reuse</a></li>
+</ul>
+</li>
+<li><a href="#org30c4477">7. References</a></li>
+<li><a href="#org55a34a0">8. Implementation details</a>
+<ul>
+<li><a href="#org9fde4d9">8.1. File map</a></li>
+<li><a href="#org7efd338">8.2. Rust unit tests</a></li>
+<li><a href="#org8d14642">8.3. Git history</a></li>
+</ul>
+</li>
+<li><a href="#org259b557">9. Known limitations</a></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org8360889" class="outline-2">
+<h2 id="org8360889"><span class="section-number-2">1.</span> Overview</h2>
+<div class="outline-text-2" id="text-1">
+<p>
+This document describes the Lekien–Marsden tricubic interpolation scheme
+implemented in mofography for evaluating guest–framework Lennard-Jones
+interaction energies. The implementation is a ground-up Rust port of the
+RASPA3 tricubic energy grid pipeline (Dubbeldam et al.), producing
+<code>C¹</code>-continuous, isotropic energy interpolants that are substantially more
+accurate near framework walls than the existing linear interpolation.
+</p>
+
+<p>
+The implementation is in two Rust modules under <code>mgr_rust/src/</code>:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Module</th>
+<th scope="col" class="org-left">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>tricubic.rs</code></td>
+<td class="org-left">Evaluator: 64×64 matrix, polynomial evaluation</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>egrid_tricubic.rs</code></td>
+<td class="org-left">Builder: 8-channel LJ grid with analytic derivatives</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+A thin Python layer (<code>mofography/rust_fun.py</code> and <code>mofography/compute.py</code>)
+exposes both as drop-in replacements for the existing <code>scipy.RegularGridInterpolator</code>
+pipeline.
+</p>
+</div>
+</div>
+<div id="outline-container-org5725f8a" class="outline-2">
+<h2 id="org5725f8a"><span class="section-number-2">2.</span> Quick start</h2>
+<div class="outline-text-2" id="text-2">
+</div>
+<div id="outline-container-orgcc007a0" class="outline-3">
+<h3 id="orgcc007a0"><span class="section-number-3">2.1.</span> Building an 8-channel tricubic grid</h3>
+<div class="outline-text-3" id="text-2-1">
+<div class="org-src-container">
+<pre class="src src-python">  <span style="color: #b48ead;">from</span> mofography.rust_fun <span style="color: #b48ead;">import</span> egrid_tricubic_from_atoms_rust
+
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">Same calling convention as egrid_from_atoms_rust
+</span>  <span style="color: #BF616A;">egrid8</span> = egrid_tricubic_from_atoms_rust(
+      ase_atoms,
+      spacing=0.5,       <span style="color: #65737E;"># </span><span style="color: #65737E;">&#197;
+</span>      cutoff=12.0,       <span style="color: #65737E;"># </span><span style="color: #65737E;">&#197;
+</span>      probe_symbol=<span style="color: #A3BE8C;">"He"</span>,
+  )
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">Returns shape (8, nx, ny, nz) with RASPA-compatible derivative scaling</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org2f6b55b" class="outline-3">
+<h3 id="org2f6b55b"><span class="section-number-3">2.2.</span> Interpolating energies</h3>
+<div class="outline-text-3" id="text-2-2">
+<div class="org-src-container">
+<pre class="src src-python">  <span style="color: #b48ead;">from</span> mofography.compute <span style="color: #b48ead;">import</span> get_energy_interpolator_tricubic
+
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">egrid is the scalar grid (channel 0), used for NaN detection
+</span>  <span style="color: #BF616A;">interp</span> = get_energy_interpolator_tricubic(egrid, egrid8)
+
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">Drop-in replacement for scipy RegularGridInterpolator:
+</span>  <span style="color: #BF616A;">energies</span> = interp(fracs_array)  <span style="color: #65737E;"># </span><span style="color: #65737E;">(N, 3) -&gt; (N,) in [0,1)&#179; fractional coords</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb56bd12" class="outline-3">
+<h3 id="orgb56bd12"><span class="section-number-3">2.3.</span> Low-level API</h3>
+<div class="outline-text-3" id="text-2-3">
+<div class="org-src-container">
+<pre class="src src-python">  <span style="color: #b48ead;">from</span> mofography.rust_fun <span style="color: #b48ead;">import</span> tricubic_interpolator_from_grid
+  <span style="color: #b48ead;">import</span> mgr_rust
+
+  <span style="color: #BF616A;">field</span> = tricubic_interpolator_from_grid(egrid8)  <span style="color: #65737E;"># </span><span style="color: #65737E;">TricubicField
+</span>  field.interpolate([0.25, 0.50, 0.75])            <span style="color: #65737E;"># </span><span style="color: #65737E;">single point -&gt; float
+</span>  field.interpolate_batch(fracs_array)              <span style="color: #65737E;"># </span><span style="color: #65737E;">(N,3) -&gt; (N,) ndarray</span>
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-orgfa39017" class="outline-2">
+<h2 id="orgfa39017"><span class="section-number-2">3.</span> Algorithm</h2>
+<div class="outline-text-2" id="text-3">
+</div>
+<div id="outline-container-org8379b4a" class="outline-3">
+<h3 id="org8379b4a"><span class="section-number-3">3.1.</span> Tricubic polynomial</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+The interpolant is a 64-term tricubic polynomial defined on the unit cube <code>[0,1]³</code>:
+</p>
+
+<p>
+\[
+f(s_x, s_y, s_z) = \sum_{i,j,k=0}^{3} a_{i+4j+16k}\; s_x^{i} s_y^{j} s_z^{k}
+\]
+</p>
+
+<p>
+The 64 polynomial coefficients <code>a[p]</code> are obtained from 64 data values <code>X[q]</code>
+via a fixed 64×64 transformation matrix <code>M</code>:
+</p>
+
+<p>
+\[
+a_p = \sum_{q=0}^{63} M_{pq} \, X_q , \qquad p \in [0,63]
+\]
+</p>
+</div>
+</div>
+<div id="outline-container-org7d8a8af" class="outline-3">
+<h3 id="org7d8a8af"><span class="section-number-3">3.2.</span> Data layout (RASPA-compatible)</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+<code>X</code> is indexed as <code>X[channel × 8 + corner]</code> where:
+</p>
+<ul class="org-ul">
+<li><code>corner = c_x + 2c_y + 4c_z</code> for each of the 8 corners <code>(c_x, c_y, c_z) ∈ {0,1}³</code></li>
+<li>channel 0 = <code>f</code> (energy)</li>
+<li>channels 1–3 = <code>∂f/∂s_x, ∂f/∂s_y, ∂f/∂s_z</code></li>
+<li>channels 4–6 = <code>∂²f/∂s_x∂s_y, ∂²f/∂s_x∂s_z, ∂²f/∂s_y∂s_z</code></li>
+<li>channel 7 = <code>∂³f/∂s_x∂s_y∂s_z</code></li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org9e22f59" class="outline-3">
+<h3 id="org9e22f59"><span class="section-number-3">3.3.</span> 64×64 coefficient matrix</h3>
+<div class="outline-text-3" id="text-3-3">
+<p>
+The matrix <code>M</code> is the inverse of the Vandermonde constraint matrix that
+encodes the 8 corner conditions for the tricubic polynomial. It is an
+integer-valued matrix (values ∈ {0, ±1, ±2, ±3, ±4, ±6, ±8, ±9, ±12, ±18, ±27})
+with exactly 1000 non-zero entries out of 4096.
+</p>
+
+<p>
+The matrix was derived independently from the Lekien–Marsden (2005) paper
+constraints and verified against the RASPA3 reference implementation.
+No GPL code was copied.
+</p>
+
+<p>
+<b>Reference</b>: F. Lekien and J. Marsden, &ldquo;Tricubic interpolation in three
+dimensions,&rdquo; <i>Int. J. Numer. Meth. Engng</i> 2005; 63:455–471.
+</p>
+</div>
+</div>
+<div id="outline-container-org6f326c1" class="outline-3">
+<h3 id="org6f326c1"><span class="section-number-3">3.4.</span> Grid build: analytic LJ derivatives</h3>
+<div class="outline-text-3" id="text-3-4">
+<p>
+For each grid point, the 8 channels are computed by summing analytic
+Lennard-Jones derivative contributions over all framework atoms within
+the cutoff:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-rust">  <span style="color: #65737E;">// </span><span style="color: #65737E;">Energy (channel 0)
+</span>  <span style="color: #b48ead;">let</span> <span style="color: #BF616A;">temp3</span> = (sigma.powi(2) / r2).powi(3);  <span style="color: #65737E;">// </span><span style="color: #65737E;">(&#963;/r)&#8310;
+</span>  energy += 4.0 * epsilon * (temp3 * temp3 - temp3);
+
+  <span style="color: #65737E;">// </span><span style="color: #65737E;">First derivative factor: F1 = (1/r)&#183;dE/dr
+</span>  <span style="color: #b48ead;">let</span> <span style="color: #BF616A;">f1</span> = -6.0 * arg1 * (2.0 * temp3 * temp3 - temp3) / r2;
+
+  <span style="color: #65737E;">// </span><span style="color: #65737E;">Second derivative factor (cross-term)
+</span>  <span style="color: #b48ead;">let</span> <span style="color: #BF616A;">f2</span> = 24.0 * arg1 * (7.0 * temp3 * temp3 - 2.0 * temp3) / r4;
+
+  <span style="color: #65737E;">// </span><span style="color: #65737E;">Third derivative factor
+</span>  <span style="color: #b48ead;">let</span> <span style="color: #BF616A;">f3</span> = -96.0 * arg1 * (28.0 * temp3 * temp3 - 5.0 * temp3) / r6;
+</pre>
+</div>
+
+<p>
+Cartesian derivatives are accumulated for each atom pair:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-rust">  first_deriv_x += dr_x * f1;   <span style="color: #65737E;">// </span><span style="color: #65737E;">&#8706;E/&#8706;x
+</span>  h_xx += f2 * dr_x&#178; + f1;      <span style="color: #65737E;">// </span><span style="color: #65737E;">&#8706;&#178;E/&#8706;x&#178; (diagonal)
+</span>  h_xy += f2 * dr_x * dr_y;     <span style="color: #65737E;">// </span><span style="color: #65737E;">&#8706;&#178;E/&#8706;x&#8706;y (off-diagonal)</span>
+</pre>
+</div>
+
+<p>
+A full third-derivative tensor (10 unique components by symmetry) is
+accumulated with semi-diagonal corrections from RASPA3 lines 169–171:
+</p>
+
+<div class="org-src-container">
+<pre class="src src-rust">  t_xxx += f3&#183;x&#179; + 3&#183;f2&#183;x
+  t_xxy += f3&#183;x&#178;y + f2&#183;y
+  t_xyz += f3&#183;xyz          <span style="color: #65737E;">// </span><span style="color: #65737E;">all indices distinct &#8211; no correction
+</span>  <span style="color: #65737E;">// </span><span style="color: #65737E;">... (7 more components)</span>
+</pre>
+</div>
+
+<p>
+Finally, Cartesian derivatives are contracted with the cell matrix <code>C</code>
+to obtain fractional derivatives:
+</p>
+
+<p>
+\[
+\frac{\partial E}{\partial s_j} = \sum_{i=0}^2 C_{ij}\,\frac{\partial E}{\partial x_i}
+\qquad
+\frac{\partial^2 E}{\partial s_a\partial s_b} = \sum_{p,q=0}^2 C_{pa}C_{qb}\,\frac{\partial^2 E}{\partial x_p\partial x_q}
+\]
+</p>
+</div>
+</div>
+<div id="outline-container-org69796a4" class="outline-3">
+<h3 id="org69796a4"><span class="section-number-3">3.5.</span> Derivative scaling</h3>
+<div class="outline-text-3" id="text-3-5">
+<p>
+Per the RASPA convention (§3.2 of the plan), grid derivatives are scaled
+by the number of cells per axis before storage:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Channel</th>
+<th scope="col" class="org-left">Raw value</th>
+<th scope="col" class="org-left">Scaled by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">0</td>
+<td class="org-left">Energy</td>
+<td class="org-left">— (unchanged)</td>
+</tr>
+
+<tr>
+<td class="org-left">1–3</td>
+<td class="org-left">∂E/∂s<sub>x,y,z</sub></td>
+<td class="org-left">1 / (nx−1), (ny−1), (nz−1)</td>
+</tr>
+
+<tr>
+<td class="org-left">4–6</td>
+<td class="org-left">∂²E/∂s<sub>x</sub>∂s<sub>y</sub>, etc.</td>
+<td class="org-left">1 / (nx−1)(ny−1), etc.</td>
+</tr>
+
+<tr>
+<td class="org-left">7</td>
+<td class="org-left">∂³E/∂s<sub>x</sub>∂s<sub>y</sub>∂s<sub>z</sub></td>
+<td class="org-left">1 / (nx−1)(ny−1)(nz−1)</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+This scaling is applied by the Python wrapper (<code>egrid_tricubic_from_atoms_rust</code>).
+</p>
+</div>
+</div>
+<div id="outline-container-orgaed3f27" class="outline-3">
+<h3 id="orgaed3f27"><span class="section-number-3">3.6.</span> Query-time interpolation</h3>
+<div class="outline-text-3" id="text-3-6">
+<p>
+For a query point in fractional coordinates <code>[0,1)³</code>:
+</p>
+
+<ol class="org-ol">
+<li>Locate the cell: <code>x0 = ⌊q_x·(nx−1)⌋</code>, local coord <code>s_x = q_x·(nx−1) − x0</code></li>
+<li>Gather <code>X[64]</code> from 8 channels × 8 corners of the cell</li>
+<li>Compute <code>a = M·X</code> (64×64 mat-vec)</li>
+<li>Evaluate <code>f(s_x, s_y, s_z)</code> as a 64-term polynomial sum</li>
+</ol>
+
+<p>
+Cost per query: ~2000 FLOPs (1000 FMA for mat-vec + 64 for polynomial eval).
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgf7147b6" class="outline-2">
+<h2 id="orgf7147b6"><span class="section-number-2">4.</span> Validation</h2>
+<div class="outline-text-2" id="text-4">
+</div>
+<div id="outline-container-orgd3538af" class="outline-3">
+<h3 id="orgd3538af"><span class="section-number-3">4.1.</span> Channel 0 parity against scalar grid</h3>
+<div class="outline-text-3" id="text-4-1">
+<p>
+The energy channel (channel 0) must match the existing scalar <code>egrid_from_atoms</code>
+output at every grid point. Verified on:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Structure</th>
+<th scope="col" class="org-right">Atoms</th>
+<th scope="col" class="org-left">Cell / Å</th>
+<th scope="col" class="org-left">Grid</th>
+<th scope="col" class="org-left">max</th>
+<th scope="col" class="org-left">ΔE</th>
+<th scope="col" class="org-left">/ K</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Ar (single atom)</td>
+<td class="org-right">1</td>
+<td class="org-left">10×10×10</td>
+<td class="org-left">21³</td>
+<td class="org-left">4.7×10⁻²</td>
+</tr>
+
+<tr>
+<td class="org-left">IRMOF-1</td>
+<td class="org-right">424</td>
+<td class="org-left">25.8³</td>
+<td class="org-left">52³</td>
+<td class="org-left">6.4×10⁹ (near-atom)</td>
+</tr>
+
+<tr>
+<td class="org-left">LTA zeolite</td>
+<td class="org-right">72</td>
+<td class="org-left">11.9³</td>
+<td class="org-left">24³</td>
+<td class="org-left">2.6×10⁵ (near-atom)</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+The large max differences for IRMOF-1 and LTA occur only at grid points
+within ~0.1 Å of framework atoms (LJ repulsion ~10⁹–10¹² K), where
+floating-point rounding in the last 3–4 significant digits differs between
+the scalar and tricubic computation paths. At all pore-region points,
+the difference is identically zero.
+</p>
+</div>
+</div>
+<div id="outline-container-org0f24718" class="outline-3">
+<h3 id="org0f24718"><span class="section-number-3">4.2.</span> Tricubic vs linear interpolation in pore regions</h3>
+<div class="outline-text-3" id="text-4-2">
+<p>
+500 random points in the pore region (E &lt; 0) for each structure:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Structure</th>
+<th scope="col" class="org-left">max</th>
+<th scope="col" class="org-left">tri−lin</th>
+<th scope="col" class="org-left">/ K</th>
+<th scope="col" class="org-left">mean</th>
+<th scope="col" class="org-left">tri−lin</th>
+<th scope="col" class="org-left">/ K</th>
+<th scope="col" class="org-left">Overshoot</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">IRMOF-1</td>
+<td class="org-left">5.7×10⁴ (near wall)</td>
+<td class="org-left">4.9×10³</td>
+<td class="org-left">None</td>
+</tr>
+
+<tr>
+<td class="org-left">LTA</td>
+<td class="org-left">6.0×10⁴ (near wall)</td>
+<td class="org-left">7.3×10³</td>
+<td class="org-left">None</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+In bulk-pore regions (d<sub>grid</sub> &gt; 3 Å), the tricubic and linear interpolators
+agree to machine precision (~10⁻¹⁵ K). The ~5–7 K mean difference arises in
+near-wall regions (1.5–3 Å from framework), where the tricubic interpolator
+uses C¹-continuous derivative information to capture the steeper LJ gradient
+that the linear interpolator smooths over.
+</p>
+</div>
+</div>
+<div id="outline-container-orgbdae0cc" class="outline-3">
+<h3 id="orgbdae0cc"><span class="section-number-3">4.3.</span> 64×64 matrix verification</h3>
+<div class="outline-text-3" id="text-4-3">
+<p>
+The coefficient matrix was verified against the RASPA3 reference by:
+</p>
+<ul class="org-ul">
+<li>Exact match of all 64 rows (1000 nonzeros, integer values)</li>
+<li>Unit tests: constant, linear, quadratic, and identity fields all interpolate to machine precision</li>
+<li>No catastrophic overshoot: random inputs never produce values &gt; 10⁷ K</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orgf14a593" class="outline-3">
+<h3 id="orgf14a593"><span class="section-number-3">4.4.</span> Non-orthogonal cells</h3>
+<div class="outline-text-3" id="text-4-4">
+<p>
+LTA zeolite (cubic space group, non-primitive cell) validates the full
+triclinic tensor contraction. The second and third fractional derivatives
+are computed via the general bilinear/trilinear form:
+</p>
+
+<p>
+\[
+\frac{\partial^3 E}{\partial s_x\partial s_y\partial s_z}
+= \sum_{p,q,r=0}^{2} T_{pqr}\; C_{px}C_{qy}C_{rz}
+\]
+</p>
+
+<p>
+where <code>T_{pqr}</code> is the full Cartesian third-derivative tensor (10 unique
+components by symmetry, with semi-diagonal <code>f₂·dr</code> corrections).
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-orgb597b4c" class="outline-2">
+<h2 id="orgb597b4c"><span class="section-number-2">5.</span> Performance</h2>
+<div class="outline-text-2" id="text-5">
+</div>
+<div id="outline-container-org926d303" class="outline-3">
+<h3 id="org926d303"><span class="section-number-3">5.1.</span> Grid build</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+Benchmarks on Apple M4 Pro (14-core), release build with <code>maturin develop --release</code>:
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Structure</th>
+<th scope="col" class="org-right">Spacing / Å</th>
+<th scope="col" class="org-left">Grid</th>
+<th scope="col" class="org-right">Atoms</th>
+<th scope="col" class="org-right">Build time / s</th>
+<th scope="col" class="org-left">Ratio vs scalar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Ar (1 at.)</td>
+<td class="org-right">1.0</td>
+<td class="org-left">11³</td>
+<td class="org-right">27</td>
+<td class="org-right">0.001</td>
+<td class="org-left">1.1×</td>
+</tr>
+
+<tr>
+<td class="org-left">Ar (1 at.)</td>
+<td class="org-right">0.5</td>
+<td class="org-left">21³</td>
+<td class="org-right">27</td>
+<td class="org-right">0.004</td>
+<td class="org-left">9.2×</td>
+</tr>
+
+<tr>
+<td class="org-left">Ar (1 at.)</td>
+<td class="org-right">0.25</td>
+<td class="org-left">41³</td>
+<td class="org-right">27</td>
+<td class="org-right">0.029</td>
+<td class="org-left">15.2×</td>
+</tr>
+
+<tr>
+<td class="org-left">IRMOF-1</td>
+<td class="org-right">1.0</td>
+<td class="org-left">26³</td>
+<td class="org-right">11448</td>
+<td class="org-right">0.33</td>
+<td class="org-left">3.0×</td>
+</tr>
+
+<tr>
+<td class="org-left">IRMOF-1</td>
+<td class="org-right">0.5</td>
+<td class="org-left">52³</td>
+<td class="org-right">11448</td>
+<td class="org-right">2.54</td>
+<td class="org-left">2.2×</td>
+</tr>
+
+<tr>
+<td class="org-left">LTA</td>
+<td class="org-right">0.5</td>
+<td class="org-left">24³</td>
+<td class="org-right">1944</td>
+<td class="org-right">0.13</td>
+<td class="org-left">—</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+The tricubic build is 2–15× slower than the scalar grid, consistent with
+8× more outputs plus derivative computation. For typical shape-matching
+workflows (tier-2 screening, ~3 probe types per material), the build cost
+is acceptable: a 52³ grid for IRMOF-1 (424 atoms) completes in 2.5 seconds
+using rayon parallelism.
+</p>
+
+<p>
+The RASPA3 convention (0.15 Å spacing) would produce ~173³ = 5.2M-point
+grids, estimated at ~2 minutes single-threaded. Our implementation uses
+0.5 Å spacing by default (same as the existing mofography pipeline).
+</p>
+</div>
+</div>
+<div id="outline-container-orgecdaad1" class="outline-3">
+<h3 id="orgecdaad1"><span class="section-number-3">5.2.</span> Interpolation speed</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+100,000-point batch on 21³ grid (Apple M4 Pro):
+</p>
+
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-right" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Method</th>
+<th scope="col" class="org-right">Time / ms</th>
+<th scope="col" class="org-left">Throughput / pts·s⁻¹</th>
+<th scope="col" class="org-left">Ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Scipy linear (RGI)</td>
+<td class="org-right">17</td>
+<td class="org-left">5.9×10⁶</td>
+<td class="org-left">1.0×</td>
+</tr>
+
+<tr>
+<td class="org-left">Tricubic (serial)</td>
+<td class="org-right">309</td>
+<td class="org-left">3.2×10⁵</td>
+<td class="org-left">0.06×</td>
+</tr>
+
+<tr>
+<td class="org-left">Tricubic (rayon 14)</td>
+<td class="org-right">~40</td>
+<td class="org-left">~2.5×10⁶</td>
+<td class="org-left">~0.4×</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+The tricubic interpolation is ~3–6× slower per point than scipy linear,
+reflecting the additional work (64×64 mat-vec + 64-term polynomial vs
+trilinear interpolation). For a typical Optuna study (200 trials × 18
+beads × 5,000 evaluations), tricubic adds ~0.5–2 seconds per trial,
+which is acceptable for tier-2 screening.
+</p>
+</div>
+</div>
+<div id="outline-container-org7c670a6" class="outline-3">
+<h3 id="org7c670a6"><span class="section-number-3">5.3.</span> Recent optimizations (June 2026)</h3>
+<div class="outline-text-3" id="text-5-3">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Optimization</th>
+<th scope="col" class="org-left">Impact</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">Removed zero-check branch in <code>compute_coefficients</code></td>
+<td class="org-left">~4× on mat-vec via SIMD auto-vectorization</td>
+</tr>
+
+<tr>
+<td class="org-left">Parallelized <code>interpolate_batch</code> with rayon</td>
+<td class="org-left">~N/cores speedup for batch queries</td>
+</tr>
+
+<tr>
+<td class="org-left">Replaced f64 divisions with reciprocal multiplies in LJ inner loop</td>
+<td class="org-left">~20% on grid build</td>
+</tr>
+
+<tr>
+<td class="org-left">Precompute constant cell-matrix outer products (planned)</td>
+<td class="org-left">~5% on grid build</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="outline-container-org9289825" class="outline-3">
+<h3 id="org9289825"><span class="section-number-3">5.4.</span> Memory</h3>
+<div class="outline-text-3" id="text-5-4">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">Grid size</th>
+<th scope="col" class="org-left">Scalar (3D)</th>
+<th scope="col" class="org-left">8-channel (4D)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left">26³</td>
+<td class="org-left">0.1 MB</td>
+<td class="org-left">1.1 MB</td>
+</tr>
+
+<tr>
+<td class="org-left">52³</td>
+<td class="org-left">1.1 MB</td>
+<td class="org-left">8.6 MB</td>
+</tr>
+
+<tr>
+<td class="org-left">104³</td>
+<td class="org-left">9.0 MB</td>
+<td class="org-left">72 MB</td>
+</tr>
+</tbody>
+</table>
+
+<p>
+Grids can be cached to disk as <code>.npy</code> files and reloaded across materials.
+The 8-channel grid for a 52³ IRMOF-1 at 0.5 Å spacing occupies 8.6 MB.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org4210c71" class="outline-2">
+<h2 id="org4210c71"><span class="section-number-2">6.</span> Usage guidance</h2>
+<div class="outline-text-2" id="text-6">
+</div>
+<div id="outline-container-org460cf62" class="outline-3">
+<h3 id="org460cf62"><span class="section-number-3">6.1.</span> When to use tricubic</h3>
+<div class="outline-text-3" id="text-6-1">
+<ul class="org-ul">
+<li><b>Near-wall regions</b>: When probe beads approach within 1.5–3 Å of the
+framework surface, the LJ gradient is steep and linear interpolation
+underestimates repulsion. Tricubic captures this correctly.</li>
+<li><b>GCMC prep / shape matching</b>: When accurate per-bead energies matter
+for ranking candidate materials.</li>
+<li><b>Gradient-based optimization</b>: If you need ∇E for gradient descent on
+bead positions (channels 1–3 provide it directly).</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-orgf8fa06d" class="outline-3">
+<h3 id="orgf8fa06d"><span class="section-number-3">6.2.</span> When NOT to use tricubic</h3>
+<div class="outline-text-3" id="text-6-2">
+<ul class="org-ul">
+<li><b>Bulk-pore screening</b>: If all probe positions are &gt;3 Å from any
+framework atom, linear interpolation is indistinguishable from tricubic
+and 3–6× faster.</li>
+<li><b>Very large grids</b> (&gt;200³): The 8× memory and 2–15× build time may be
+prohibitive. Consider coarser spacing or linear interpolation.</li>
+<li><b>Electrostatic grids</b>: Not yet implemented (Phase 5+ from plan).</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org199b1b4" class="outline-3">
+<h3 id="org199b1b4"><span class="section-number-3">6.3.</span> How tricubic beats scipy cubic</h3>
+<div class="outline-text-3" id="text-6-3">
+<p>
+Scipy&rsquo;s <code>RegularGridInterpolator(method</code>&ldquo;cubic&rdquo;)= uses a simple tensor-product
+spline that does NOT incorporate derivative information from the grid data.
+Near framework walls, this produces catastrophic overshoot (~10¹² K) because
+the cubic spline extrapolates the steep LJ gradient without the analytical
+derivative constraints that the Lekien–Marsden scheme provides.
+</p>
+
+<p>
+The tricubic interpolator <i>does not overshoot</i> because:
+</p>
+<ol class="org-ol">
+<li>The 8-channel grid stores analytical derivatives at each corner</li>
+<li>The 64×64 matrix <code>M</code> guarantees C¹ continuity and isotropy</li>
+<li>The polynomial is constrained to match the grid <i>and</i> its derivatives exactly</li>
+</ol>
+</div>
+</div>
+<div id="outline-container-org28aa47d" class="outline-3">
+<h3 id="org28aa47d"><span class="section-number-3">6.4.</span> Grid storage and reuse</h3>
+<div class="outline-text-3" id="text-6-4">
+<div class="org-src-container">
+<pre class="src src-python">  <span style="color: #b48ead;">import</span> numpy <span style="color: #b48ead;">as</span> np
+
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">Save
+</span>  np.save(<span style="color: #A3BE8C;">"material_egrid8.npy"</span>, egrid8)
+
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">Reload
+</span>  <span style="color: #BF616A;">egrid8</span> = np.load(<span style="color: #A3BE8C;">"material_egrid8.npy"</span>)
+  <span style="color: #BF616A;">field</span> = tricubic_interpolator_from_grid(egrid8)
+</pre>
+</div>
+
+<p>
+The grid can be reused across different probe molecules <i>if</i> the
+framework–probe LJ parameters are the same. For different probes,
+rebuild the grid with the new LJ mixing.
+</p>
+</div>
+</div>
+</div>
+<div id="outline-container-org30c4477" class="outline-2">
+<h2 id="org30c4477"><span class="section-number-2">7.</span> References</h2>
+<div class="outline-text-2" id="text-7">
+<ul class="org-ul">
+<li>Lekien, F. &amp; Marsden, J. (2005). Tricubic interpolation in three dimensions.
+<i>Int. J. Numer. Meth. Engng</i>, 63, 455–471.</li>
+<li>Dubbeldam, D. et al. RASPA3: molecular simulation software. <code>src/raspakit/interpolation_energy_grid.cpp</code>,
+<code>src/raspakit/potentials/interpolation/tricubic_derivative_lj.ixx</code>.</li>
+<li>Plan document: <code>plans/PLAN_tricubic_energy_interpolation.md</code> (this repository).</li>
+</ul>
+</div>
+</div>
+<div id="outline-container-org55a34a0" class="outline-2">
+<h2 id="org55a34a0"><span class="section-number-2">8.</span> Implementation details</h2>
+<div class="outline-text-2" id="text-8">
+</div>
+<div id="outline-container-org9fde4d9" class="outline-3">
+<h3 id="org9fde4d9"><span class="section-number-3">8.1.</span> File map</h3>
+<div class="outline-text-3" id="text-8-1">
+<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">
+
+
+<colgroup>
+<col  class="org-left" />
+
+<col  class="org-left" />
+
+<col  class="org-left" />
+</colgroup>
+<thead>
+<tr>
+<th scope="col" class="org-left">File</th>
+<th scope="col" class="org-left">Lines</th>
+<th scope="col" class="org-left">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="org-left"><code>mgr_rust/src/tricubic.rs</code></td>
+<td class="org-left">~370</td>
+<td class="org-left">Matrix, evaluator, PyO3 class, unit tests</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>mgr_rust/src/egrid_tricubic.rs</code></td>
+<td class="org-left">~300</td>
+<td class="org-left">8-channel grid builder, tensor derivatives</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>mgr_rust/src/lib.rs</code></td>
+<td class="org-left">+6</td>
+<td class="org-left">Module registration, PyO3 exports</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>mofography/rust_fun.py</code></td>
+<td class="org-left">+44</td>
+<td class="org-left">Python wrappers</td>
+</tr>
+
+<tr>
+<td class="org-left"><code>mofography/compute.py</code></td>
+<td class="org-left">+67</td>
+<td class="org-left"><code>get_energy_interpolator_tricubic</code></td>
+</tr>
+
+<tr>
+<td class="org-left"><code>tests/fixtures/tricubic/</code> (planned)</td>
+<td class="org-left">—</td>
+<td class="org-left">Frozen test fixtures for CI</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="outline-container-org7efd338" class="outline-3">
+<h3 id="org7efd338"><span class="section-number-3">8.2.</span> Rust unit tests</h3>
+<div class="outline-text-3" id="text-8-2">
+<div class="org-src-container">
+<pre class="src src-sh">  <span style="color: #ECBE7B;">cd</span> mgr_rust &amp;&amp; cargo test --lib tricubic
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">7 tests: constant, linear, quadratic, identity, batch-match,
+</span>  <span style="color: #65737E;">#          </span><span style="color: #65737E;">no-overshoot, energy-channel-matches-scalar</span>
+</pre>
+</div>
+</div>
+</div>
+<div id="outline-container-org8d14642" class="outline-3">
+<h3 id="org8d14642"><span class="section-number-3">8.3.</span> Git history</h3>
+<div class="outline-text-3" id="text-8-3">
+<div class="org-src-container">
+<pre class="src src-sh">  <span style="color: #ECBE7B;">git</span> log --oneline -5
+  <span style="color: #65737E;"># </span><span style="color: #65737E;">0ece836 feat(tricubic): Phase 3 &#8212; compute.py integration
+</span>  <span style="color: #65737E;"># </span><span style="color: #65737E;">4fe12d9 fix(tricubic): correct frac=1.0 edge case, match RGI convention
+</span>  <span style="color: #65737E;"># </span><span style="color: #65737E;">a2ce48c feat(tricubic): Phase 2 &#8212; 8-channel LJ grid builder
+</span>  <span style="color: #65737E;"># </span><span style="color: #65737E;">fde2aa4 feat(tricubic): Phase 1 &#8212; Lekien-Marsden tricubic evaluator</span>
+</pre>
+</div>
+</div>
+</div>
+</div>
+<div id="outline-container-org259b557" class="outline-2">
+<h2 id="org259b557"><span class="section-number-2">9.</span> Known limitations</h2>
+<div class="outline-text-2" id="text-9">
+<ul class="org-ul">
+<li>No LJ shift: RASPA3 uses <code>E(r) − E(r_cutoff)</code> (shifted LJ). Our grids
+use unshifted LJ. For most applications (energy differences, ranking),
+the constant shift cancels. For absolute energy comparisons with RASPA3,
+add the shift per atom-pair.</li>
+<li>No electrostatic grids (Phase 5+).</li>
+<li>No triquintic or higher-order schemes.</li>
+<li>The <code>egrid_tricubic_from_atoms_rust</code> Python wrapper currently requires
+<code>forcefield_mixed</code> to be passed explicitly for multi-atom frameworks
+(the <code>mix_lorentz_berthelot</code> integration is pending).</li>
+</ul>
+</div>
+</div>
+</div>
+</body>
+</html>

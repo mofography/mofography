@@ -1,0 +1,12 @@
+# make_raspa_input_for_cif { #mofography.raspa_helper.make_raspa_input_for_cif }
+
+```python
+raspa_helper.make_raspa_input_for_cif(
+    folder_path,
+    raspa_settings_dict,
+    other_files_to_copy,
+    templates_dir,
+    template_name,
+)
+```
+

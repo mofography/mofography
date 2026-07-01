@@ -1,13 +1,15 @@
 # add_graph_to_db { #mofography.data.add_graph_to_db }
 
-`data.add_graph_to_db(db_path, graph)`
+```python
+data.add_graph_to_db(db_path, graph)
+```
 
 The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled
 graph in it.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description                                                                                                                                                                                                                                                                       | Default    |
-|-----------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `db_path` |        | The `db_path` parameter is the file path to the SQLite database where you want to store the graph data. This function connects to the SQLite database at the specified path and inserts the compressed graph data into the database                                               | _required_ |
-| `graph`   |        | The `graph` parameter in the `add_graph_to_db` function is the graph data structure that you want to store in the SQLite database. This graph can be represented as a Python object (e.g., dictionary, list of edges, etc.) that you want to save for later retrieval or analysis | _required_ |
+| Name    | Type   | Description                                                                                                                                                                                                                                                                       | Default    |
+|---------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| db_path |        | The `db_path` parameter is the file path to the SQLite database where you want to store the graph data. This function connects to the SQLite database at the specified path and inserts the compressed graph data into the database                                               | _required_ |
+| graph   |        | The `graph` parameter in the `add_graph_to_db` function is the graph data structure that you want to store in the SQLite database. This graph can be represented as a Python object (e.g., dictionary, list of edges, etc.) that you want to save for later retrieval or analysis | _required_ |

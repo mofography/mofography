@@ -1,0 +1,15 @@
+# percolation_all_axes_winding { #mofography.winding_percolation.percolation_all_axes_winding }
+
+```python
+winding_percolation.percolation_all_axes_winding(
+    results,
+    threshold,
+    graph=None,
+    base_region_labels=None,
+    node_radius_attr='pocket_radius',
+    edge_radius_attr='window_radius',
+    include_dangling=True,
+    expand_components=True,
+)
+```
+

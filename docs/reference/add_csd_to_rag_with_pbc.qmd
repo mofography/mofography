@@ -1,0 +1,10 @@
+# add_csd_to_rag_with_pbc { #mofography.compute.add_csd_to_rag_with_pbc }
+
+```python
+compute.add_csd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape)
+```
+
+Attach PBC-aware cavity-size distribution (CSD) histograms to RAG nodes.
+
+Histograms are centroid-to-void-voxel distances with periodic boundary handling.
+Stored as ``csd_x_pbc`` / ``csd_y_pbc``.  Also sets ``centroid_pbc`` on nodes.

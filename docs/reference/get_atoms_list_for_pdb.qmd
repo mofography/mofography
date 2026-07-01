@@ -1,0 +1,21 @@
+# get_atoms_list_for_pdb { #mofography.raspa_helper.get_atoms_list_for_pdb }
+
+```python
+raspa_helper.get_atoms_list_for_pdb(pdb_file, index_list=None, symbol_map=None)
+```
+
+It reads a RASPA pdb file and returns a list of ASE atoms objects
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type   | Description                                                                                                                   | Default    |
+|------------|--------|-------------------------------------------------------------------------------------------------------------------------------|------------|
+| pdb_file   |        | the name of the pdb file                                                                                                      | _required_ |
+| index_list |        | a list of indices of the configurations you want to extract from the pdb file. If you want all of them, just leave it as None | `None`     |
+| symbol_map |        | Optional dictionary mapping custom symbols to standard element symbols.                                                       | `None`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description              |
+|--------|--------|--------------------------|
+|        |        | A list of atoms objects. |

@@ -1,0 +1,6 @@
+# prepare_seg_threejs { #mofography.threejs_viz.prepare_seg_threejs }
+
+```python
+threejs_viz.prepare_seg_threejs(seg, *, dgrid=None)
+```
+

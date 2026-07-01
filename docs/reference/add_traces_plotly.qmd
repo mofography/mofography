@@ -1,0 +1,7 @@
+# add_traces_plotly { #mofography.visualize.add_traces_plotly }
+
+```python
+visualize.add_traces_plotly(fig, traces)
+```
+
+Add traces to a Plotly ``go.Figure`` with backend validation.

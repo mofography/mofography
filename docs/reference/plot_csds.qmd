@@ -1,24 +1,44 @@
 # plot_csds { #mofography.visualize.plot_csds }
 
-`visualize.plot_csds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster')`
+```python
+visualize.plot_csds(
+    rag,
+    pbc_groups,
+    cscale=None,
+    no_pbc=False,
+    cluster_key='cluster',
+)
+```
 
-> This function takes in a RAG and a list of PBC groups and plots cavity size distributions (CSD) for each PBC group. 
+Plot cavity size distributions (CSD) stored on the RAG.
 
-Let's see how it works:
+Each trace is the histogram of distance from the PBC-aware pocket centroid
+to void voxels (``csd_x_pbc`` / ``csd_y_pbc``), typically from
+:func:`mofography.compute.add_csd_to_rag_with_pbc`.
 
-## Parameters
+This is **not** the Rust pocketwise probe PSD (use
+:func:`compute_psds_pocketwise_rust` or :func:`plot_pocket_psds_from_grid`).
+For energy histograms along sampling paths, use :func:`plot_vdw_hists` after
+:func:`mofography.compute.add_vdw_hist_to_rag`.
 
-| Name         | Type   | Description                                                                | Default    |
-|--------------|--------|----------------------------------------------------------------------------|------------|
-| `rag`        |        | the region adjacency graph                                                 | _required_ |
-| `pbc_groups` |        | a list of sets of nodes that are connected by periodic boundary conditions | _required_ |
 
-## Returns
 
-| Type   | Description            |
-|--------|------------------------|
-|        | A plotly figure object |
+## Parameters {.doc-section .doc-section-parameters}
 
-## Deprecated alias
+rag : networkx.Graph
+    Region adjacency graph with CSD node attributes.
+pbc_groups : list
+    Sets of region nodes merged by periodic boundary conditions.
+cscale : colorscale, optional
+    Plotly qualitative or sequential colorscale for ``cluster_key`` colors.
+no_pbc : bool
+    If True, plot per-node ``csd_x`` / ``csd_y`` instead of PBC groups.
+cluster_key : str
+    Node attribute used only for line color (e.g. ``cluster_geom_pbc``).
 
-`plot_psds` warns and calls `plot_csds`.
+
+
+## Returns {.doc-section .doc-section-returns}
+
+list
+    Plotly ``Scatter`` traces (one per region or PBC group).

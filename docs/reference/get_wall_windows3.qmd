@@ -1,0 +1,23 @@
+# get_wall_windows3 { #mofography.compute.get_wall_windows3 }
+
+```python
+compute.get_wall_windows3(regions, maxima, dgrid, ase_atoms, wall_thickness)
+```
+
+This function calculates the wall windows based on the provided regions, maxima, dgrid, and other parameters.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name           | Type   | Description                                | Default    |
+|----------------|--------|--------------------------------------------|------------|
+| regions        |        | The labeled regions from the segmentation. | _required_ |
+| maxima         |        | The maxima points in the dgrid.            | _required_ |
+| dgrid          |        | The dgrid data.                            | _required_ |
+| ase_atoms      |        | The ASE atoms object.                      | _required_ |
+| wall_thickness |        | The thickness of the wall to consider.     | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description             |
+|--------|--------|-------------------------|
+|        |        | A list of wall windows. |

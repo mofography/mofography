@@ -1,0 +1,7 @@
+# set_traces_visible { #mofography.export_mp4.set_traces_visible }
+
+```python
+export_mp4.set_traces_visible(fig, visibility)
+```
+
+Set ``visible`` on each trace in order.

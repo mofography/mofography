@@ -1,0 +1,15 @@
+# percolation_region_labels_union_winding { #mofography.raspa_helper.percolation_region_labels_union_winding }
+
+```python
+raspa_helper.percolation_region_labels_union_winding(axis_clusters)
+```
+
+Union of segmentation region IDs appearing in any winding-percolation cluster.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+axis_clusters : dict
+    ``percolation_all_axes_winding`` output ``axis_clusters``: keys
+    ``'x'``, ``'y'``, ``'z'`` mapping to lists of label groups.

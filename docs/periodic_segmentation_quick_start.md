@@ -96,10 +96,10 @@ Before we dive into the new workflow, it's worth mentioning the **legacy approac
 - ✅ Returns all outputs with consistent indexing
 
 📜 **Legacy tutorials** (for reference/educational purposes):
-- [Applying PBC](applying_pbc.ipynb) - How the old manual merging worked
-- [Region Segmentation](region_segmentation.ipynb) - Segmentation methods
+- [Applying PBC](applying_pbc.qmd) - How the old manual merging worked
+- [Region Segmentation](region_segmentation.qmd) - Segmentation methods
 - [Region Adjacency Graph](region_adjacency_graph.ipynb) - Working with pore graphs
-- [Connections and Windows](connections_and_windows.ipynb) - Window detection
+- [Connections and Windows](connections_and_windows.qmd) - Window detection
 
 These are kept for educational value and for users maintaining legacy code, but **new projects should use the periodic segmentation workflow** covered in this tutorial.
 
@@ -136,7 +136,7 @@ By the end of this tutorial, you'll be able to:
 5. ✅ Create a pore graph (Region Adjacency Graph) for analysis
 6. ✅ Visualize the pore network in 3D
 
-*(Note: Pocket type detection is covered in the [Pockets Detection](pockets_detection.ipynb) tutorial)*
+*(Note: Pocket type detection is covered in the [Pockets Detection](pockets_detection.qmd) tutorial)*
 
 ---
 
@@ -463,7 +463,7 @@ fig.show()
 - **[Rust Backend Documentation](rust_backend_documentation.md)** - Performance details
 
 ### Explore Basic Tutorials:
-- `region_segmentation.ipynb` - Alternative segmentation methods
+- `region_segmentation.qmd` - Alternative segmentation methods
 - `region_adjacency_graph.ipynb` - Working with pore graphs
 - `connections_and_windows.ipynb` - Window detection details
 - `pockets_detection.ipynb` - Classify pocket types

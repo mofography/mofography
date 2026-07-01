@@ -1,0 +1,23 @@
+# egrid_tricubic_from_atoms_rust { #mofography.rust_fun.egrid_tricubic_from_atoms_rust }
+
+```python
+rust_fun.egrid_tricubic_from_atoms_rust(
+    ase_atoms,
+    spacing,
+    forcefield_mixed=None,
+    cutoff=6.0,
+    probe_symbol='He',
+    return_ncells=False,
+)
+```
+
+Build an 8-channel tricubic energy grid from atomic positions.
+
+Parameters match :func:`egrid_from_atoms_rust`.
+Returns a numpy array of shape ``(8, nx_unit, ny_unit, nz_unit)`` with
+RASPA-compatible derivative scaling. Channel 0 = energy; channels 1-7 =
+scaled fractional derivatives.
+
+Grid nodes span the **unit cell** at ``-0.5 + i/(N_unit-1)`` (same as
+:func:`egrid_from_atoms_rust` and :class:`mgr_rust.TricubicField` query
+convention).  Supercell-replicated atoms supply cutoff images.

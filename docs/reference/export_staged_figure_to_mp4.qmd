@@ -1,0 +1,66 @@
+# export_staged_figure_to_mp4 { #mofography.export_mp4.export_staged_figure_to_mp4 }
+
+```python
+export_mp4.export_staged_figure_to_mp4(
+    fig,
+    output_mp4,
+    *,
+    stages,
+    fps=12,
+    width=1280,
+    height=720,
+    scale=1,
+    frame_hook=None,
+    frame_hook_per_stage=None,
+    title_font_size=20,
+    crf=20,
+    frames_dir=None,
+    cleanup_frames=True,
+    show_progress=True,
+    kaleido_sync_server=True,
+    kaleido_sync_workers=None,
+    kaleido_silence_warnings=True,
+)
+```
+
+Render staged visibility sequences to an H.264 MP4.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+fig
+    Plotly figure (mutates trace ``visible`` flags; restore manually if reusing ``fig``).
+output_mp4
+    Output ``.mp4`` path.
+stages
+    Each entry is either ``(visibility, n_frames)`` or ``(title, visibility, n_frames)``.
+    ``visibility`` is a bool per trace, in ``fig.data`` order.
+fps
+    Frames per second in the output video.
+width, height, scale
+    Passed to ``fig.write_image`` (Kaleido).
+frame_hook
+    Optional ``callback(fig, global_frame_index)`` after visibility (and title) are set,
+    e.g. to orbit ``fig.update_layout(scene_camera=...)``.
+frame_hook_per_stage
+    If set, called instead of ``frame_hook``: ``callback(fig, stage_index, frame_in_stage, n_frames_in_stage)``
+    for independent camera motion each stage (e.g. one or more full rotations per stage).
+title_font_size
+    Font size for the stage title set from the stage tuple.
+crf
+    libx264 quality (lower is higher quality; 18–23 is typical).
+frames_dir
+    If set, PNGs are written here and ``cleanup_frames`` is treated as False for that directory.
+cleanup_frames
+    If True and ``frames_dir`` is None, delete the temporary directory after ffmpeg succeeds.
+show_progress
+    If True, show a tqdm bar while each Kaleido ``write_image`` frame is rendered.
+kaleido_sync_server
+    If True (default), wrap PNG rendering in :func:`kaleido_persistent_session` so Kaleido
+    v1+ reuses one Chromium-backed sync server across all ``write_image`` calls.
+kaleido_sync_workers
+    Optional ``n=`` for ``kaleido.start_sync_server`` when your Kaleido build supports
+    multiple parallel renderer tabs.
+kaleido_silence_warnings
+    Passed to Kaleido start/stop helpers.

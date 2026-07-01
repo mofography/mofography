@@ -1,23 +1,9 @@
 # find_chemically_unique_cycles { #mofography.analyze.find_chemically_unique_cycles }
 
-`analyze.find_chemically_unique_cycles(list_of_cycles, graph)`
+```python
+analyze.find_chemically_unique_cycles(list_of_cycles, graph)
+```
 
-> The function takes a list of cycles and a graph as input, and returns the indices of the unique
-cycles in the list, after matching the 'element' of the nodes and the 'bond_order' of the edges
+Return indices of chemically non-isomorphic cycles (element + bond_type).
 
-The function is a bit long, so let's break it down. 
-
-First, we import the necessary libraries.
-
-## Parameters
-
-| Name             | Type   | Description                                     | Default    |
-|------------------|--------|-------------------------------------------------|------------|
-| `list_of_cycles` |        | a list of cycles, each cycle is a list of nodes | _required_ |
-| `graph`          |        | the graph object                                | _required_ |
-
-## Returns
-
-| Type   | Description                                             |
-|--------|---------------------------------------------------------|
-|        | The indices of the unique cycles in the list of cycles. |
+Incremental representatives per ring size (avoids O(n^2) pairwise isomorphism).

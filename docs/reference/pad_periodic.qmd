@@ -1,0 +1,6 @@
+# pad_periodic { #mofography.compute.pad_periodic }
+
+```python
+compute.pad_periodic(arr)
+```
+

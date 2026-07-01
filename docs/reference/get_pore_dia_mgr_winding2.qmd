@@ -1,0 +1,54 @@
+# get_pore_dia_mgr_winding2 { #mofography.winding_percolation.get_pore_dia_mgr_winding2 }
+
+```python
+winding_percolation.get_pore_dia_mgr_winding2(
+    mat_atoms=None,
+    dgrid=None,
+    kwargs=None,
+    results=None,
+    include_dangling=True,
+    expand_components=True,
+    auto_rerun=True,
+)
+```
+
+Compute pore diameters using winding percolation with spill guardrail.
+
+Identical to ``get_pore_dia_mgr_winding`` but adds automatic re-segmentation
+when deterministic watershed spill is detected.  Spill is flagged when any
+node's self-loop radii spread exceeds 30% of its pocket radius.
+
+When *auto_rerun* is True and spill is detected:
+- Re-segments with ``mask_thickness=1.5`` using the same backend and dgrid.
+- Recomputes PLD from the guarded segmentation.
+- Stores ``_spill_corrected``, ``_original_pld``, ``_corrected_pld`` in
+  *results* (if mutable) for diagnostics.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+mat_atoms : ase.Atoms, optional
+    ASE Atoms object. Required if *results* is None.
+dgrid : ndarray, optional
+    Pre-computed distance grid.
+kwargs : dict, optional
+    Keyword arguments for ``do_periodic_segmentation_rust``.
+results : dict, optional
+    Pre-computed segmentation results.
+include_dangling : bool
+    Whether to include dangling edges.
+expand_components : bool
+    Whether to expand components.
+auto_rerun : bool
+    If True, silently re-segment with guard mask when spill is detected.
+    Requires ``results['dgrid']`` and ``results.get('mat_atoms')`` (or
+    *mat_atoms* passed separately).  Raises ``ValueError`` if neither is
+    available.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+tuple[float, float, float, ndarray]
+    (lcd, pld, dfsd, dgrid)

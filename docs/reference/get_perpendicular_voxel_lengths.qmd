@@ -1,0 +1,6 @@
+# get_perpendicular_voxel_lengths { #mofography.helper.get_perpendicular_voxel_lengths }
+
+```python
+helper.get_perpendicular_voxel_lengths(ase_atoms, spacing, grid_shape)
+```
+

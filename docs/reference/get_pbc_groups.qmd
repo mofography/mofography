@@ -1,0 +1,24 @@
+# get_pbc_groups { #mofography.compute.get_pbc_groups }
+
+```python
+compute.get_pbc_groups(unmerged_regions, maxima_info)
+```
+
+Group unmerged regions based on periodic boundary conditions (PBC).
+
+This function organizes unmerged regions into groups based on their maxima
+indices. Each group is identified by a unique tuple of maxima indices 
+(columns 2-4 of `maxima_info`), and contains the corresponding region indices 
+(column 1 of `maxima_info`).
+
+Args:
+    unmerged_regions (iterable): A collection of region indices that are not yet merged.
+    maxima_info (array-like): A 2D array where each row contains:
+        - Column 0: Region index
+        - Columns 1-3: Maxima indices (used as grouping keys)
+        - Column 4: Offsets in each direction
+          You get this as output when you call the 'do_periodic_segmentation' on the distance grid (dgrid) 
+
+Returns:
+    dict: A dictionary where keys are tuples of maxima indices (columns 2-4),
+        and values are sets of region indices (column 1) belonging to each group.

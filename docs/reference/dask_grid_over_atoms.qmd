@@ -1,19 +1,21 @@
 # dask_grid_over_atoms { #mofography.compute.dask_grid_over_atoms }
 
-`compute.dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000)`
+```python
+compute.dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000)
+```
 
 Generate a dask array of grid points over an ase atoms object with a specified grid spacing
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type            | Description                                                              | Default    |
-|-------------|-----------------|--------------------------------------------------------------------------|------------|
-| `ase_atoms` | ase.atoms obj   | ASE atoms object                                                         | _required_ |
-| `spacing`   | float, optional | grid fineness in angstroms, defaults to 0.1                              | `0.1`      |
-| `chunksize` | int, optional   | number of grid points in each block of the dask array, defaults to 50000 | `50000`    |
+| Name      | Type              | Description                                                              | Default    |
+|-----------|-------------------|--------------------------------------------------------------------------|------------|
+| ase_atoms | ase.atoms obj     | ASE atoms object                                                         | _required_ |
+| spacing   | (float, optional) | grid fineness in angstroms, defaults to 0.1                              | `0.1`      |
+| chunksize | (int, optional)   | number of grid points in each block of the dask array, defaults to 50000 | `50000`    |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type       | Description                                                                |
-|------------|----------------------------------------------------------------------------|
-| dask.array | dask array of size (N_grid_points, 3) with each block of size 'chunksize'. |
+| Name   | Type       | Description                                                                |
+|--------|------------|----------------------------------------------------------------------------|
+|        | dask.array | dask array of size (N_grid_points, 3) with each block of size 'chunksize'. |

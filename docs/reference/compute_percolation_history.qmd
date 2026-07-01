@@ -1,0 +1,43 @@
+# compute_percolation_history { #mofography.compute.compute_percolation_history }
+
+```python
+compute.compute_percolation_history(
+    distance_grid=None,
+    regions=None,
+    maxima=None,
+    path_to_cif=None,
+    kwargs={},
+)
+```
+
+Compute the percolation history with region and maxima information.
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+distance_grid : numpy.ndarray, optional
+    The pre-computed distance grid.
+regions : numpy.ndarray, optional
+    The pre-computed segmented regions.
+maxima : list, optional
+    The pre-computed list of local maxima indices.
+path_to_cif : Path or str, optional
+    The path to the CIF file (used if distance_grid is None).
+kwargs : dict, optional
+    Additional keyword arguments.
+    - spacing : float, optional
+        The spacing for the distance grid. Default is 0.5.
+    - block_size : int, optional
+        The block size for processing. Default is 50000.
+    - mask_thickness : float, optional
+        The mask thickness for region segmentation. Default is 1.5.
+    - step : float, optional
+        The step size for probe radius increments. Default is 0.1 Angstrom.
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+tuple
+    (percolation_history, pld_locations, distance_grid, regions, maxima)

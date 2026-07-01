@@ -1,11 +1,13 @@
 # get_region_props_for_regions { #mofography.compute.get_region_props_for_regions }
 
-`compute.get_region_props_for_regions(regions)`
+```python
+compute.get_region_props_for_regions(regions)
+```
 
 It takes a list of regions and returns a list of region properties
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description       | Default    |
-|-----------|--------|-------------------|------------|
-| `regions` |        | The labeled image | _required_ |
+| Name    | Type   | Description       | Default    |
+|---------|--------|-------------------|------------|
+| regions |        | The labeled image | _required_ |

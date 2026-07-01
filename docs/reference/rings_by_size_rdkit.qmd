@@ -1,0 +1,7 @@
+# rings_by_size_rdkit { #mofography.analyze.rings_by_size_rdkit }
+
+```python
+analyze.rings_by_size_rdkit(atoms, ring_lengths)
+```
+
+Return {ring_size: [rings]} using RDKit’s C++ ring perception.

@@ -1,32 +1,34 @@
 # add_maxima_to_rag { #mofography.compute.add_maxima_to_rag }
 
-`compute.add_maxima_to_rag(G, maxima, maxima_radii, shape, ase_atoms)`
+```python
+compute.add_maxima_to_rag(G, maxima, maxima_radii, shape, ase_atoms)
+```
 
 > This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms
-object and adds the maxima and maxima radii to the graph. 
+object and adds the maxima and maxima radii to the graph.
 
-Let's look at the function in more detail. 
+Let's look at the function in more detail.
 
-The first thing we do is import the `find_coord_from_indices` function from the `helper` module. 
+The first thing we do is import the `find_coord_from_indices` function from the `helper` module.
 
 Next, we check to make sure that the number of nodes in the graph is equal to the number of maxima.
-If not, we raise a `ValueError`. 
+If not, we raise a `ValueError`.
 
 If the number of nodes in the graph is equal to the number of maxima, we loop through the nodes and
-maxima and add the maxima indices, cartesian coordinates and maxima radii to the graph. 
+maxima and add the maxima indices, cartesian coordinates and maxima radii to the graph.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                         | Default    |
-|----------------|--------|---------------------------------------------------------------------|------------|
-| `G`            |        | the graph                                                           | _required_ |
-| `maxima`       |        | the indices of the maxima (2nd output of regions_from_grid routine) | _required_ |
-| `maxima_radii` |        | the radius of the maxima                                            | _required_ |
-| `shape`        |        | the shape of the image                                              | _required_ |
-| `ase_atoms`    |        | The atoms object from ASE                                           | _required_ |
+| Name         | Type   | Description                                                         | Default    |
+|--------------|--------|---------------------------------------------------------------------|------------|
+| G            |        | the graph                                                           | _required_ |
+| maxima       |        | the indices of the maxima (2nd output of regions_from_grid routine) | _required_ |
+| maxima_radii |        | the radius of the maxima                                            | _required_ |
+| shape        |        | the shape of the image                                              | _required_ |
+| ase_atoms    |        | The atoms object from ASE                                           | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                  |
-|--------|----------------------------------------------|
-|        | The graph with the maxima added to the nodes |
+| Name   | Type   | Description                                  |
+|--------|--------|----------------------------------------------|
+|        |        | The graph with the maxima added to the nodes |

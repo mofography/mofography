@@ -1,0 +1,18 @@
+# build_fixed_framework_movie { #mofography.movies.build_fixed_framework_movie }
+
+```python
+movies.build_fixed_framework_movie(
+    snapshots,
+    framework_atoms=None,
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+    eye=(1.5, 1.5, 1.5),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    max_frames=None,
+)
+```
+
+Build a MovieFigure for fixed-framework + animated adsorbates workflow.

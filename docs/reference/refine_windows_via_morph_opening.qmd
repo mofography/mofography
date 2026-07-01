@@ -1,0 +1,13 @@
+# refine_windows_via_morph_opening { #mofography.window_refinement.refine_windows_via_morph_opening }
+
+```python
+window_refinement.refine_windows_via_morph_opening(
+    results,
+    *,
+    cell_matrix=None,
+    options=None,
+)
+```
+
+Refine window centers/radii by searching for the smallest distance-field
+threshold that disconnects the two regions (local morphological opening).

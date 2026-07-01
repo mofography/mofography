@@ -1,0 +1,18 @@
+# framework_indices_adaptive_shell { #mofography.pocket_framework_env.framework_indices_adaptive_shell }
+
+```python
+pocket_framework_env.framework_indices_adaptive_shell(
+    atoms,
+    void_cart,
+    bonds,
+    r_pocket,
+    *,
+    alpha=SHELL_ALPHA,
+    delta=SHELL_DELTA_A,
+    r_min=SHELL_R_MIN_A,
+    r_max=SHELL_R_MAX_A,
+    bond_closure_hops=1,
+)
+```
+
+Framework atom indices within adaptive shell + optional bond closure.

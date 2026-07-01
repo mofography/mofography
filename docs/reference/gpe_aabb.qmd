@@ -1,21 +1,23 @@
 # gpe_aabb { #mofography.compute.gpe_aabb }
 
-`compute.gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff)`
+```python
+compute.gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff)
+```
 
-It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff
-distance, and returns the energy of each grid point
+The function `gpe_aabb` calculates Lennard-Jones potentials for grid points based on their distances
+to neighboring points within a specified cutoff distance.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name               | Type   | Description                                                                                                                                                       | Default    |
-|--------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `grid_points`      |        | the points you want to evaluate the energy at                                                                                                                     | _required_ |
-| `aabb_object`      |        | aabb object from the aabbquery class from freud                                                                                                                   | _required_ |
-| `forcefield_mixed` |        | a numpy array of shape (n,2) where n is the number of atoms in the system. The first column is the epsilon parameter and the second column is the sigma parameter | _required_ |
-| `cutoff`           |        | the cutoff distance for the neighbor search                                                                                                                       | _required_ |
+| Name             | Type   | Description                                                                                                                                                                                                                                                                                                 | Default    |
+|------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| grid_points      |        | The `grid_points` parameter in the `gpe_aabb` function represents the coordinates of points in a grid. These points are used for calculations involving a AABB (Axis-Aligned Bounding Box) object, a force field, and a specified cutoff distance. The function calculates Lennard-J                        | _required_ |
+| aabb_object      |        | The function `gpe_aabb` you provided seems to calculate the Lennard-Jones potentials for a set of grid points based on an axis-aligned bounding box (AABB) object, a force field, and a cutoff distance                                                                                                     | _required_ |
+| forcefield_mixed |        | The `forcefield_mixed` parameter in the `gpe_aabb` function seems to represent a mixed force field containing interaction parameters for each pair of particles. The function calculates Lennard-Jones potentials between grid points and their neighboring particles based on these interaction parameters | _required_ |
+| cutoff           |        | The `cutoff` parameter in the `gpe_aabb` function represents the maximum distance within which interactions between grid points and AABB (Axis-Aligned Bounding Box) objects will be considered. Any interactions beyond this distance will not be included in the calculations                             | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                    |
-|--------|--------------------------------|
-|        | The energy of each grid point. |
+| Name   | Type   | Description                                                                                                                                                                                                                |
+|--------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `gpe_aabb` returns an array `v` containing the Lennard-Jones potentials calculated for each grid point based on the provided input parameters `grid_points`, `aabb_object`, `forcefield_mixed`, and `cutoff`. |

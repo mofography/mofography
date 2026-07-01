@@ -1,0 +1,23 @@
+# gpd_aabb_hybrid { #mofography.compute.gpd_aabb_hybrid }
+
+```python
+compute.gpd_aabb_hybrid(grid_points, ase_atoms, radii, n_neighbors=10)
+```
+
+Hybrid approach combining an AABB neighbor search with vectorized distance calculations.
+
+Assumptions:
+  - Input grid_points are Cartesian coordinates (as returned by dask_grid_over_atoms).
+  - The framework atoms are converted to fractional coordinates and centered into the range [-0.5, 0.5].
+  - The grid_points are converted to centered fractional coordinates using the inverse cell.
+  - The shortest distance is then computed after applying the minimum image convention.
+
+Parameters:
+  grid_points : (n_grid_points, 3) numpy array in Cartesian coordinates.
+  ase_atoms   : ASE atoms object.
+  radii       : numpy array of atomic van der Waals radii.
+  n_neighbors : Number of neighbors to consider for each grid point (default 10).
+  
+
+Returns:
+  min_distances : numpy array of shape (n_grid_points,) with computed distances.

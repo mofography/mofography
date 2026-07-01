@@ -1,0 +1,27 @@
+# make_periodic_graph_from_binary_grid { #mofography.winding_percolation.make_periodic_graph_from_binary_grid }
+
+```python
+winding_percolation.make_periodic_graph_from_binary_grid(
+    grid,
+    allow_diagonals=False,
+    node_radius=1.0,
+    edge_radius=1.0,
+)
+```
+
+Convert a binary 2D lattice into the directed periodic graph expected by the
+winding-number percolation routines.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+grid : np.ndarray
+    2D array where ``1`` (or truthy) entries represent pore voxels.  The
+    lattice is treated as periodic along both axes.
+allow_diagonals : bool
+    Include diagonal neighbors (8-connectivity) when ``True``.  Otherwise,
+    only orthogonal neighbors (4-connectivity) are considered.
+node_radius, edge_radius : float
+    Values stored on each node/edge so that downstream helpers expecting
+    radii attributes continue to work.

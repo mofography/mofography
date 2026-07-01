@@ -1,0 +1,7 @@
+# aabb_neighbors_on_atoms { #mofography.analyze.aabb_neighbors_on_atoms }
+
+```python
+analyze.aabb_neighbors_on_atoms(ase_atoms, r_mult=1.2)
+```
+
+Periodic neighbor pairs for covalent-bond candidacy (freud AABB or ASE fallback).

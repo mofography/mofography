@@ -1,0 +1,31 @@
+# sample_representative_mofdb { #mofography.data.sample_representative_mofdb }
+
+```python
+data.sample_representative_mofdb(
+    df,
+    n,
+    strat_cols=None,
+    n_bins=4,
+    random_state=0,
+)
+```
+
+Sample a representative set of N materials from a MOFdb-style dataframe using
+proportional stratified sampling so the sample's marginal distributions match
+the population over the given columns (e.g. surface area, void fraction, LCD, PLD).
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type   | Description                                                                          | Default    |
+|--------------|--------|--------------------------------------------------------------------------------------|------------|
+| df           |        | DataFrame with MOFdb-style columns (e.g. surface_area_m2g, void_fraction, lcd, pld). | _required_ |
+| n            |        | Target number of materials to sample.                                                | _required_ |
+| strat_cols   |        | List of column names to stratify on. Defaults to MOFDB_STRAT_COLS.                   | `None`     |
+| n_bins       |        | Number of quantile-based bins per column for stratification.                         | `4`        |
+| random_state |        | Random seed for reproducibility.                                                     | `0`        |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                            |
+|--------|--------|----------------------------------------|
+|        |        | DataFrame of sampled rows (materials). |

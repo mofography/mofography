@@ -1,0 +1,29 @@
+# compute_point_probe_reference { #mofography.compute.compute_point_probe_reference }
+
+```python
+compute.compute_point_probe_reference(results_dict, mat_atoms)
+```
+
+Compute point probe (probe_radius = 0) surface area and void volume as reference.
+
+This function calculates the total accessible surface area and void volume
+for a point probe (radius = 0), representing the maximum possible
+accessibility in the structure.
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+results_dict : dict
+    Results dictionary containing distance_grid, pbc_groups, regions_pbc
+mat_atoms : ase.Atoms
+    Atomic structure for mass calculation
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+dict
+    Dictionary containing point probe reference values:
+    - 'surface_area': Total surface area accessible to point probe (m²/g)
+    - 'void_volume': Total void volume accessible to point probe (cm³/g)

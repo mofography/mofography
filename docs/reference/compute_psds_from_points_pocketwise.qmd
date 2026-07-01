@@ -1,0 +1,26 @@
+# compute_psds_from_points_pocketwise { #mofography.helper.compute_psds_from_points_pocketwise }
+
+```python
+helper.compute_psds_from_points_pocketwise(
+    sample_points_labels,
+    pore_sizes,
+    bins=np.linspace(0, 50, 200),
+)
+```
+
+Compute pore size distributions for each unique region/pocket instead of the whole unit cell.
+
+This function:
+1. Identifies unique region labels from the sample points
+2. Groups sample points by their region labels
+3. Computes separate pore size distributions for each region
+4. Returns a dictionary mapping region labels to their PSDs
+
+Parameters:
+- sample_points_labels (ndarray): Array of region labels for each sample point
+- pore_sizes (ndarray): Array of pore sizes corresponding to each sample point
+- bins (ndarray): Bin edges for histogram computation
+
+Returns:
+- pocket_psds (dict): Dictionary where keys are region labels and values are dictionaries
+                     containing 'hist' (histogram values) and 'bin_centers' (bin centers)

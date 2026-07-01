@@ -1,0 +1,14 @@
+# adaptive_shell_radius { #mofography.pocket_framework_env.adaptive_shell_radius }
+
+```python
+pocket_framework_env.adaptive_shell_radius(
+    r_pocket,
+    *,
+    alpha=SHELL_ALPHA,
+    delta=SHELL_DELTA_A,
+    r_min=SHELL_R_MIN_A,
+    r_max=SHELL_R_MAX_A,
+)
+```
+
+Shell extent (Å) from pocket size scale (d1 or dgrid max).

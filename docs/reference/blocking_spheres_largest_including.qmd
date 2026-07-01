@@ -1,0 +1,41 @@
+# blocking_spheres_largest_including { #mofography.raspa_helper.blocking_spheres_largest_including }
+
+```python
+raspa_helper.blocking_spheres_largest_including(
+    results,
+    ase_atoms,
+    region_labels_to_cover,
+    radius_scale=1.0,
+)
+```
+
+Build a list of RASPA blocking spheres ``[sx, sy, sz, radius_Å]`` (fractional
+center + radius) that covers every voxel in the given segmentation regions.
+
+For each voxel in the selected regions, the largest including sphere
+(Gelb–Gubbins style) is found: center is the voxel C with maximum
+``dgrid[C]`` such that PBC-distance(voxel, C) <= dgrid[C]. Many voxels map to
+the same (center, radius); unique (center, radius) pairs are returned.
+
+Use with ``region_labels_to_cover`` = inaccessible region labels to block
+non-percolating pockets for GCMC.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results : dict
+    Must include ``regions`` and ``dgrid``.
+ase_atoms : ase.Atoms
+    Unit cell for PBC distances.
+region_labels_to_cover : set of int
+    Region labels whose voxels must be covered by the output spheres.
+radius_scale : float
+    Multiply each sphere radius by this factor (>= 0).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+list of list
+    ``[sx, sy, sz, radius_Å]`` for each unique sphere.

@@ -1,0 +1,12 @@
+# make_percolation_windows_trace { #mofography.movies.make_percolation_windows_trace }
+
+```python
+movies.make_percolation_windows_trace(
+    analysis,
+    atoms,
+    probe_radius=None,
+    pld_tolerance=0.25,
+)
+```
+
+Build Three.js traces for windows along percolating clusters.

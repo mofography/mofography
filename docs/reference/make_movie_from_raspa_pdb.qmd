@@ -1,0 +1,22 @@
+# make_movie_from_raspa_pdb { #mofography.movies.make_movie_from_raspa_pdb }
+
+```python
+movies.make_movie_from_raspa_pdb(
+    pdb_path,
+    cif_path,
+    out_html='movie.html',
+    max_frames=200,
+    frame_stride=1,
+    position_decimals=4,
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+    eye=(2.0, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    sidecar=False,
+)
+```
+
+High-level convenience function to build a fixed-framework movie from RASPA PDB + CIF.

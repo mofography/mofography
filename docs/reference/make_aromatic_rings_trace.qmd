@@ -1,0 +1,20 @@
+# make_aromatic_rings_trace { #mofography.movies.make_aromatic_rings_trace }
+
+```python
+movies.make_aromatic_rings_trace(
+    atoms,
+    cycles=None,
+    style_circles=None,
+    style_highlights=None,
+    n_circle_points=72,
+    *,
+    use_instanced=None,
+    n_template_segments=16,
+)
+```
+
+Build aromatic ring traces (instanced torus/ngon when possible).
+
+Instanced path (5-6 member rings, default): compact instance buffers +
+shared torus/polygon geometry in the browser.
+Legacy path: line_segments outlines + merged mesh fills.

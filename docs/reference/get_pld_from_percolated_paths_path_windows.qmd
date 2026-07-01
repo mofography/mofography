@@ -1,4 +1,6 @@
 # get_pld_from_percolated_paths_path_windows { #mofography.compute.get_pld_from_percolated_paths_path_windows }
 
-`compute.get_pld_from_percolated_paths_path_windows(paths, path_windows)`
+```python
+compute.get_pld_from_percolated_paths_path_windows(paths, path_windows)
+```
 

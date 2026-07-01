@@ -1,0 +1,13 @@
+# plot_percolation_windows { #mofography.threejs_viz.plot_percolation_windows }
+
+```python
+threejs_viz.plot_percolation_windows(
+    analysis,
+    atoms,
+    probe_radius=None,
+    pld_tolerance=0.25,
+    **kwargs,
+)
+```
+
+Return ``{windows, pld_critical}`` trace dict bundle (functional API).

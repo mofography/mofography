@@ -1,0 +1,12 @@
+# make_connections_trace { #mofography.movies.make_connections_trace }
+
+```python
+movies.make_connections_trace(
+    seg,
+    atoms,
+    style='internal_connections',
+    name='Connections',
+    trace_id='connections',
+)
+```
+

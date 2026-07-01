@@ -1,0 +1,34 @@
+# get_energy_interpolator_tricubic { #mofography.compute.get_energy_interpolator_tricubic }
+
+```python
+compute.get_energy_interpolator_tricubic(
+    egrid,
+    egrid8,
+    neighborhood_size=4,
+    extent_x=1.0,
+    extent_y=1.0,
+    extent_z=1.0,
+)
+```
+
+Create a tricubic energy interpolator from pre-built 8-channel grid.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+egrid : ndarray, shape (nx, ny, nz)
+    Scalar energy grid (used only for NaN detection/replacement).
+egrid8 : ndarray, shape (8, nx, ny, nz)
+    8-channel tricubic grid with RASPA-scaled derivatives.
+neighborhood_size : int
+    Size of neighborhood for NaN replacement in channel 0.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+callable
+    A function interpolator(fracs) -> ndarray where fracs
+    has shape (N, 3) and returns (N,) energies. Compatible with
+    the scipy RegularGridInterpolator calling convention.

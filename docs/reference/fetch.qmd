@@ -1,4 +1,6 @@
 # fetch { #mofography.data.fetch }
 
-`data.fetch(url, session)`
+```python
+data.fetch(url, session)
+```
 

@@ -1,0 +1,11 @@
+# group_pockets_by_d1_coarse { #mofography.pocket_typing.group_pockets_by_d1_coarse }
+
+```python
+pocket_typing.group_pockets_by_d1_coarse(
+    pockets,
+    *,
+    tau_merge_a=DEFAULT_TAU_MERGE_A,
+)
+```
+
+Greedy adjacent merge on probe PSD d₁ (Å); returns rep ids per coarse group.

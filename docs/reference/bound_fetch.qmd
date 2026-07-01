@@ -1,4 +1,6 @@
 # bound_fetch { #mofography.data.bound_fetch }
 
-`data.bound_fetch(sem, url, session)`
+```python
+data.bound_fetch(sem, url, session)
+```
 

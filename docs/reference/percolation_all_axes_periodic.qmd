@@ -1,0 +1,23 @@
+# percolation_all_axes_periodic { #mofography.compute.percolation_all_axes_periodic }
+
+```python
+compute.percolation_all_axes_periodic(binary)
+```
+
+Check percolation in x/y/z with periodic BCs in transverse directions.
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+binary : (Nx,Ny,Nz) bool array
+    True = void/accessible, False = solid.
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+dict with keys "x", "y", "z":
+    each is a set of component labels that percolate in that axis.
+unioned_labels_dict: dict
+    For each axis, the label grid after periodic boundary merging.

@@ -1,0 +1,330 @@
+---
+title: "Applying Periodic Boundary Conditions"
+description: "How do_periodic_segmentation_rust detects PBC equivalence groups — what extra_padding does, and how to inspect boundary maxima"
+image: tutorial_images/pbc_groups_concept.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## Overview
+
+Periodic boundary conditions (PBC) are what turn a one-unit-cell snapshot of a
+MOF into a *truly infinite* material. mofography's job is to recognize that
+several distinct maxima/regions you see *inside the unit cell* are in fact
+**one cavity** wrapping through the periodic boundary.
+
+The new merged `do_periodic_segmentation_rust()` does this in one call. The
+PBC information is exposed through these output keys:
+
+| Key | What it is |
+|-----|------------|
+| `seg['pbc_groups']` | **list of sets** — `pbc_groups[i]` is the set of region labels wrapped into cavity `i` |
+| `seg['maxima_pbc']` | $(N, 3)$ array of **merged** maxima (one per group, not per fragment) |
+| `seg['regions_pbc']` | 3D label array of the **central cell** — regions already merged through PBC |
+| `seg['close_or_inside_maxima']` | $(N, 3)$ array — **voxel coords** of boundary maxima in the padded grid |
+| `seg['close_or_inside_regions']` | 1-based region labels of boundary-touching regions |
+
+This tutorial is the *PBC deep dive*. For the canonical 3-call workflow, see
+the [Quick Start tutorial](quick_cluster.qmd).
+
+## Imports
+
+```{python}
+import mofography as mgr
+from ase.io import read
+import numpy as np
+```
+
+## Step 1: Load a MOF
+
+IRMOF-1 is the canonical PBC teaching example: the central pore sits at the
+cell center, and identical fragments appear at every face, edge, and corner
+— 8 fragments per cavity in total, *by Euler's formula for a cube*.
+
+```{python}
+atoms = read("IRMOF-1.cif")
+
+print(f"Atoms:        {len(atoms)}")
+print(f"Cell (Å):     {atoms.cell.cellpar()[:3].round(2)}")
+print(f"Formula:      {atoms.get_chemical_formula()}")
+```
+
+## Step 2: Compute the Distance Grid
+
+We use the thread-parallel Rust backend. `spacing=0.5 Å` is the sweet spot
+for most MOFs — fast and accurate enough for PBC detection.
+
+```{python}
+spacing = 0.5  # Å
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing)
+print(f"Grid shape: {dgrid.shape} ({dgrid.size:,} voxels)")
+print(f"Void max:   {dgrid.max():.1f} Å")
+```
+
+## Step 3: One Call, Full PBC-Aware Segmentation
+
+`do_periodic_segmentation_rust` does maxima detection, watershed, PBC merging,
+and (optionally) window detection — all in one go. The merged
+maxima/regions are returned in the same dict.
+
+```{python}
+dgrid_f32 = dgrid.astype(np.float32)
+
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid_f32, atoms,
+    mask_thickness=0.05,
+    h=0.2,
+    min_distance=1.5,
+    threshold_abs=1.5,
+    spacing=spacing,
+    compute_connections=True,    # also build the pore graph
+    extra_padding=5.0,           # default — extra PBC halo (Å)
+    watershed_backend="rust_det",
+    disable_tqdm=True,
+)
+```
+
+```{python}
+print("=== All output keys ===")
+for k in seg:
+    v = seg[k]
+    if hasattr(v, "shape"):
+        print(f"  {k:35s} ndarray  shape={v.shape}  dtype={v.dtype}")
+    elif isinstance(v, dict):
+        print(f"  {k:35s} dict    ({len(v)} entries)")
+    elif isinstance(v, (list, tuple, set)):
+        print(f"  {k:35s} {type(v).__name__:6s}  ({len(v)} items)")
+    else:
+        print(f"  {k:35s} {type(v).__name__}")
+```
+
+## Step 4: The Three PBC Output Keys
+
+### 4a. `pbc_groups` — the equivalence map
+
+`pbc_groups` is a **list** whose `i`-th entry is the *set of region labels*
+in the central cell that have been merged into a single cavity. Index `i`
+corresponds to row `i` of `maxima_pbc` — the two are aligned by position.
+
+```{python}
+print(f"Number of PBC groups: {len(seg['pbc_groups'])}")
+print()
+for grp_idx, region_set in enumerate(seg['pbc_groups']):
+    print(f"  group {grp_idx:>2}  →  {len(region_set)} region(s):  {sorted(region_set)}")
+```
+
+For IRMOF-1 there are **8 groups** — one central cavity, plus identical
+fragments at every face (×6), edge (×12), and corner (×8). The group sizes
+follow Euler's cube formula:
+
+$$
+\text{fragments per cavity} = 1 + 6\cdot\tfrac{1}{2} + 12\cdot\tfrac{1}{4} + 8\cdot\tfrac{1}{8} = 8
+$$
+
+### 4b. `maxima_pbc` — group representatives
+
+`maxima_pbc` is an $(N_\text{groups}, 3)$ array of *one* representative
+maximum per group — usually the highest-valued maximum within that group
+(use `all_maxima` for the full set of unmerged fragments). Row `i` of
+`maxima_pbc` corresponds to `pbc_groups[i]`.
+
+```{python}
+maxima_pbc = seg['maxima_pbc']
+print(f"Shape: {maxima_pbc.shape}")
+print(f"\nGroup sizes (from pbc_groups):")
+for grp_idx, region_set in enumerate(seg['pbc_groups']):
+    n_frag = len(region_set)
+    px, py, pz = maxima_pbc[grp_idx]
+    print(f"  group {grp_idx:>2}: {n_frag} fragment(s)  representative at "
+          f"({px:5.1f}, {py:5.1f}, {pz:5.1f})")
+```
+### 4c. `regions_pbc` — central cell with PBC-merged labels
+
+`regions_pbc` is a 3D label array the **same shape as `dgrid`**, but with
+labels renumbered so that fragments on opposite walls of the same cavity
+share a single label.
+
+```{python}
+print(f"regions_pbc shape:  {seg['regions_pbc'].shape}")
+print(f"unique labels (excl. 0 background): "
+      f"{int(seg['regions_pbc'].max())}")
+
+# Each label corresponds to one row in maxima_pbc
+import collections
+counts = collections.Counter(seg['regions_pbc'].ravel())
+counts.pop(0, None)
+print(f"voxel count per PBC label:")
+for lbl, n in sorted(counts.items()):
+    print(f"  label {lbl:>2}:  {n:>6,} voxels  "
+          f"({100*n/seg['regions_pbc'].size:.2f}%)")
+```
+
+This is the array you want to use for pore-size-distribution calculations:
+one label = one *physical* cavity.
+
+## Step 5: Visualize PBC Groups
+
+Each PBC group should appear in the same color in the isosurface plot.
+
+```{python}
+import plotly.graph_objects as go
+import plotly.express as px
+import mofography as mgr
+
+# Map region label → group id (so all members of a group share a color)
+label_to_group = {}
+for grp_idx, region_set in enumerate(seg['pbc_groups']):
+    for lbl in region_set:
+        label_to_group[int(lbl)] = int(grp_idx)
+
+# Re-color regions_pbc by PBC group for visualization
+regions_pbc_colored = np.zeros_like(seg['regions_pbc'])
+for lbl, grp in label_to_group.items():
+    regions_pbc_colored[seg['regions_pbc'] == lbl] = grp + 1
+
+cscale = px.colors.qualitative.Pastel
+iso = mgr.plot_surface_dgrid(
+    dgrid, ase_atoms=atoms,
+    isovalue=1.75, cscale=cscale, opacity=1,
+    stylize=True, region_labels=regions_pbc_colored,
+)
+cell = mgr.plot_cell(atoms)
+fig = go.Figure(data=[iso, cell])
+fig.update_layout(mgr.dark_layout, title="IRMOF-1: each color = one PBC group")
+fig.show()
+```
+
+You should see **8 distinct colors**, each appearing in 1 (center), 6
+(face), 12 (edge), or 8 (corner) places — exactly the topology of a single
+cavity wrapped through the unit cell.
+
+## Step 6: The `extra_padding` Parameter
+
+PBC merging works by *padding* the grid with ghost copies of the void, then
+asking the watershed to flood across the wall. If the padding is too thin,
+the flood misses the back-side maxima entirely and no group is formed.
+
+The total padding thickness is:
+$$
+\text{padding} = \underbrace{\text{ceil}\!\left(\frac{\text{extra\_padding}}{\text{spacing}}\right)}_{\text{extra halo}} + \underbrace{\text{standard padding from pore radius}}_{\text{baseline}}
+$$
+
+`extra_padding` is the user-tunable knob on top of the standard +5 Å
+cushion. Default is **5 Å** — sufficient for most MOFs.
+
+### Effect of increasing `extra_padding`
+
+```{python}
+def n_groups(seg_dict):
+    return len(seg_dict['pbc_groups'])
+
+results = {}
+for pad in (0.0, 2.0, 5.0, 10.0):
+    s = mgr.do_periodic_segmentation_rust(
+        dgrid_f32, atoms,
+        mask_thickness=0.05, h=0.2, min_distance=1.5,
+        threshold_abs=1.5, spacing=spacing,
+        compute_connections=False,
+        extra_padding=pad,
+        disable_tqdm=True,
+    )
+    results[pad] = n_groups(s)
+    print(f"  extra_padding={pad:5.1f} Å  →  {results[pad]} PBC group(s)")
+```
+
+:::: {.callout-tip}
+**How to spot a too-small `extra_padding`.** If you find *more* PBC groups
+than you expect (e.g. IRMOF-1 returning > 8), the PBC flood is *not* reaching
+across the wall. Increase in 1–2 Å steps. The cost is mostly memory —
+runtime grows with the padded grid volume. Note: IRMOF-1 returns 8 groups
+even at `extra_padding=0` because the standard halo (computed from
+`dgrid.max()` + a +5 Å cushion) is already generous — this rule applies to
+materials with **large mesopores** that exceed the standard halo.
+::::
+### Trade-off
+
+The standard PBC halo is already computed from `dgrid.max()` and a +5 Å
+cushion, so the *baseline* padding is generous for most MOFs. `extra_padding`
+is the user-tunable knob on top of that.
+
+| `extra_padding` | PBC detection | Memory | When to use |
+|---|---|---|---|
+| `0` *(smallest)* | works for most MOFs (IRMOF-1 included) | low | tight unit cells, large datasets |
+| `2–3` | extra safety for medium pores | low | when default-0 misses on a tricky case |
+| `5` *(default)* | matches the standard +5 Å cushion everywhere | moderate | start here for unknowns |
+| `10+` | very large mesopores that span the wall | high | NU-1000, MOFs with very wide channels |
+
+## Step 7: Boundary Maxima — `close_or_inside_maxima`
+
+Some maxima sit *on* the cell wall (e.g. the centers of the face-fragments
+in IRMOF-1). These are the maxima most likely to need PBC merging.
+`close_or_inside_maxima` returns their 3D **voxel coordinates in the padded
+grid** (i.e. coordinates that extend *past* the unit cell — entries can be
+negative or larger than the grid shape when the maximum is in a ghost copy).
+
+```{python}
+pad = seg['input_params']['padding_thickness']
+boundary_coords = seg['close_or_inside_maxima']   # (N, 3) padded-grid coords
+print(f"Boundary maxima count: {len(boundary_coords)}")
+print(f"Boundary maxima (padded-grid coords, first 5 rows):")
+print(boundary_coords[:5])
+print()
+print("Their (x, y, z) positions in the unit cell (Å):")
+for ix, iy, iz in boundary_coords[:8]:
+    # padded coords → central-cell coords → Å
+    x = (ix - pad) * spacing
+    y = (iy - pad) * spacing
+    z = (iz - pad) * spacing
+    on_wall = sum(coord < 0.5 or coord > atoms.cell.cellpar()[ax] - 0.5
+                  for ax, coord in enumerate((x, y, z)))
+    print(f"  ({ix:>3},{iy:>3},{iz:>3})  →  ({x:5.1f}, {y:5.1f}, {z:5.1f}) Å  on {on_wall} wall(s)")
+print(f"  ... ({len(boundary_coords) - 8} more)")
+```
+
+### `close_or_inside_regions`
+
+A list of **unmerged** region labels — i.e. labels in `seg['regions']` (the
+3D grid *before* PBC merging), not in `regions_pbc`. These are the regions
+that sit near a unit-cell wall and *might* be PBC-mirrors of something on
+the other side — useful when validating your own segmentation outside the
+merged pipeline.
+
+```{python}
+boundary_reg = seg['close_or_inside_regions']
+print(f"Boundary region labels (unmerged, first 10): "
+      f"{sorted(int(x) for x in boundary_reg)[:10]}")
+print(f"Total unmerged region labels: "
+      f"{int(seg['regions'].max())}")
+print(f"Fraction on boundary:   "
+      f"{100*len(boundary_reg)/max(1, int(seg['regions'].max())):.1f}%")
+
+## Step 8: Validate with the Quick Cluster
+
+If you want a sanity check, run the [Quick Start tutorial](quick_cluster.qmd)
+on the same CIF. `maxima_pbc` count should match `len(seg['pbc_groups'])`,
+and the plotly visualization should show the same 8 colors per cavity.
+
+## Where PBC Gets Tricky
+
+| Situation | Symptom | Fix |
+|---|---|---|
+| Large mesopore that crosses a wall | missed PBC merge → too many groups | raise `extra_padding` |
+| Two distinct cavities on opposite walls look similar | spurious merge | raise `min_distance` |
+| `regions_pbc` shows checkerboard pattern | grid too coarse, `spacing` too large | lower `spacing` to 0.3 Å |
+| More `close_or_inside_regions` than expected | MOF has many open channels — *correct* behavior | inspect manually |
+
+## Parameter Reference (PBC-related)
+
+| Parameter | Default | Effect on PBC |
+|---|---|---|
+| `extra_padding` | 5.0 Å | halo beyond standard +5 Å — controls how far across the wall the flood reaches |
+| `wall_thickness` | 0.05 Å | the layer of voxels near the wall considered "wall" rather than "pore" |
+| `compute_connections` | True | also fill `seg['connections']`; needed for `pore_graph` |
+
+## Next Steps
+
+- [Quick Start tutorial](quick_cluster.qmd) — full pore-graph in 3 calls
+- [Distance Grid tutorial](distance_grid.qmd) — how the input grid is built
+- [Connections and Windows](connections_and_windows.qmd) — windows between PBC groups
+- [Pore Graph tutorial](pore_graph.md) — convert segments + connections into a NetworkX graph

@@ -1,0 +1,14 @@
+# add_env_cluster_pocket_types_to_rag { #mofography.compute.add_env_cluster_pocket_types_to_rag }
+
+```python
+compute.add_env_cluster_pocket_types_to_rag(
+    rag,
+    typed,
+    pbc_groups=None,
+    *,
+    cluster_key=CLUSTER_ENV_PBC,
+    as_string=True,
+)
+```
+
+Convenience wrapper: stamp ``env_cluster`` types from :class:`PocketTypingResult`.

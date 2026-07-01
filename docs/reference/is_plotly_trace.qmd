@@ -1,0 +1,6 @@
+# is_plotly_trace { #mofography.viz_backend.is_plotly_trace }
+
+```python
+viz_backend.is_plotly_trace(obj)
+```
+

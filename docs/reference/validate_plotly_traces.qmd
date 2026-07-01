@@ -1,0 +1,6 @@
+# validate_plotly_traces { #mofography.viz_backend.validate_plotly_traces }
+
+```python
+viz_backend.validate_plotly_traces(traces, *, context='add_traces')
+```
+

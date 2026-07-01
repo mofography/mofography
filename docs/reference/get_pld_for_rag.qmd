@@ -1,4 +1,6 @@
 # get_pld_for_rag { #mofography.compute.get_pld_for_rag }
 
-`compute.get_pld_for_rag(rag, return_pld_path_info=False, **kwargs)`
+```python
+compute.get_pld_for_rag(rag, return_pld_path_info=False, **kwargs)
+```
 

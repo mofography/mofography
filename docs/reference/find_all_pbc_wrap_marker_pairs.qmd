@@ -1,0 +1,13 @@
+# find_all_pbc_wrap_marker_pairs { #mofography.widest_path_resegment.find_all_pbc_wrap_marker_pairs }
+
+```python
+widest_path_resegment.find_all_pbc_wrap_marker_pairs(
+    maxima_info,
+    pbc_groups=None,
+)
+```
+
+All in-cell + single-axis wrapped label pairs at each maxima position.
+
+Pairs are found by shared unit-cell image coordinates ``row[1:4]``, not only
+``pbc_groups`` membership (a-axis wraps like label 17 may sit outside the group).

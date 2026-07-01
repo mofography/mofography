@@ -1,0 +1,11 @@
+# typing_vdw_radii_angstrom { #mofography.vdw_radii.typing_vdw_radii_angstrom }
+
+```python
+vdw_radii.typing_vdw_radii_angstrom(ase_atoms)
+```
+
+Stable VDW radii for pocket typing (Bondi/CRC + Mendeleev fallback).
+
+Uses the CRC / Bondi (1964) handbook table for all known elements.  Symbols
+missing from that table (superheavy / NaN entries) are filled from the
+Mendeleev table so exotic compositions still get a finite radius.

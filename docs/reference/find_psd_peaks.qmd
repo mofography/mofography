@@ -1,4 +1,6 @@
 # find_psd_peaks { #mofography.helper.find_psd_peaks }
 
-`helper.find_psd_peaks(psd, **kwargs)`
+```python
+helper.find_psd_peaks(psd, **kwargs)
+```
 

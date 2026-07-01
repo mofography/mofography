@@ -1,6 +1,8 @@
 # find_cycles_in_sgraph { #mofography.analyze.find_cycles_in_sgraph }
 
-`analyze.find_cycles_in_sgraph(sgraph, default_ring_sizes=[5, 6, 7, 8, 9])`
+```python
+analyze.find_cycles_in_sgraph(sgraph, default_ring_sizes=[5, 6, 7, 8, 9])
+```
 
 > The function takes a graph and returns a list of cycles in the graph. 
 
@@ -22,15 +24,15 @@ The function then finds the bond types of the edges in the cycles.
 
 The function then finds the unique cycles in the graph using the `find_unique_cycles` function
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name                 | Type   | Description                               | Default           |
-|----------------------|--------|-------------------------------------------|-------------------|
-| `sgraph`             |        | The graph that you want to find cycles in | _required_        |
-| `default_ring_sizes` |        | The ring sizes you want to look for       | `[5, 6, 7, 8, 9]` |
+| Name               | Type   | Description                               | Default           |
+|--------------------|--------|-------------------------------------------|-------------------|
+| sgraph             |        | The graph that you want to find cycles in | _required_        |
+| default_ring_sizes |        | The ring sizes you want to look for       | `[5, 6, 7, 8, 9]` |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                         |
-|--------|-----------------------------------------------------|
-|        | A list of lists of nodes that are in the same ring. |
+| Name   | Type   | Description                                         |
+|--------|--------|-----------------------------------------------------|
+|        |        | A list of lists of nodes that are in the same ring. |
