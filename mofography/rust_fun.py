@@ -25,9 +25,9 @@ def _voxel_lengths_for_smoothing(ase_atoms, spacing, grid_shape=None):
 
 def _cell_matrix_for_rust(ase_atoms):
     """Return C for Rust ``cart = C @ delta_frac`` (matches ASE ``frac @ M``)."""
-    from ase.geometry import cellpar_to_cell
+    from .helper import cell_matrix_for_dgrid
 
-    return cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    return cell_matrix_for_dgrid(ase_atoms)
 
 
 def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):

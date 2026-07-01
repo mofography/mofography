@@ -15,6 +15,80 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
+_ORTHO_TOL = 1e-12
+_MIC_OFFSETS_7 = np.array(
+    [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [-1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, -1.0, 0.0],
+        [0.0, 0.0, 1.0],
+        [0.0, 0.0, -1.0],
+    ],
+    dtype=np.float64,
+)
+
+
+def cell_matrix_for_dgrid(ase_atoms):
+    """Return C for ``cart = C @ delta_frac`` (matches ASE ``frac @ M``)."""
+    from ase.geometry import cellpar_to_cell
+
+    return cellpar_to_cell(ase_atoms.cell.cellpar()).T
+
+
+def cell_is_orthogonal(cell, tol=_ORTHO_TOL):
+    """True when off-diagonal lattice coupling is negligible."""
+    c = np.asarray(cell, dtype=np.float64)
+    off = (c[0, 1], c[0, 2], c[1, 0], c[1, 2], c[2, 0], c[2, 1])
+    return all(abs(v) < tol for v in off)
+
+
+def mic_frac_diff_batch(raw_diff, cell, xp=np):
+    """Minimum-image fractional displacement for orthogonal or skewed cells.
+
+    Orthogonal cells use per-component wrapping. Skewed cells use the Wassenaar
+    7-image set (nearest fractional image plus six face neighbors), matching
+    ``mgr_rust`` ``dgrid_exp::mic_min_dist_skewed``.
+    """
+    cell = xp.asarray(cell, dtype=xp.float64)
+    raw_diff = xp.asarray(raw_diff, dtype=xp.float64)
+
+    if cell_is_orthogonal(cell):
+        return raw_diff - xp.round(raw_diff)
+
+    nint = raw_diff - xp.round(raw_diff)
+    offsets = xp.asarray(_MIC_OFFSETS_7, dtype=xp.float64)
+    candidates = nint[..., None, :] + offsets
+    cart = xp.einsum("...ni,ji->...nj", candidates, cell)
+    sq = xp.sum(cart * cart, axis=-1)
+    best = xp.argmin(sq, axis=-1)
+
+    lead_shape = raw_diff.shape[:-1]
+    n_lead = 1
+    for dim in lead_shape:
+        n_lead *= int(dim)
+    flat_cand = candidates.reshape(n_lead, 7, 3)
+    flat_best = best.ravel()
+    idx = xp.arange(flat_cand.shape[0])
+    flat_mic = flat_cand[idx, flat_best]
+    return flat_mic.reshape(*lead_shape, 3)
+
+
+def gpd_from_frac_points(points_frac, fpoints_frac, cell, radii, xp=np):
+    """Shortest surface distance from centered fractional grid points to atoms."""
+    points_frac = xp.asarray(points_frac, dtype=xp.float64)
+    fpoints_frac = xp.asarray(fpoints_frac, dtype=xp.float64)
+    cell = xp.asarray(cell, dtype=xp.float64)
+    radii = xp.asarray(radii, dtype=xp.float64).reshape(-1)
+
+    diff = points_frac[:, None, :] - fpoints_frac[None, :, :]
+    mic = mic_frac_diff_batch(diff, cell, xp=xp)
+    cart = xp.einsum("pai,ji->paj", mic, cell)
+    dists = xp.linalg.norm(cart, axis=-1) - radii[None, :]
+    return xp.min(dists, axis=1)
+
+
 def find_coord_from_indices(indices, shape, ase_atoms):
     """Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object.
 
