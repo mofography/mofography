@@ -1,0 +1,30 @@
+# apply_region_map_to_raspa_pdb_wrapped { #mofography.raspa_helper.apply_region_map_to_raspa_pdb_wrapped }
+
+```python
+raspa_helper.apply_region_map_to_raspa_pdb_wrapped(
+    pdb_file,
+    regions_cluster,
+    unit_cell,
+    natoms_per_molecule=1,
+    index_list=None,
+    symbol_map=None,
+)
+```
+
+Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                | Type   | Description                                                                                      | Default    |
+|---------------------|--------|--------------------------------------------------------------------------------------------------|------------|
+| pdb_file            |        | the pdb file you want to analyze                                                                 | _required_ |
+| regions_cluster     |        | the region map for a single unit cell                                                            | _required_ |
+| unit_cell           |        | the unit cell matrix or ASE Atoms object containing the unit cell information                    | _required_ |
+| natoms_per_molecule |        | number of atoms per molecule. This is currently only implemented for 1, defaults to 1 (optional) | `1`        |
+| index_list          |        | list of indices of atoms to use in the pdb file. If None, all atoms are used                     | `None`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                               |
+|--------|--------|-------------------------------------------------------------------------------------------|
+|        |        | A dictionary with the number of atoms in each cluster type and the total number of atoms. |

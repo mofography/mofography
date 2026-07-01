@@ -1,0 +1,7 @@
+# collect_periodic_edges { #mofography.winding_percolation.collect_periodic_edges }
+
+```python
+winding_percolation.collect_periodic_edges(connections, maxima_info)
+```
+
+Backward-compatible wrapper for canonical edge collection.

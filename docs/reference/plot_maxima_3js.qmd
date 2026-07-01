@@ -1,0 +1,4 @@
+# plot_maxima_3js { #mofography.threejs_viz.plot_maxima_3js }
+
+`threejs_viz.plot_maxima_3js`
+

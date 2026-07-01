@@ -13,7 +13,45 @@ toc: true
 
 ![](logo.png)
 
-A powerful python package for the analysis, visualization, featurization, and machine learning on crystalline nanopores. 😀
+**MOFography turns a MOF's atomic structure into a pore graph** — a compact, NetworkX-based map of every pocket, channel, and window in the material — so you can featurize, search, cluster, and train ML models on nanoporous crystals at any scale. 🧪
+
+## Quick Install 📦
+
+Get MOFography running in seconds:
+
+```bash
+# From PyPI
+pip install mofography
+```
+
+Or, for the latest development version, clone and install in editable mode:
+
+```bash
+git clone https://github.com/arung-northwestern/mofography.git
+cd mofography
+pip install -e .
+```
+
+Prefer a terminal? The companion CLI `mgrcli` wraps the same Rust-accelerated pipeline so you can batch-process CIFs without writing any Python:
+
+```bash
+pip install mgrcli
+mgrcli process IRMOF-1.cif --dgrid-method rust_exact --b rust_det --pore-dia --psd --rag --types
+```
+
+Prefer a browser? Try the web demo — same pipeline, zero install: **[arung-northwestern-mofography-web-demo.hf.space](https://arung-northwestern-mofography-web-demo.hf.space)**.
+
+## What's New ✨
+
+The current release ships a **unified, Rust-accelerated pipeline** from CIF to pore graph:
+
+- A single `dgrid_from_atoms_rust` → `do_periodic_segmentation_rust` call replaces the old multi-step workflow. Periodic boundary conditions are handled internally — no separate `apply_pbc` pass.
+- The full pipeline is exposed through `mgrcli`, the command-line companion. One invocation produces the segmentation dict, LCD/PLD/DFSD, PSDs, the RAG pickle, and an HTML visualization.
+- New `env_cluster` pocket-type detection groups pockets by environment fingerprint.
+- New accessibility modes (winding-number and lattice variants) and window fingerprinting (Mechanism A / B) give accurate accessible surface area and void volume.
+- Watershed backends now include `rust_det_parallel` for large unit cells.
+
+For the full changelog see the [Releases page](https://github.com/arung-northwestern/mofography/releases) or the [CLI Quick Start](cli_quickstart.qmd) tutorial.
 
 ## The big picture 🖼️
 
@@ -33,7 +71,7 @@ property(s) (gradient descent, genetic algorithms, Bayes optimization etc.).
 
 ## Why MOFography? 🤔
 
-![The issues with the current representations of crystalline materials for adsorption](./descriptors.png)
+![The trade-off between descriptor complexity and comprehensiveness — the motivation for pore graphs (paper Figure 1)](tutorial_images/paper_complexity_comprehension.png)
 
 How we represent materials plays a key-role in all these steps. In adsorption, the
 shape, size, and connectivity of the cavities often play a bigger role than the
@@ -50,7 +88,9 @@ So, we set out to create one such represention for crystalline nanopores `pore g
 
 ## The Core Workflow 🚀
 
-![The core mofography workflow for constructing pore graphs illustrated using HKUST-1 Metal-Organic Framework](workflow.png)
+![The full mofography pipeline: from a MOF crystal (a) through distance grid, watershed, PBC-aware segmentation, and pore graph construction (paper Figure 2)](tutorial_images/paper_mofography_workflow.png)
+
+![Representative examples of the core mofography workflow applied to materials with varying pore shape and connectivity: MIL-47, LTA, ZIF-8, and MarksId-018 (paper Figure 3)](tutorial_images/paper_core_workflow_examples.png){width=100%}
 
 We present a novel approach using advanced image processing techniques to
 represent the cavities of a material as a *pore graph,* where the *nodes*
@@ -140,15 +180,15 @@ For more information on the tutorial, please refer to the dedicated page [Learn]
 
 The basic tutorials are organized in a sequential way, so it is recommended to go through them in order. 
 
-- Get a feel for the whole thing [Quick cluster notebook](./quick_cluster.ipynb) 
+- Get a feel for the whole thing [Quick Start tutorial](./quick_cluster.qmd) 
 - Basic structure analysis [Basic structure analysis notebook](./basic_structure_io.ipynb)
 - Basic structure visualization [Basic structure visualization notebook](./quick_structure_visualization.ipynb)
-- Distance Grid [Distance grid notebook](./distance_grid.ipynb)
-- Region Segmentation [Region segmentation notebook](./region_segmentation.ipynb)
+- Distance Grid [Distance grid tutorial](./distance_grid.qmd)
+- Region Segmentation [Region segmentation tutorial](./region_segmentation.qmd)
 - Pore Graph [Pore graph tutorial](./pore_graph.md)
-- Pore Windows [Connections and windows tutorial](./connections_and_windows.md)
-- Applying Periodic Boundary Conditions [PBC notebook](./applying_pbc.ipynb)
-- Detecting the types of pockets [Pocket type detection tutorial](./pockets_detection.md)
+- Pore Windows [Connections and windows tutorial](./connections_and_windows.qmd)
+- Applying Periodic Boundary Conditions [PBC tutorial](./applying_pbc.qmd)
+- Detecting the types of pockets [Pocket type detection tutorial](./pockets_detection.qmd)
 
 
 ### Advanced tutorials 😪

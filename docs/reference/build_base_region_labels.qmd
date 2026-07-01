@@ -1,0 +1,10 @@
+# build_base_region_labels { #mofography.winding_percolation.build_base_region_labels }
+
+```python
+winding_percolation.build_base_region_labels(
+    maxima_info,
+    region_labels,
+    maxima_pbc_dict,
+)
+```
+

@@ -1,4 +1,11 @@
 # get_diametrically_opposite_points { #mofography.compute.get_diametrically_opposite_points }
 
-`compute.get_diametrically_opposite_points(region_indices, ase_atoms, shape, num_points=8)`
+```python
+compute.get_diametrically_opposite_points(
+    region_indices,
+    ase_atoms,
+    shape,
+    num_points=8,
+)
+```
 

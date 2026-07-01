@@ -1,0 +1,53 @@
+# quick_cluster { #mofography.workflow.quick_cluster }
+
+```python
+workflow.quick_cluster(
+    ase_atoms,
+    spacing=0.5,
+    mask_thickness=1.5,
+    h=0.2,
+    compactness=0,
+    zoom_ratio=2,
+    wall_thickness=1.0,
+    isoval=1.75,
+    bins=None,
+    block_size=50000,
+    a=1,
+    b=1,
+    c=1,
+    density=True,
+    js_threshold=0.15,
+    distance_threshold=0.4,
+    minimum_overlap_fraction=0.5,
+    make_figures=True,
+    renderer='browser',
+    sample_fraction=0.5,
+    cscale=None,
+    return_these_vars=[],
+)
+```
+
+It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you
+can specify in the list_return_strings argument.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                     | Type   | Description                                                                                                                                                       | Default     |
+|--------------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| ase_atoms                |        | ASE atoms object                                                                                                                                                  | _required_  |
+| spacing                  |        | the spacing of the distance grid                                                                                                                                  | `0.5`       |
+| mask_thickness           |        | The thickness of the mask used to create the distance grid                                                                                                        | `1.5`       |
+| h                        |        | float, optional                                                                                                                                                   | `0.2`       |
+| compactness              |        | float, optional                                                                                                                                                   | `0`         |
+| zoom_ratio               |        | The distance grid is made finer by zooming in, here we are making it twice as fine, defaults to 2 (optional)                                                      | `2`         |
+| wall_thickness           |        | The thickness of the walls of the material                                                                                                                        | `1.0`       |
+| bins                     |        | the bins for the cavity size distribution histogram                                                                                                               | `None`      |
+| block_size               |        | the size of the blocks in the dask array, this is the size of the chunks that are computed in parallel, defaults to 50000 (optional)                              | `50000`     |
+| a                        |        | number of unit cells in the a direction, defaults to 1 (optional)                                                                                                 | `1`         |
+| b                        |        | int, defaults to 1 (optional)                                                                                                                                     | `1`         |
+| c                        |        | number of unit cells in the c direction, defaults to 1 (optional)                                                                                                 | `1`         |
+| distance_threshold       |        | distance threshold for agglomerative clustering                                                                                                                   | `0.4`       |
+| minimum_overlap_fraction |        | The minimum fraction of overlap between the projections of two regions on opposite walls of the unit cell for them to be considered as part of the same pbc group | `0.5`       |
+| show_figures             |        | whether to show the figures or not, defaults to True (optional)                                                                                                   | _required_  |
+| renderer                 |        | 'browser' or 'png', defaults to browser (optional)                                                                                                                | `'browser'` |
+| list_return_strings      |        | list of strings, the names of the variables you want to return                                                                                                    | _required_  |

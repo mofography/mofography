@@ -1,0 +1,36 @@
+# move_maximum_to_peak { #mofography.helper.move_maximum_to_peak }
+
+```python
+helper.move_maximum_to_peak(
+    original_pos,
+    padded_grid,
+    padding_thickness,
+    max_steps=100,
+    step_size=0.1,
+)
+```
+
+Move a maximum position to the nearest peak using gradient ascent,
+constrained within the padded grid boundaries.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+original_pos : np.ndarray
+    Initial position of the maximum in grid coordinates
+padded_grid : np.ndarray
+    Padded distance grid
+padding_thickness : int
+    Thickness of padding
+max_steps : int, optional
+    Maximum number of gradient ascent steps
+step_size : float, optional
+    Step size for gradient ascent
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+tuple[np.ndarray, float]
+    Optimized position and its value

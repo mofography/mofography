@@ -1,0 +1,21 @@
+# plot_electrostatic_volume { #mofography.visualize.plot_electrostatic_volume }
+
+```python
+visualize.plot_electrostatic_volume(potential_V, cell, atoms)
+```
+
+Create a Volume trace for the electrostatic potential with meaningful isosurfaces.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type   | Description                           | Default    |
+|-------------|--------|---------------------------------------|------------|
+| potential_V |        | 3D array of potential values in volts | _required_ |
+| cell        |        | Cell matrix                           | _required_ |
+| atoms       |        | ASE Atoms object                      | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description   |
+|--------|--------|---------------|
+|        |        | Volume trace  |

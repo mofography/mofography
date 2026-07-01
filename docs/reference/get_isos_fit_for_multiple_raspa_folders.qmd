@@ -1,0 +1,26 @@
+# get_isos_fit_for_multiple_raspa_folders { #mofography.raspa_helper.get_isos_fit_for_multiple_raspa_folders }
+
+```python
+raspa_helper.get_isos_fit_for_multiple_raspa_folders(
+    list_of_folder_paths,
+    T,
+    order,
+)
+```
+
+It takes a list of folder paths, and a temperature, and returns a dictionary of the
+isosteric heat fits for each folder
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                 | Type   | Description                                                                             | Default    |
+|----------------------|--------|-----------------------------------------------------------------------------------------|------------|
+| list_of_folder_paths |        | a list of strings, each string being the path to a folder containing RASPA output files | _required_ |
+| T                    |        | temperature in K                                                                        | _required_ |
+| order                |        | the order of the polynomial fit                                                         | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                              |
+|--------|--------|------------------------------------------------------------------------------------------|
+|        |        | A dictionary of the form {folder_path: isos_fit_for_raspa_folder(folder_path, T, order)} |

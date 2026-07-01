@@ -1,0 +1,22 @@
+# batched_mesh_for_atoms { #mofography.visualize.batched_mesh_for_atoms }
+
+```python
+visualize.batched_mesh_for_atoms(
+    ase_atoms,
+    bonds=None,
+    colormap=None,
+    bond_rgba_array=[127, 128, 129, 255],
+    scale=0.5,
+    radius=0.25,
+    sphere_sections=2,
+    cylinder_sections=15,
+    representation='ball_and_stick',
+)
+```
+
+Fast batched mesh generation — returns a single trimesh for atoms + bonds.
+
+Typically 5–10× faster than the PyVista loop path because it avoids
+creating thousands of individual mesh objects in Python.
+
+representation: "ball_and_stick" (default), "stick", or "space_filling"

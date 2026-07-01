@@ -1,0 +1,6 @@
+# qualitative_colorscale { #mofography.threejs_viz.qualitative_colorscale }
+
+```python
+threejs_viz.qualitative_colorscale(name='Pastel')
+```
+

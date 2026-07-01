@@ -1,0 +1,14 @@
+# plot_rag_separate_traces { #mofography.visualize.plot_rag_separate_traces }
+
+```python
+visualize.plot_rag_separate_traces(G, plot_with='maxima', **kwargs)
+```
+
+Plot region adjacency graph with separate traces for nodes and edges.
+
+Args:
+    G: NetworkX graph
+    plot_with: Node attribute to use for coordinates ('maxima' or other)
+    **kwargs: Additional arguments passed to traces
+        node_kwargs: Dict of arguments for node trace
+        edge_kwargs: Dict of arguments for edge trace

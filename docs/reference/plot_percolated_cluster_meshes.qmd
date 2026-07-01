@@ -1,0 +1,16 @@
+# plot_percolated_cluster_meshes { #mofography.threejs_viz.plot_percolated_cluster_meshes }
+
+```python
+threejs_viz.plot_percolated_cluster_meshes(
+    percolation_history,
+    distance_grid,
+    regions,
+    ase_atoms,
+    probe_radius=None,
+    isovalue=1.6,
+    cscale=None,
+    **kwargs,
+)
+```
+
+Return Three.js mesh trace dicts (functional API).

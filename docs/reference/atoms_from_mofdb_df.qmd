@@ -1,18 +1,20 @@
 # atoms_from_mofdb_df { #mofography.data.atoms_from_mofdb_df }
 
-`data.atoms_from_mofdb_df(mofdb_df)`
+```python
+data.atoms_from_mofdb_df(mofdb_df)
+```
 
 This function takes a MOFDB dataframe from get_data_from_mofdb routine, which has a column called 'cif' that contains CIF data as strings, and
 returns a list of ASE atoms objects
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name       | Type   | Description                             | Default    |
-|------------|--------|-----------------------------------------|------------|
-| `mofdb_df` |        | the dataframe containing the MOFDB data | _required_ |
+| Name     | Type   | Description                             | Default    |
+|----------|--------|-----------------------------------------|------------|
+| mofdb_df |        | the dataframe containing the MOFDB data | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description              |
-|--------|--------------------------|
-|        | A list of atoms objects. |
+| Name   | Type   | Description              |
+|--------|--------|--------------------------|
+|        |        | A list of atoms objects. |

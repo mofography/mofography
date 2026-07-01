@@ -1,22 +1,30 @@
 # regions_from_dgrid { #mofography.compute.regions_from_dgrid }
 
-`compute.regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, min_distance=2, compactness=0)`
+```python
+compute.regions_from_dgrid(
+    dgrid,
+    mask_thickness=1,
+    h=0.2,
+    compactness=0,
+    threshold_abs=0.5,
+)
+```
 
 The function `regions_from_dgrid` takes a density grid as input and identifies regions based on
 local maxima, with options for adjusting parameters like mask thickness and compactness.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name             | Type   | Description                                                                                                                                                                                                                                                                                                                                                | Default    |
-|------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `dgrid`          |        | The `dgrid` parameter is a 2D array representing the input data grid. It is used in the function to perform calculations and identify regions based on the data values in the grid                                                                                                                                                                         | _required_ |
-| `mask_thickness` |        | The `mask_thickness` parameter in the `regions_from_dgrid` function determines the thickness of the mask used in the watershed segmentation algorithm. It is used to create a mask where regions with values greater than the `mask_thickness` are considered as markers for segmentation. Increasing the `mask_thickness` value, defaults to 1 (optional) | `1`        |
-| `h`              |        | The `h` parameter in the `regions_from_dgrid` function is used to specify the height threshold for detecting local maxima in the input `dgrid` array. It is used in the `extrema.h_maxima` function to find the local maxima points based on the specified height                                                                                          | `0.2`      |
-| `min_distance`   |        | The `min_distance` parameter in the `regions_from_dgrid` function specifies the minimum distance between peaks in the peak_local_max function. It is used to find peaks in the input data that are separated by at least this distance. Peaks that are closer than `min_distance` to each other are, defaults to 2 (optional)                              | `2`        |
-| `compactness`    |        | The `compactness` parameter in the `regions_from_dgrid` function controls how uniform the region sizes are in the output. A higher value for `compactness` will result in more equally sized regions, while a lower value will allow for more size variation among the regions. Adjusting the `, defaults to 0 (optional)                                  | `0`        |
+| Name           | Type   | Description                                                                                                                                                                                                                                                                                                                                                | Default    |
+|----------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| dgrid          |        | The `dgrid` parameter is a 2D array representing the input data grid. It is used in the function to perform calculations and identify regions based on the data values in the grid                                                                                                                                                                         | _required_ |
+| mask_thickness |        | The `mask_thickness` parameter in the `regions_from_dgrid` function determines the thickness of the mask used in the watershed segmentation algorithm. It is used to create a mask where regions with values greater than the `mask_thickness` are considered as markers for segmentation. Increasing the `mask_thickness` value, defaults to 1 (optional) | `1`        |
+| h              |        | The `h` parameter in the `regions_from_dgrid` function is used to specify the height threshold for detecting local maxima in the input `dgrid` array. It is used in the `extrema.h_maxima` function to find the local maxima points based on the specified height                                                                                          | `0.2`      |
+| min_distance   |        | The `min_distance` parameter in the `regions_from_dgrid` function specifies the minimum distance between peaks in the peak_local_max function. It is used to find peaks in the input data that are separated by at least this distance. Peaks that are closer than `min_distance` to each other are, defaults to 2 (optional)                              | _required_ |
+| compactness    |        | The `compactness` parameter in the `regions_from_dgrid` function controls how uniform the region sizes are in the output. A higher value for `compactness` will result in more equally sized regions, while a lower value will allow for more size variation among the regions. Adjusting the `, defaults to 0 (optional)                                  | `0`        |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                 |
-|--------|---------------------------------------------------------------------------------------------|
-|        | The function `regions_from_dgrid` returns two values: `reg_labels` and `new_max_indices.T`. |
+| Name   | Type   | Description                                                                                 |
+|--------|--------|---------------------------------------------------------------------------------------------|
+|        |        | The function `regions_from_dgrid` returns two values: `reg_labels` and `new_max_indices.T`. |

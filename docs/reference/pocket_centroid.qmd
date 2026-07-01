@@ -1,0 +1,6 @@
+# pocket_centroid { #mofography.pocket_framework_env.pocket_centroid }
+
+```python
+pocket_framework_env.pocket_centroid(void_cart)
+```
+

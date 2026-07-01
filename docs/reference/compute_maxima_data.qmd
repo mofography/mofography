@@ -1,0 +1,7 @@
+# compute_maxima_data { #mofography.movies.compute_maxima_data }
+
+```python
+movies.compute_maxima_data(seg, atoms)
+```
+
+Compute maxima point-cloud data (positions, sizes, colors, hover).

@@ -1,0 +1,10 @@
+# vdw_radii_input_metadata { #mofography.vdw_radii.vdw_radii_input_metadata }
+
+```python
+vdw_radii.vdw_radii_input_metadata(ase_atoms, radii=None, radii_set=None)
+```
+
+Compact VDW radii provenance for segmentation ``input_params``.
+
+Stores the radii-set name and per-element radii (Å) for symbols present in
+the structure — not the full per-atom array.

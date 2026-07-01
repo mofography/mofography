@@ -1,17 +1,23 @@
-# plot_windows { #mofography.visualize.plot_windows }
+# plot_windows { #mofography.threejs_viz.plot_windows }
 
-`visualize.plot_windows(connections, **kwargs)`
+```python
+threejs_viz.plot_windows(
+    connections_or_seg,
+    name='Windows',
+    marker_color=None,
+    marker_size=10,
+    marker_opacity=0.8,
+    **kwargs,
+)
+```
 
-It takes a list of connections and returns a plotly scatter trace of the windows.
+Plot window positions between connected pores (Three.js backend).
 
-## Parameters
+Accepts either:
+- A *seg dict* (from ``prepare_seg_threejs`` or the results of
+  ``do_periodic_segmentation_rust``) — used as-is.
+- A *connections list* — a minimal seg dict is built automatically
+  (no periodic reclassification; for that use ``plot_windows_from_results``).
 
-| Name          | Type   | Description                                                        | Default    |
-|---------------|--------|--------------------------------------------------------------------|------------|
-| `connections` |        | a list of lists, output from the connections from regions function | _required_ |
-
-## Returns
-
-| Type   | Description                              |
-|--------|------------------------------------------|
-|        | A plotly scatter 3D trace of the windows |
+Any unknown keyword args are silently consumed for backward compatibility
+with the old Plotly-style call signature.

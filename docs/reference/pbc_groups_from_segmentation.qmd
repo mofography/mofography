@@ -1,0 +1,7 @@
+# pbc_groups_from_segmentation { #mofography.compute.pbc_groups_from_segmentation }
+
+```python
+compute.pbc_groups_from_segmentation(segmentation)
+```
+
+PBC pocket groups (excluding background label 0) from segmentation outputs.

@@ -1,0 +1,6 @@
+# tag_threejs_trace { #mofography.viz_backend.tag_threejs_trace }
+
+```python
+viz_backend.tag_threejs_trace(trace)
+```
+

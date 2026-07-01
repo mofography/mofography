@@ -5,14 +5,21 @@ website:
     - contents:
       - reference/AABB_on_atoms.qmd
       - reference/add_best_optuna_trial_to_rag.qmd
+      - reference/add_best_optuna_trial_to_rag_serial.qmd
       - reference/add_centroids_to_rag_with_pbc.qmd
       - reference/add_clustering_to_rag.qmd
       - reference/add_clustering_to_rag_energy.qmd
       - reference/add_clustering_to_rag_energy_js.qmd
       - reference/add_clustering_to_rag_geometry_js.qmd
       - reference/add_clustering_to_rag_pca.qmd
+      - reference/add_csd_to_rag.qmd
+      - reference/add_csd_to_rag_with_pbc.qmd
+      - reference/add_env_cluster_pocket_types_to_rag.qmd
       - reference/add_maxima_to_rag.qmd
       - reference/add_pbc_to_rag.qmd
+      - reference/add_pocket_psd_to_rag_with_pbc.qmd
+      - reference/add_pocket_psds_to_rag_from_segmentation.qmd
+      - reference/add_pocket_types_to_rag.qmd
       - reference/add_props_to_graph.qmd
       - reference/add_props_to_rag.qmd
       - reference/add_psd_to_rag.qmd
@@ -22,76 +29,153 @@ website:
       - reference/apply_pbc.qmd
       - reference/apply_periodic_map.qmd
       - reference/calc_path_components.qmd
+      - reference/calculate_padding_thickness.qmd
+      - reference/check_percolation_periodic.qmd
+      - reference/check_percolation_periodic2.qmd
       - reference/clustering_grid_from_regions.qmd
       - reference/compare_two_paths.qmd
+      - reference/compute_percolation_history.qmd
+      - reference/compute_percolation_history2.qmd
+      - reference/compute_percolation_history_from_results.qmd
+      - reference/compute_percolation_history_from_results2.qmd
+      - reference/compute_percolation_history_from_results_lattice.qmd
+      - reference/compute_pld.qmd
+      - reference/compute_point_probe_reference.qmd
+      - reference/compute_surface_area.qmd
+      - reference/compute_surface_area_from_results.qmd
+      - reference/compute_surface_area_from_results_lattice.qmd
+      - reference/compute_surface_area_from_results_mc.qmd
+      - reference/compute_surface_area_from_results_mc_lattice.qmd
+      - reference/compute_surface_area_from_results_mc_winding.qmd
+      - reference/compute_surface_area_from_results_winding.qmd
+      - reference/compute_surface_area_mc.qmd
+      - reference/compute_surface_area_mc_lattice.qmd
+      - reference/compute_surface_area_mc_winding.qmd
+      - reference/compute_surface_area_mesh.qmd
+      - reference/compute_surface_area_mesh_lattice.qmd
+      - reference/compute_surface_area_mesh_winding.qmd
+      - reference/compute_void_volume.qmd
+      - reference/compute_void_volume_from_results.qmd
+      - reference/compute_void_volume_from_results_lattice.qmd
+      - reference/compute_void_volume_from_results_winding.qmd
       - reference/connections_from_regions_and_dgrid.qmd
       - reference/dask_grid_over_atoms.qmd
+      - reference/detect_periodic_maxima_direct.qmd
+      - reference/detect_periodic_maxima_enhanced.qmd
       - reference/dgrid_from_atoms.qmd
       - reference/dgrid_from_atoms_cpu.qmd
+      - reference/dgrid_from_atoms_cpu_hybrid.qmd
+      - reference/dgrid_from_atoms_cpu_no_aabb.qmd
       - reference/dgrid_from_atoms_gpu.qmd
+      - reference/do_periodic_segmentation.qmd
+      - reference/do_periodic_segmentation_basic.qmd
       - reference/egrid_from_atoms2.qmd
       - reference/filter_percolated_paths.qmd
       - reference/find_isomorphic_path_groups.qmd
       - reference/find_paths.qmd
+      - reference/find_pore_limiting_radius.qmd
+      - reference/find_pore_limiting_radius2.qmd
       - reference/get_connections_for_rag.qmd
       - reference/get_diametrically_opposite_points.qmd
       - reference/get_distances_for_path.qmd
       - reference/get_energies_for_group.qmd
       - reference/get_energies_for_group2.qmd
       - reference/get_energy_interpolator.qmd
+      - reference/get_energy_interpolator_tricubic.qmd
+      - reference/get_pbc_groups.qmd
       - reference/get_percolated_paths_on_rag.qmd
       - reference/get_periodic_map.qmd
       - reference/get_pld_for_rag.qmd
       - reference/get_pld_from_percolated_paths_path_windows.qmd
+      - reference/get_pore_dia_lattice.qmd
+      - reference/get_pore_dia_mgr.qmd
+      - reference/get_pore_dia_mgr2.qmd
       - reference/get_psd_on_rag.qmd
       - reference/get_rag_from_regions_and_grid.qmd
       - reference/get_region_props_for_regions.qmd
       - reference/get_repetitions_to_meet_cutoff.qmd
       - reference/get_sampling_paths_for_region.qmd
       - reference/get_wall_windows2.qmd
+      - reference/get_wall_windows3.qmd
       - reference/gpd_aabb.qmd
+      - reference/gpd_aabb_hybrid.qmd
       - reference/gpe_aabb.qmd
       - reference/gpe_aabb2.qmd
       - reference/interpolate_dgrid.qmd
       - reference/mark_points_with_largest_including_dia.qmd
+      - reference/normalize_pbc_groups_by_regions_pbc.qmd
       - reference/optimize_molecule_at_node.qmd
+      - reference/pad_periodic.qmd
+      - reference/pbc_groups_from_segmentation.qmd
+      - reference/percolation_all_axes_periodic.qmd
       - reference/rag_from_connections.qmd
       - reference/regions_from_dgrid.qmd
       - reference/repeat_to_meet_cutoff.qmd
       - reference/sample_path.qmd
+      - reference/select_percolation_threshold.qmd
+      - reference/setup_poisson_spectral.qmd
+      - reference/setup_poisson_spectral_gpu.qmd
+      - reference/solve_poisson_spectral.qmd
+      - reference/solve_poisson_spectral_gpu.qmd
       section: Compute
     - contents:
       - reference/add_hoverdata_to_atoms_traces.qmd
+      - reference/add_traces_plotly.qmd
+      - reference/batched_mesh_for_atoms.qmd
       - reference/cylinders_for_bonds.qmd
       - reference/draw_framework.qmd
       - reference/get_default_colors.qmd
       - reference/get_isosurface_mesh.qmd
+      - reference/get_isosurface_submeshes.qmd
+      - reference/get_pore_size_distribution_trace.qmd
+      - reference/get_potential_near_atoms.qmd
       - reference/make_bg_image.qmd
+      - reference/make_fig_orthographic.qmd
+      - reference/make_fig_orthographic_all_subplots.qmd
       - reference/make_pore_size_distribution_fig_from_rag.qmd
       - reference/mesh_for_atoms.qmd
       - reference/plot_aromatic_rings.qmd
+      - reference/plot_blocking_spheres.qmd
+      - reference/plot_blocking_spheres_styled.qmd
       - reference/plot_cell.qmd
+      - reference/plot_connections.qmd
+      - reference/plot_connections_as_it_is.qmd
+      - reference/plot_csds.qmd
       - reference/plot_cycle_highlights.qmd
+      - reference/plot_dgrid_as_volume.qmd
+      - reference/plot_electrostatic_isosurfaces.qmd
+      - reference/plot_electrostatic_volume.qmd
       - reference/plot_everything.qmd
       - reference/plot_framework_as_mesh.qmd
       - reference/plot_maxima.qmd
       - reference/plot_mesh.qmd
       - reference/plot_molecule_at_best_optuna_trials.qmd
       - reference/plot_paths.qmd
+      - reference/plot_percolated_cluster_meshes.qmd
+      - reference/plot_percolation_windows.qmd
+      - reference/plot_pld_locations.qmd
+      - reference/plot_pocket_psds.qmd
+      - reference/plot_pocket_psds_from_grid.qmd
+      - reference/plot_pocket_psds_on_rag.qmd
       - reference/plot_pore_graph.qmd
       - reference/plot_psds.qmd
       - reference/plot_rag.qmd
+      - reference/plot_rag_separate_traces.qmd
       - reference/plot_snapshot_raspa_pdb.qmd
       - reference/plot_subset_of_atoms.qmd
       - reference/plot_surface_dgrid.qmd
       - reference/plot_vdw_hists.qmd
       - reference/plot_windows.qmd
+      - reference/plot_windows_from_results.qmd
       - reference/scatter3d.qmd
       - reference/spheres_for_atoms.qmd
       - reference/spheres_for_positions.qmd
       - reference/trimesh_from_pyvista.qmd
       section: Visualize
     - contents:
+      - reference/aabb_neighbors_on_atoms.qmd
+      - reference/ase_to_rdkit.qmd
+      - reference/compute_aromatic_cycles.qmd
       - reference/detect_smiles_in_mol.qmd
       - reference/find_aromatic_cycles_in_sgraph.qmd
       - reference/find_chemically_unique_cycles.qmd
@@ -105,6 +189,7 @@ website:
       - reference/get_bond_types.qmd
       - reference/get_bonds_and_orders_without_replication.qmd
       - reference/get_subset_atoms.qmd
+      - reference/rings_by_size_rdkit.qmd
       - reference/sgraph_from_atoms.qmd
       - reference/update_with_covalent_bonds.qmd
       - reference/voronoi_on_atoms.qmd
@@ -115,23 +200,297 @@ website:
       - reference/bound_fetch.qmd
       - reference/create_db_from_pickled_graphs.qmd
       - reference/fetch.qmd
+      - reference/get_atoms_from_mofdb_df_parallel.qmd
       - reference/get_data_from_mofdb.qmd
       - reference/get_graph.qmd
       - reference/get_mofdb_data.qmd
       - reference/get_num_graphs.qmd
       - reference/get_number_of_pages.qmd
       - reference/mix_lorentz_berthelot.qmd
+      - reference/plot_representative_sample_subplots.qmd
       - reference/read_cif_string.qmd
       - reference/read_raspa_pdb.qmd
+      - reference/sample_representative_mofdb.qmd
       - reference/show_percolated_paths_as_df.qmd
+      - reference/write_cifs_from_mofdb_df.qmd
       section: Data
     - contents:
+      - reference/ase_frac_to_egrid_query.qmd
+      - reference/check_wall.qmd
+      - reference/check_wall_per_dim.qmd
       - reference/compare_psd_peaks.qmd
+      - reference/compute_psds_from_points_pocketwise.qmd
+      - reference/compute_wall_cells.qmd
+      - reference/convert_to_cygwin_path.qmd
+      - reference/estimate_h_from_percolation_history.qmd
       - reference/find_coord_from_indices.qmd
+      - reference/find_end_channel_pairs.qmd
       - reference/find_psd_peaks.qmd
+      - reference/find_touching_region_pairs.qmd
       - reference/get_fractional_coordinates.qmd
+      - reference/get_min_distance.qmd
+      - reference/get_perpendicular_voxel_lengths.qmd
       - reference/interpolate_labels.qmd
+      - reference/is_inside_or_close_to_boundary.qmd
+      - reference/make_command.qmd
+      - reference/merge_small_regions.qmd
+      - reference/merge_small_regions_pbc.qmd
+      - reference/move_maximum_to_peak.qmd
+      - reference/periodic_gaussian_filter.qmd
+      - reference/process_wall_maxima.qmd
+      - reference/run_cygwin_from_jupyter.qmd
+      - reference/run_cygwin_from_jupyter_rt.qmd
+      - reference/spectral_smooth_3d.qmd
+      - reference/trim_connections_to_unique_regions.qmd
       - reference/zoom_grid.qmd
       section: Helper
+    - contents:
+      - reference/compute_accessible_psd_from_results.qmd
+      - reference/compute_pocket_psds_for_segmentation.qmd
+      - reference/compute_pore_sizes_pocketwise_rust.qmd
+      - reference/compute_pore_sizes_uniform_rust.qmd
+      - reference/compute_psd_global_accessible.qmd
+      - reference/compute_psd_uniform_rust.qmd
+      - reference/compute_psds_pocketwise_accessible.qmd
+      - reference/compute_psds_pocketwise_rust.qmd
+      - reference/dgrid_from_atoms_aabb_interp_rust.qmd
+      - reference/dgrid_from_atoms_aabb_rust.qmd
+      - reference/dgrid_from_atoms_exp_rust.qmd
+      - reference/dgrid_from_atoms_rust.qmd
+      - reference/do_periodic_segmentation_rust.qmd
+      - reference/egrid_from_atoms_rust.qmd
+      - reference/egrid_query_extent_from_atoms.qmd
+      - reference/egrid_tricubic_from_atoms_rust.qmd
+      - reference/seeded_watershed_det_parallel_rust.qmd
+      - reference/seeded_watershed_det_rust.qmd
+      - reference/tricubic_interpolator_from_grid.qmd
+      section: Rust backend
+    - contents:
+      - reference/add_percolation_windows_to_fig.qmd
+      - reference/assign_pocket_types.qmd
+      - reference/build_padded_threejs_scene.qmd
+      - reference/enrich_segmentation_with_pocket_psds.qmd
+      - reference/pocket_regions_cluster.qmd
+      - reference/quick_cluster.qmd
+      - reference/show_mof_plotly.qmd
+      - reference/show_mof_threejs.qmd
+      - reference/show_percolation_threejs.qmd
+      section: Workflows
+    - contents:
+      - reference/Figure3D.qmd
+      - reference/Figure3JS.qmd
+      - reference/Figure3js.qmd
+      - reference/MovieFigure.qmd
+      - reference/add_trace.qmd
+      - reference/add_traces.qmd
+      - reference/draw_framework.qmd
+      - reference/draw_framework_3js.qmd
+      - reference/plot_cell.qmd
+      - reference/plot_cell_3js.qmd
+      - reference/plot_connections.qmd
+      - reference/plot_connections_3js.qmd
+      - reference/plot_connections_as_it_is.qmd
+      - reference/plot_connections_as_it_is_3js.qmd
+      - reference/plot_framework_as_mesh_3js.qmd
+      - reference/plot_maxima.qmd
+      - reference/plot_maxima_3js.qmd
+      - reference/plot_maxima_from_grid.qmd
+      - reference/plot_maxima_from_grid_3js.qmd
+      - reference/plot_percolated_cluster_meshes.qmd
+      - reference/plot_percolated_cluster_meshes_3js.qmd
+      - reference/plot_percolation_windows.qmd
+      - reference/plot_percolation_windows_3js.qmd
+      - reference/plot_surface_dgrid.qmd
+      - reference/plot_surface_dgrid_3js.qmd
+      - reference/plot_windows.qmd
+      - reference/plot_windows_3js.qmd
+      - reference/plot_windows_from_results.qmd
+      - reference/plot_windows_from_results_3js.qmd
+      - reference/prepare_seg_threejs.qmd
+      - reference/qualitative_colorscale.qmd
+      - reference/seg_from_connections.qmd
+      section: Three.js viz
+    - contents:
+      - reference/show_percolation_threejs.qmd
+      section: Three.js plotting
+    - contents:
+      - reference/ensure_plotly_figure.qmd
+      - reference/ensure_plotly_trace.qmd
+      - reference/ensure_threejs_figure.qmd
+      - reference/ensure_threejs_trace.qmd
+      - reference/is_plotly_figure.qmd
+      - reference/is_plotly_trace.qmd
+      - reference/is_threejs_figure.qmd
+      - reference/is_threejs_trace.qmd
+      - reference/iter_leaf_traces.qmd
+      - reference/tag_threejs_trace.qmd
+      - reference/validate_plotly_traces.qmd
+      - reference/validate_threejs_traces.qmd
+      section: Viz backend
+    - contents:
+      - reference/build_fixed_framework_movie.qmd
+      - reference/build_static_scene.qmd
+      - reference/compute_cell_lines.qmd
+      - reference/compute_connection_data.qmd
+      - reference/compute_framework_mesh.qmd
+      - reference/compute_maxima_data.qmd
+      - reference/compute_segmentation_for_snapshot.qmd
+      - reference/compute_sparse_segmentation_series.qmd
+      - reference/compute_surface_mesh.qmd
+      - reference/compute_windows_data.qmd
+      - reference/embedded_movie_dict_from_path.qmd
+      - reference/embedded_movie_dict_from_snapshots.qmd
+      - reference/make_aromatic_rings_trace.qmd
+      - reference/make_cell_trace.qmd
+      - reference/make_connections_trace.qmd
+      - reference/make_framework_instanced_trace.qmd
+      - reference/make_framework_scatter_trace.qmd
+      - reference/make_framework_trace.qmd
+      - reference/make_guest_bonds_trace.qmd
+      - reference/make_guest_trace.qmd
+      - reference/make_maxima_trace.qmd
+      - reference/make_movie_from_raspa_pdb.qmd
+      - reference/make_movie_from_trajectory.qmd
+      - reference/make_percolation_clusters_trace.qmd
+      - reference/make_percolation_windows_trace.qmd
+      - reference/make_sparse_multicomponent_movie.qmd
+      - reference/make_surface_trace.qmd
+      - reference/make_windows_trace.qmd
+      - reference/read_movie_snapshots.qmd
+      - reference/read_raspa_pdb_movie.qmd
+      section: Movies
+    - contents:
+      - reference/annotate_clusters.qmd
+      - reference/annotate_graph_edges_with_window_fingerprints.qmd
+      - reference/build_base_region_labels.qmd
+      - reference/build_base_region_labels_from_results.qmd
+      - reference/check_percolation_winding.qmd
+      - reference/collect_periodic_edges.qmd
+      - reference/collect_periodic_edges_canonical.qmd
+      - reference/compute_percolation_history_winding.qmd
+      - reference/detect_percolation_with_threshold.qmd
+      - reference/find_pore_limiting_radius_winding.qmd
+      - reference/get_pore_dia_mgr_winding.qmd
+      - reference/get_pore_dia_mgr_winding2.qmd
+      - reference/get_pore_dia_mgr_winding3.qmd
+      - reference/make_directed_graph_from_segmentation_results.qmd
+      - reference/make_periodic_graph_from_binary_grid.qmd
+      - reference/percolating_region_labels_at_probe_winding.qmd
+      - reference/percolation_all_axes_winding.qmd
+      - reference/percolation_winding_multidigraph.qmd
+      - reference/percolation_winding_on_binary_grid.qmd
+      - reference/update_results_with_percolation_history_winding.qmd
+      section: Winding percolation
+    - contents:
+      - reference/assign_pocket_types_env_cluster.qmd
+      - reference/assign_pocket_types_from_segmentation.qmd
+      - reference/assign_pocket_types_shape_refined.qmd
+      - reference/build_fragment_label_to_rep.qmd
+      - reference/build_fragment_label_to_type.qmd
+      - reference/build_pockets_from_segmentation.qmd
+      - reference/build_rep_to_fragment_group.qmd
+      - reference/compute_pocket_fingerprints.qmd
+      - reference/compute_typing_dgrid.qmd
+      - reference/fingerprints_similar_adjacent_bands.qmd
+      - reference/group_pockets_by_d1_coarse.qmd
+      - reference/merge_adjacent_groups_by_fingerprint.qmd
+      - reference/merge_singleton_max_r_bands.qmd
+      - reference/pocket_typing_result_for_app.qmd
+      - reference/psd_bins.qmd
+      - reference/regions_cluster_from_rag.qmd
+      - reference/regions_cluster_from_rep_types.qmd
+      - reference/resolve_typing_vdw_radii.qmd
+      - reference/split_band_by_max_r_subpeaks.qmd
+      - reference/summarize_types.qmd
+      section: Pocket typing
+    - contents:
+      - reference/adaptive_shell_radius.qmd
+      - reference/assign_pocket_types_by_max_probe_radius.qmd
+      - reference/bond_type_from_order.qmd
+      - reference/compute_connectivity_fingerprints.qmd
+      - reference/compute_pocket_fingerprint.qmd
+      - reference/expand_bond_closure.qmd
+      - reference/fingerprint_cosine_similarity.qmd
+      - reference/framework_atom_indices_near_void.qmd
+      - reference/framework_indices_adaptive_shell.qmd
+      - reference/max_probe_radius_at_peak.qmd
+      - reference/max_probe_radius_for_fragment_group.qmd
+      - reference/mic_vectors_from_centroid.qmd
+      - reference/peak_cart_for_fragment_group.qmd
+      - reference/pocket_centroid.qmd
+      - reference/radial_histogram_normalized.qmd
+      - reference/sh_power_spectrum_unit_dirs.qmd
+      - reference/void_cart_for_pocket.qmd
+      - reference/void_cart_mic_for_fragment_group.qmd
+      - reference/void_cart_near_dgrid_peak.qmd
+      - reference/void_cart_surface_pocket.qmd
+      section: Pocket framework env
+    - contents:
+      - reference/apply_widest_path_fix_to_pair.qmd
+      - reference/find_all_pbc_wrap_marker_pairs.qmd
+      - reference/find_pbc_wrap_marker_pair.qmd
+      - reference/marker_padded_position.qmd
+      - reference/neighbor_offsets_26.qmd
+      - reference/repartition_pair_widest_path.qmd
+      - reference/widest_path_bottleneck_between_seeds.qmd
+      - reference/widest_path_bottleneck_from_seed.qmd
+      section: Widest-path resegment
+    - contents:
+      - reference/refine_windows_via_morph_opening.qmd
+      section: Window refinement
+    - contents:
+      - reference/export_plotly_frames_to_mp4.qmd
+      - reference/export_staged_figure_to_mp4.qmd
+      - reference/kaleido_persistent_session.qmd
+      - reference/set_traces_visible.qmd
+      section: Export MP4
+    - contents:
+      - reference/get_percolation_history.qmd
+      - reference/get_pore_dia.qmd
+      - reference/has_percolation_history.qmd
+      - reference/store_percolation_history.qmd
+      - reference/store_pore_dia.qmd
+      section: Percolation results
+    - contents:
+      - reference/default_vdw_radii_angstrom.qmd
+      - reference/mendeleev_vdw_radii_angstrom.qmd
+      - reference/typing_vdw_radii_angstrom.qmd
+      - reference/vdw_radii_input_metadata.qmd
+      section: VDW radii
+    - contents:
+      - reference/read_cif_to_ase.qmd
+      section: CIF I/O
+    - contents:
+      - reference/accessible_interface_voxel_mask.qmd
+      - reference/apply_region_map_to_raspa_pdb.qmd
+      - reference/apply_region_map_to_raspa_pdb_wrapped.qmd
+      - reference/block_pockets_at_random_and_write.qmd
+      - reference/block_specific_pockets_and_write.qmd
+      - reference/blocking_spheres_for_probe_radius.qmd
+      - reference/blocking_spheres_greedy.qmd
+      - reference/blocking_spheres_largest_including.qmd
+      - reference/blocking_spheres_overlap_accessible_coarse_sample.qmd
+      - reference/blocking_spheres_overlap_into_accessible_near_interface.qmd
+      - reference/blocking_spheres_overlap_into_accessible_regions.qmd
+      - reference/blocking_spheres_overlap_leakage.qmd
+      - reference/blocking_spheres_overlap_leakage_pair.qmd
+      - reference/get_atoms_list_for_pdb.qmd
+      - reference/get_isos_fit_for_multiple_raspa_folders.qmd
+      - reference/get_isos_fit_for_raspa_folder.qmd
+      - reference/get_isotherm_df_for_raspa_folder.qmd
+      - reference/get_isotherms_dict_for_multiple_raspa_folders.qmd
+      - reference/labels_accessible_adjacent_to_inaccessible_via_rag.qmd
+      - reference/make_raspa_input_for_cif.qmd
+      - reference/percolated_region_labels_winding.qmd
+      - reference/percolation_region_labels_union_winding.qmd
+      - reference/print_blocking_accessible_coarse_overlap_comparison.qmd
+      - reference/print_blocking_accessible_coarse_overlap_report.qmd
+      - reference/print_blocking_interface_overlap_stats.qmd
+      - reference/print_blocking_overlap_stats.qmd
+      - reference/print_blocking_spheres_overlap_pair_report.qmd
+      - reference/print_blocking_spheres_overlap_report.qmd
+      - reference/segmentation_spacing_from_results.qmd
+      - reference/write_blocking_spheres_file.qmd
+      section: RASPA helper
     id: reference
   - id: dummy-sidebar

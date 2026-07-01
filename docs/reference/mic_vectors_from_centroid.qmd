@@ -1,0 +1,11 @@
+# mic_vectors_from_centroid { #mofography.pocket_framework_env.mic_vectors_from_centroid }
+
+```python
+pocket_framework_env.mic_vectors_from_centroid(
+    atoms,
+    centroid_cart,
+    atom_indices,
+)
+```
+
+(N, 3) Cartesian MIC displacements centroid → atom.

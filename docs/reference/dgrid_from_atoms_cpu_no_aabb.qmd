@@ -1,0 +1,29 @@
+# dgrid_from_atoms_cpu_no_aabb { #mofography.compute.dgrid_from_atoms_cpu_no_aabb }
+
+```python
+compute.dgrid_from_atoms_cpu_no_aabb(
+    ase_atoms,
+    radii=None,
+    spacing=0.2,
+    block_size=20000,
+)
+```
+
+The function `dgrid_from_atoms_no_aabb` calculates a distance grid based on the cpu but without using 
+an AABB cell list to accelerate the calculation. Although substantially slower, this function might provide
+better smoothness of the distance grid, especially matrials with small pores. 
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type   | Description                                                                                                                                                                                                                                                                                                                                        | Default    |
+|------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms  |        | The `ase_atoms` parameter in the `dgrid_from_atoms_no_aabb` function is expected to be an ASE Atoms object, which represents a collection of atoms and their properties. This object typically contains information such as atomic positions, unit cell parameters, atomic symbols, and other properties of the atoms in                           | _required_ |
+| radii      |        | The `radii` parameter in the `dgrid_from_atoms_no_aabb` function represents the van der Waals radii of the atoms in the atomic structure provided as input. These radii are used in the calculation of the distance grid. If the `radii` parameter is not provided by the                                                                          | `None`     |
+| spacing    |        | The `spacing` parameter in the `dgrid_from_atoms_no_aabb` function represents the distance between grid points in the generated grid. It determines the resolution of the grid where the distances from atoms to grid points are calculated. A smaller spacing value will result in a higher resolution grid with more grid points,                | `0.2`      |
+| block_size |        | The `block_size` parameter in the `dgrid_from_atoms_no_aabb` function determines the size of each block used for processing the data. In this function, it is used for chunking the data and processing it in parallel on the CPU. A larger `block_size` can be more efficient but too big can lead to memory issues, defaults to 10000 (optional) | `20000`    |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                                                                                                                                                                                                                                                                                          |
+|--------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `dgrid_from_atoms_no_aabb` returns a 3D numpy array representing a distance grid computed based on the input atomic structure provided in the form of ASE atoms. The distance grid is calculated by computing the minimum distance between each point on the grid and the atoms in the structure, taking into account the atomic radii. |

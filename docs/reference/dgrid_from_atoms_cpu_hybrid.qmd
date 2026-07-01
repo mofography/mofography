@@ -1,0 +1,29 @@
+# dgrid_from_atoms_cpu_hybrid { #mofography.compute.dgrid_from_atoms_cpu_hybrid }
+
+```python
+compute.dgrid_from_atoms_cpu_hybrid(
+    ase_atoms,
+    radii=None,
+    spacing=0.25,
+    block_size=50000,
+    n_neighbors=10,
+    precompute=True,
+)
+```
+
+Modified dgrid computation using a hybrid AABB query and explicit distance calculation.
+
+This function generates a Cartesian grid over the structure using dask_grid_over_atoms 
+and then computes the distance grid by applying the hybrid function `gpd_aabb_hybrid`.
+
+Parameters:
+  ase_atoms   : ASE atoms object.
+  radii       : Optional numpy array of atomic radii (if None, default van der Waals radii are used).
+  spacing     : Grid spacing in angstroms.
+  block_size  : Number of grid points per dask array chunk.
+  n_neighbors : Number of nearest neighbors to consider.
+  
+  precompute  : If True, compute the array immediately.
+
+Returns:
+  dgrid : 3D numpy array of computed distances with shape determined by the grid dimensions.

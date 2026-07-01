@@ -1,0 +1,28 @@
+# block_pockets_at_random_and_write { #mofography.raspa_helper.block_pockets_at_random_and_write }
+
+```python
+raspa_helper.block_pockets_at_random_and_write(
+    file_path,
+    rag,
+    ase_atoms,
+    random_seed=123,
+)
+```
+
+> This function takes a graph, ase atoms object, and a file path, and writes a file with the
+fractional coordinates of the centroids of the pockets in the graph, and the radius of the pockets
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type   | Description                                                                        | Default    |
+|-------------|--------|------------------------------------------------------------------------------------|------------|
+| file_path   |        | the path to the file you want to write the blocking information to                 | _required_ |
+| rag         |        | the networkx graph object                                                          | _required_ |
+| ase_atoms   |        | ASE atoms object                                                                   | _required_ |
+| random_seed |        | the random seed to use for the random number generator, defaults to 123 (optional) | `123`      |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                      |
+|--------|--------|--------------------------------------------------|
+|        |        | The blocking_fractions and _ are being returned. |

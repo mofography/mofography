@@ -1,0 +1,31 @@
+# read_movie_snapshots { #mofography.movies.read_movie_snapshots }
+
+```python
+movies.read_movie_snapshots(
+    path,
+    *,
+    movie_format='auto',
+    max_frames=None,
+    frame_stride=1,
+    position_decimals=4,
+)
+```
+
+Load MD snapshots as canonical ``snapshot`` dicts (each with an ``ase.Atoms``).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+path
+    Trajectory or RASPA multi-model PDB file.
+movie_format
+    ``"auto"`` — ``.pdb`` uses RASPA parser; everything else uses ASE indexed reads
+    (one frame at a time, low peak memory).
+    ``"raspa_pdb"`` / ``"ase"`` force a specific backend.
+max_frames
+    Maximum number of *kept* frames (after stride), not counting skipped indices.
+frame_stride
+    Keep every Nth source frame (reduces output size and work in the browser).
+position_decimals
+    Round Cartesian positions before building ``Atoms`` (smaller JSON when embedded).

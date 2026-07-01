@@ -1,0 +1,61 @@
+# compute_surface_area_mesh { #mofography.compute.compute_surface_area_mesh }
+
+```python
+compute.compute_surface_area_mesh(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    window_fp_for_accessible=True,
+    winding_kwargs=None,
+    accessibility_method='winding',
+    lattice_variant='v2',
+)
+```
+
+Compute surface area analysis from pre-computed results dictionary.
+
+This function takes results from do_periodic_segmentation and compute_percolation_history
+to provide comprehensive surface area analysis at multiple granularity levels.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results_dict : dict
+    Results dictionary containing at minimum:
+    - 'distance_grid': Distance grid array
+    - 'pbc_groups': PBC groups dictionary
+    - 'regions_pbc': Periodic regions array
+    - Optional: 'percolation_history' from compute_percolation_history
+mat_atoms : ase.Atoms
+    Atomic structure for mass calculation and coordinate transformations.
+probe_radius : float, optional
+    Probe radius for surface area calculation. If None, uses helium radius.
+return_details : bool, optional
+    If True, returns detailed intermediate results. Default False.
+window_fp_for_accessible : bool, optional
+    Winding only: when True, apply window-fingerprint bridging. When False,
+    strict winding percolation without FP. Ignored for lattice.
+winding_kwargs : dict, optional
+    Extra keyword arguments for winding fingerprint bridging (merged over
+    ``results_dict['winding_kwargs']`` when present).
+accessibility_method : str, optional
+    ``"winding"`` (default) or ``"lattice"``.
+lattice_variant : str, optional
+    ``"v2"`` (recommended) or ``"v1"`` for lattice accessibility.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+dict
+    Dictionary containing:
+    - 'total_surface_area': Total surface area of entire structure (m²/g)
+    - 'accessible_surface_area': Total accessible surface area (percolated) (m²/g)
+    - 'by_region': Accessible surface area per individual region (dict)
+    - 'by_pocket': Accessible surface area per complete pocket (dict)
+    - 'by_percolated_cluster': Accessible surface area per percolated cluster (dict)
+    - 'accessible_fraction': Fraction of total surface area that is accessible
+    - 'probe_radius': Probe radius used
+    If return_details=True, also includes intermediate results.

@@ -1,17 +1,19 @@
 # plot_everything { #mofography.visualize.plot_everything }
 
-`visualize.plot_everything(everything)`
+```python
+visualize.plot_everything(everything)
+```
 
 It takes in the output of the do_it_all function and returns a plotly figure
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name         | Type   | Description               | Default    |
-|--------------|--------|---------------------------|------------|
-| `everything` |        | a tuple of the following: | _required_ |
+| Name       | Type   | Description               | Default    |
+|------------|--------|---------------------------|------------|
+| everything |        | a tuple of the following: | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description             |
-|--------|-------------------------|
-|        | A plotly figure object. |
+| Name   | Type   | Description             |
+|--------|--------|-------------------------|
+|        |        | A plotly figure object. |

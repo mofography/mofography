@@ -1,0 +1,6 @@
+# make_cell_trace { #mofography.movies.make_cell_trace }
+
+```python
+movies.make_cell_trace(atoms, style='cell', name='Unit cell', trace_id='cell')
+```
+

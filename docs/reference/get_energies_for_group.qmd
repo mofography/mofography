@@ -1,4 +1,16 @@
 # get_energies_for_group { #mofography.compute.get_energies_for_group }
 
-`compute.get_energies_for_group(group, props, ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False, block_size=20000, sample_fraction=1)`
+```python
+compute.get_energies_for_group(
+    group,
+    props,
+    ase_atoms,
+    shape,
+    forcefield_mixed=None,
+    cutoff=12.5,
+    return_coords=False,
+    block_size=20000,
+    sample_fraction=1,
+)
+```
 

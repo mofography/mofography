@@ -1,0 +1,16 @@
+# percolating_region_labels_at_probe_winding { #mofography.winding_percolation.percolating_region_labels_at_probe_winding }
+
+```python
+winding_percolation.percolating_region_labels_at_probe_winding(
+    results,
+    probe_radius,
+    kwargs=None,
+    graph=None,
+    base_region_labels=None,
+    include_dangling=True,
+    expand_components=True,
+    atoms=None,
+)
+```
+
+Region labels that are probe-accessible under winding percolation (+ optional FP rescue).

@@ -1,0 +1,42 @@
+# compute_psd_global_accessible { #mofography.rust_fun.compute_psd_global_accessible }
+
+```python
+rust_fun.compute_psd_global_accessible(
+    results,
+    mat_atoms,
+    probe_radius,
+    bins=None,
+    samples_per_region=10000,
+    density=False,
+    return_fig=False,
+    material='Material',
+    probe_center_min_radius=None,
+    enforce_probe_center_occupiable=False,
+)
+```
+
+Compute global accessible PSD (volume-weighted from percolating regions only).
+
+Thin wrapper around compute_accessible_psd_from_results that returns the same
+format as compute_psd_uniform_rust for app compatibility: psd_hist or (psd_hist, fig).
+
+Only void space that percolates at the given probe_radius is included.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name               | Type                  | Description                                                                    | Default      |
+|--------------------|-----------------------|--------------------------------------------------------------------------------|--------------|
+| results            | dict                  | Segmentation results from do_periodic_segmentation_rust with return_dgrid=True | _required_   |
+| mat_atoms          | ase.Atoms             | ASE Atoms with the simulation cell                                             | _required_   |
+| probe_radius       | float                 | Probe radius (Å) for percolation threshold                                     | _required_   |
+| bins               | numpy.ndarray \| None | Bin edges for histogram. If None, uses np.linspace(0, 50, 200)                 | `None`       |
+| samples_per_region | int                   | Samples per pocket for pocketwise sampler                                      | `10000`      |
+| density            | bool                  | Whether to normalize the histogram (matches compute_psd_uniform_rust)          | `False`      |
+| return_fig         | bool                  | Whether to return a plotly figure                                              | `False`      |
+| material           | str                   | Name of the material for plot title                                            | `'Material'` |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                 | Description                                                          |
+|--------|----------------------------------------------------------------------|----------------------------------------------------------------------|
+|        | numpy.ndarray \| tuple\[numpy.ndarray, plotly.graph_objects.Figure\] | psd_hist or (psd_hist, fig) - same shape as compute_psd_uniform_rust |

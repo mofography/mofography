@@ -1,0 +1,6 @@
+# make_fig_orthographic_all_subplots { #mofography.visualize.make_fig_orthographic_all_subplots }
+
+```python
+visualize.make_fig_orthographic_all_subplots(fig)
+```
+

@@ -1,0 +1,31 @@
+# detect_periodic_maxima_direct { #mofography.compute.detect_periodic_maxima_direct }
+
+```python
+compute.detect_periodic_maxima_direct(
+    distance_grid,
+    ase_atoms,
+    spacing,
+    maxima_mask=0,
+    h=None,
+    threshold_abs=None,
+    min_distance=1.0,
+    padding_thickness=None,
+)
+```
+
+Periodic maxima detection using the original distance grid directly.
+
+Parameters:
+- distance_grid: The input grid to detect maxima.
+- ase_atoms: ASE Atoms object for periodic boundary conditions.
+- spacing: Grid spacing.
+- maxima_mask: Threshold for binary mask creation.
+- h: Height threshold for h-maxima.
+- threshold_abs: Absolute threshold for maxima filtering.
+- min_distance: Minimum distance for merging maxima.
+- padding_thickness: Padding thickness for periodic boundary handling.
+
+Returns:
+- distance_grid: The original grid.
+- merged_maxima: Final merged maxima indices.
+- all_maxima: All detected maxima indices before merging.

@@ -1,20 +1,22 @@
 # plot_paths { #mofography.visualize.plot_paths }
 
-`visualize.plot_paths(rag, paths, colorscale='Pastel', **kwargs)`
+```python
+visualize.plot_paths(rag, paths, colorscale='Pastel', **kwargs)
+```
 
 The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by
 lines in different colorscales.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name         | Type   | Description                                                                                                                                                                                                                                                                                      | Default    |
-|--------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `rag`        |        | The `rag` parameter in the `plot_paths` function seems to represent a networkx graph object. It is used to extract node attributes from the graph for plotting paths                                                                                                                             | _required_ |
-| `paths`      | list   | The `paths` parameter in the `plot_paths` function is a list of lists. Each inner list represents a path in a graph. The function iterates over these paths and creates a 3D scatter plot with markers and lines to visualize the paths. Each path is represented by markers connected by        | _required_ |
-| `colorscale` | str    | The parameter `colorscale` in the `plot_paths` function is used to specify the color palette that will be used to color the paths in the plot. The default value is set to 'Pastel', but you can provide any other valid color scale from the `px.colors.qualitative` module, defaults to Pastel | `'Pastel'` |
+| Name       | Type   | Description                                                                                                                                                                                                                                                                                      | Default    |
+|------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| rag        |        | The `rag` parameter in the `plot_paths` function seems to represent a networkx graph object. It is used to extract node attributes from the graph for plotting paths                                                                                                                             | _required_ |
+| paths      | list   | The `paths` parameter in the `plot_paths` function is a list of lists. Each inner list represents a path in a graph. The function iterates over these paths and creates a 3D scatter plot with markers and lines to visualize the paths. Each path is represented by markers connected by        | _required_ |
+| colorscale | str    | The parameter `colorscale` in the `plot_paths` function is used to specify the color palette that will be used to color the paths in the plot. The default value is set to 'Pastel', but you can provide any other valid color scale from the `px.colors.qualitative` module, defaults to Pastel | `'Pastel'` |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                              |
-|--------|--------------------------------------------------------------------------------------------------------------------------|
-| list   | The function `plot_paths` returns a list of plotly `Scatter3d` traces representing the paths provided in the input list. |
+| Name   | Type   | Description                                                                                                              |
+|--------|--------|--------------------------------------------------------------------------------------------------------------------------|
+|        | list   | The function `plot_paths` returns a list of plotly `Scatter3d` traces representing the paths provided in the input list. |

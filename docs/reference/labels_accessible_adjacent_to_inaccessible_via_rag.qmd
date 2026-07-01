@@ -1,0 +1,15 @@
+# labels_accessible_adjacent_to_inaccessible_via_rag { #mofography.raspa_helper.labels_accessible_adjacent_to_inaccessible_via_rag }
+
+```python
+raspa_helper.labels_accessible_adjacent_to_inaccessible_via_rag(
+    results,
+    percolated_labels,
+    inaccessible_labels,
+)
+```
+
+Region labels that are **percolating** and share an **internal** RAG edge
+with at least one **inaccessible** label.
+
+Uses :func:`mofography.compute.rag_from_connections` (same window graph as
+visualization / pocket connectivity), not 6-neighbor grid adjacency.

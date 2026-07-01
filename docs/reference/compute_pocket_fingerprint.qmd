@@ -1,0 +1,37 @@
+# compute_pocket_fingerprint { #mofography.pocket_framework_env.compute_pocket_fingerprint }
+
+```python
+pocket_framework_env.compute_pocket_fingerprint(
+    regions_pbc,
+    regions,
+    dgrid,
+    rep,
+    shape,
+    atoms,
+    bonds,
+    *,
+    r_pocket,
+    l_max=FP_L_MAX,
+    n_radial_bins=FP_N_RADIAL_BINS,
+    alpha=SHELL_ALPHA,
+    delta=SHELL_DELTA_A,
+    r_min=SHELL_R_MIN_A,
+    r_max=SHELL_R_MAX_A,
+    void_near_peak=False,
+    use_surface_atoms=False,
+    max_probe_radius_a=None,
+    void_volume_a3=0.0,
+    use_mouth_annulus=True,
+    fragment_group=None,
+    psd_vec=None,
+)
+```
+
+Radial (r/R_shell) + SH angular power per element → L2-normalized vector.
+
+When ``use_surface_atoms=True``, the annulus is built from all void voxels that
+touch the VDW surface (dgrid < ``SURFACE_DGRID_MAX_A``), not only voxels near the
+dgrid maximum.  This gives a complete view of the cage walls for non-spherical or
+large pockets, and uses the dgrid maximum as the pocket centre rather than the
+centroid of void samples.  The mouth-annulus distance filter is bypassed because
+surface-voxel selection is already wall-targeted.

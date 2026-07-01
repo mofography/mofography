@@ -1,3 +1,13 @@
-# plot_psds (deprecated)
+# plot_psds { #mofography.visualize.plot_psds }
 
-Use [plot_csds](plot_csds.qmd) instead. `visualize.plot_psds` emits a `DeprecationWarning` and delegates to `plot_csds`.
+```python
+visualize.plot_psds(
+    rag,
+    pbc_groups,
+    cscale=None,
+    no_pbc=False,
+    cluster_key='cluster',
+)
+```
+
+Deprecated alias for :func:`plot_csds` (centroid-distance CSD, not probe PSD).

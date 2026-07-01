@@ -1,0 +1,7 @@
+# compute_connection_data { #mofography.movies.compute_connection_data }
+
+```python
+movies.compute_connection_data(seg, atoms)
+```
+
+Compute connection line-segment + node-point data.

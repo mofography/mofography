@@ -1,0 +1,21 @@
+# do_periodic_segmentation { #mofography.compute.do_periodic_segmentation }
+
+```python
+compute.do_periodic_segmentation(
+    dgrid,
+    mat_atoms,
+    mask_thickness=0.5,
+    h=0.11,
+    min_distance=1.1,
+    threshold_abs=1.0,
+    return_padded_regions=False,
+    spacing=None,
+    minimum_window_separation=None,
+    wall_thickness=0.05,
+    extra_padding=5,
+    compactness=0,
+    min_region_size=100,
+    disable_tqdm=False,
+)
+```
+

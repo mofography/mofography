@@ -1,0 +1,13 @@
+# widest_path_bottleneck_between_seeds { #mofography.widest_path_resegment.widest_path_bottleneck_between_seeds }
+
+```python
+widest_path_resegment.widest_path_bottleneck_between_seeds(
+    dgrid,
+    mask,
+    seed_a,
+    seed_b,
+    offsets=None,
+)
+```
+
+Bottleneck of the widest path between two seeds (symmetric max-min).

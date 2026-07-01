@@ -1,0 +1,12 @@
+# annotate_graph_edges_with_window_fingerprints { #mofography.winding_percolation.annotate_graph_edges_with_window_fingerprints }
+
+```python
+winding_percolation.annotate_graph_edges_with_window_fingerprints(
+    graph,
+    results,
+    atoms=None,
+    shell_radius=3.5,
+)
+```
+
+Annotate each graph edge with a lightweight window shell fingerprint.

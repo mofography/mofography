@@ -1,19 +1,21 @@
 # find_smiles_in_mofid { #mofography.analyze.find_smiles_in_mofid }
 
-`analyze.find_smiles_in_mofid(mofid, pattern_smiles)`
+```python
+analyze.find_smiles_in_mofid(mofid, pattern_smiles)
+```
 
 It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each
 SMILES string is found in the MOFid string
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name             | Type   | Description                                                       | Default    |
-|------------------|--------|-------------------------------------------------------------------|------------|
-| `mofid`          |        | the MOFid string                                                  | _required_ |
-| `pattern_smiles` |        | a list of SMILES strings that you want to search for in the MOFid | _required_ |
+| Name           | Type   | Description                                                       | Default    |
+|----------------|--------|-------------------------------------------------------------------|------------|
+| mofid          |        | the MOFid string                                                  | _required_ |
+| pattern_smiles |        | a list of SMILES strings that you want to search for in the MOFid | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                         |
-|--------|-----------------------------------------------------|
-|        | A list of lists of the patterns found in the MOFid. |
+| Name   | Type   | Description                                         |
+|--------|--------|-----------------------------------------------------|
+|        |        | A list of lists of the patterns found in the MOFid. |

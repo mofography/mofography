@@ -1,0 +1,36 @@
+# percolated_region_labels_winding { #mofography.raspa_helper.percolated_region_labels_winding }
+
+```python
+raspa_helper.percolated_region_labels_winding(
+    results,
+    probe_radius,
+    include_dangling=True,
+    expand_components=True,
+    graph=None,
+    base_region_labels=None,
+)
+```
+
+Segmentation region labels (ints) that belong to a percolating cluster at
+``probe_radius`` (Å), using winding percolation on the pore graph.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results : dict
+    Segmentation output (``dgrid``, ``regions``, ``connections``,
+    ``maxima_info``, ...).
+probe_radius : float
+    Threshold radius in Å (e.g. half kinetic diameter).
+include_dangling, expand_components : bool
+    Passed to :func:`mofography.winding_percolation.percolation_all_axes_winding`.
+graph, base_region_labels : optional
+    Precomputed graph / label map; if None they are built from ``results``.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+set of int
+    Region labels that are accessible (percolated) at this threshold.

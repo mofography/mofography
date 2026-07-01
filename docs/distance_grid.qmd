@@ -1,0 +1,191 @@
+---
+title: "Computing the Distance Grid"
+description: "Learn how to compute the 3D distance grid — the foundation of mofography's pore analysis pipeline"
+image: tutorial_images/distance_grid_isosurface.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## What is a Distance Grid?
+
+The distance grid is a 3D array where each voxel stores the signed distance from that point to the nearest framework-atom surface (atom center minus van der Waals radius). Positive values = void space; negative values = inside framework atoms. It is the **sole input** to `do_periodic_segmentation_rust` and all downstream pore analysis.
+
+### Why is this Important?
+
+- Every downstream step (maxima detection, watershed segmentation, pore graph, PSD, PLD, surface area) starts from the distance grid
+- Grid resolution (`spacing`) is the single most impactful parameter: halving spacing → 8× more voxels
+- The **correctness** of your distance grid determines the correctness of everything else
+
+## The Three Methods
+
+| Method | Function | Best For | Status |
+|--------|----------|----------|--------|
+| **Rust (Exact)** | `dgrid_from_atoms_rust()` | **All systems — recommended default** | ✅ Active |
+| **Rust AABB** | `dgrid_from_atoms_aabb_rust()` | Large systems, limited RAM | ✅ Active |
+| **Rust AABB Interp** | `dgrid_from_atoms_aabb_interp_rust()` | Very large systems, coarse→fine smoothing | ✅ Active |
+| **CPU/Dask** | `dgrid_from_atoms_cpu()` | Legacy compatibility, freud AABB celllist | ⚠️ Legacy |
+| ~~GPU (CuPy)~~ | ~~`dgrid_from_atoms_gpu()`~~ | — | ❌ Broken on skewed cells |
+| ~~CPU No-AABB~~ | ~~`dgrid_from_atoms_cpu_no_aabb()`~~ | — | ❌ Broken on skewed cells |
+
+### Quick Recommendation
+
+- **Default choice** → `dgrid_from_atoms_rust(spacing=0.5)` — thread-parallel Rust, correct MIC on all cell types
+- **Memory constrained** → `dgrid_from_atoms_aabb_rust(spacing=0.5, n_neighbors=10)` — R-tree based, uses less RAM
+- **Very large systems** (>5000 atoms, coarse acceptable) → `dgrid_from_atoms_aabb_interp_rust(spacing=1.0, coarse_factor=2)` — trilinear interpolation from coarse grid
+
+### ⚠️ Deprecated / Broken Methods
+
+**`dgrid_from_atoms_gpu` and `dgrid_from_atoms_cpu_no_aabb` are broken on non-orthogonal (skewed) cells.** They use per-axis NINT (nearest-integer) for minimum-image convention, which is incorrect on skewed cells — common in MOFs with non-cubic unit cells. The project CHANGELOG documents this as "Bug B" and recommends delegating to `dgrid_from_atoms_rust`. **Do not use these functions.** The Rust backend uses the same correct MIC path for all cell types.
+
+## Setup
+
+```{python}
+import mofography as mgr
+from ase.io import read
+import numpy as np
+
+# Load a MOF structure
+atoms = read("IRMOF-1.cif")  # or any CIF/PDB file
+print(f"Loaded {len(atoms)} atoms, cell: {atoms.cell.cellpar()[:3].round(2)}")
+```
+
+## Understanding Grid Spacing
+
+The `spacing` parameter (Å) controls resolution. It is the **single most impactful choice**:
+
+| Spacing | Voxels (IRMOF-1, ~26Å cell) | Memory | Use Case |
+|---------|------------------------------|--------|----------|
+| 0.5 Å | ~52³ = 140K | ~1 MB | **Default — good balance** |
+| 0.25 Å | ~104³ = 1.1M | ~9 MB | Fine detail, small windows |
+| 0.2 Å | ~130³ = 2.2M | ~18 MB | High precision needed |
+| 0.1 Å | ~260³ = 17.6M | ~140 MB | Research only |
+
+```{python}
+# Compute with default spacing
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5)
+
+print(f"Grid shape: {dgrid.shape}")
+print(f"Void max: {dgrid.max():.1f} Å (largest included sphere radius)")
+print(f"Framework min: {dgrid.min():.1f} Å")
+```
+
+## Method 1: Rust Backend (Recommended)
+
+```{python}
+# Thread-parallel brute-force distance computation
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5)
+
+# With explicit VDW radii (optional — defaults to Bondi CRC-fallback)
+from mofography.vdw_radii import default_vdw_radii_angstrom
+radii = default_vdw_radii_angstrom(atoms)
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5, radii=radii)
+```
+
+**Pros:** Exact MIC for all cell types, thread-parallel (Rayon), no accuracy trade-offs.
+**Cons:** O(N_atoms × N_grid) — memory scales with grid size.
+
+## Method 2: Rust AABB (Memory-Efficient)
+
+```{python}
+# R-tree based — only computes distances for atoms near each grid point
+dgrid = mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10)
+```
+
+Uses an AABB (axis-aligned bounding box) cell list via freud to find nearby atoms for each grid point. `n_neighbors` controls the neighbor search radius — higher = more accurate but slower.
+
+**When to use:** Large unit cells (>50 Å) or many atoms (>1000) where brute-force Rust would use too much RAM.
+
+```{python}
+# For very large systems: coarse grid + trilinear interpolation
+dgrid = mgr.dgrid_from_atoms_aabb_interp_rust(
+    atoms, spacing=1.0, coarse_factor=2, n_neighbors=10
+)
+# Equivalent to computing at spacing=1.0 then interpolating to 0.5
+```
+
+## Method 3: CPU/Dask (Legacy)
+
+```{python}
+# freud AABB celllist in Python, parallelized with Dask
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000)
+```
+
+Uses freud's `AABBQuery` for neighbor searches and Dask for parallelism. Correct MIC (uses `complete_cell().T`) unlike the deprecated `_no_aabb` variant.
+
+**When to use:** When you need Python-level control over the computation, or for systems where the Rust backend is unavailable.
+
+## Visualizing the Distance Grid
+
+```{python}
+# Plot an isosurface of the distance grid
+import plotly.graph_objects as go
+trace = mgr.plot_surface_dgrid(
+    dgrid,
+    isovalue=1.0,        # Show surface at 1.0 Å from framework
+    ase_atoms=atoms,
+    opacity=0.6,
+    cscale="viridis",
+)
+fig = go.Figure(data=[trace])
+fig.show()
+```
+
+```{python}
+# Overlay multiple isosurfaces
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
+
+fig = make_subplots(rows=1, cols=2, 
+    specs=[[{"type": "scene"}, {"type": "scene"}]],
+    subplot_titles=["isovalue=0.5 Å", "isovalue=2.0 Å"])
+
+for col, iso in enumerate([0.5, 2.0], 1):
+    trace = mgr.plot_surface_dgrid(dgrid, isovalue=iso, ase_atoms=atoms)
+    fig.add_trace(trace, row=1, col=col)
+
+fig.show()
+```
+
+## Next Steps: Segmentation
+
+Once you have a distance grid, run `do_periodic_segmentation_rust` to detect pore regions, compute connections, and build the pore graph:
+
+```{python}
+import numpy as np
+# Cast to float32 (required by Rust backend)
+dgrid_f32 = dgrid.astype(np.float32)
+
+# Single call replaces 5-7 old manual steps
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid_f32, atoms,
+    mask_thickness=0.05,     # void-space threshold
+    h=0.2,                   # H-maxima persistence
+    min_distance=1.5,        # min separation between maxima
+    threshold_abs=1.5,       # absolute threshold for maxima
+    spacing=0.5,
+    compute_connections=True,
+    watershed_backend="rust_det",
+    disable_tqdm=True,
+)
+
+print(f"Found {len(seg['maxima_pbc'])} pore pockets (PBC-grouped)")
+print(f"Found {len(seg['connections'])} window connections")
+print(f"Regions array shape: {seg['regions_pbc'].shape}")
+```
+
+> See the [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) for a deeper walkthrough of segmentation parameters and output structure.
+
+## Performance Notes
+
+- **IRMOF-1 (424 atoms, 26 Å cubic cell, 0.5 Å spacing):** ~52³ grid, ~1 second on M4 Pro
+- **NU-1000 (558 atoms, 40 Å hexagonal cell, 0.5 Å spacing):** ~80×81×34 grid, ~2 seconds
+- **Scaling:** O(N_atoms × N_grid) for brute-force; ~O(N_atoms × log N_atoms × N_grid) for AABB
+- **Memory:** ~4 bytes per voxel (float32); a 200³ grid ≈ 32 MB
+
+## Related Documentation
+
+- [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) — what happens after the distance grid
+- [Region Segmentation Deep Dive](region_segmentation.qmd) — maxima detection and watershed theory
+- [VDW Radii Comparison](vdw_radii_comparison.md) — bondi vs crc vs alvarez
+- [Benchmark: Rust AABB dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods

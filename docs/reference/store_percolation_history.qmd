@@ -1,0 +1,14 @@
+# store_percolation_history { #mofography.percolation_results.store_percolation_history }
+
+```python
+percolation_results.store_percolation_history(
+    results,
+    method,
+    history,
+    *,
+    lattice_variant=None,
+    pld_locations=None,
+)
+```
+
+Write history under a method-specific key without removing the other method.

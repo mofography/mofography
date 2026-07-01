@@ -1,0 +1,20 @@
+# compute_pocket_fingerprints { #mofography.pocket_typing.compute_pocket_fingerprints }
+
+```python
+pocket_typing.compute_pocket_fingerprints(
+    segmentation,
+    atoms,
+    pockets,
+    *,
+    pbc_groups=None,
+    bonds=None,
+    bond_orders=None,
+    typing_dgrid=None,
+)
+```
+
+Mouth-annulus fingerprints for all pockets (for typing and diagnostics).
+
+When ``typing_dgrid`` is set, ``max_probe_radius_a`` is taken from that grid
+(stable Bondi/CRC radii) while void sampling and framework SH still use the
+segmentation ``dgrid`` from the main analysis pipeline.

@@ -1,0 +1,13 @@
+# merge_singleton_max_r_bands { #mofography.pocket_typing.merge_singleton_max_r_bands }
+
+```python
+pocket_typing.merge_singleton_max_r_bands(
+    pockets,
+    fps,
+    rep_to_band,
+    *,
+    gap_tol_a=DEFAULT_SINGLETON_BAND_GAP_A,
+)
+```
+
+Reassign isolated max_r bands to the nearest band if within ``gap_tol_a``.

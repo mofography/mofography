@@ -1,0 +1,34 @@
+# egrid_from_atoms_rust { #mofography.rust_fun.egrid_from_atoms_rust }
+
+```python
+rust_fun.egrid_from_atoms_rust(
+    ase_atoms,
+    spacing,
+    forcefield_mixed=None,
+    cutoff=12.5,
+    probe_symbol='He',
+    return_ncells=False,
+)
+```
+
+Compute an energy grid from atomic positions using the Rust backend.
+
+This function calculates the energy field (egrid) for a given atomic structure,
+where each grid point represents the Lennard-Jones interaction energy with
+the framework atoms, using a probe molecule.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name             | Type                  | Description                                                                   | Default    |
+|------------------|-----------------------|-------------------------------------------------------------------------------|------------|
+| ase_atoms        | ase.Atoms             | ASE Atoms object containing the atomic structure                              | _required_ |
+| spacing          | float                 | Grid spacing in Angstroms                                                     | _required_ |
+| forcefield_mixed | numpy.ndarray \| None | Mixed forcefield parameters. If None, computed using Lorentz-Berthelot mixing | `None`     |
+| cutoff           | float                 | Cutoff distance for energy calculations in Angstroms                          | `12.5`     |
+| probe_symbol     | str                   | Chemical symbol of the probe molecule                                         | `'He'`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                                                |
+|--------|---------------|------------------------------------------------------------|
+|        | numpy.ndarray | 3D energy grid where values represent interaction energies |

@@ -1,0 +1,4 @@
+# Figure3D { #mofography.threejs_viz.Figure3D }
+
+`threejs_viz.Figure3D`
+

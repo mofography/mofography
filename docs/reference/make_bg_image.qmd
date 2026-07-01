@@ -1,19 +1,21 @@
 # make_bg_image { #mofography.visualize.make_bg_image }
 
-`visualize.make_bg_image(type='radial', cmap='plasma_r')`
+```python
+visualize.make_bg_image(type='radial', cmap='plasma_r')
+```
 
 It takes a 2D array and a colormap and returns a plotly image object that can be used as a
 background image
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
 | Name   | Type   | Description                                                               | Default      |
 |--------|--------|---------------------------------------------------------------------------|--------------|
-| `type` |        | 'radial', 'left_to_right', 'bottom_to_top', defaults to radial (optional) | `'radial'`   |
-| `cmap` |        | The colormap to use, defaults to plasma_r (optional)                      | `'plasma_r'` |
+| type   |        | 'radial', 'left_to_right', 'bottom_to_top', defaults to radial (optional) | `'radial'`   |
+| cmap   |        | The colormap to use, defaults to plasma_r (optional)                      | `'plasma_r'` |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description           |
-|--------|-----------------------|
-|        | A plotly image object |
+| Name   | Type   | Description           |
+|--------|--------|-----------------------|
+|        |        | A plotly image object |

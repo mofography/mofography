@@ -1,4 +1,25 @@
 # gpe_aabb2 { #mofography.compute.gpe_aabb2 }
 
-`compute.gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff)`
+```python
+compute.gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff)
+```
 
+The function `gpe_aabb2` calculates Lennard-Jones energy contributions for grid points based on
+neighboring particles within a specified cutoff distance using positions instead of neighborlist passed as 
+argument as in `gpe_aabb' subroutine.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name             | Type   | Description                                                                                                                                                                                                                                                                                                                                    | Default    |
+|------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| grid_points      |        | The function `gpe_aabb2` seems to be calculating the Lennard-Jones potential energy for a set of grid points based on the positions of particles, a cell, a mixed force field, and a cutoff distance                                                                                                                                           | _required_ |
+| positions        |        | The `positions` parameter in the `gpe_aabb2` function represents the positions of particles in a simulation. These positions are used to calculate the interactions between the particles and the grid points within a certain cutoff distance. The function performs calculations based on the positions of the particles and the grid points | _required_ |
+| cell             |        | The `cell` parameter in the `gpe_aabb2` function represents the simulation box or cell in which the particles are contained. It defines the periodic boundaries and the size of the simulation box in three dimensions. The `cell` parameter is used in the AABBQuery to specify the simulation box                                            | _required_ |
+| forcefield_mixed |        | The function `gpe_aabb2` seems to be calculating the Lennard-Jones potential energy for a given set of grid points based on the provided force field parameters. The key steps involved in the calculation include querying neighboring points within a specified cutoff distance, computing the Lennard-Jones                                 | _required_ |
+| cutoff           |        | The `cutoff` parameter in the `gpe_aabb2` function represents the maximum distance within which to consider neighboring points when performing calculations. It is used to filter out points that are beyond this distance from each grid point during the computation                                                                         | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                                                                                                                |
+|--------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `gpe_aabb2` is returning the calculated Lennard-Jones potential energy values `v` for each grid point based on the provided input parameters. |

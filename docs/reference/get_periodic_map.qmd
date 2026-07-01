@@ -1,21 +1,30 @@
 # get_periodic_map { #mofography.compute.get_periodic_map }
 
-`compute.get_periodic_map(regions, maxima, maxima_radii, ase_atoms, return_conn=False, **kwargs)`
+```python
+compute.get_periodic_map(
+    regions,
+    maxima,
+    maxima_radii,
+    ase_atoms,
+    return_conn=False,
+    **kwargs,
+)
+```
 
 It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary
 that maps each region to the nearest maximum.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                                                             | Default    |
-|----------------|--------|---------------------------------------------------------------------------------------------------------|------------|
-| `regions`      |        | a 3D array of integers, where each integer is a region index, obtained from regions_from_dgrid function | _required_ |
-| `maxima`       |        | the 3D indices of the maxima, obtained from regions_from_dgrid function                                 | _required_ |
-| `maxima_radii` |        | the list of radii of the maxima (in Angstrom)                                                           | _required_ |
-| `return_conn`  |        | if True, returns the connectivity groups of the regions, defaults to False (optional)                   | `False`    |
+| Name         | Type   | Description                                                                                             | Default    |
+|--------------|--------|---------------------------------------------------------------------------------------------------------|------------|
+| regions      |        | a 3D array of integers, where each integer is a region index, obtained from regions_from_dgrid function | _required_ |
+| maxima       |        | the 3D indices of the maxima, obtained from regions_from_dgrid function                                 | _required_ |
+| maxima_radii |        | the list of radii of the maxima (in Angstrom)                                                           | _required_ |
+| return_conn  |        | if True, returns the connectivity groups of the regions, defaults to False (optional)                   | `False`    |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                     |
-|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | a dictionary with the keys being the starting region indices and the values being the periodic group of the regions.  then to apply this periodic map to regions, use:  np.vectorize(periodic_map.get)(regions) |
+| Name   | Type   | Description                                                                                                                                                                                                        |
+|--------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | a dictionary with the keys being the starting region indices and the values being the periodic group of the regions.  then to apply this periodic map to regions, use:     np.vectorize(periodic_map.get)(regions) |

@@ -1,17 +1,27 @@
 # get_energy_interpolator { #mofography.compute.get_energy_interpolator }
 
-`compute.get_energy_interpolator(egrid)`
+```python
+compute.get_energy_interpolator(
+    egrid,
+    neighborhood_size=4,
+    extent_x=1.0,
+    extent_y=1.0,
+    extent_z=1.0,
+)
+```
 
-This function creates a 3D regular grid interpolator for energy values given an input energy grid.
+Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them
+with a value higher than their local neighborhood maximum.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name    | Type   | Description                                                                                                                                                                                                | Default    |
-|---------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `egrid` |        | a 3D numpy array representing a grid of energy values. The shape of the array should be (n_x, n_y, n_z), where n_x, n_y, and n_z are the number of grid points in the x, y, and z directions, respectively | _required_ |
+| Name              | Type   | Description                                                                      | Default    |
+|-------------------|--------|----------------------------------------------------------------------------------|------------|
+| egrid             |        | a 3D numpy array representing a grid of energy values with shape (n_x, n_y, n_z) | _required_ |
+| neighborhood_size |        | size of neighborhood to check in each direction (default: 4)                     | `4`        |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                    |
-|--------|------------------------------------------------------------------------------------------------|
-|        | a RegularGridInterpolator object that can be used to interpolate values from a 3D energy grid. |
+| Name   | Type   | Description                                             |
+|--------|--------|---------------------------------------------------------|
+|        |        | a RegularGridInterpolator object for the 3D energy grid |

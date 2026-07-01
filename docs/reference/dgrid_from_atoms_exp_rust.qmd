@@ -1,0 +1,7 @@
+# dgrid_from_atoms_exp_rust { #mofography.rust_fun.dgrid_from_atoms_exp_rust }
+
+```python
+rust_fun.dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None)
+```
+
+Deprecated alias for :func:`dgrid_from_atoms_rust`.

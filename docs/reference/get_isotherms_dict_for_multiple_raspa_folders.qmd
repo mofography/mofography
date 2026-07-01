@@ -1,0 +1,19 @@
+# get_isotherms_dict_for_multiple_raspa_folders { #mofography.raspa_helper.get_isotherms_dict_for_multiple_raspa_folders }
+
+```python
+raspa_helper.get_isotherms_dict_for_multiple_raspa_folders(list_of_folder_paths)
+```
+
+This function takes a list of paths to folders containing raspa output files and returns a dictionary with the isotherm data
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                 | Type   | Description                                                    | Default    |
+|----------------------|--------|----------------------------------------------------------------|------------|
+| list_of_folder_paths |        | list of paths to the folders containing the raspa output files | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                         |
+|--------|--------|-------------------------------------|
+|        |        | a dictionary with the isotherm data |

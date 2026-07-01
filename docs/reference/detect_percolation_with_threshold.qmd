@@ -1,0 +1,24 @@
+# detect_percolation_with_threshold { #mofography.winding_percolation.detect_percolation_with_threshold }
+
+```python
+winding_percolation.detect_percolation_with_threshold(
+    G,
+    threshold,
+    node_radius_attr='pocket_radius',
+    edge_radius_attr='window_radius',
+)
+```
+
+Convenience wrapper that filters nodes/edges below ``threshold`` before
+running :func:`percolation_winding_multidigraph`.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+G : nx.MultiDiGraph
+    Pore graph following the deduplicated conventions.
+threshold : float
+    Minimum radius (Å) for both nodes and edges to participate.
+node_radius_attr, edge_radius_attr : str
+    Attribute names storing radii on nodes/edges respectively.

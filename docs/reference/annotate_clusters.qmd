@@ -1,0 +1,6 @@
+# annotate_clusters { #mofography.winding_percolation.annotate_clusters }
+
+```python
+winding_percolation.annotate_clusters(loop_list)
+```
+

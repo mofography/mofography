@@ -1,0 +1,6 @@
+# make_fig_orthographic { #mofography.visualize.make_fig_orthographic }
+
+```python
+visualize.make_fig_orthographic(fig)
+```
+

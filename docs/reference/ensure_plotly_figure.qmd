@@ -1,0 +1,6 @@
+# ensure_plotly_figure { #mofography.viz_backend.ensure_plotly_figure }
+
+```python
+viz_backend.ensure_plotly_figure(fig, *, context='add_traces')
+```
+

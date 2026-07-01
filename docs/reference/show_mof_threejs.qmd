@@ -1,0 +1,58 @@
+# show_mof_threejs { #mofography.workflow.show_mof_threejs }
+
+```python
+workflow.show_mof_threejs(
+    seg,
+    atoms,
+    typed_result=None,
+    stylize=True,
+    framework_atoms=None,
+    output_html=None,
+    show=False,
+    renderer='browser',
+    **options,
+)
+```
+
+Build a standalone Three.js HTML visualization.
+
+Reproduces the default interactive-app main visualization using the
+Three.js / ``MovieFigure`` backend (same as the app's Three.js toggle).
+
+Includes framework (ball-and-stick + aromatic rings), unit cell, raw and
+PBC-merged region surfaces, optional pocket-type surface, pore-graph
+connections, internal windows (periodic hidden by default), and local
+maxima.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+seg : dict
+    Output of ``do_periodic_segmentation_rust``.
+atoms : ase.Atoms
+    Structure to visualize.
+typed_result : PocketTypingResult, optional
+    When supplied and ``result.ok``, adds the pocket-type surface.
+stylize : bool
+    Apply PBR roughness/metalness tweaks (default ``True``).
+output_html : str or Path, optional
+    If given, write the HTML to this path and return the path string.
+    Otherwise return the HTML string directly.
+**options
+    Same ``plot_*`` flags as :func:`show_mof_plotly` plus Three.js extras:
+
+    .. code-block:: text
+
+        plot_surface_taubin_smooth      True
+        plot_surface_taubin_iterations  10
+        plot_surface_taubin_lambda      0.5
+        plot_surface_taubin_nu          -0.53
+        plot_layout                     "dark"   # or "white"
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+str
+    Self-contained HTML string (or the output path when *output_html* is set).

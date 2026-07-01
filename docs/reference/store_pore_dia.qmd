@@ -1,0 +1,16 @@
+# store_pore_dia { #mofography.percolation_results.store_pore_dia }
+
+```python
+percolation_results.store_pore_dia(
+    results,
+    method,
+    lcd,
+    pld,
+    dfsd,
+    *,
+    lattice_variant=None,
+    extra=None,
+)
+```
+
+Store pore diameters under ``pore_dia_winding`` or ``pore_dia_lattice``.

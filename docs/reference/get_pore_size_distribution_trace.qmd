@@ -1,0 +1,12 @@
+# get_pore_size_distribution_trace { #mofography.visualize.get_pore_size_distribution_trace }
+
+```python
+visualize.get_pore_size_distribution_trace(
+    distances,
+    bins=np.linspace(0, 50, 50),
+    normalize=False,
+    cumulative=False,
+)
+```
+
+Create a plotly trace for pore size distribution.

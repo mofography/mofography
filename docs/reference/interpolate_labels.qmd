@@ -1,18 +1,20 @@
 # interpolate_labels { #mofography.helper.interpolate_labels }
 
-`helper.interpolate_labels(regions)`
+```python
+helper.interpolate_labels(regions)
+```
 
 Create a scipy.interpolator.RegularGridInterpolator, using 'nearest' method for the region labels (or any 3D numpy grid) 
 over a unit box ([0,1]) in all axes.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type        | Description                     | Default    |
-|-----------|-------------|---------------------------------|------------|
-| `regions` | numpy.array | 3D numpy array of region labels | _required_ |
+| Name    | Type        | Description                     | Default    |
+|---------|-------------|---------------------------------|------------|
+| regions | numpy.array | 3D numpy array of region labels | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type                                      | Description                                                                              |
-|-------------------------------------------|------------------------------------------------------------------------------------------|
-| scipy.interpolate.RegularGridInterpolator | a scipy RegularGridInterpolator object that works on the fractional coordinates of atoms |
+| Name   | Type                                      | Description                                                                              |
+|--------|-------------------------------------------|------------------------------------------------------------------------------------------|
+|        | scipy.interpolate.RegularGridInterpolator | a scipy RegularGridInterpolator object that works on the fractional coordinates of atoms |

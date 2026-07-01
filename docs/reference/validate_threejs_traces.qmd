@@ -1,0 +1,6 @@
+# validate_threejs_traces { #mofography.viz_backend.validate_threejs_traces }
+
+```python
+viz_backend.validate_threejs_traces(traces, *, context='add_traces')
+```
+

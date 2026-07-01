@@ -1,0 +1,16 @@
+# segmentation_spacing_from_results { #mofography.raspa_helper.segmentation_spacing_from_results }
+
+```python
+raspa_helper.segmentation_spacing_from_results(ase_atoms, shape, results=None)
+```
+
+Segmentation grid spacing (Å), consistent with ``dask_grid_over_atoms``.
+
+**Primary:** ``results["input_params"]["spacing"]`` is set by
+:func:`mofography.rust_fun.do_periodic_segmentation_rust` and should match
+the spacing used to build ``dgrid`` / ``regions``.
+
+**Also:** ``results["kwargs"]["spacing"]`` on some older dict layouts.
+
+**Fallback:** mean spacing from ASE cell lengths and ``shape`` if those
+keys are missing (e.g. ad-hoc grids or very old caches).

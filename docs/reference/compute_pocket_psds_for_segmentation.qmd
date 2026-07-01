@@ -1,0 +1,36 @@
+# compute_pocket_psds_for_segmentation { #mofography.rust_fun.compute_pocket_psds_for_segmentation }
+
+```python
+rust_fun.compute_pocket_psds_for_segmentation(
+    segmentation,
+    atoms,
+    *,
+    num_samples_per_region=1000,
+    bins=None,
+    probe_center_min_radius=None,
+    probe_radius_psd=None,
+)
+```
+
+Compute Rust pocket-wise PSDs from a periodic segmentation dict.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+segmentation
+    Dict with ``dgrid``, ``regions_pbc`` (or ``regions``), from
+    :func:`do_periodic_segmentation_rust`.
+atoms
+    ASE :class:`~ase.Atoms`.
+probe_center_min_radius, probe_radius_psd
+    Minimum clearance (Å) for probe-centre sample sites.
+    ``probe_radius_psd`` is an alias (pocket-typing default 1.2 Å).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+dict
+    Region id → ``{"hist", "bin_centers"}`` (same as
+    :func:`compute_psds_pocketwise_rust` without ``return_fig``).

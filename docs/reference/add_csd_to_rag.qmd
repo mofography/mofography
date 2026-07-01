@@ -1,0 +1,14 @@
+# add_csd_to_rag { #mofography.compute.add_csd_to_rag }
+
+```python
+compute.add_csd_to_rag(G, region_props, bins, ase_atoms, shape)
+```
+
+Attach cavity-size distribution (CSD) histograms to RAG nodes.
+
+Each histogram is the PBC-free distribution of distances from the region
+centroid to void voxels (centroid-distance / geometry histogram).  Stored as
+``csd_x`` (bin centers) and ``csd_y`` (density).
+
+For PBC-aware CSD, use :func:`add_csd_to_rag_with_pbc`.  For probe-occupiable
+pocket PSDs from the Rust sampler, use :func:`add_pocket_psd_to_rag_with_pbc`.

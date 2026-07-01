@@ -1,0 +1,7 @@
+# sh_power_spectrum_unit_dirs { #mofography.pocket_framework_env.sh_power_spectrum_unit_dirs }
+
+```python
+pocket_framework_env.sh_power_spectrum_unit_dirs(unit_dirs, weights, l_max)
+```
+
+Rotation-invariant power |a_l|^2 = sum_m |a_lm|^2 for l=0..l_max.

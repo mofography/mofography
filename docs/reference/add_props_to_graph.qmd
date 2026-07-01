@@ -1,22 +1,30 @@
 # add_props_to_graph { #mofography.compute.add_props_to_graph }
 
-`compute.add_props_to_graph(G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None)`
+```python
+compute.add_props_to_graph(
+    G,
+    node_props=None,
+    node_prop_names=None,
+    edge_props=None,
+    edge_prop_names=None,
+)
+```
 
 The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and
 edge attributes.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name              | Type   | Description                                                                             | Default    |
-|-------------------|--------|-----------------------------------------------------------------------------------------|------------|
-| `G`               |        | the graph                                                                               | _required_ |
-| `node_props`      |        | a list of lists, where each list contains the node properties for a given node property | `None`     |
-| `node_prop_names` |        | list of names of node properties                                                        | `None`     |
-| `edge_props`      |        | a list of lists, where each list contains the edge properties for a given edge property | `None`     |
-| `edge_prop_names` |        | list of strings, names of edge properties                                               | `None`     |
+| Name            | Type   | Description                                                                             | Default    |
+|-----------------|--------|-----------------------------------------------------------------------------------------|------------|
+| G               |        | the graph                                                                               | _required_ |
+| node_props      |        | a list of lists, where each list contains the node properties for a given node property | `None`     |
+| node_prop_names |        | list of names of node properties                                                        | `None`     |
+| edge_props      |        | a list of lists, where each list contains the edge properties for a given edge property | `None`     |
+| edge_prop_names |        | list of strings, names of edge properties                                               | `None`     |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                            |
-|--------|--------------------------------------------------------|
-|        | A graph with the node and edge properties added to it. |
+| Name   | Type   | Description                                            |
+|--------|--------|--------------------------------------------------------|
+|        |        | A graph with the node and edge properties added to it. |

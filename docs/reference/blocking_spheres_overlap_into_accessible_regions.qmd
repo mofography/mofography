@@ -1,0 +1,59 @@
+# blocking_spheres_overlap_into_accessible_regions { #mofography.raspa_helper.blocking_spheres_overlap_into_accessible_regions }
+
+```python
+raspa_helper.blocking_spheres_overlap_into_accessible_regions(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    spacing=None,
+    accessible_dgrid_ge_probe=False,
+    atol=0.0001,
+    chunk_size=65536,
+)
+```
+
+Estimate how much blocking-sphere volume intrudes into **accessible** void.
+
+Accessible voxels = segmentation labels that **percolate** at ``probe_radius``
+(same definition as :func:`percolated_region_labels_winding`). Optionally
+restrict to voxels with ``dgrid >= probe_radius`` (``accessible_dgrid_ge_probe``).
+
+For each **grid point** in that accessible set, test whether its Cartesian
+position lies inside the **union** of blocking spheres (fractional center +
+radius in Å). Uses **minimum-image** distance (PBC) for the primary metric,
+and also reports **raw** Cartesian distance (no PBC) for comparison.
+
+The grid is the same ordering as ``dask_grid_over_atoms`` / ``dgrid.ravel()``.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+results : dict
+    Must contain ``regions``, ``dgrid``.
+ase_atoms : ase.Atoms
+spheres : sequence of [sx, sy, sz, r]
+    Fractional centers, radii in Å (RASPA convention).
+probe_radius : float
+    Percolation threshold defining accessible labels.
+spacing : float, optional
+    Grid spacing; inferred from ``results`` / cell if omitted.
+accessible_dgrid_ge_probe : bool
+    If True, count only accessible-label voxels with ``dgrid >= probe_radius``.
+atol : float
+    Tolerance on ``distance <= r + atol``.
+chunk_size : int
+    Chunk size over accessible points for memory.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+dict
+    Keys include ``n_spheres``, ``n_accessible_voxels`` (denominator),
+    ``n_overlapped_mic``, ``frac_overlapped_mic``, ``n_overlapped_raw``,
+    ``frac_overlapped_raw``, ``approx_voxel_volume_ang3``,
+    ``approx_overlap_volume_mic_ang3``, ``frac_unit_cell_overlapped_mic``.
+
+Implemented via :func:`blocking_spheres_overlap_leakage` (``resolution="fine"``).

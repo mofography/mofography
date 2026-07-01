@@ -1,0 +1,23 @@
+# percolation_winding_multidigraph { #mofography.winding_percolation.percolation_winding_multidigraph }
+
+```python
+winding_percolation.percolation_winding_multidigraph(G)
+```
+
+Evaluate percolation using winding numbers on a deduplicated MultiDiGraph.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+percolates : dict
+    Keys ``'x'``, ``'y'``, ``'z'`` map to booleans indicating whether at
+    least one non-contractible loop exists along that axis.
+loops : list of dict
+    Each loop dictionary contains ``winding`` (Offset), ``nodes`` (list of
+    node IDs along the tree path that closes the loop), ``edge`` (canonical
+    ``(u, v, key)``), ``edge_offset`` (stored offset on that edge) and
+    ``delta`` (the traversal offset that triggered detection).
+acc_offsets : dict
+    Maps node ID to its accumulated integer offset relative to the BFS root
+    of its connected component.

@@ -1,0 +1,26 @@
+# get_isosurface_submeshes { #mofography.visualize.get_isosurface_submeshes }
+
+```python
+visualize.get_isosurface_submeshes(
+    dgrid,
+    isoval,
+    ase_atoms,
+    region_labels,
+    steps=(1, 1, 1),
+    stepsize=1,
+    colorscale=None,
+)
+```
+
+Get submeshes of isosurface based on region labels.
+
+Args:
+    dgrid: Distance grid
+    region_labels: Region labels array
+    ase_atoms: ASE atoms object
+    isoval: Isovalue for surface
+    steps: Tuple of steps in x,y,z (default: (1,1,1))
+    stepsize: Step size for interpolation (default: 1)
+
+Returns:
+    List of submeshes corresponding to each region

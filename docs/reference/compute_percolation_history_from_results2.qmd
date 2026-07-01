@@ -1,0 +1,6 @@
+# compute_percolation_history_from_results2 { #mofography.compute.compute_percolation_history_from_results2 }
+
+```python
+compute.compute_percolation_history_from_results2(results)
+```
+

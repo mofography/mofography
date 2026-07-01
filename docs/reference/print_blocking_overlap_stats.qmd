@@ -1,0 +1,7 @@
+# print_blocking_overlap_stats { #mofography.raspa_helper.print_blocking_overlap_stats }
+
+```python
+raspa_helper.print_blocking_overlap_stats(stats)
+```
+
+Deprecated name; calls :func:`print_blocking_spheres_overlap_report`.

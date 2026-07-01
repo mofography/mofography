@@ -1,0 +1,18 @@
+# compute_percolation_history2 { #mofography.compute.compute_percolation_history2 }
+
+```python
+compute.compute_percolation_history2(
+    distance_grid=None,
+    regions=None,
+    maxima=None,
+    path_to_cif=None,
+    kwargs={},
+)
+```
+
+Compute percolation history using correct periodic percolation logic.
+
+Returns:
+    percolation_history: list of (threshold, {axis: [region lists]})
+    pld_locations
+    distance_grid, regions, maxima

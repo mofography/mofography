@@ -1,0 +1,17 @@
+# compute_sparse_segmentation_series { #mofography.movies.compute_sparse_segmentation_series }
+
+```python
+movies.compute_sparse_segmentation_series(
+    framework_snapshots,
+    snapshot_indices,
+    *,
+    spacing=0.25,
+    mask_thickness=0.5,
+    h=0.2,
+    threshold_abs=1.5,
+    min_distance=1.5,
+    extra_padding=5,
+)
+```
+
+Compute segmentation payloads for sparse framework frame indices.

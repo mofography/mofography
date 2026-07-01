@@ -1,0 +1,15 @@
+# write_blocking_spheres_file { #mofography.raspa_helper.write_blocking_spheres_file }
+
+```python
+raspa_helper.write_blocking_spheres_file(path, spheres)
+```
+
+Write RASPA-style blocking list: first line = count, then ``sx sy sz r``
+per line (fractional coordinates, radius in Å).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+path : str or pathlib.Path
+spheres : sequence of (sx, sy, sz, r)

@@ -1,0 +1,27 @@
+# spectral_smooth_3d { #mofography.helper.spectral_smooth_3d }
+
+```python
+helper.spectral_smooth_3d(dgrid, atoms, grid_spacing, sigma=1.0)
+```
+
+Smooth a 3D grid using spectral filtering with proper handling of non-orthogonal cells.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+dgrid : np.ndarray
+    3D density grid
+atoms : ase.Atoms
+    ASE Atoms object containing cell information
+grid_spacing : float
+    Grid spacing in Angstroms (assumed uniform)
+sigma : float
+    Smoothing parameter in Angstroms
+    
+
+
+## Returns {.doc-section .doc-section-returns}
+
+np.ndarray
+    Smoothed 3D grid

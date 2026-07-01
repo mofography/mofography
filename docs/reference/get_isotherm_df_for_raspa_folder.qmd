@@ -1,0 +1,20 @@
+# get_isotherm_df_for_raspa_folder { #mofography.raspa_helper.get_isotherm_df_for_raspa_folder }
+
+```python
+raspa_helper.get_isotherm_df_for_raspa_folder(path_to_folder)
+```
+
+It takes a list of paths to folders containing raspa output files and returns a dictionary with the
+isotherm data
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name           | Type   | Description                                              | Default    |
+|----------------|--------|----------------------------------------------------------|------------|
+| path_to_folder |        | the path to the folder containing the raspa output files | _required_ |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                         |
+|--------|--------|-------------------------------------|
+|        |        | A dictionary with the isotherm data |

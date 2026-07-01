@@ -1,0 +1,16 @@
+# compute_windows_data { #mofography.movies.compute_windows_data }
+
+```python
+movies.compute_windows_data(
+    seg,
+    atoms=None,
+    spacing=None,
+    reclassify_far_outside=True,
+)
+```
+
+Compute window-point data from connection list.
+
+When *atoms* and *spacing* are supplied and *reclassify_far_outside* is True,
+internal windows whose Cartesian position is far outside the unit cell are
+reclassified as periodic.

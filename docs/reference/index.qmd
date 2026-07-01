@@ -2,99 +2,179 @@
 
 ## Compute
 
-Description of this module.
+Core algorithms for grids, regions, RAGs, paths, percolation, and surface area.
 
 | | |
 | --- | --- |
 | [AABB_on_atoms](AABB_on_atoms.qmd#mofography.compute.AABB_on_atoms) | > This function takes an ASE atoms object and returns a freud AABBQuery object |
 | [add_best_optuna_trial_to_rag](add_best_optuna_trial_to_rag.qmd#mofography.compute.add_best_optuna_trial_to_rag) |  |
+| [add_best_optuna_trial_to_rag_serial](add_best_optuna_trial_to_rag_serial.qmd#mofography.compute.add_best_optuna_trial_to_rag_serial) | Like :func:`add_best_optuna_trial_to_rag` but without ``dask.bag``. |
 | [add_centroids_to_rag_with_pbc](add_centroids_to_rag_with_pbc.qmd#mofography.compute.add_centroids_to_rag_with_pbc) | > For each group of nodes that are connected by periodic boundary conditions, find the centroid of |
 | [add_clustering_to_rag](add_clustering_to_rag.qmd#mofography.compute.add_clustering_to_rag) | The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph |
 | [add_clustering_to_rag_energy](add_clustering_to_rag_energy.qmd#mofography.compute.add_clustering_to_rag_energy) |  |
 | [add_clustering_to_rag_energy_js](add_clustering_to_rag_energy_js.qmd#mofography.compute.add_clustering_to_rag_energy_js) |  |
 | [add_clustering_to_rag_geometry_js](add_clustering_to_rag_geometry_js.qmd#mofography.compute.add_clustering_to_rag_geometry_js) | Adds cluster information to a region adjacency graph (RAG) by calculating the Jensen-Shannon distance between two histograms of distances. |
 | [add_clustering_to_rag_pca](add_clustering_to_rag_pca.qmd#mofography.compute.add_clustering_to_rag_pca) | The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the |
+| [add_csd_to_rag](add_csd_to_rag.qmd#mofography.compute.add_csd_to_rag) | Attach cavity-size distribution (CSD) histograms to RAG nodes. |
+| [add_csd_to_rag_with_pbc](add_csd_to_rag_with_pbc.qmd#mofography.compute.add_csd_to_rag_with_pbc) | Attach PBC-aware cavity-size distribution (CSD) histograms to RAG nodes. |
+| [add_env_cluster_pocket_types_to_rag](add_env_cluster_pocket_types_to_rag.qmd#mofography.compute.add_env_cluster_pocket_types_to_rag) | Convenience wrapper: stamp ``env_cluster`` types from :class:`PocketTypingResult`. |
 | [add_maxima_to_rag](add_maxima_to_rag.qmd#mofography.compute.add_maxima_to_rag) | > This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms |
 | [add_pbc_to_rag](add_pbc_to_rag.qmd#mofography.compute.add_pbc_to_rag) | It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG |
+| [add_pocket_psd_to_rag_with_pbc](add_pocket_psd_to_rag_with_pbc.qmd#mofography.compute.add_pocket_psd_to_rag_with_pbc) | Attach probe-occupiable pocket PSD histograms (Rust pocket-wise sampler) to RAG nodes. |
+| [add_pocket_psds_to_rag_from_segmentation](add_pocket_psds_to_rag_from_segmentation.qmd#mofography.compute.add_pocket_psds_to_rag_from_segmentation) | Attach probe pocket PSDs to a RAG built from segmentation. |
+| [add_pocket_types_to_rag](add_pocket_types_to_rag.qmd#mofography.compute.add_pocket_types_to_rag) | Stamp pocket-type labels on RAG nodes (parallel to ``cluster_geom_pbc``). |
 | [add_props_to_graph](add_props_to_graph.qmd#mofography.compute.add_props_to_graph) | The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and |
 | [add_props_to_rag](add_props_to_rag.qmd#mofography.compute.add_props_to_rag) |  |
-| [add_psd_to_rag](add_psd_to_rag.qmd#mofography.compute.add_psd_to_rag) | > This function takes a graph, a list of region properties, a list of bins, an ase atoms object, and |
-| [add_psd_to_rag_with_pbc](add_psd_to_rag_with_pbc.qmd#mofography.compute.add_psd_to_rag_with_pbc) | > It takes a rag, a list of properties, a list of pbc groups, a list of bins, an ase atoms object |
+| [add_psd_to_rag](add_psd_to_rag.qmd#mofography.compute.add_psd_to_rag) | Deprecated alias for :func:`add_csd_to_rag`. |
+| [add_psd_to_rag_with_pbc](add_psd_to_rag_with_pbc.qmd#mofography.compute.add_psd_to_rag_with_pbc) | Deprecated: calls add_csd_to_rag_with_pbc and optionally add_pocket_psd_to_rag_with_pbc. |
 | [add_vdw_hist_to_rag](add_vdw_hist_to_rag.qmd#mofography.compute.add_vdw_hist_to_rag) |  |
 | [add_window_info_to_rag](add_window_info_to_rag.qmd#mofography.compute.add_window_info_to_rag) | It takes a RAG and a list of connections and adds the window information to the RAG as edge |
 | [apply_pbc](apply_pbc.qmd#mofography.compute.apply_pbc) | It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions |
 | [apply_periodic_map](apply_periodic_map.qmd#mofography.compute.apply_periodic_map) | It takes an array of integers and a dictionary that maps integers to integers, and returns an array |
 | [calc_path_components](calc_path_components.qmd#mofography.compute.calc_path_components) | Calculate the PCA components of a path in a RAG. |
+| [calculate_padding_thickness](calculate_padding_thickness.qmd#mofography.compute.calculate_padding_thickness) | Calculate required padding thickness for periodic calculations. |
+| [check_percolation_periodic](check_percolation_periodic.qmd#mofography.compute.check_percolation_periodic) |  |
+| [check_percolation_periodic2](check_percolation_periodic2.qmd#mofography.compute.check_percolation_periodic2) |  |
 | [clustering_grid_from_regions](clustering_grid_from_regions.qmd#mofography.compute.clustering_grid_from_regions) |  |
 | [compare_two_paths](compare_two_paths.qmd#mofography.compute.compare_two_paths) | It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple |
+| [compute_percolation_history](compute_percolation_history.qmd#mofography.compute.compute_percolation_history) | Compute the percolation history with region and maxima information. |
+| [compute_percolation_history2](compute_percolation_history2.qmd#mofography.compute.compute_percolation_history2) | Compute percolation history using correct periodic percolation logic. |
+| [compute_percolation_history_from_results](compute_percolation_history_from_results.qmd#mofography.compute.compute_percolation_history_from_results) | Attach lattice percolation history (v1 by default; prefer v2 via variant='v2'). |
+| [compute_percolation_history_from_results2](compute_percolation_history_from_results2.qmd#mofography.compute.compute_percolation_history_from_results2) |  |
+| [compute_percolation_history_from_results_lattice](compute_percolation_history_from_results_lattice.qmd#mofography.compute.compute_percolation_history_from_results_lattice) | Attach lattice percolation history under ``percolation_history_lattice``. |
+| [compute_pld](compute_pld.qmd#mofography.compute.compute_pld) | Compute the pore limiting diameter (PLD) from a CIF file. |
+| [compute_point_probe_reference](compute_point_probe_reference.qmd#mofography.compute.compute_point_probe_reference) | Compute point probe (probe_radius = 0) surface area and void volume as reference. |
+| [compute_surface_area](compute_surface_area.qmd#mofography.compute.compute_surface_area) | Compute the surface area based on the distance grid and probe radius. |
+| [compute_surface_area_from_results](compute_surface_area_from_results.qmd#mofography.compute.compute_surface_area_from_results) | Deprecated: use :func:`compute_surface_area_mesh_winding` or ``_mesh_lattice``. |
+| [compute_surface_area_from_results_lattice](compute_surface_area_from_results_lattice.qmd#mofography.compute.compute_surface_area_from_results_lattice) | Deprecated alias for :func:`compute_surface_area_mesh_lattice`. |
+| [compute_surface_area_from_results_mc](compute_surface_area_from_results_mc.qmd#mofography.compute.compute_surface_area_from_results_mc) | Deprecated: use :func:`compute_surface_area_mc_winding` or ``_mc_lattice``. |
+| [compute_surface_area_from_results_mc_lattice](compute_surface_area_from_results_mc_lattice.qmd#mofography.compute.compute_surface_area_from_results_mc_lattice) | Deprecated alias for :func:`compute_surface_area_mc_lattice`. |
+| [compute_surface_area_from_results_mc_winding](compute_surface_area_from_results_mc_winding.qmd#mofography.compute.compute_surface_area_from_results_mc_winding) | Deprecated alias for :func:`compute_surface_area_mc_winding`. |
+| [compute_surface_area_from_results_winding](compute_surface_area_from_results_winding.qmd#mofography.compute.compute_surface_area_from_results_winding) | Deprecated alias for :func:`compute_surface_area_mesh_winding`. |
+| [compute_surface_area_mc](compute_surface_area_mc.qmd#mofography.compute.compute_surface_area_mc) | Experimental Monte Carlo shell-based surface area estimator. |
+| [compute_surface_area_mc_lattice](compute_surface_area_mc_lattice.qmd#mofography.compute.compute_surface_area_mc_lattice) | Monte Carlo shell surface area with lattice accessibility. |
+| [compute_surface_area_mc_winding](compute_surface_area_mc_winding.qmd#mofography.compute.compute_surface_area_mc_winding) | Monte Carlo shell surface area with winding accessibility (optional window FP). |
+| [compute_surface_area_mesh](compute_surface_area_mesh.qmd#mofography.compute.compute_surface_area_mesh) | Compute surface area analysis from pre-computed results dictionary. |
+| [compute_surface_area_mesh_lattice](compute_surface_area_mesh_lattice.qmd#mofography.compute.compute_surface_area_mesh_lattice) | Mesh (marching-cubes) surface area with lattice (voxel) accessibility — Zeo++-style. |
+| [compute_surface_area_mesh_winding](compute_surface_area_mesh_winding.qmd#mofography.compute.compute_surface_area_mesh_winding) | Mesh (marching-cubes) surface area with winding accessibility (optional window FP). |
+| [compute_void_volume](compute_void_volume.qmd#mofography.compute.compute_void_volume) | Compute the accessible volume based on the distance grid and probe radius. |
+| [compute_void_volume_from_results](compute_void_volume_from_results.qmd#mofography.compute.compute_void_volume_from_results) | Compute void volume analysis from pre-computed results dictionary with accessibility concerns. |
+| [compute_void_volume_from_results_lattice](compute_void_volume_from_results_lattice.qmd#mofography.compute.compute_void_volume_from_results_lattice) | Void volume (voxel) with lattice accessibility. |
+| [compute_void_volume_from_results_winding](compute_void_volume_from_results_winding.qmd#mofography.compute.compute_void_volume_from_results_winding) | Void volume (voxel) with winding accessibility (optional window FP). |
 | [connections_from_regions_and_dgrid](connections_from_regions_and_dgrid.qmd#mofography.compute.connections_from_regions_and_dgrid) | It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance |
 | [dask_grid_over_atoms](dask_grid_over_atoms.qmd#mofography.compute.dask_grid_over_atoms) | Generate a dask array of grid points over an ase atoms object with a specified grid spacing |
+| [detect_periodic_maxima_direct](detect_periodic_maxima_direct.qmd#mofography.compute.detect_periodic_maxima_direct) | Periodic maxima detection using the original distance grid directly. |
+| [detect_periodic_maxima_enhanced](detect_periodic_maxima_enhanced.qmd#mofography.compute.detect_periodic_maxima_enhanced) | Enhanced periodic maxima detection that handles: |
 | [dgrid_from_atoms](dgrid_from_atoms.qmd#mofography.compute.dgrid_from_atoms) | The function `dgrid_from_atoms` generates a distance grid over atoms using Dask arrays and computes |
 | [dgrid_from_atoms_cpu](dgrid_from_atoms_cpu.qmd#mofography.compute.dgrid_from_atoms_cpu) | This function generates a distance grid over atoms using Dask arrays and pandas, with an option to |
+| [dgrid_from_atoms_cpu_hybrid](dgrid_from_atoms_cpu_hybrid.qmd#mofography.compute.dgrid_from_atoms_cpu_hybrid) | Modified dgrid computation using a hybrid AABB query and explicit distance calculation. |
+| [dgrid_from_atoms_cpu_no_aabb](dgrid_from_atoms_cpu_no_aabb.qmd#mofography.compute.dgrid_from_atoms_cpu_no_aabb) | The function `dgrid_from_atoms_no_aabb` calculates a distance grid based on the cpu but without using  |
 | [dgrid_from_atoms_gpu](dgrid_from_atoms_gpu.qmd#mofography.compute.dgrid_from_atoms_gpu) | The function `dgrid_from_atoms_gpu` calculates a distance grid based on atomic positions using GPU |
-| [egrid_from_atoms2](egrid_from_atoms2.qmd#mofography.compute.egrid_from_atoms2) | > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid.  |
+| [do_periodic_segmentation](do_periodic_segmentation.qmd#mofography.compute.do_periodic_segmentation) |  |
+| [do_periodic_segmentation_basic](do_periodic_segmentation_basic.qmd#mofography.compute.do_periodic_segmentation_basic) |  |
+| [egrid_from_atoms2](egrid_from_atoms2.qmd#mofography.compute.egrid_from_atoms2) | > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid. |
 | [filter_percolated_paths](filter_percolated_paths.qmd#mofography.compute.filter_percolated_paths) | The function filters paths based on whether their corresponding path windows meet a certain size |
 | [find_isomorphic_path_groups](find_isomorphic_path_groups.qmd#mofography.compute.find_isomorphic_path_groups) |  |
 | [find_paths](find_paths.qmd#mofography.compute.find_paths) |  |
-| [get_connections_for_rag](get_connections_for_rag.qmd#mofography.compute.get_connections_for_rag) |  |
+| [find_pore_limiting_radius](find_pore_limiting_radius.qmd#mofography.compute.find_pore_limiting_radius) |  |
+| [find_pore_limiting_radius2](find_pore_limiting_radius2.qmd#mofography.compute.find_pore_limiting_radius2) |  |
+| [get_connections_for_rag](get_connections_for_rag.qmd#mofography.compute.get_connections_for_rag) | Find connections between regions in a region adjacency graph (RAG) and identify window locations. |
 | [get_diametrically_opposite_points](get_diametrically_opposite_points.qmd#mofography.compute.get_diametrically_opposite_points) |  |
 | [get_distances_for_path](get_distances_for_path.qmd#mofography.compute.get_distances_for_path) | > For each grid point, find the nearest neighbors, and return the minimum distance to the nearest |
 | [get_energies_for_group](get_energies_for_group.qmd#mofography.compute.get_energies_for_group) |  |
 | [get_energies_for_group2](get_energies_for_group2.qmd#mofography.compute.get_energies_for_group2) | This function calculates the energies for a group of regions using an energy interpolator and |
-| [get_energy_interpolator](get_energy_interpolator.qmd#mofography.compute.get_energy_interpolator) | This function creates a 3D regular grid interpolator for energy values given an input energy grid. |
+| [get_energy_interpolator](get_energy_interpolator.qmd#mofography.compute.get_energy_interpolator) | Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them |
+| [get_energy_interpolator_tricubic](get_energy_interpolator_tricubic.qmd#mofography.compute.get_energy_interpolator_tricubic) | Create a tricubic energy interpolator from pre-built 8-channel grid. |
+| [get_pbc_groups](get_pbc_groups.qmd#mofography.compute.get_pbc_groups) | Group unmerged regions based on periodic boundary conditions (PBC). |
 | [get_percolated_paths_on_rag](get_percolated_paths_on_rag.qmd#mofography.compute.get_percolated_paths_on_rag) |  |
 | [get_periodic_map](get_periodic_map.qmd#mofography.compute.get_periodic_map) | It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary |
 | [get_pld_for_rag](get_pld_for_rag.qmd#mofography.compute.get_pld_for_rag) |  |
 | [get_pld_from_percolated_paths_path_windows](get_pld_from_percolated_paths_path_windows.qmd#mofography.compute.get_pld_from_percolated_paths_path_windows) |  |
+| [get_pore_dia_lattice](get_pore_dia_lattice.qmd#mofography.compute.get_pore_dia_lattice) | Lattice pore diameters; stores ``pore_dia_lattice`` on *results* when provided. |
+| [get_pore_dia_mgr](get_pore_dia_mgr.qmd#mofography.compute.get_pore_dia_mgr) | Compute the pore diameters (LCD, PLD, DFSD) from a CIF file. |
+| [get_pore_dia_mgr2](get_pore_dia_mgr2.qmd#mofography.compute.get_pore_dia_mgr2) | Compute pore diameters (LCD/PLD/DFSD) using the periodic-aware percolation solver. |
 | [get_psd_on_rag](get_psd_on_rag.qmd#mofography.compute.get_psd_on_rag) |  |
 | [get_rag_from_regions_and_grid](get_rag_from_regions_and_grid.qmd#mofography.compute.get_rag_from_regions_and_grid) | > It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each |
 | [get_region_props_for_regions](get_region_props_for_regions.qmd#mofography.compute.get_region_props_for_regions) | It takes a list of regions and returns a list of region properties |
 | [get_repetitions_to_meet_cutoff](get_repetitions_to_meet_cutoff.qmd#mofography.compute.get_repetitions_to_meet_cutoff) | It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each |
 | [get_sampling_paths_for_region](get_sampling_paths_for_region.qmd#mofography.compute.get_sampling_paths_for_region) | > It finds the paths from the maxima of a region to the windows of that region |
 | [get_wall_windows2](get_wall_windows2.qmd#mofography.compute.get_wall_windows2) |  |
+| [get_wall_windows3](get_wall_windows3.qmd#mofography.compute.get_wall_windows3) | This function calculates the wall windows based on the provided regions, maxima, dgrid, and other parameters. |
 | [gpd_aabb](gpd_aabb.qmd#mofography.compute.gpd_aabb) | This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned |
-| [gpe_aabb](gpe_aabb.qmd#mofography.compute.gpe_aabb) | It takes a list of grid points,an AABB query object from freud, a list of forcefield parameters, and a cutoff |
-| [gpe_aabb2](gpe_aabb2.qmd#mofography.compute.gpe_aabb2) |  |
+| [gpd_aabb_hybrid](gpd_aabb_hybrid.qmd#mofography.compute.gpd_aabb_hybrid) | Hybrid approach combining an AABB neighbor search with vectorized distance calculations. |
+| [gpe_aabb](gpe_aabb.qmd#mofography.compute.gpe_aabb) | The function `gpe_aabb` calculates Lennard-Jones potentials for grid points based on their distances |
+| [gpe_aabb2](gpe_aabb2.qmd#mofography.compute.gpe_aabb2) | The function `gpe_aabb2` calculates Lennard-Jones energy contributions for grid points based on |
 | [interpolate_dgrid](interpolate_dgrid.qmd#mofography.compute.interpolate_dgrid) | The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation. |
 | [mark_points_with_largest_including_dia](mark_points_with_largest_including_dia.qmd#mofography.compute.mark_points_with_largest_including_dia) |  |
+| [normalize_pbc_groups_by_regions_pbc](normalize_pbc_groups_by_regions_pbc.qmd#mofography.compute.normalize_pbc_groups_by_regions_pbc) | Map PBC fragment groups to ``regions_pbc`` representative ids (visualization labels). |
 | [optimize_molecule_at_node](optimize_molecule_at_node.qmd#mofography.compute.optimize_molecule_at_node) |  |
+| [pad_periodic](pad_periodic.qmd#mofography.compute.pad_periodic) |  |
+| [pbc_groups_from_segmentation](pbc_groups_from_segmentation.qmd#mofography.compute.pbc_groups_from_segmentation) | PBC pocket groups (excluding background label 0) from segmentation outputs. |
+| [percolation_all_axes_periodic](percolation_all_axes_periodic.qmd#mofography.compute.percolation_all_axes_periodic) | Check percolation in x/y/z with periodic BCs in transverse directions. |
 | [rag_from_connections](rag_from_connections.qmd#mofography.compute.rag_from_connections) | This Python function creates a graph representation of regions of interest based on connections and |
 | [regions_from_dgrid](regions_from_dgrid.qmd#mofography.compute.regions_from_dgrid) | The function `regions_from_dgrid` takes a density grid as input and identifies regions based on |
 | [repeat_to_meet_cutoff](repeat_to_meet_cutoff.qmd#mofography.compute.repeat_to_meet_cutoff) | It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new |
 | [sample_path](sample_path.qmd#mofography.compute.sample_path) | It takes a list of points and returns a list of points that are evenly spaced along the path defined |
+| [select_percolation_threshold](select_percolation_threshold.qmd#mofography.compute.select_percolation_threshold) | Select the appropriate threshold for percolation analysis. |
+| [setup_poisson_spectral](setup_poisson_spectral.qmd#mofography.compute.setup_poisson_spectral) | Set up the system for solving the Poisson equation using a spectral method. |
+| [setup_poisson_spectral_gpu](setup_poisson_spectral_gpu.qmd#mofography.compute.setup_poisson_spectral_gpu) | Set up the system for solving the Poisson equation using a spectral method. |
+| [solve_poisson_spectral](solve_poisson_spectral.qmd#mofography.compute.solve_poisson_spectral) | Solve the Poisson equation using a spectral method for non-orthogonal, periodic systems. |
+| [solve_poisson_spectral_gpu](solve_poisson_spectral_gpu.qmd#mofography.compute.solve_poisson_spectral_gpu) | Solve the Poisson equation using a spectral method for non-orthogonal, periodic systems. |
 
 ## Visualize
 
-Description of this module.
+Plotly-based 3D figures and traces for frameworks, regions, and RAGs.
 
 | | |
 | --- | --- |
 | [add_hoverdata_to_atoms_traces](add_hoverdata_to_atoms_traces.qmd#mofography.visualize.add_hoverdata_to_atoms_traces) |  |
+| [add_traces_plotly](add_traces_plotly.qmd#mofography.visualize.add_traces_plotly) | Add traces to a Plotly ``go.Figure`` with backend validation. |
+| [batched_mesh_for_atoms](batched_mesh_for_atoms.qmd#mofography.visualize.batched_mesh_for_atoms) | Fast batched mesh generation — returns a single trimesh for atoms + bonds. |
 | [cylinders_for_bonds](cylinders_for_bonds.qmd#mofography.visualize.cylinders_for_bonds) | It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a |
 | [draw_framework](draw_framework.qmd#mofography.visualize.draw_framework) | It takes an ASE atoms object and returns a list of plotly traces that can be used to plot the |
 | [get_default_colors](get_default_colors.qmd#mofography.visualize.get_default_colors) | [summary] |
 | [get_isosurface_mesh](get_isosurface_mesh.qmd#mofography.visualize.get_isosurface_mesh) | The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input |
+| [get_isosurface_submeshes](get_isosurface_submeshes.qmd#mofography.visualize.get_isosurface_submeshes) | Get submeshes of isosurface based on region labels. |
+| [get_pore_size_distribution_trace](get_pore_size_distribution_trace.qmd#mofography.visualize.get_pore_size_distribution_trace) | Create a plotly trace for pore size distribution. |
+| [get_potential_near_atoms](get_potential_near_atoms.qmd#mofography.visualize.get_potential_near_atoms) | Get potential values near atoms of a specific element. |
 | [make_bg_image](make_bg_image.qmd#mofography.visualize.make_bg_image) | It takes a 2D array and a colormap and returns a plotly image object that can be used as a |
+| [make_fig_orthographic](make_fig_orthographic.qmd#mofography.visualize.make_fig_orthographic) |  |
+| [make_fig_orthographic_all_subplots](make_fig_orthographic_all_subplots.qmd#mofography.visualize.make_fig_orthographic_all_subplots) |  |
 | [make_pore_size_distribution_fig_from_rag](make_pore_size_distribution_fig_from_rag.qmd#mofography.visualize.make_pore_size_distribution_fig_from_rag) | The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore |
 | [mesh_for_atoms](mesh_for_atoms.qmd#mofography.visualize.mesh_for_atoms) | > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter |
 | [plot_aromatic_rings](plot_aromatic_rings.qmd#mofography.visualize.plot_aromatic_rings) | It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be |
+| [plot_blocking_spheres](plot_blocking_spheres.qmd#mofography.visualize.plot_blocking_spheres) | Plot RASPA blocking spheres (fractional ``[sx, sy, sz, r]`` with ``r`` in Å). |
+| [plot_blocking_spheres_styled](plot_blocking_spheres_styled.qmd#mofography.visualize.plot_blocking_spheres_styled) |  |
 | [plot_cell](plot_cell.qmd#mofography.visualize.plot_cell) | It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit |
+| [plot_connections](plot_connections.qmd#mofography.visualize.plot_connections) | Plot connections graph including periodic boundary connections. |
+| [plot_connections_as_it_is](plot_connections_as_it_is.qmd#mofography.visualize.plot_connections_as_it_is) | Plot connections graph including periodic boundary connections. |
+| [plot_csds](plot_csds.qmd#mofography.visualize.plot_csds) | Plot cavity size distributions (CSD) stored on the RAG. |
 | [plot_cycle_highlights](plot_cycle_highlights.qmd#mofography.visualize.plot_cycle_highlights) | It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be |
+| [plot_dgrid_as_volume](plot_dgrid_as_volume.qmd#mofography.visualize.plot_dgrid_as_volume) | Visualise a distance grid (optionally padded in ‘wrap’ mode). |
+| [plot_electrostatic_isosurfaces](plot_electrostatic_isosurfaces.qmd#mofography.visualize.plot_electrostatic_isosurfaces) | Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info. |
+| [plot_electrostatic_volume](plot_electrostatic_volume.qmd#mofography.visualize.plot_electrostatic_volume) | Create a Volume trace for the electrostatic potential with meaningful isosurfaces. |
 | [plot_everything](plot_everything.qmd#mofography.visualize.plot_everything) | It takes in the output of the do_it_all function and returns a plotly figure |
 | [plot_framework_as_mesh](plot_framework_as_mesh.qmd#mofography.visualize.plot_framework_as_mesh) | It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace |
-| [plot_maxima](plot_maxima.qmd#mofography.visualize.plot_maxima) | It takes in a 3D grid of data, a list of indices of local maxima, and an ASE atoms object, and |
+| [plot_maxima](plot_maxima.qmd#mofography.visualize.plot_maxima) | The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima, and |
 | [plot_mesh](plot_mesh.qmd#mofography.visualize.plot_mesh) | It takes a trimesh object and returns a plotly mesh3d object. |
 | [plot_molecule_at_best_optuna_trials](plot_molecule_at_best_optuna_trials.qmd#mofography.visualize.plot_molecule_at_best_optuna_trials) | This function plots a molecule using the best Optuna trials. |
 | [plot_paths](plot_paths.qmd#mofography.visualize.plot_paths) | The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by |
+| [plot_percolated_cluster_meshes](plot_percolated_cluster_meshes.qmd#mofography.visualize.plot_percolated_cluster_meshes) | Generate mesh traces for percolated clusters at a given probe radius. |
+| [plot_percolation_windows](plot_percolation_windows.qmd#mofography.visualize.plot_percolation_windows) | Build Plotly traces for windows along percolating clusters. |
+| [plot_pld_locations](plot_pld_locations.qmd#mofography.visualize.plot_pld_locations) | Generate a 3D scatter plot with markers representing PLD locations, and |
+| [plot_pocket_psds](plot_pocket_psds.qmd#mofography.visualize.plot_pocket_psds) | Create and display plotly figure comparing overall PSD with individual pocket PSDs. |
+| [plot_pocket_psds_from_grid](plot_pocket_psds_from_grid.qmd#mofography.visualize.plot_pocket_psds_from_grid) | Compute and plot Rust pocketwise probe PSDs (not centroid CSD). |
+| [plot_pocket_psds_on_rag](plot_pocket_psds_on_rag.qmd#mofography.visualize.plot_pocket_psds_on_rag) | Plot Rust pocketwise probe PSDs stored on the RAG. |
 | [plot_pore_graph](plot_pore_graph.qmd#mofography.visualize.plot_pore_graph) |  |
-| [plot_csds](plot_csds.qmd#mofography.visualize.plot_csds) | CSD on RAG |
-| [plot_psds](plot_psds.qmd) | deprecated alias | | > This function takes in a RAG and a list of PBC groups and plots the PSD for each PBC group.  |
+| [plot_psds](plot_psds.qmd#mofography.visualize.plot_psds) | Deprecated alias for :func:`plot_csds` (centroid-distance CSD, not probe PSD). |
 | [plot_rag](plot_rag.qmd#mofography.visualize.plot_rag) |  |
-| [plot_snapshot_raspa_pdb](plot_snapshot_raspa_pdb.qmd#mofography.visualize.plot_snapshot_raspa_pdb) |  |
+| [plot_rag_separate_traces](plot_rag_separate_traces.qmd#mofography.visualize.plot_rag_separate_traces) | Plot region adjacency graph with separate traces for nodes and edges. |
+| [plot_snapshot_raspa_pdb](plot_snapshot_raspa_pdb.qmd#mofography.visualize.plot_snapshot_raspa_pdb) | Plots a snapshot of a RASPA PDB file. |
 | [plot_subset_of_atoms](plot_subset_of_atoms.qmd#mofography.visualize.plot_subset_of_atoms) | > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of |
 | [plot_surface_dgrid](plot_surface_dgrid.qmd#mofography.visualize.plot_surface_dgrid) | It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and |
 | [plot_vdw_hists](plot_vdw_hists.qmd#mofography.visualize.plot_vdw_hists) |  |
 | [plot_windows](plot_windows.qmd#mofography.visualize.plot_windows) | It takes a list of connections and returns a plotly scatter trace of the windows. |
+| [plot_windows_from_results](plot_windows_from_results.qmd#mofography.visualize.plot_windows_from_results) | Plot window positions with optional periodic reclassification (Plotly backend). |
 | [scatter3d](scatter3d.qmd#mofography.visualize.scatter3d) | It takes a 3D array of points and returns a Plotly scatter3d object |
 | [spheres_for_atoms](spheres_for_atoms.qmd#mofography.visualize.spheres_for_atoms) | It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with |
 | [spheres_for_positions](spheres_for_positions.qmd#mofography.visualize.spheres_for_positions) | It takes a list of positions and a list of radii and returns a list of trimesh objects that are |
@@ -102,13 +182,16 @@ Description of this module.
 
 ## Analyze
 
-Description of this module.
+Cheminformatics, ring finding, functional groups, and graph conversions.
 
 | | |
 | --- | --- |
+| [aabb_neighbors_on_atoms](aabb_neighbors_on_atoms.qmd#mofography.analyze.aabb_neighbors_on_atoms) | Periodic neighbor pairs for covalent-bond candidacy (freud AABB or ASE fallback). |
+| [ase_to_rdkit](ase_to_rdkit.qmd#mofography.analyze.ase_to_rdkit) | ASE → RDKit with bond deduplication (no sanitisation needed). |
+| [compute_aromatic_cycles](compute_aromatic_cycles.qmd#mofography.analyze.compute_aromatic_cycles) | Detect aromatic cycles and cache the result in ``ase_atoms.info``. |
 | [detect_smiles_in_mol](detect_smiles_in_mol.qmd#mofography.analyze.detect_smiles_in_mol) | It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of |
-| [find_aromatic_cycles_in_sgraph](find_aromatic_cycles_in_sgraph.qmd#mofography.analyze.find_aromatic_cycles_in_sgraph) | > Find all cycles in the graph, then find all cycles that are composed of double bonds, then find |
-| [find_chemically_unique_cycles](find_chemically_unique_cycles.qmd#mofography.analyze.find_chemically_unique_cycles) | > The function takes a list of cycles and a graph as input, and returns the indices of the unique |
+| [find_aromatic_cycles_in_sgraph](find_aromatic_cycles_in_sgraph.qmd#mofography.analyze.find_aromatic_cycles_in_sgraph) | Find all aromatic cycles in the graph. |
+| [find_chemically_unique_cycles](find_chemically_unique_cycles.qmd#mofography.analyze.find_chemically_unique_cycles) | Return indices of chemically non-isomorphic cycles (element + bond_type). |
 | [find_cycles_in_sgraph](find_cycles_in_sgraph.qmd#mofography.analyze.find_cycles_in_sgraph) | > The function takes a graph and returns a list of cycles in the graph.  |
 | [find_functional_groups](find_functional_groups.qmd#mofography.analyze.find_functional_groups) |  |
 | [find_pattern_in_sgraph](find_pattern_in_sgraph.qmd#mofography.analyze.find_pattern_in_sgraph) | It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the |
@@ -119,13 +202,14 @@ Description of this module.
 | [get_bond_types](get_bond_types.qmd#mofography.analyze.get_bond_types) | It takes a list of bond orders and returns a list of bond types |
 | [get_bonds_and_orders_without_replication](get_bonds_and_orders_without_replication.qmd#mofography.analyze.get_bonds_and_orders_without_replication) |  |
 | [get_subset_atoms](get_subset_atoms.qmd#mofography.analyze.get_subset_atoms) | It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing |
+| [rings_by_size_rdkit](rings_by_size_rdkit.qmd#mofography.analyze.rings_by_size_rdkit) | Return {ring_size: [rings]} using RDKit’s C++ ring perception. |
 | [sgraph_from_atoms](sgraph_from_atoms.qmd#mofography.analyze.sgraph_from_atoms) | It takes an ase atoms object and returns a networkx graph object with the nodes and edges |
-| [update_with_covalent_bonds](update_with_covalent_bonds.qmd#mofography.analyze.update_with_covalent_bonds) | It takes an ASE atoms object and returns an ASE atoms object with the covalent bonds and bond orders |
+| [update_with_covalent_bonds](update_with_covalent_bonds.qmd#mofography.analyze.update_with_covalent_bonds) | Compute covalent bonds using Rust (mgr_rust.covalent_bonds) — 100x+ faster than pymatgen. |
 | [voronoi_on_atoms](voronoi_on_atoms.qmd#mofography.analyze.voronoi_on_atoms) | It takes an ASE atoms object and returns a freud Voronoi object |
 
 ## Data
 
-Description of this module.
+MOFdb fetchers, SQLite graph store, and CIF/PDB readers.
 
 | | |
 | --- | --- |
@@ -134,25 +218,379 @@ Description of this module.
 | [bound_fetch](bound_fetch.qmd#mofography.data.bound_fetch) |  |
 | [create_db_from_pickled_graphs](create_db_from_pickled_graphs.qmd#mofography.data.create_db_from_pickled_graphs) | The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled |
 | [fetch](fetch.qmd#mofography.data.fetch) |  |
-| [get_data_from_mofdb](get_data_from_mofdb.qmd#mofography.data.get_data_from_mofdb) | This is a wrapper for the MOFDB API, which is explained here:https://mof.tech.northwestern.edu/api  |
+| [get_atoms_from_mofdb_df_parallel](get_atoms_from_mofdb_df_parallel.qmd#mofography.data.get_atoms_from_mofdb_df_parallel) | Parallel variant of ``atoms_from_mofdb_df`` for large MOFdb-style DataFrames. |
+| [get_data_from_mofdb](get_data_from_mofdb.qmd#mofography.data.get_data_from_mofdb) |  |
 | [get_graph](get_graph.qmd#mofography.data.get_graph) | The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it, |
 | [get_mofdb_data](get_mofdb_data.qmd#mofography.data.get_mofdb_data) | Compile a asyncio Future containing the results of a search by making requests to MOFDb in parallel asynchronously |
 | [get_num_graphs](get_num_graphs.qmd#mofography.data.get_num_graphs) | The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified |
 | [get_number_of_pages](get_number_of_pages.qmd#mofography.data.get_number_of_pages) | Get the number of pages of the result, from the url, for a given set of headers and parameters |
 | [mix_lorentz_berthelot](mix_lorentz_berthelot.qmd#mofography.data.mix_lorentz_berthelot) | It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary |
+| [plot_representative_sample_subplots](plot_representative_sample_subplots.qmd#mofography.data.plot_representative_sample_subplots) | Build a 2x2 Plotly figure comparing full vs sample histograms for each |
 | [read_cif_string](read_cif_string.qmd#mofography.data.read_cif_string) | It takes a string of CIF data and returns an ASE atoms object. |
 | [read_raspa_pdb](read_raspa_pdb.qmd#mofography.data.read_raspa_pdb) | created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___  |
+| [sample_representative_mofdb](sample_representative_mofdb.qmd#mofography.data.sample_representative_mofdb) | Sample a representative set of N materials from a MOFdb-style dataframe using |
 | [show_percolated_paths_as_df](show_percolated_paths_as_df.qmd#mofography.data.show_percolated_paths_as_df) | The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path |
+| [write_cifs_from_mofdb_df](write_cifs_from_mofdb_df.qmd#mofography.data.write_cifs_from_mofdb_df) | Write CIF strings from a MOFdb-style DataFrame to .cif files in a folder. |
 
 ## Helper
 
-Description of this module.
+Grid utilities, PBC helpers, PSD peak finding, and small math routines.
 
 | | |
 | --- | --- |
+| [ase_frac_to_egrid_query](ase_frac_to_egrid_query.qmd#mofography.helper.ase_frac_to_egrid_query) | Map ASE fractional coordinates to egrid / tricubic query coords in ``[0, 1)``. |
+| [check_wall](check_wall.qmd#mofography.helper.check_wall) |  |
+| [check_wall_per_dim](check_wall_per_dim.qmd#mofography.helper.check_wall_per_dim) |  |
 | [compare_psd_peaks](compare_psd_peaks.qmd#mofography.helper.compare_psd_peaks) |  |
+| [compute_psds_from_points_pocketwise](compute_psds_from_points_pocketwise.qmd#mofography.helper.compute_psds_from_points_pocketwise) | Compute pore size distributions for each unique region/pocket instead of the whole unit cell. |
+| [compute_wall_cells](compute_wall_cells.qmd#mofography.helper.compute_wall_cells) |  |
+| [convert_to_cygwin_path](convert_to_cygwin_path.qmd#mofography.helper.convert_to_cygwin_path) | Convert a Windows path to a Cygwin-style path and escape spaces. |
+| [estimate_h_from_percolation_history](estimate_h_from_percolation_history.qmd#mofography.helper.estimate_h_from_percolation_history) | Estimate h parameter using PLR and analysis of percolation transition. |
 | [find_coord_from_indices](find_coord_from_indices.qmd#mofography.helper.find_coord_from_indices) | Get the cartesian coordinates from the indces of a grid mapped over an ase atoms object. |
+| [find_end_channel_pairs](find_end_channel_pairs.qmd#mofography.helper.find_end_channel_pairs) |  |
 | [find_psd_peaks](find_psd_peaks.qmd#mofography.helper.find_psd_peaks) |  |
+| [find_touching_region_pairs](find_touching_region_pairs.qmd#mofography.helper.find_touching_region_pairs) | Given a 3D grid of segmented regions (integer labels, with 0 as background), |
 | [get_fractional_coordinates](get_fractional_coordinates.qmd#mofography.helper.get_fractional_coordinates) | Find the fractional coordinates for a bunch of cartesian corrdinates in a box corresponding to an ase.atoms object |
+| [get_min_distance](get_min_distance.qmd#mofography.helper.get_min_distance) | Calculate minimum image distance between two points using ASE cell. |
+| [get_perpendicular_voxel_lengths](get_perpendicular_voxel_lengths.qmd#mofography.helper.get_perpendicular_voxel_lengths) |  |
 | [interpolate_labels](interpolate_labels.qmd#mofography.helper.interpolate_labels) | Create a scipy.interpolator.RegularGridInterpolator, using 'nearest' method for the region labels (or any 3D numpy grid)  |
+| [is_inside_or_close_to_boundary](is_inside_or_close_to_boundary.qmd#mofography.helper.is_inside_or_close_to_boundary) | Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c] |
+| [make_command](make_command.qmd#mofography.helper.make_command) | Create a command string for running a Cygwin executable with a CIF file. |
+| [merge_small_regions](merge_small_regions.qmd#mofography.helper.merge_small_regions) | Merge small labeled regions (< min_size voxels) into neighboring larger regions. |
+| [merge_small_regions_pbc](merge_small_regions_pbc.qmd#mofography.helper.merge_small_regions_pbc) | Merge small labeled regions (< min_size voxels) into neighboring larger regions, |
+| [move_maximum_to_peak](move_maximum_to_peak.qmd#mofography.helper.move_maximum_to_peak) | Move a maximum position to the nearest peak using gradient ascent, |
+| [periodic_gaussian_filter](periodic_gaussian_filter.qmd#mofography.helper.periodic_gaussian_filter) | Apply a periodic (wrap-around) Gaussian filter using np.roll. |
+| [process_wall_maxima](process_wall_maxima.qmd#mofography.helper.process_wall_maxima) | Process wall maxima to identify and merge periodic copies. |
+| [run_cygwin_from_jupyter](run_cygwin_from_jupyter.qmd#mofography.helper.run_cygwin_from_jupyter) | Run a Cygwin command from a Jupyter notebook. |
+| [run_cygwin_from_jupyter_rt](run_cygwin_from_jupyter_rt.qmd#mofography.helper.run_cygwin_from_jupyter_rt) | Run a Cygwin command from a Jupyter notebook in real-time. |
+| [spectral_smooth_3d](spectral_smooth_3d.qmd#mofography.helper.spectral_smooth_3d) | Smooth a 3D grid using spectral filtering with proper handling of non-orthogonal cells. |
+| [trim_connections_to_unique_regions](trim_connections_to_unique_regions.qmd#mofography.helper.trim_connections_to_unique_regions) | Keep connections with at least one endpoint label in *unique_regions*. |
 | [zoom_grid](zoom_grid.qmd#mofography.helper.zoom_grid) | It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by |
+
+## Rust backend
+
+Python bindings to the Rust backend (distance/energy grids, segmentation, watershed).
+
+| | |
+| --- | --- |
+| [compute_accessible_psd_from_results](compute_accessible_psd_from_results.qmd#mofography.rust_fun.compute_accessible_psd_from_results) | Compute a PoreBlazer-style accessible PSD by: |
+| [compute_pocket_psds_for_segmentation](compute_pocket_psds_for_segmentation.qmd#mofography.rust_fun.compute_pocket_psds_for_segmentation) | Compute Rust pocket-wise PSDs from a periodic segmentation dict. |
+| [compute_pore_sizes_pocketwise_rust](compute_pore_sizes_pocketwise_rust.qmd#mofography.rust_fun.compute_pore_sizes_pocketwise_rust) | Compute pore sizes for each pocket/region separately. |
+| [compute_pore_sizes_uniform_rust](compute_pore_sizes_uniform_rust.qmd#mofography.rust_fun.compute_pore_sizes_uniform_rust) | Compute pore sizes using uniform sampling across the material. |
+| [compute_psd_global_accessible](compute_psd_global_accessible.qmd#mofography.rust_fun.compute_psd_global_accessible) | Compute global accessible PSD (volume-weighted from percolating regions only). |
+| [compute_psd_uniform_rust](compute_psd_uniform_rust.qmd#mofography.rust_fun.compute_psd_uniform_rust) | Compute pore size distribution using uniform sampling. |
+| [compute_psds_pocketwise_accessible](compute_psds_pocketwise_accessible.qmd#mofography.rust_fun.compute_psds_pocketwise_accessible) | Compute pocket-wise PSD restricted to accessible (percolating) regions only. |
+| [compute_psds_pocketwise_rust](compute_psds_pocketwise_rust.qmd#mofography.rust_fun.compute_psds_pocketwise_rust) | Compute pore size distributions for each pocket/region. |
+| [dgrid_from_atoms_aabb_interp_rust](dgrid_from_atoms_aabb_interp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust) | Compute a smoothed distance grid using coarse AABB sampling + trilinear interpolation. |
+| [dgrid_from_atoms_aabb_rust](dgrid_from_atoms_aabb_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_rust) | Compute a distance grid using the Rust AABB/PBC neighbor search backend. |
+| [dgrid_from_atoms_exp_rust](dgrid_from_atoms_exp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_exp_rust) | Deprecated alias for :func:`dgrid_from_atoms_rust`. |
+| [dgrid_from_atoms_rust](dgrid_from_atoms_rust.qmd#mofography.rust_fun.dgrid_from_atoms_rust) | Compute a distance grid from atomic positions using the Rust backend. |
+| [do_periodic_segmentation_rust](do_periodic_segmentation_rust.qmd#mofography.rust_fun.do_periodic_segmentation_rust) | Perform periodic segmentation on a distance grid to identify pore regions. |
+| [egrid_from_atoms_rust](egrid_from_atoms_rust.qmd#mofography.rust_fun.egrid_from_atoms_rust) | Compute an energy grid from atomic positions using the Rust backend. |
+| [egrid_query_extent_from_atoms](egrid_query_extent_from_atoms.qmd#mofography.rust_fun.egrid_query_extent_from_atoms) | ASE fractional span per axis covered by a unit-cell egrid (1.0 = full cell). |
+| [egrid_tricubic_from_atoms_rust](egrid_tricubic_from_atoms_rust.qmd#mofography.rust_fun.egrid_tricubic_from_atoms_rust) | Build an 8-channel tricubic energy grid from atomic positions. |
+| [seeded_watershed_det_parallel_rust](seeded_watershed_det_parallel_rust.qmd#mofography.rust_fun.seeded_watershed_det_parallel_rust) | Deterministic parallel seeded watershed wrapper around mgr_rust. |
+| [seeded_watershed_det_rust](seeded_watershed_det_rust.qmd#mofography.rust_fun.seeded_watershed_det_rust) | Deterministic single-threaded seeded watershed wrapper around mgr_rust. |
+| [tricubic_interpolator_from_grid](tricubic_interpolator_from_grid.qmd#mofography.rust_fun.tricubic_interpolator_from_grid) | Build a tricubic energy interpolator from an 8-channel energy grid. |
+
+## Workflows
+
+High-level pipelines that wire compute + visualize for common analyses.
+
+| | |
+| --- | --- |
+| [add_percolation_windows_to_fig](add_percolation_windows_to_fig.qmd#mofography.workflow.add_percolation_windows_to_fig) | Add window traces (regular + PLD-critical diamonds) to an existing figure. |
+| [assign_pocket_types](assign_pocket_types.qmd#mofography.workflow.assign_pocket_types) | Assign pocket types to segmentation results. |
+| [build_padded_threejs_scene](build_padded_threejs_scene.qmd#mofography.workflow.build_padded_threejs_scene) | Build a Three.js HTML scene with padded transparent segmentation surfaces. |
+| [enrich_segmentation_with_pocket_psds](enrich_segmentation_with_pocket_psds.qmd#mofography.workflow.enrich_segmentation_with_pocket_psds) | Run pocket-wise Rust PSDs once and store on the segmentation dict. |
+| [pocket_regions_cluster](pocket_regions_cluster.qmd#mofography.workflow.pocket_regions_cluster) | Return the pocket-type region label grid for surface colouring. |
+| [quick_cluster](quick_cluster.qmd#mofography.workflow.quick_cluster) | It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you |
+| [show_mof_plotly](show_mof_plotly.qmd#mofography.workflow.show_mof_plotly) | Build the full mofography visualization figure (Plotly backend). |
+| [show_mof_threejs](show_mof_threejs.qmd#mofography.workflow.show_mof_threejs) | Build a standalone Three.js HTML visualization. |
+| [show_percolation_threejs](show_percolation_threejs.qmd#mofography.workflow.show_percolation_threejs) | Three.js PLD / percolation scene (app percolation tab parity). |
+
+## Three.js viz
+
+Three.js trace helpers (Figure3JS / Figure3js) that mirror the Plotly API.
+
+| | |
+| --- | --- |
+| [Figure3D](Figure3D.qmd#mofography.threejs_viz.Figure3D) |  |
+| [Figure3JS](Figure3JS.qmd#mofography.threejs_viz.Figure3JS) |  |
+| [Figure3js](Figure3js.qmd#mofography.threejs_viz.Figure3js) | Plotly-like granular builder for Three.js MOF visualisations. |
+| [MovieFigure](MovieFigure.qmd#mofography.threejs_viz.MovieFigure) | Plotly-like API for building Three.js movie scenes. |
+| [add_trace](add_trace.qmd#mofography.threejs_viz.add_trace) |  |
+| [add_traces](add_traces.qmd#mofography.threejs_viz.add_traces) |  |
+| [draw_framework](draw_framework.qmd#mofography.threejs_viz.draw_framework) |  |
+| [draw_framework_3js](draw_framework_3js.qmd#mofography.threejs_viz.draw_framework_3js) |  |
+| [plot_cell](plot_cell.qmd#mofography.threejs_viz.plot_cell) |  |
+| [plot_cell_3js](plot_cell_3js.qmd#mofography.threejs_viz.plot_cell_3js) |  |
+| [plot_connections](plot_connections.qmd#mofography.threejs_viz.plot_connections) |  |
+| [plot_connections_3js](plot_connections_3js.qmd#mofography.threejs_viz.plot_connections_3js) |  |
+| [plot_connections_as_it_is](plot_connections_as_it_is.qmd#mofography.threejs_viz.plot_connections_as_it_is) |  |
+| [plot_connections_as_it_is_3js](plot_connections_as_it_is_3js.qmd#mofography.threejs_viz.plot_connections_as_it_is_3js) |  |
+| [plot_framework_as_mesh_3js](plot_framework_as_mesh_3js.qmd#mofography.threejs_viz.plot_framework_as_mesh_3js) | Plotly-parity framework mesh for Three.js (same signature as ``plot_framework_as_mesh``). |
+| [plot_maxima](plot_maxima.qmd#mofography.threejs_viz.plot_maxima) |  |
+| [plot_maxima_3js](plot_maxima_3js.qmd#mofography.threejs_viz.plot_maxima_3js) |  |
+| [plot_maxima_from_grid](plot_maxima_from_grid.qmd#mofography.threejs_viz.plot_maxima_from_grid) |  |
+| [plot_maxima_from_grid_3js](plot_maxima_from_grid_3js.qmd#mofography.threejs_viz.plot_maxima_from_grid_3js) |  |
+| [plot_percolated_cluster_meshes](plot_percolated_cluster_meshes.qmd#mofography.threejs_viz.plot_percolated_cluster_meshes) | Return Three.js mesh trace dicts (functional API). |
+| [plot_percolated_cluster_meshes_3js](plot_percolated_cluster_meshes_3js.qmd#mofography.threejs_viz.plot_percolated_cluster_meshes_3js) |  |
+| [plot_percolation_windows](plot_percolation_windows.qmd#mofography.threejs_viz.plot_percolation_windows) | Return ``{windows, pld_critical}`` trace dict bundle (functional API). |
+| [plot_percolation_windows_3js](plot_percolation_windows_3js.qmd#mofography.threejs_viz.plot_percolation_windows_3js) |  |
+| [plot_surface_dgrid](plot_surface_dgrid.qmd#mofography.threejs_viz.plot_surface_dgrid) |  |
+| [plot_surface_dgrid_3js](plot_surface_dgrid_3js.qmd#mofography.threejs_viz.plot_surface_dgrid_3js) |  |
+| [plot_windows](plot_windows.qmd#mofography.threejs_viz.plot_windows) | Plot window positions between connected pores (Three.js backend). |
+| [plot_windows_3js](plot_windows_3js.qmd#mofography.threejs_viz.plot_windows_3js) |  |
+| [plot_windows_from_results](plot_windows_from_results.qmd#mofography.threejs_viz.plot_windows_from_results) | Plot window positions with optional periodic reclassification (Three.js backend). |
+| [plot_windows_from_results_3js](plot_windows_from_results_3js.qmd#mofography.threejs_viz.plot_windows_from_results_3js) |  |
+| [prepare_seg_threejs](prepare_seg_threejs.qmd#mofography.threejs_viz.prepare_seg_threejs) |  |
+| [qualitative_colorscale](qualitative_colorscale.qmd#mofography.threejs_viz.qualitative_colorscale) |  |
+| [seg_from_connections](seg_from_connections.qmd#mofography.threejs_viz.seg_from_connections) |  |
+
+## Three.js plotting
+
+Standalone Three.js HTML builders for percolation scenes.
+
+| | |
+| --- | --- |
+| [show_percolation_threejs](show_percolation_threejs.qmd#mofography.threejs_plotting.show_percolation_threejs) | Build self-contained Three.js HTML for PLD / percolation tab parity. |
+
+## Viz backend
+
+Backend dispatch utilities (Plotly vs Three.js) for figures and traces.
+
+| | |
+| --- | --- |
+| [ensure_plotly_figure](ensure_plotly_figure.qmd#mofography.viz_backend.ensure_plotly_figure) |  |
+| [ensure_plotly_trace](ensure_plotly_trace.qmd#mofography.viz_backend.ensure_plotly_trace) |  |
+| [ensure_threejs_figure](ensure_threejs_figure.qmd#mofography.viz_backend.ensure_threejs_figure) |  |
+| [ensure_threejs_trace](ensure_threejs_trace.qmd#mofography.viz_backend.ensure_threejs_trace) |  |
+| [is_plotly_figure](is_plotly_figure.qmd#mofography.viz_backend.is_plotly_figure) |  |
+| [is_plotly_trace](is_plotly_trace.qmd#mofography.viz_backend.is_plotly_trace) |  |
+| [is_threejs_figure](is_threejs_figure.qmd#mofography.viz_backend.is_threejs_figure) |  |
+| [is_threejs_trace](is_threejs_trace.qmd#mofography.viz_backend.is_threejs_trace) |  |
+| [iter_leaf_traces](iter_leaf_traces.qmd#mofography.viz_backend.iter_leaf_traces) |  |
+| [tag_threejs_trace](tag_threejs_trace.qmd#mofography.viz_backend.tag_threejs_trace) |  |
+| [validate_plotly_traces](validate_plotly_traces.qmd#mofography.viz_backend.validate_plotly_traces) |  |
+| [validate_threejs_traces](validate_threejs_traces.qmd#mofography.viz_backend.validate_threejs_traces) |  |
+
+## Movies
+
+Frame builders and movie-HTML helpers for time-varying scenes.
+
+| | |
+| --- | --- |
+| [build_fixed_framework_movie](build_fixed_framework_movie.qmd#mofography.movies.build_fixed_framework_movie) | Build a MovieFigure for fixed-framework + animated adsorbates workflow. |
+| [build_static_scene](build_static_scene.qmd#mofography.movies.build_static_scene) | Build a static Three.js scene from framework atoms + optional segmentation. |
+| [compute_cell_lines](compute_cell_lines.qmd#mofography.movies.compute_cell_lines) | Compute unit-cell wireframe line-segment data. |
+| [compute_connection_data](compute_connection_data.qmd#mofography.movies.compute_connection_data) | Compute connection line-segment + node-point data. |
+| [compute_framework_mesh](compute_framework_mesh.qmd#mofography.movies.compute_framework_mesh) | Compute raw framework mesh data (positions, indices, colors, hover). |
+| [compute_maxima_data](compute_maxima_data.qmd#mofography.movies.compute_maxima_data) | Compute maxima point-cloud data (positions, sizes, colors, hover). |
+| [compute_segmentation_for_snapshot](compute_segmentation_for_snapshot.qmd#mofography.movies.compute_segmentation_for_snapshot) | Compute dgrid, regions, maxima, connections for a single snapshot. |
+| [compute_sparse_segmentation_series](compute_sparse_segmentation_series.qmd#mofography.movies.compute_sparse_segmentation_series) | Compute segmentation payloads for sparse framework frame indices. |
+| [compute_surface_mesh](compute_surface_mesh.qmd#mofography.movies.compute_surface_mesh) | Compute marching-cubes isosurface mesh from distance grid and region labels. |
+| [compute_windows_data](compute_windows_data.qmd#mofography.movies.compute_windows_data) | Compute window-point data from connection list. |
+| [embedded_movie_dict_from_path](embedded_movie_dict_from_path.qmd#mofography.movies.embedded_movie_dict_from_path) | Load trajectory and return the JSON ``movie`` block used by ``md_pdb_threejs_viewer``. |
+| [embedded_movie_dict_from_snapshots](embedded_movie_dict_from_snapshots.qmd#mofography.movies.embedded_movie_dict_from_snapshots) | Compact per-frame dict for the legacy devtools Three.js HTML (positions + radii only). |
+| [make_aromatic_rings_trace](make_aromatic_rings_trace.qmd#mofography.movies.make_aromatic_rings_trace) | Build aromatic ring traces (instanced torus/ngon when possible). |
+| [make_cell_trace](make_cell_trace.qmd#mofography.movies.make_cell_trace) |  |
+| [make_connections_trace](make_connections_trace.qmd#mofography.movies.make_connections_trace) |  |
+| [make_framework_instanced_trace](make_framework_instanced_trace.qmd#mofography.movies.make_framework_instanced_trace) | Framework as InstancedMesh spheres + cylinder mesh bonds. |
+| [make_framework_scatter_trace](make_framework_scatter_trace.qmd#mofography.movies.make_framework_scatter_trace) | Framework as scatter points + line segments (fast, no mesh geometry). |
+| [make_framework_trace](make_framework_trace.qmd#mofography.movies.make_framework_trace) |  |
+| [make_guest_bonds_trace](make_guest_bonds_trace.qmd#mofography.movies.make_guest_bonds_trace) | Build cylindrical bond mesh for polyatomic adsorbates. |
+| [make_guest_trace](make_guest_trace.qmd#mofography.movies.make_guest_trace) |  |
+| [make_maxima_trace](make_maxima_trace.qmd#mofography.movies.make_maxima_trace) |  |
+| [make_movie_from_raspa_pdb](make_movie_from_raspa_pdb.qmd#mofography.movies.make_movie_from_raspa_pdb) | High-level convenience function to build a fixed-framework movie from RASPA PDB + CIF. |
+| [make_movie_from_trajectory](make_movie_from_trajectory.qmd#mofography.movies.make_movie_from_trajectory) | Build a fixed-framework movie from any ASE-readable trajectory (or RASPA PDB) + CIF. |
+| [make_percolation_clusters_trace](make_percolation_clusters_trace.qmd#mofography.movies.make_percolation_clusters_trace) | Build Three.js mesh traces for percolated clusters at a given probe radius. |
+| [make_percolation_windows_trace](make_percolation_windows_trace.qmd#mofography.movies.make_percolation_windows_trace) | Build Three.js traces for windows along percolating clusters. |
+| [make_sparse_multicomponent_movie](make_sparse_multicomponent_movie.qmd#mofography.movies.make_sparse_multicomponent_movie) | Build sparse-index movie with separate guest traces per component. |
+| [make_surface_trace](make_surface_trace.qmd#mofography.movies.make_surface_trace) |  |
+| [make_windows_trace](make_windows_trace.qmd#mofography.movies.make_windows_trace) |  |
+| [read_movie_snapshots](read_movie_snapshots.qmd#mofography.movies.read_movie_snapshots) | Load MD snapshots as canonical ``snapshot`` dicts (each with an ``ase.Atoms``). |
+| [read_raspa_pdb_movie](read_raspa_pdb_movie.qmd#mofography.movies.read_raspa_pdb_movie) | Parse a RASPA PDB movie into canonical snapshot dictionaries. |
+
+## Winding percolation
+
+Graph-winding-based accessibility and percolation routines.
+
+| | |
+| --- | --- |
+| [annotate_clusters](annotate_clusters.qmd#mofography.winding_percolation.annotate_clusters) |  |
+| [annotate_graph_edges_with_window_fingerprints](annotate_graph_edges_with_window_fingerprints.qmd#mofography.winding_percolation.annotate_graph_edges_with_window_fingerprints) | Annotate each graph edge with a lightweight window shell fingerprint. |
+| [build_base_region_labels](build_base_region_labels.qmd#mofography.winding_percolation.build_base_region_labels) |  |
+| [build_base_region_labels_from_results](build_base_region_labels_from_results.qmd#mofography.winding_percolation.build_base_region_labels_from_results) |  |
+| [check_percolation_winding](check_percolation_winding.qmd#mofography.winding_percolation.check_percolation_winding) |  |
+| [collect_periodic_edges](collect_periodic_edges.qmd#mofography.winding_percolation.collect_periodic_edges) | Backward-compatible wrapper for canonical edge collection. |
+| [collect_periodic_edges_canonical](collect_periodic_edges_canonical.qmd#mofography.winding_percolation.collect_periodic_edges_canonical) |  |
+| [compute_percolation_history_winding](compute_percolation_history_winding.qmd#mofography.winding_percolation.compute_percolation_history_winding) | Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata. |
+| [detect_percolation_with_threshold](detect_percolation_with_threshold.qmd#mofography.winding_percolation.detect_percolation_with_threshold) | Convenience wrapper that filters nodes/edges below ``threshold`` before |
+| [find_pore_limiting_radius_winding](find_pore_limiting_radius_winding.qmd#mofography.winding_percolation.find_pore_limiting_radius_winding) |  |
+| [get_pore_dia_mgr_winding](get_pore_dia_mgr_winding.qmd#mofography.winding_percolation.get_pore_dia_mgr_winding) |  |
+| [get_pore_dia_mgr_winding2](get_pore_dia_mgr_winding2.qmd#mofography.winding_percolation.get_pore_dia_mgr_winding2) | Compute pore diameters using winding percolation with spill guardrail. |
+| [get_pore_dia_mgr_winding3](get_pore_dia_mgr_winding3.qmd#mofography.winding_percolation.get_pore_dia_mgr_winding3) | Compute pore diameters with spill-edge pruning (no resegmentation). |
+| [make_directed_graph_from_segmentation_results](make_directed_graph_from_segmentation_results.qmd#mofography.winding_percolation.make_directed_graph_from_segmentation_results) | Convenience helper to build a MultiDiGraph directly from the deduplicated |
+| [make_periodic_graph_from_binary_grid](make_periodic_graph_from_binary_grid.qmd#mofography.winding_percolation.make_periodic_graph_from_binary_grid) | Convert a binary 2D lattice into the directed periodic graph expected by the |
+| [percolating_region_labels_at_probe_winding](percolating_region_labels_at_probe_winding.qmd#mofography.winding_percolation.percolating_region_labels_at_probe_winding) | Region labels that are probe-accessible under winding percolation (+ optional FP rescue). |
+| [percolation_all_axes_winding](percolation_all_axes_winding.qmd#mofography.winding_percolation.percolation_all_axes_winding) |  |
+| [percolation_winding_multidigraph](percolation_winding_multidigraph.qmd#mofography.winding_percolation.percolation_winding_multidigraph) | Evaluate percolation using winding numbers on a deduplicated MultiDiGraph. |
+| [percolation_winding_on_binary_grid](percolation_winding_on_binary_grid.qmd#mofography.winding_percolation.percolation_winding_on_binary_grid) | Apply :func:`percolation_winding_multidigraph` to a binary periodic lattice. |
+| [update_results_with_percolation_history_winding](update_results_with_percolation_history_winding.qmd#mofography.winding_percolation.update_results_with_percolation_history_winding) |  |
+
+## Pocket typing
+
+Pocket classification (chemistry/shape) on segmentation results.
+
+| | |
+| --- | --- |
+| [assign_pocket_types_env_cluster](assign_pocket_types_env_cluster.qmd#mofography.pocket_typing.assign_pocket_types_env_cluster) | Pocket typing: max_r initial bands, fingerprint-driven merge only. |
+| [assign_pocket_types_from_segmentation](assign_pocket_types_from_segmentation.qmd#mofography.pocket_typing.assign_pocket_types_from_segmentation) | Assign pocket types from periodic segmentation results. |
+| [assign_pocket_types_shape_refined](assign_pocket_types_shape_refined.qmd#mofography.pocket_typing.assign_pocket_types_shape_refined) | d₁ coarse bands first; max_r refinement only for large ZIF-like groups. |
+| [build_fragment_label_to_rep](build_fragment_label_to_rep.qmd#mofography.pocket_typing.build_fragment_label_to_rep) | Map every fragment region label to its PBC representative (min label in group). |
+| [build_fragment_label_to_type](build_fragment_label_to_type.qmd#mofography.pocket_typing.build_fragment_label_to_type) | Map every fragment label → 1-based pocket type id (via PBC rep). |
+| [build_pockets_from_segmentation](build_pockets_from_segmentation.qmd#mofography.pocket_typing.build_pockets_from_segmentation) | Build pocket records (id, d1, neighbors) from segmentation + PSD on RAG. |
+| [build_rep_to_fragment_group](build_rep_to_fragment_group.qmd#mofography.pocket_typing.build_rep_to_fragment_group) | PBC representative (min label) → all fragment region labels in that pocket. |
+| [compute_pocket_fingerprints](compute_pocket_fingerprints.qmd#mofography.pocket_typing.compute_pocket_fingerprints) | Mouth-annulus fingerprints for all pockets (for typing and diagnostics). |
+| [compute_typing_dgrid](compute_typing_dgrid.qmd#mofography.pocket_typing.compute_typing_dgrid) | Distance grid for typing ``max_r`` only (same spacing as segmentation). |
+| [fingerprints_similar_adjacent_bands](fingerprints_similar_adjacent_bands.qmd#mofography.pocket_typing.fingerprints_similar_adjacent_bands) | Merge adjacent max_r bands when annulus fingerprints agree (relaxed max_r gate). |
+| [group_pockets_by_d1_coarse](group_pockets_by_d1_coarse.qmd#mofography.pocket_typing.group_pockets_by_d1_coarse) | Greedy adjacent merge on probe PSD d₁ (Å); returns rep ids per coarse group. |
+| [merge_adjacent_groups_by_fingerprint](merge_adjacent_groups_by_fingerprint.qmd#mofography.pocket_typing.merge_adjacent_groups_by_fingerprint) | Union-merge neighboring groups (by mean max_r) when d₁ + fingerprints allow. |
+| [merge_singleton_max_r_bands](merge_singleton_max_r_bands.qmd#mofography.pocket_typing.merge_singleton_max_r_bands) | Reassign isolated max_r bands to the nearest band if within ``gap_tol_a``. |
+| [pocket_typing_result_for_app](pocket_typing_result_for_app.qmd#mofography.pocket_typing.pocket_typing_result_for_app) | Convert :class:`PocketTypingResult` to the dict shape used by Streamlit/CLI. |
+| [psd_bins](psd_bins.qmd#mofography.pocket_typing.psd_bins) | Diameter bins for pocketwise probe-occupiable PSDs. |
+| [regions_cluster_from_rag](regions_cluster_from_rag.qmd#mofography.pocket_typing.regions_cluster_from_rag) | Paint fragment labels via RAG nodes (``labels[0]``), matching legacy clustering. |
+| [regions_cluster_from_rep_types](regions_cluster_from_rep_types.qmd#mofography.pocket_typing.regions_cluster_from_rep_types) | Paint the fragment ``regions`` grid from PBC group → rep → type. |
+| [resolve_typing_vdw_radii](resolve_typing_vdw_radii.qmd#mofography.pocket_typing.resolve_typing_vdw_radii) | Per-atom VDW radii (Å) for typing ``max_r``, or ``None`` = use segmentation dgrid. |
+| [split_band_by_max_r_subpeaks](split_band_by_max_r_subpeaks.qmd#mofography.pocket_typing.split_band_by_max_r_subpeaks) | Split one max_r band when grid peaks differ in radius and annulus fingerprint. |
+| [summarize_types](summarize_types.qmd#mofography.pocket_typing.summarize_types) |  |
+
+## Pocket framework env
+
+Framework fingerprints and probe-radius helpers for pocket typing.
+
+| | |
+| --- | --- |
+| [adaptive_shell_radius](adaptive_shell_radius.qmd#mofography.pocket_framework_env.adaptive_shell_radius) | Shell extent (Å) from pocket size scale (d1 or dgrid max). |
+| [assign_pocket_types_by_max_probe_radius](assign_pocket_types_by_max_probe_radius.qmd#mofography.pocket_framework_env.assign_pocket_types_by_max_probe_radius) | Cluster by probe radius at dgrid peak; one type per band (symmetry copies merged). |
+| [bond_type_from_order](bond_type_from_order.qmd#mofography.pocket_framework_env.bond_type_from_order) |  |
+| [compute_connectivity_fingerprints](compute_connectivity_fingerprints.qmd#mofography.pocket_framework_env.compute_connectivity_fingerprints) | SH power spectrum of direction vectors to trusted neighbour pocket centres. |
+| [compute_pocket_fingerprint](compute_pocket_fingerprint.qmd#mofography.pocket_framework_env.compute_pocket_fingerprint) | Radial (r/R_shell) + SH angular power per element → L2-normalized vector. |
+| [expand_bond_closure](expand_bond_closure.qmd#mofography.pocket_framework_env.expand_bond_closure) | Add bonded neighbors up to ``n_hops`` (cushion beyond distance shell). |
+| [fingerprint_cosine_similarity](fingerprint_cosine_similarity.qmd#mofography.pocket_framework_env.fingerprint_cosine_similarity) | Mean cosine over environment + PSD + connectivity channels (rotation-invariant). |
+| [framework_atom_indices_near_void](framework_atom_indices_near_void.qmd#mofography.pocket_framework_env.framework_atom_indices_near_void) | MIC: keep framework atoms with min distance to any void sample <= r_cut. |
+| [framework_indices_adaptive_shell](framework_indices_adaptive_shell.qmd#mofography.pocket_framework_env.framework_indices_adaptive_shell) | Framework atom indices within adaptive shell + optional bond closure. |
+| [max_probe_radius_at_peak](max_probe_radius_at_peak.qmd#mofography.pocket_framework_env.max_probe_radius_at_peak) | Largest probe radius (Å) at the pocket maximum on the unit-cell fragment. |
+| [max_probe_radius_for_fragment_group](max_probe_radius_for_fragment_group.qmd#mofography.pocket_framework_env.max_probe_radius_for_fragment_group) | Largest probe radius (Å) over all periodic fragment labels in one PBC pocket. |
+| [mic_vectors_from_centroid](mic_vectors_from_centroid.qmd#mofography.pocket_framework_env.mic_vectors_from_centroid) | (N, 3) Cartesian MIC displacements centroid → atom. |
+| [peak_cart_for_fragment_group](peak_cart_for_fragment_group.qmd#mofography.pocket_framework_env.peak_cart_for_fragment_group) | Cartesian position of the dgrid maximum for a PBC pocket group. |
+| [pocket_centroid](pocket_centroid.qmd#mofography.pocket_framework_env.pocket_centroid) |  |
+| [radial_histogram_normalized](radial_histogram_normalized.qmd#mofography.pocket_framework_env.radial_histogram_normalized) |  |
+| [sh_power_spectrum_unit_dirs](sh_power_spectrum_unit_dirs.qmd#mofography.pocket_framework_env.sh_power_spectrum_unit_dirs) | Rotation-invariant power \|a_l\|^2 = sum_m \|a_lm\|^2 for l=0..l_max. |
+| [void_cart_for_pocket](void_cart_for_pocket.qmd#mofography.pocket_framework_env.void_cart_for_pocket) | Cartesian void sample points for pocket ``rep``. |
+| [void_cart_mic_for_fragment_group](void_cart_mic_for_fragment_group.qmd#mofography.pocket_framework_env.void_cart_mic_for_fragment_group) | Void points for a full PBC pocket (all fragment copies, MIC-wrapped to peak). |
+| [void_cart_near_dgrid_peak](void_cart_near_dgrid_peak.qmd#mofography.pocket_framework_env.void_cart_near_dgrid_peak) | Void samples within ``shell_a`` of the local dgrid maximum (fragment). |
+| [void_cart_surface_pocket](void_cart_surface_pocket.qmd#mofography.pocket_framework_env.void_cart_surface_pocket) | Surface void voxels of pocket ``rep`` (small dgrid → close to VDW surface). |
+
+## Widest-path resegment
+
+Pore-graph widest-path resegmenting for PBC wrap repairs.
+
+| | |
+| --- | --- |
+| [apply_widest_path_fix_to_pair](apply_widest_path_fix_to_pair.qmd#mofography.widest_path_resegment.apply_widest_path_fix_to_pair) | Locate PBC wrap pair and re-partition; return labels unchanged if none found. |
+| [find_all_pbc_wrap_marker_pairs](find_all_pbc_wrap_marker_pairs.qmd#mofography.widest_path_resegment.find_all_pbc_wrap_marker_pairs) | All in-cell + single-axis wrapped label pairs at each maxima position. |
+| [find_pbc_wrap_marker_pair](find_pbc_wrap_marker_pair.qmd#mofography.widest_path_resegment.find_pbc_wrap_marker_pair) | Find the leakiest in-cell + single-axis wrapped marker pair. |
+| [marker_padded_position](marker_padded_position.qmd#mofography.widest_path_resegment.marker_padded_position) | Padded-grid index for one ``maxima_info`` row. |
+| [neighbor_offsets_26](neighbor_offsets_26.qmd#mofography.widest_path_resegment.neighbor_offsets_26) |  |
+| [repartition_pair_widest_path](repartition_pair_widest_path.qmd#mofography.widest_path_resegment.repartition_pair_widest_path) | Reassign disputed voxels between two seeds via widest-path partition. |
+| [widest_path_bottleneck_between_seeds](widest_path_bottleneck_between_seeds.qmd#mofography.widest_path_resegment.widest_path_bottleneck_between_seeds) | Bottleneck of the widest path between two seeds (symmetric max-min). |
+| [widest_path_bottleneck_from_seed](widest_path_bottleneck_from_seed.qmd#mofography.widest_path_resegment.widest_path_bottleneck_from_seed) | Max-bottleneck distances from ``seed`` on the void graph (26-NN). |
+
+## Window refinement
+
+Morphological window refinement on connections.
+
+| | |
+| --- | --- |
+| [refine_windows_via_morph_opening](refine_windows_via_morph_opening.qmd#mofography.window_refinement.refine_windows_via_morph_opening) | Refine window centers/radii by searching for the smallest distance-field |
+
+## Export MP4
+
+MP4 export helpers for Plotly/Three.js figures.
+
+| | |
+| --- | --- |
+| [export_plotly_frames_to_mp4](export_plotly_frames_to_mp4.qmd#mofography.export_mp4.export_plotly_frames_to_mp4) | Export a figure that uses Plotly's ``frames`` API (slider / animation) to MP4. |
+| [export_staged_figure_to_mp4](export_staged_figure_to_mp4.qmd#mofography.export_mp4.export_staged_figure_to_mp4) | Render staged visibility sequences to an H.264 MP4. |
+| [kaleido_persistent_session](kaleido_persistent_session.qmd#mofography.export_mp4.kaleido_persistent_session) | Start Kaleido's sync server for fast repeated static export, then stop it. |
+| [set_traces_visible](set_traces_visible.qmd#mofography.export_mp4.set_traces_visible) | Set ``visible`` on each trace in order. |
+
+## Percolation results
+
+Result-pack accessors for percolation history and pore diameter.
+
+| | |
+| --- | --- |
+| [get_percolation_history](get_percolation_history.qmd#mofography.percolation_results.get_percolation_history) | Return stored percolation history for *method*, with legacy fallback. |
+| [get_pore_dia](get_pore_dia.qmd#mofography.percolation_results.get_pore_dia) |  |
+| [has_percolation_history](has_percolation_history.qmd#mofography.percolation_results.has_percolation_history) |  |
+| [store_percolation_history](store_percolation_history.qmd#mofography.percolation_results.store_percolation_history) | Write history under a method-specific key without removing the other method. |
+| [store_pore_dia](store_pore_dia.qmd#mofography.percolation_results.store_pore_dia) | Store pore diameters under ``pore_dia_winding`` or ``pore_dia_lattice``. |
+
+## VDW radii
+
+Van der Waals radii tables (Bondi, Mendeleev, typing) and metadata.
+
+| | |
+| --- | --- |
+| [default_vdw_radii_angstrom](default_vdw_radii_angstrom.qmd#mofography.vdw_radii.default_vdw_radii_angstrom) | Per-atom VDW radii in Å for distance-grid calculations (default table). |
+| [mendeleev_vdw_radii_angstrom](mendeleev_vdw_radii_angstrom.qmd#mofography.vdw_radii.mendeleev_vdw_radii_angstrom) | Per-atom Mendeleev VDW radii in Å (legacy table, larger for metals). |
+| [typing_vdw_radii_angstrom](typing_vdw_radii_angstrom.qmd#mofography.vdw_radii.typing_vdw_radii_angstrom) | Stable VDW radii for pocket typing (Bondi/CRC + Mendeleev fallback). |
+| [vdw_radii_input_metadata](vdw_radii_input_metadata.qmd#mofography.vdw_radii.vdw_radii_input_metadata) | Compact VDW radii provenance for segmentation ``input_params``. |
+
+## CIF I/O
+
+CIF parsing with large-file support.
+
+| | |
+| --- | --- |
+| [read_cif_to_ase](read_cif_to_ase.qmd#mofography.cif_io.read_cif_to_ase) | Return ``ase.Atoms`` from CIF path using Rust fast path when enabled. |
+
+## RASPA helper
+
+RASPA input/output helpers, blocking spheres, and accessibility masks.
+
+| | |
+| --- | --- |
+| [accessible_interface_voxel_mask](accessible_interface_voxel_mask.qmd#mofography.raspa_helper.accessible_interface_voxel_mask) | Boolean mask (same shape as ``results['regions']``) for **accessible** |
+| [apply_region_map_to_raspa_pdb](apply_region_map_to_raspa_pdb.qmd#mofography.raspa_helper.apply_region_map_to_raspa_pdb) | It takes a pdb file and a region map and returns a dictionary of the number of atoms in each region |
+| [apply_region_map_to_raspa_pdb_wrapped](apply_region_map_to_raspa_pdb_wrapped.qmd#mofography.raspa_helper.apply_region_map_to_raspa_pdb_wrapped) | Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell. |
+| [block_pockets_at_random_and_write](block_pockets_at_random_and_write.qmd#mofography.raspa_helper.block_pockets_at_random_and_write) | > This function takes a graph, ase atoms object, and a file path, and writes a file with the |
+| [block_specific_pockets_and_write](block_specific_pockets_and_write.qmd#mofography.raspa_helper.block_specific_pockets_and_write) | Takes specific pocket IDs and writes their blocking information to a file. |
+| [blocking_spheres_for_probe_radius](blocking_spheres_for_probe_radius.qmd#mofography.raspa_helper.blocking_spheres_for_probe_radius) | Convenience: inaccessible regions at ``probe_radius``, then blocking spheres. |
+| [blocking_spheres_greedy](blocking_spheres_greedy.qmd#mofography.raspa_helper.blocking_spheres_greedy) | Greedy blocking spheres (org-note style): place spheres at pocket maxima for |
+| [blocking_spheres_largest_including](blocking_spheres_largest_including.qmd#mofography.raspa_helper.blocking_spheres_largest_including) | Build a list of RASPA blocking spheres ``[sx, sy, sz, radius_Å]`` (fractional |
+| [blocking_spheres_overlap_accessible_coarse_sample](blocking_spheres_overlap_accessible_coarse_sample.qmd#mofography.raspa_helper.blocking_spheres_overlap_accessible_coarse_sample) | Same intent as :func:`blocking_spheres_overlap_into_accessible_regions`, but |
+| [blocking_spheres_overlap_into_accessible_near_interface](blocking_spheres_overlap_into_accessible_near_interface.qmd#mofography.raspa_helper.blocking_spheres_overlap_into_accessible_near_interface) | Cheaper overlap diagnostic: sample **coarse** grid points (default 0.5 Å) |
+| [blocking_spheres_overlap_into_accessible_regions](blocking_spheres_overlap_into_accessible_regions.qmd#mofography.raspa_helper.blocking_spheres_overlap_into_accessible_regions) | Estimate how much blocking-sphere volume intrudes into **accessible** void. |
+| [blocking_spheres_overlap_leakage](blocking_spheres_overlap_leakage.qmd#mofography.raspa_helper.blocking_spheres_overlap_leakage) | How much blocking spheres intrude into the **other** void class (leakage). |
+| [blocking_spheres_overlap_leakage_pair](blocking_spheres_overlap_leakage_pair.qmd#mofography.raspa_helper.blocking_spheres_overlap_leakage_pair) | Pair of :func:`blocking_spheres_overlap_leakage` runs for **BlockPockets** QA. |
+| [get_atoms_list_for_pdb](get_atoms_list_for_pdb.qmd#mofography.raspa_helper.get_atoms_list_for_pdb) | It reads a RASPA pdb file and returns a list of ASE atoms objects |
+| [get_isos_fit_for_multiple_raspa_folders](get_isos_fit_for_multiple_raspa_folders.qmd#mofography.raspa_helper.get_isos_fit_for_multiple_raspa_folders) | It takes a list of folder paths, and a temperature, and returns a dictionary of the |
+| [get_isos_fit_for_raspa_folder](get_isos_fit_for_raspa_folder.qmd#mofography.raspa_helper.get_isos_fit_for_raspa_folder) | * Description |
+| [get_isotherm_df_for_raspa_folder](get_isotherm_df_for_raspa_folder.qmd#mofography.raspa_helper.get_isotherm_df_for_raspa_folder) | It takes a list of paths to folders containing raspa output files and returns a dictionary with the |
+| [get_isotherms_dict_for_multiple_raspa_folders](get_isotherms_dict_for_multiple_raspa_folders.qmd#mofography.raspa_helper.get_isotherms_dict_for_multiple_raspa_folders) | This function takes a list of paths to folders containing raspa output files and returns a dictionary with the isotherm data |
+| [labels_accessible_adjacent_to_inaccessible_via_rag](labels_accessible_adjacent_to_inaccessible_via_rag.qmd#mofography.raspa_helper.labels_accessible_adjacent_to_inaccessible_via_rag) | Region labels that are **percolating** and share an **internal** RAG edge |
+| [make_raspa_input_for_cif](make_raspa_input_for_cif.qmd#mofography.raspa_helper.make_raspa_input_for_cif) |  |
+| [percolated_region_labels_winding](percolated_region_labels_winding.qmd#mofography.raspa_helper.percolated_region_labels_winding) | Segmentation region labels (ints) that belong to a percolating cluster at |
+| [percolation_region_labels_union_winding](percolation_region_labels_union_winding.qmd#mofography.raspa_helper.percolation_region_labels_union_winding) | Union of segmentation region IDs appearing in any winding-percolation cluster. |
+| [print_blocking_accessible_coarse_overlap_comparison](print_blocking_accessible_coarse_overlap_comparison.qmd#mofography.raspa_helper.print_blocking_accessible_coarse_overlap_comparison) | Compare outputs of :func:`blocking_spheres_overlap_accessible_coarse_sample` |
+| [print_blocking_accessible_coarse_overlap_report](print_blocking_accessible_coarse_overlap_report.qmd#mofography.raspa_helper.print_blocking_accessible_coarse_overlap_report) | Deprecated name; calls :func:`print_blocking_spheres_overlap_report`. |
+| [print_blocking_interface_overlap_stats](print_blocking_interface_overlap_stats.qmd#mofography.raspa_helper.print_blocking_interface_overlap_stats) | Deprecated name; calls :func:`print_blocking_spheres_overlap_report`. |
+| [print_blocking_overlap_stats](print_blocking_overlap_stats.qmd#mofography.raspa_helper.print_blocking_overlap_stats) | Deprecated name; calls :func:`print_blocking_spheres_overlap_report`. |
+| [print_blocking_spheres_overlap_pair_report](print_blocking_spheres_overlap_pair_report.qmd#mofography.raspa_helper.print_blocking_spheres_overlap_pair_report) | Print :func:`blocking_spheres_overlap_leakage_pair` results in plain language. |
+| [print_blocking_spheres_overlap_report](print_blocking_spheres_overlap_report.qmd#mofography.raspa_helper.print_blocking_spheres_overlap_report) | Print a human-readable summary for :func:`blocking_spheres_overlap_leakage` |
+| [segmentation_spacing_from_results](segmentation_spacing_from_results.qmd#mofography.raspa_helper.segmentation_spacing_from_results) | Segmentation grid spacing (Å), consistent with ``dask_grid_over_atoms``. |
+| [write_blocking_spheres_file](write_blocking_spheres_file.qmd#mofography.raspa_helper.write_blocking_spheres_file) | Write RASPA-style blocking list: first line = count, then ``sx sy sz r`` |

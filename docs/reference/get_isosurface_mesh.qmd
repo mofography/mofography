@@ -1,22 +1,30 @@
 # get_isosurface_mesh { #mofography.visualize.get_isosurface_mesh }
 
-`visualize.get_isosurface_mesh(data, isoval, ase_atoms, spacing=(1, 1, 1), stepsize=1)`
+```python
+visualize.get_isosurface_mesh(
+    data,
+    isoval,
+    ase_atoms,
+    spacing=(1, 1, 1),
+    stepsize=1,
+)
+```
 
 The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input
 data using the marching cubes algorithm.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type   | Description                                                                                                                                                                                                                                                                                                 | Default     |
-|-------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
-| `data`      |        | The `data` parameter in the `get_isosurface_mesh` function is likely a 3D array representing the volumetric data from which the isosurface mesh will be generated. This data could be obtained from various sources such as medical imaging, scientific simulations, or any other 3D                        | _required_  |
-| `isoval`    |        | The `isoval` parameter in the `get_isosurface_mesh` function represents the isovalue at which the isosurface is extracted from the input data. It is a scalar value that determines the surface geometry based on the data values                                                                           | _required_  |
-| `ase_atoms` |        | The `ase_atoms` parameter in the `get_isosurface_mesh` function is expected to be an ASE Atoms object, which represents a collection of atoms and their properties. It typically includes information such as atomic positions, unit cell dimensions, and atomic species. This object is used to define the | _required_  |
-| `spacing`   |        | The `spacing` parameter in the `get_isosurface_mesh` function represents the voxel spacing in each dimension for the input `data`. It is a tuple of three values representing the spacing along the x, y, and z axes respectively. This parameter determines the resolution of the isosurface mesh          | `(1, 1, 1)` |
-| `stepsize`  |        | The `stepsize` parameter in the `get_isosurface_mesh` function you provided controls the step size used during the marching cubes algorithm, defaults to 1 (optional)                                                                                                                                       | `1`         |
+| Name      | Type   | Description                                                                                                                                                                                                                                                                                                 | Default     |
+|-----------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| data      |        | The `data` parameter in the `get_isosurface_mesh` function is likely a 3D array representing the volumetric data from which the isosurface mesh will be generated. This data could be obtained from various sources such as medical imaging, scientific simulations, or any other 3D                        | _required_  |
+| isoval    |        | The `isoval` parameter in the `get_isosurface_mesh` function represents the isovalue at which the isosurface is extracted from the input data. It is a scalar value that determines the surface geometry based on the data values                                                                           | _required_  |
+| ase_atoms |        | The `ase_atoms` parameter in the `get_isosurface_mesh` function is expected to be an ASE Atoms object, which represents a collection of atoms and their properties. It typically includes information such as atomic positions, unit cell dimensions, and atomic species. This object is used to define the | _required_  |
+| spacing   |        | The `spacing` parameter in the `get_isosurface_mesh` function represents the voxel spacing in each dimension for the input `data`. It is a tuple of three values representing the spacing along the x, y, and z axes respectively. This parameter determines the resolution of the isosurface mesh          | `(1, 1, 1)` |
+| stepsize  |        | The `stepsize` parameter in the `get_isosurface_mesh` function you provided controls the step size used during the marching cubes algorithm, defaults to 1 (optional)                                                                                                                                       | `1`         |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                           |
-|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `get_isosurface_mesh` returns a trimesh object representing the isosurface mesh generated from the input data at the specified isovalue. |
+| Name   | Type   | Description                                                                                                                                           |
+|--------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `get_isosurface_mesh` returns a trimesh object representing the isosurface mesh generated from the input data at the specified isovalue. |

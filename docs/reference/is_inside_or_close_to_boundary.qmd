@@ -1,0 +1,28 @@
+# is_inside_or_close_to_boundary { #mofography.helper.is_inside_or_close_to_boundary }
+
+```python
+helper.is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance)
+```
+
+Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+maximum_indices : list of tuples [(z1, y1, x1), (z2, y2, x2), ...]
+    The coordinates of the maxima
+box_shape : tuple (depth, height, width)
+    The shape of the original box
+tolerance : tuple (zz, yy, xx)
+    The tolerance in each direction
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+locations : list of str
+    List of classifications for each point:
+    'inside' if the point is inside the box
+    'close_outside' if it's just outside within tolerance
+    'far_outside' if it's outside and beyond tolerance

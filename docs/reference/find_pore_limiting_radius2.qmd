@@ -1,0 +1,6 @@
+# find_pore_limiting_radius2 { #mofography.compute.find_pore_limiting_radius2 }
+
+```python
+compute.find_pore_limiting_radius2(distance_grid)
+```
+

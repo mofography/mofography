@@ -1,4 +1,6 @@
 # add_props_to_rag { #mofography.compute.add_props_to_rag }
 
-`compute.add_props_to_rag(rag, props)`
+```python
+compute.add_props_to_rag(rag, props)
+```
 

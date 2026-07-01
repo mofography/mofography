@@ -1,0 +1,37 @@
+# compute_psd_uniform_rust { #mofography.rust_fun.compute_psd_uniform_rust }
+
+```python
+rust_fun.compute_psd_uniform_rust(
+    dgrid,
+    ase_atoms,
+    num_samples_total=10000,
+    bins=None,
+    density=False,
+    return_fig=False,
+    material='Material',
+)
+```
+
+Compute pore size distribution using uniform sampling.
+
+This function calculates the pore size distribution by sampling points uniformly
+throughout the material and optionally creates a plotly figure for visualization.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                    | Type                  | Description                                                    | Default      |
+|-------------------------|-----------------------|----------------------------------------------------------------|--------------|
+| dgrid                   | numpy.ndarray         | 3D distance grid from dgrid_from_atoms_rust                    | _required_   |
+| ase_atoms               | ase.Atoms             | ASE Atoms object of the material                               | _required_   |
+| num_samples_total       | int                   | Total number of sample points to generate                      | `10000`      |
+| bins                    | numpy.ndarray \| None | Bin edges for histogram. If None, uses np.linspace(0, 50, 200) | `None`       |
+| density                 | bool                  | Whether to normalize the histogram                             | `False`      |
+| return_fig              | bool                  | Whether to return a plotly figure along with the histogram     | `False`      |
+| material                | str                   | Name of the material for plot title                            | `'Material'` |
+| probe_center_min_radius | float \| None         | If > 0, only void voxels with dgrid >= this value are sampled. | _required_   |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                 | Description                                                                            |
+|--------|----------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+|        | numpy.ndarray \| tuple\[numpy.ndarray, plotly.graph_objects.Figure\] | If return_fig is False, returns histogram values. If True, returns (histogram, figure) |

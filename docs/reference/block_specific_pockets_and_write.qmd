@@ -1,0 +1,21 @@
+# block_specific_pockets_and_write { #mofography.raspa_helper.block_specific_pockets_and_write }
+
+```python
+raspa_helper.block_specific_pockets_and_write(
+    file_path,
+    rag,
+    ase_atoms,
+    pocket_ids_to_block,
+)
+```
+
+Takes specific pocket IDs and writes their blocking information to a file.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                | Type   | Description                                                        | Default    |
+|---------------------|--------|--------------------------------------------------------------------|------------|
+| file_path           |        | the path to the file you want to write the blocking information to | _required_ |
+| rag                 |        | the networkx graph object                                          | _required_ |
+| ase_atoms           |        | ASE atoms object                                                   | _required_ |
+| pocket_ids_to_block |        | list of pocket IDs to block                                        | _required_ |

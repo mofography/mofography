@@ -1,0 +1,27 @@
+# get_pore_dia_mgr { #mofography.compute.get_pore_dia_mgr }
+
+```python
+compute.get_pore_dia_mgr(mat_atoms, dgrid=None, kwargs={})
+```
+
+Compute the pore diameters (LCD, PLD, DFSD) from a CIF file.
+
+
+
+## Parameters: {.doc-section .doc-section-parameters}
+
+path_to_cif : Path or str
+    The path to the CIF file.
+kwargs : dict, optional
+    Additional keyword arguments.
+    - spacing : float, optional
+        The spacing for the distance grid. Default is 0.5.
+    - block_size : int, optional
+        The block size for processing. Default is 50000.
+
+
+
+## Returns: {.doc-section .doc-section-returns}
+
+tuple
+    (lcd, pld, dfsd, distance_grid)

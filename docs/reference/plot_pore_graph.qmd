@@ -1,4 +1,6 @@
 # plot_pore_graph { #mofography.visualize.plot_pore_graph }
 
-`visualize.plot_pore_graph(G)`
+```python
+visualize.plot_pore_graph(G)
+```
 

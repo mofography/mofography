@@ -1,0 +1,7 @@
+# read_cif_to_ase { #mofography.cif_io.read_cif_to_ase }
+
+```python
+cif_io.read_cif_to_ase(path, *, on_large_cif_slow_ase_warning=None)
+```
+
+Return ``ase.Atoms`` from CIF path using Rust fast path when enabled.

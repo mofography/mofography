@@ -1,0 +1,7 @@
+# build_fragment_label_to_rep { #mofography.pocket_typing.build_fragment_label_to_rep }
+
+```python
+pocket_typing.build_fragment_label_to_rep(pbc_groups)
+```
+
+Map every fragment region label to its PBC representative (min label in group).

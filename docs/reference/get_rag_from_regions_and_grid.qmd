@@ -1,20 +1,22 @@
 # get_rag_from_regions_and_grid { #mofography.compute.get_rag_from_regions_and_grid }
 
-`compute.get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None)`
+```python
+compute.get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None)
+```
 
 > It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each
 region as a node property
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type   | Description                                         | Default    |
-|-------------|--------|-----------------------------------------------------|------------|
-| `regions`   |        | the regions that we computed from the distance grid | _required_ |
-| `dgrid`     |        | the distance grid                                   | _required_ |
-| `ase_atoms` |        | the atoms object from ase                           | _required_ |
+| Name      | Type   | Description                                         | Default    |
+|-----------|--------|-----------------------------------------------------|------------|
+| regions   |        | the regions that we computed from the distance grid | _required_ |
+| dgrid     |        | the distance grid                                   | _required_ |
+| ase_atoms |        | the atoms object from ase                           | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description              |
-|--------|--------------------------|
-|        | A region adjacency graph |
+| Name   | Type   | Description              |
+|--------|--------|--------------------------|
+|        |        | A region adjacency graph |

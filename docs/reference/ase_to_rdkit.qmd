@@ -1,0 +1,7 @@
+# ase_to_rdkit { #mofography.analyze.ase_to_rdkit }
+
+```python
+analyze.ase_to_rdkit(atoms)
+```
+
+ASE → RDKit with bond deduplication (no sanitisation needed).

@@ -1,0 +1,8 @@
+# print_blocking_spheres_overlap_report { #mofography.raspa_helper.print_blocking_spheres_overlap_report }
+
+```python
+raspa_helper.print_blocking_spheres_overlap_report(stats)
+```
+
+Print a human-readable summary for :func:`blocking_spheres_overlap_leakage`
+(and thin wrappers that return the same dict shape).

@@ -1,0 +1,27 @@
+# dgrid_from_atoms_aabb_rust { #mofography.rust_fun.dgrid_from_atoms_aabb_rust }
+
+```python
+rust_fun.dgrid_from_atoms_aabb_rust(
+    ase_atoms,
+    spacing,
+    radii=None,
+    n_neighbors=10,
+)
+```
+
+Compute a distance grid using the Rust AABB/PBC neighbor search backend.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                  | Description                                                                                                                                                                                                                                                          | Default    |
+|-------------|-----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms   | ase.Atoms             | ASE Atoms object containing the atomic structure                                                                                                                                                                                                                     | _required_ |
+| spacing     | float                 | Grid spacing in Angstroms                                                                                                                                                                                                                                            | _required_ |
+| radii       | numpy.ndarray \| None | Van der Waals radii for each atom. If None, uses Bondi (1964) handbook radii with Mendeleev fill for undefined symbols (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`). Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev-only table. | `None`     |
+| n_neighbors | int                   | Number of nearest neighbors to query from the AABB tree, defaults to 10                                                                                                                                                                                              | `10`       |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                                                        |
+|--------|---------------|--------------------------------------------------------------------|
+|        | numpy.ndarray | 3D distance grid where values represent distances to atom surfaces |

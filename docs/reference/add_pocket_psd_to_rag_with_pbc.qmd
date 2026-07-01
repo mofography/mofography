@@ -1,0 +1,11 @@
+# add_pocket_psd_to_rag_with_pbc { #mofography.compute.add_pocket_psd_to_rag_with_pbc }
+
+```python
+compute.add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)
+```
+
+Attach probe-occupiable pocket PSD histograms (Rust pocket-wise sampler) to RAG nodes.
+
+``pocket_psds`` maps region id -> dict with ``hist`` and ``bin_centers``.
+Stored as ``pocket_psd_x_pbc`` / ``pocket_psd_y_pbc`` (one curve per PBC group).
+Groups without a matching region id are skipped.

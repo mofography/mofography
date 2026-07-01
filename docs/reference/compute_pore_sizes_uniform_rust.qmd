@@ -1,0 +1,28 @@
+# compute_pore_sizes_uniform_rust { #mofography.rust_fun.compute_pore_sizes_uniform_rust }
+
+```python
+rust_fun.compute_pore_sizes_uniform_rust(
+    dgrid,
+    ase_atoms,
+    num_samples_total=10000,
+)
+```
+
+Compute pore sizes using uniform sampling across the material.
+
+This function samples points uniformly throughout the material and calculates
+the pore size (distance to nearest atom surface) at each sample point.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name              | Type          | Description                                 | Default    |
+|-------------------|---------------|---------------------------------------------|------------|
+| dgrid             | numpy.ndarray | 3D distance grid from dgrid_from_atoms_rust | _required_ |
+| ase_atoms         | ase.Atoms     | ASE Atoms object of the material            | _required_ |
+| num_samples_total | int           | Total number of sample points to generate   | `10000`    |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                  | Description                                                                                                                              |
+|--------|---------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+|        | tuple\[numpy.ndarray, numpy.ndarray\] | Tuple of (sample_points, pore_sizes) where sample_points are the sampled coordinates and pore_sizes are the corresponding pore diameters |

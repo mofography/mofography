@@ -1,0 +1,11 @@
+# make_guest_trace { #mofography.movies.make_guest_trace }
+
+```python
+movies.make_guest_trace(
+    atoms,
+    style='guests',
+    name='Adsorbates',
+    trace_id='guests',
+)
+```
+

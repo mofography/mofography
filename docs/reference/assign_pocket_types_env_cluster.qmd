@@ -1,0 +1,52 @@
+# assign_pocket_types_env_cluster { #mofography.pocket_typing.assign_pocket_types_env_cluster }
+
+```python
+pocket_typing.assign_pocket_types_env_cluster(
+    pockets,
+    fps,
+    *,
+    initial_band_gap_a=ENV_CLUSTER_INITIAL_BAND_GAP_A,
+    merge_max_r_gap_a=ENV_CLUSTER_MERGE_MAX_R_GAP_A,
+    merge_gap_threshold_a=ENV_CLUSTER_MERGE_GAP_THRESHOLD_A,
+    merge_cosine=ENV_CLUSTER_MERGE_COSINE,
+    merge_cosine_large_gap=ENV_CLUSTER_MERGE_COSINE_LARGE_GAP,
+    merge_singleton_bands=True,
+    singleton_band_gap_a=DEFAULT_SINGLETON_BAND_GAP_A,
+)
+```
+
+Pocket typing: max_r initial bands, fingerprint-driven merge only.
+
+
+
+## Algorithm {.doc-section .doc-section-algorithm}
+
+1. Sort pockets by max_probe_radius.
+2. Start a new band whenever the gap to the next pocket exceeds
+   *initial_band_gap_a* (grid-noise floor, < grid spacing).
+3. Iteratively merge adjacent bands (by mean max_r) when:
+   - |mean_max_r_A − mean_max_r_B| ≤ merge_max_r_gap_a  (physical proximity)
+   - mean cosine over all cross-pairs ≥ merge_cosine     (same environment)
+4. Optionally merge 1-pocket max_r bands into the nearest neighbor when
+   peak radii are within ``singleton_band_gap_a`` (e.g. ZIF-8 corner vs
+   center cages, grid-offset max_r only).
+5. Each remaining band → one pocket type.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+initial_band_gap_a : 0.15 Å
+    Gap above which two consecutive pockets form separate initial bands.
+    Should be less than the grid spacing (0.5 Å) to catch only grid-noise.
+merge_max_r_gap_a : 0.50 Å
+    Hard upper bound on the mean max_r gap between two bands for them to
+    be merge candidates (= one grid spacing).
+merge_gap_threshold_a : 0.20 Å
+    Gap boundary between tight and loose cosine thresholds.
+merge_cosine : 0.90
+    Tight cosine threshold for gaps ≤ merge_gap_threshold_a (prevents spurious
+    merges of similar-but-different window types, e.g. ZIF-20 2.56 vs 2.74 Å).
+merge_cosine_large_gap : 0.80
+    Loose cosine threshold for gaps > merge_gap_threshold_a (allows genuine family
+    merges, e.g. ZIF-20 large cages 7.26 vs 7.61 Å, mean cosine ~0.87).

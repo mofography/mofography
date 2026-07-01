@@ -1,0 +1,17 @@
+# split_band_by_max_r_subpeaks { #mofography.pocket_typing.split_band_by_max_r_subpeaks }
+
+```python
+pocket_typing.split_band_by_max_r_subpeaks(
+    pocket_ids,
+    fps,
+    d1_by_rep,
+    *,
+    subsplit_gap_a=DEFAULT_MAX_R_SUBSPLIT_GAP_A,
+    split_cosine=FP_MERGE_COSINE,
+)
+```
+
+Split one max_r band when grid peaks differ in radius and annulus fingerprint.
+
+E.g. ZIF ~2.74 vs ~2.79 Å (split). UiO ~3.78 vs ~3.90 after singleton merge (keep merged
+when fingerprints still match).

@@ -1,0 +1,7 @@
+# resolve_typing_vdw_radii { #mofography.pocket_typing.resolve_typing_vdw_radii }
+
+```python
+pocket_typing.resolve_typing_vdw_radii(atoms, typing_radii)
+```
+
+Per-atom VDW radii (Å) for typing ``max_r``, or ``None`` = use segmentation dgrid.

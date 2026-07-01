@@ -1,0 +1,17 @@
+# compute_segmentation_for_snapshot { #mofography.movies.compute_segmentation_for_snapshot }
+
+```python
+movies.compute_segmentation_for_snapshot(
+    snapshot,
+    spacing=0.25,
+    mask_thickness=0.5,
+    h=0.2,
+    threshold_abs=1.5,
+    min_distance=1.5,
+    extra_padding=5,
+    use_rust=True,
+    **kwargs,
+)
+```
+
+Compute dgrid, regions, maxima, connections for a single snapshot.

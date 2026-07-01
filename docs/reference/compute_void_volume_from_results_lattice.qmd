@@ -1,0 +1,13 @@
+# compute_void_volume_from_results_lattice { #mofography.compute.compute_void_volume_from_results_lattice }
+
+```python
+compute.compute_void_volume_from_results_lattice(
+    results_dict,
+    mat_atoms,
+    probe_radius=None,
+    return_details=False,
+    variant='v2',
+)
+```
+
+Void volume (voxel) with lattice accessibility.

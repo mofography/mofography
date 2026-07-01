@@ -1,0 +1,21 @@
+# kaleido_persistent_session { #mofography.export_mp4.kaleido_persistent_session }
+
+```python
+export_mp4.kaleido_persistent_session(workers=None, silence_warnings=True)
+```
+
+Start Kaleido's sync server for fast repeated static export, then stop it.
+
+With Kaleido 1.x, call ``start_sync_server()`` once before many ``fig.write_image``
+(or ``plotly.io.write_image``) calls so the same engine is reused instead of spawning
+Chromium for every frame.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+workers
+    If set, passed as ``n=...`` to ``start_sync_server`` (parallel renderer tabs when
+    supported by your Kaleido build).
+silence_warnings
+    Passed through to Kaleido start/stop helpers.

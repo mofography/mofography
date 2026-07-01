@@ -1,19 +1,21 @@
 # add_window_info_to_rag { #mofography.compute.add_window_info_to_rag }
 
-`compute.add_window_info_to_rag(rag, connections)`
+```python
+compute.add_window_info_to_rag(rag, connections)
+```
 
 It takes a RAG and a list of connections and adds the window information to the RAG as edge
 attributes
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name          | Type   | Description                                                                                           | Default    |
-|---------------|--------|-------------------------------------------------------------------------------------------------------|------------|
-| `rag`         |        | the region adjacency graph                                                                            | _required_ |
-| `connections` |        | list of tuples, each tuple is a connection between two nodes, and contains the following information: | _required_ |
+| Name        | Type   | Description                                                                                           | Default    |
+|-------------|--------|-------------------------------------------------------------------------------------------------------|------------|
+| rag         |        | the region adjacency graph                                                                            | _required_ |
+| connections |        | list of tuples, each tuple is a connection between two nodes, and contains the following information: | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                        |
-|--------|--------------------------------------------------------------------|
-|        | The rag is being returned with the window information added to it. |
+| Name   | Type   | Description                                                        |
+|--------|--------|--------------------------------------------------------------------|
+|        |        | The rag is being returned with the window information added to it. |

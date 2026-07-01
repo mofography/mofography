@@ -1,0 +1,10 @@
+# default_vdw_radii_angstrom { #mofography.vdw_radii.default_vdw_radii_angstrom }
+
+```python
+vdw_radii.default_vdw_radii_angstrom(ase_atoms)
+```
+
+Per-atom VDW radii in Å for distance-grid calculations (default table).
+
+Uses Bondi (1964) / CRC handbook values with Mendeleev fill for symbols
+missing from that table (same policy as pocket typing).

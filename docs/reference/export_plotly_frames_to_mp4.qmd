@@ -1,0 +1,37 @@
+# export_plotly_frames_to_mp4 { #mofography.export_mp4.export_plotly_frames_to_mp4 }
+
+```python
+export_mp4.export_plotly_frames_to_mp4(
+    fig,
+    output_mp4,
+    *,
+    fps=12,
+    width=1280,
+    height=720,
+    scale=1,
+    include_initial=True,
+    repeats_per_frame=1,
+    crf=20,
+    frames_dir=None,
+    cleanup_frames=True,
+    frame_hook=None,
+    kaleido_sync_server=True,
+    kaleido_sync_workers=None,
+    kaleido_silence_warnings=True,
+)
+```
+
+Export a figure that uses Plotly's ``frames`` API (slider / animation) to MP4.
+
+Frame patches are applied **cumulatively** in order, matching in-browser animation behavior.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+include_initial
+    If True, the first PNG is the figure's starting state before any ``fig.frames`` patch.
+repeats_per_frame
+    Duplicate each rendered state this many times (slows motion between keyframes).
+kaleido_sync_server, kaleido_sync_workers, kaleido_silence_warnings
+    Same meaning as in :func:`export_staged_figure_to_mp4`.

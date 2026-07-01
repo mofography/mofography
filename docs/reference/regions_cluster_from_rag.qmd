@@ -1,0 +1,7 @@
+# regions_cluster_from_rag { #mofography.pocket_typing.regions_cluster_from_rag }
+
+```python
+pocket_typing.regions_cluster_from_rag(regions, rag, label_to_type)
+```
+
+Paint fragment labels via RAG nodes (``labels[0]``), matching legacy clustering.

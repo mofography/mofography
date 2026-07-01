@@ -1,0 +1,6 @@
+# check_percolation_periodic2 { #mofography.compute.check_percolation_periodic2 }
+
+```python
+compute.check_percolation_periodic2(dgrid, threshold)
+```
+

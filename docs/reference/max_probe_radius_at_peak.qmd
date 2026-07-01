@@ -1,0 +1,7 @@
+# max_probe_radius_at_peak { #mofography.pocket_framework_env.max_probe_radius_at_peak }
+
+```python
+pocket_framework_env.max_probe_radius_at_peak(regions, dgrid, rep)
+```
+
+Largest probe radius (Å) at the pocket maximum on the unit-cell fragment.

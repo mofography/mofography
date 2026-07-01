@@ -1,0 +1,35 @@
+# blocking_spheres_overlap_leakage { #mofography.raspa_helper.blocking_spheres_overlap_leakage }
+
+```python
+raspa_helper.blocking_spheres_overlap_leakage(
+    results,
+    ase_atoms,
+    spheres,
+    probe_radius,
+    *,
+    denominator_domain='accessible',
+    resolution='coarse',
+    sample_spacing=0.5,
+    fine_spacing=None,
+    accessible_dgrid_ge_probe=False,
+    restrict_to_rag_adjacent_accessible=True,
+    require_face_neighbor_inaccessible=True,
+    per_label=False,
+    atol=0.0001,
+    chunk_size=65536,
+)
+```
+
+How much blocking spheres intrude into the **other** void class (leakage).
+
+* ``denominator_domain="accessible"`` — measure overlap into percolating void
+  (typical when spheres block **inaccessible** pockets, ``BlockPockets``).
+* ``denominator_domain="inaccessible"`` — measure overlap into non-percolating
+  void (when spheres target **accessible** regions, ``InvertBlockPockets``).
+
+``resolution``: ``"fine"`` (full segmentation grid), ``"coarse"`` (subsample
+at ``sample_spacing``), or ``"interface"`` (accessible **interface band** only;
+``denominator_domain`` must be ``"accessible"``).
+
+Fine grid spacing defaults to :func:`segmentation_spacing_from_results`
+(usually ``results["input_params"]["spacing"]`` from periodic segmentation).

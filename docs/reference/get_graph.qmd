@@ -1,19 +1,21 @@
 # get_graph { #mofography.data.get_graph }
 
-`data.get_graph(db_path, id)`
+```python
+data.get_graph(db_path, id)
+```
 
 The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
 and returns the graph.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description                                                                                                                                                                                                                                                                               | Default    |
-|-----------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `db_path` |        | The `db_path` parameter is the file path to the SQLite database where the graph data is stored. This function connects to the SQLite database at the specified path to retrieve the graph data                                                                                            | _required_ |
-| `id`      |        | The `id` parameter in the `get_graph` function is used to specify which graph to retrieve from the database. It is likely a unique identifier that helps identify a specific graph stored in the database table. When calling the `get_graph` function, you would provide the `id` of the | _required_ |
+| Name    | Type   | Description                                                                                                                                                                                                                                                                               | Default    |
+|---------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| db_path |        | The `db_path` parameter is the file path to the SQLite database where the graph data is stored. This function connects to the SQLite database at the specified path to retrieve the graph data                                                                                            | _required_ |
+| id      |        | The `id` parameter in the `get_graph` function is used to specify which graph to retrieve from the database. It is likely a unique identifier that helps identify a specific graph stored in the database table. When calling the `get_graph` function, you would provide the `id` of the | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                       |
-|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `get_graph` returns a graph object that is retrieved from a SQLite database. The graph is decompressed using gzip, unpickled, and then returned as the final output. |
+| Name   | Type   | Description                                                                                                                                                                       |
+|--------|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `get_graph` returns a graph object that is retrieved from a SQLite database. The graph is decompressed using gzip, unpickled, and then returned as the final output. |

@@ -1,0 +1,27 @@
+# plot_dgrid_as_volume { #mofography.visualize.plot_dgrid_as_volume }
+
+```python
+visualize.plot_dgrid_as_volume(
+    dgrid,
+    mat_atoms,
+    original_shape=None,
+    num_isosurfaces=5,
+    cscale='viridis',
+    opacity=0.1,
+)
+```
+
+Visualise a distance grid (optionally padded in ‘wrap’ mode).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+dgrid : np.ndarray
+    3-D array holding the (possibly padded) distance grid.
+mat_atoms : ASE Atoms object
+    Provides the unit-cell vectors.
+original_shape : tuple[int,int,int] or None
+    Shape of the un-padded grid.  If None, the grid is assumed NOT padded.
+num_isosurfaces : int
+    How many iso-value surfaces to draw.

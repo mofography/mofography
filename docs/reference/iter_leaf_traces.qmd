@@ -1,0 +1,6 @@
+# iter_leaf_traces { #mofography.viz_backend.iter_leaf_traces }
+
+```python
+viz_backend.iter_leaf_traces(traces)
+```
+

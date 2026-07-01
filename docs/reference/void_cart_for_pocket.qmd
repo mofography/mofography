@@ -1,0 +1,21 @@
+# void_cart_for_pocket { #mofography.pocket_framework_env.void_cart_for_pocket }
+
+```python
+pocket_framework_env.void_cart_for_pocket(
+    regions_pbc,
+    regions,
+    dgrid,
+    rep,
+    shape,
+    atoms,
+    *,
+    prefer_fragment=True,
+    max_samples=MAX_VOID_SAMPLES,
+    shell_near_max_a=VOID_SHELL_MAXIMUM_A,
+)
+```
+
+Cartesian void sample points for pocket ``rep``.
+
+Uses ``regions == rep`` when that fragment exists and is not huge vs ``regions_pbc``;
+otherwise falls back to ``regions_pbc == rep`` (subsampled).

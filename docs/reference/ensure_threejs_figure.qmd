@@ -1,0 +1,6 @@
+# ensure_threejs_figure { #mofography.viz_backend.ensure_threejs_figure }
+
+```python
+viz_backend.ensure_threejs_figure(fig, *, context='add_traces')
+```
+

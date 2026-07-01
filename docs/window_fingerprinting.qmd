@@ -1,0 +1,467 @@
+---
+title: "Window Fingerprinting for Accessible Textural Properties"
+description: "Annotate pore-graph windows with element-weighted shell fingerprints; understand Mechanism A vs B failures, accessible-region BFS, and effect on accessible SA / void volume."
+image: tutorial_images/windows_3d.png
+jupyter: python3
+execute:
+  freeze: true
+---
+
+## Overview
+
+Every connection in a periodic segmentation is a **window** — a narrow passage between two pore regions. The natural question is: *"How wide is that window?"* Most tools answer with the local pore-limiting diameter (PLD) along the pocket-to-pocket connection. `mofography` goes one step further: it attaches a **direction-invariant, element-weighted fingerprint** of the framework atoms that ring each window centre. Diameter + chemistry give a multi-modal description of each aperture — useful when diameter alone hides important distinctions.
+
+This tutorial covers:
+
+1. **Window shell fingerprints** — what the 118-element vector captures and how it is built.
+2. **Window fingerprint expansion** — a BFS that *rescues* watershed regions behind slightly sub-probe windows when the local framework shell looks like the rest of the open mouth.
+3. **Effect on textural properties** — how the bridging changes accessible surface area and void volume on IRMOF-1, and when you should (and should not) turn it on.
+4. **Mechanism A / B / C / D failure modes** — what each one is, what fingerprinting does (and does not) fix, and where to look when you suspect each.
+5. **Refinement** — pointer to the [Window Refinement prototype](window_refinement.md) for morphological re-estimation of window centres and radii.
+
+If you have not done so, please complete the [Connections and Windows](connections_and_windows.qmd) tutorial first — it explains the basic `seg['connections']` 5-tuple and the difference between internal and periodic windows. This page assumes that knowledge.
+
+## Why fingerprints exist
+
+A single PLD number tells you how wide a window is. It does not tell you what is **around** it:
+
+- Two windows of diameter 3.8 Å may be ringed by different framework chemistry (e.g. Si/Al vs carboxylate pillars).
+- Two windows of diameter 5.0 Å may sit in different topology contexts (8-ring in a zeolite vs the 4-ring of a MOF).
+
+For **percolation at a near-PLD probe radius**, this distinction matters more than the absolute size. If a candidate sub-probe window is at a position whose *framework shell* looks the same as an already-open mouth, the probability that it is the same physical aperture — undercounted by the grid — is high. If the framework shell looks completely different, the throat probably is different too, and the user's probe should still gate access.
+
+That idea is the entire basis of the BFS expansion in [`_expand_percolating_labels_with_window_fingerprint`](https://github.com/arung-northwestern/mofography/blob/main/mofography/winding_percolation.py).
+
+## Imports
+
+```{python}
+import mofography as mgr
+from ase.io import read
+import numpy as np
+import networkx as nx
+import plotly.graph_objects as go
+import plotly.express as px
+import logging
+
+# Quiet the segmentation chatter
+logging.getLogger("mofography").setLevel(logging.WARNING)
+```
+
+## Step 1: Periodic segmentation with windows
+
+We use IRMOF-1 because it has a tight distribution of window sizes near its PLD — the perfect regime to show the bridging effect.
+
+```{python}
+atoms = read("IRMOF-1.cif")
+spacing = 0.5                                            # Å
+
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing)
+dgrid_f32 = dgrid.astype(np.float32)                     # Rust kernel requires float32
+
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid_f32, atoms,
+    spacing=spacing,
+    mask_thickness=0.05,
+    h=0.2,
+    min_distance=1.5,
+    threshold_abs=1.5,
+    minimum_window_separation=1.5,
+    wall_thickness=0.05,
+    extra_padding=5,
+    compute_connections=True,                            # <-- windows come back in seg['connections']
+    watershed_backend="rust_det",
+    disable_tqdm=True,
+    return_dgrid=True,
+    return_padded_regions=True,
+)
+seg["mat_atoms"] = atoms                                 # needed by the fingerprint annotator
+print(f"Pockets (PBC-grouped): {len(seg['maxima_pbc'])}")
+print(f"Unique regions:        {len(seg['unique_regions'])}")
+print(f"Window connections:    {len(seg['connections'])}")
+```
+
+The key point: `compute_connections=True` (default) makes the same call return the regions, the maxima, and the window list together.
+
+## Step 2: Inspect `seg['connections']`
+
+Each entry of `seg['connections']` is a 5-element `numpy` array:
+
+| Index | Meaning |
+|-------|---------|
+| `c[0]` | The two region labels the window connects |
+| `c[1]` | Confirmation flag (always `True` for a detected window) |
+| `c[2]` | `'internal'` or `'periodic'` |
+| `c[3]` | Window centroid coordinates, shape `(1, 3)` |
+| `c[4]` | Window radius in Å, shape `(1,)` |
+
+The detailed walkthrough of the 5-tuple lives in the [Connections and Windows](connections_and_windows.qmd) tutorial. Here we just need two things: a `connections` list with `internal` and `periodic` windows, and a `unique_regions` set that filters out padding artefacts.
+
+```{python}
+connections = seg["connections"]
+unique_regions = seg["unique_regions"]
+
+# Keep only windows that touch at least one unit-cell region
+connections_trimmed = [
+    c for c in connections
+    if np.any(np.isin(c[0], unique_regions))
+]
+
+internal = [c for c in connections_trimmed if c[2] == "internal"]
+periodic = [c for c in connections_trimmed if c[2] == "periodic"]
+print(f"Unit-cell windows:  {len(connections_trimmed)} (internal={len(internal)}, periodic={len(periodic)})")
+```
+
+Each window is essentially a *centroid* of the touching boundary between two regions. The list already carries a `window_radius`; what we want to do now is add a **shell fingerprint** to each one.
+
+## Step 3: Build the canonical pore graph
+
+The `connections` list contains two directed entries per canonical window (one for each traversal direction). The standard pore-graph view collapses these to a `networkx.MultiDiGraph` keyed by canonical edge identity:
+
+```{python}
+graph = mgr.make_directed_graph_from_segmentation_results(seg, dgrid=dgrid_f32)
+print(f"Pore graph: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
+
+# Each edge carries a window_radius (the maximum over periodic images on that canonical edge).
+wrs = sorted({float(d.get("window_radius", 0.0)) for _, _, d in graph.edges(data=True)})
+print(f"Window radius range: {wrs[0]:.3f} ... {wrs[-1]:.3f} Å  (N unique = {len(wrs)})")
+```
+
+For IRMOF-1 the windows come in a tight 3.68–3.96 Å band — close to the framework's PLD, which is exactly where the fingerprinting rescue is most useful.
+
+## Step 4: Annotate graph edges with shell fingerprints
+
+`annotate_graph_edges_with_window_fingerprints` walks every graph edge, computes a window centre from the edge data, and stamps an element-weighted vector onto the edge:
+
+- a **shell** of radius `shell_radius` (default 3.5 Å) around the centre,
+- weighted by `1 / max(dist, 1e-3)` so nearer atoms dominate,
+- placed into a **118-slot vector** (one slot per atomic number 1–118),
+- **L2-normalized** so cosine similarity is meaningful.
+
+The result is stored on each edge as `window_fp_vec` (the tuple) and `window_fp_ready` (boolean). The window centre in fractional coordinates is also stored as `window_frac_pos`.
+
+```{python}
+mgr.annotate_graph_edges_with_window_fingerprints(
+    graph, seg, atoms=atoms, shell_radius=3.5
+)
+
+# Inspect the first few edges
+print(f"{'edge':>14s}  {'wr [Å]':>7s}  {'ready':>6s}  {'nonzero slots (Z)':>30s}")
+print("-" * 65)
+for u, v, k, data in list(graph.edges(keys=True, data=True))[:6]:
+    wr = float(data.get("window_radius", 0.0))
+    ready = bool(data.get("window_fp_ready", False))
+    if ready:
+        v_fp = np.asarray(data["window_fp_vec"])
+        nz = np.flatnonzero(v_fp)
+        z_list = ", ".join(f"Z={int(i+1)}" for i in nz)
+    else:
+        z_list = "(no atoms in shell)"
+    print(f"({u:>2d},{v:>2d},{k:>2d})  {wr:7.3f}  {ready!s:>6s}  {z_list:>30s}")
+```
+
+For IRMOF-1 every window lands on the same set of non-zero slots — Z=6 (C), Z=8 (O), Z=30 (Zn), Z=1 (H) — which is exactly what we expect: a carboxylate linker + Zn₄O node + benzene ring + terminating H.
+
+## Step 5: What the fingerprint actually captures
+
+The vector is *direction-invariant*: whether you walk the graph edge from `u → v` or `v → u`, the centre and the shell are the same, so the fingerprint is the same. That makes cosine similarity a meaningful distance.
+
+Let's confirm that on IRMOF-1:
+
+```{python}
+# Cosine between two windows on the same canonical edge (different periodic images
+# at the same physical throat — fingerprints should be essentially identical).
+def cosine(a, b):
+    a, b = np.asarray(a), np.asarray(b)
+    denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+    return float(np.dot(a, b) / denom) if denom > 1e-12 else 0.0
+
+ready_edges = [
+    (u, v, k, data["window_fp_vec"], float(data["window_radius"]))
+    for u, v, k, data in graph.edges(keys=True, data=True)
+    if data.get("window_fp_ready")
+]
+
+# Same canonical (u, v), two different periodic images (different keys)
+pairs = {}
+for e in ready_edges:
+    pairs.setdefault((e[0], e[1]), []).append(e)
+canon_with_two = next((grp for grp in pairs.values() if len(grp) >= 2), None)
+if canon_with_two is not None:
+    a, b = canon_with_two[0], canon_with_two[1]
+    print(f"Same canonical edge, two periodic images: "
+          f"({a[0]},{a[1]},{a[2]}) and ({b[0]},{b[1]},{b[2]}); "
+          f"cos = {cosine(a[3], b[3]):.4f}")
+
+# Two different edges at the same radius
+e0 = ready_edges[0]
+same_wr = [e for e in ready_edges if abs(e[4] - e0[4]) < 1e-6 and e[3] is not e0[3]]
+if same_wr:
+    e1 = same_wr[0]
+    print(f"Different edge, same wr={e1[4]:.3f}: cos = {cosine(e0[3], e1[3]):.4f}")
+
+# The most different edge
+def farthest_cosine(ref, others):
+    ref_v = np.asarray(ref[3])
+    return max(others, key=lambda e: 1.0 - cosine(ref_v, e[3]))
+
+far = farthest_cosine(e0, [e for e in ready_edges if e[3] is not e0[3]])
+print(f"Farthest pair: ({e0[0]},{e0[1]},{e0[2]}) wr={e0[4]:.3f} "
+      f"vs ({far[0]},{far[1]},{far[2]}) wr={far[4]:.3f}: cos = {cosine(e0[3], far[3]):.4f}")
+```
+
+In IRMOF-1 every window fingerprints the same chemistry (Zn, O, C, H) at slightly different distances, so all pairwise cosines are very close to 1. That's the easy case. On more complex materials — a zeolite with 8-ring and 6-ring windows of similar diameter, or a MOF with carboxylate and pyridyl linkers — the cosine **separates** the two families cleanly.
+
+## Step 6: Percolation at a near-PLD probe
+
+Now the core question: what does fingerprinting actually *do* at a probe radius near the PLD?
+
+`percolating_region_labels_at_probe_winding` is the central entry point. It runs the standard winding percolation at `probe_radius`, then optionally calls `_expand_percolating_labels_with_window_fingerprint` to add neighbour regions whose connecting window is *slightly* sub-probe but whose shell matches an open mouth.
+
+```{python}
+def percolating_labels(seg, probe, fp_on=False, subprobe_gap=0.5):
+    kwargs = {"window_fp_for_accessible": fp_on, "window_fp_subprobe_gap": subprobe_gap}
+    return mgr.percolating_region_labels_at_probe_winding(seg, probe, kwargs=kwargs)
+```
+
+Sweep probe radius and watch the difference:
+
+```{python}
+print(f"{'probe [Å]':>10s}  {'strict':>7s}  {'+FP':>5s}  {'+FP adds':>9s}")
+print("-" * 42)
+for probe in [3.5, 3.6, 3.65, 3.7, 3.75, 3.8, 3.9, 4.0]:
+    strict = percolating_labels(seg, probe, fp_on=False)
+    fp     = percolating_labels(seg, probe, fp_on=True)
+    diff = sorted(fp - strict)
+    print(f"{probe:10.2f}  {len(strict):7d}  {len(fp):5d}  {len(diff):9d}  "
+          f"{diff[:6]}")
+```
+
+You should see:
+
+- **Below the smallest window** (probe ≪ 3.68 Å): no percolation either way.
+- **Near the PLD** (probe ≈ 3.7–3.8 Å): strict percolation drops because the smallest windows are *just* below the probe, but **window FP** rescues those regions whose sub-probe throats share a shell with an open mouth.
+- **At/above the largest window** (probe ≳ 3.96 Å): every window passes the strict threshold, so the FP expansion has nothing to add.
+
+The window FP does **not** force a percolation that does not exist — it only bridges sub-probe gaps whose size is within `window_fp_subprobe_gap` (default 0.5 Å) and whose shell cosine is above `window_fp_sim_thresh` (default 0.88) of an open mouth. Windows that are too small, or look chemically different, stay closed.
+
+## Step 7: Why the expansion fires — walking a single BFS step
+
+The mechanism is concrete. Let's track one sub-probe edge that gets bridged and confirm the three gates that let it through:
+
+```{python}
+# Pick a probe in the interesting regime
+probe = 3.75
+subprobe_gap = 0.5
+sim_thresh = 0.88
+ref_tol = 0.12
+
+# Build the per-edge view used internally
+percolating_strict = percolating_labels(seg, probe, fp_on=False)
+percolating_nodes_strict = set()
+for node, labels in mgr.build_base_region_labels_from_results(seg).items():
+    if set(labels).intersection(percolating_strict):
+        percolating_nodes_strict.add(int(node))
+
+# Reference edges = those incident on a strict-percolating node whose window_radius >= probe - ref_tol
+ref_edges = []
+for u, v, k, data in graph.edges(keys=True, data=True):
+    if int(u) not in percolating_nodes_strict and int(v) not in percolating_nodes_strict:
+        continue
+    wr = float(data.get("window_radius", 0.0))
+    if wr < probe - ref_tol:
+        continue
+    if not data.get("window_fp_ready"):
+        continue
+    ref_edges.append((int(u), int(v), int(k), data, wr))
+print(f"Reference edges (strict-percolating, wr >= {probe-ref_tol:.2f}): {len(ref_edges)}")
+
+# Candidate edges = sub-probe but within subprobe_gap, that the BFS will consider
+candidate_count = 0
+bridged = []
+for u, v, k, data in graph.edges(keys=True, data=True):
+    wr = float(data.get("window_radius", 0.0))
+    gap = probe - wr
+    if gap <= 0 or gap > subprobe_gap:
+        continue
+    if not data.get("window_fp_ready"):
+        continue
+    candidate_count += 1
+    cvec = np.asarray(data["window_fp_vec"])
+    # match against any reference
+    best = None
+    for _, _, _, ref_data, rwr in ref_edges:
+        rvec = np.asarray(ref_data["window_fp_vec"])
+        if rwr - wr > subprobe_gap:
+            continue
+        cos = cosine(cvec, rvec)
+        if cos >= sim_thresh and (best is None or cos > best[1]):
+            best = (rwr, cos)
+    if best is not None:
+        bridged.append((u, v, k, wr, best[0], best[1]))
+print(f"Candidate sub-probe edges:        {candidate_count}")
+print(f"  Bridged by FP (cos >= {sim_thresh}): {len(bridged)}")
+print()
+print(f"{'edge':>14s}  {'wr [Å]':>7s}  {'gap':>5s}  {'ref_wr [Å]':>10s}  {'cosine':>7s}")
+print("-" * 56)
+for u, v, k, wr, rwr, c in bridged[:8]:
+    print(f"({u:>2d},{v:>2d},{k:>2d})  {wr:7.3f}  {probe-wr:5.2f}  {rwr:10.3f}  {c:7.4f}")
+```
+
+The three gates you should see in action:
+
+1. **Sub-probe gap** — `probe − wr ≤ window_fp_subprobe_gap` (default 0.5 Å). Windows that are *much* smaller than the probe stay closed regardless of chemistry.
+2. **Reference gap** — `wr_ref − wr_cand ≤ window_fp_subprobe_gap` (one-sided). A candidate window must not be much smaller than a reference open mouth either — this is the *Mechanism D* guard that stops the FP from over-bridging to genuinely smaller annex apertures.
+3. **Shell cosine** — `cosine(cvec, rvec) ≥ window_fp_sim_thresh` (default 0.88). The local framework shell must look like an open mouth.
+
+Together they are the entire fingerprint expansion policy.
+
+## Step 8: Effect on accessible void volume and surface area
+
+The standard `compute_void_volume_from_results` and `compute_surface_area_mc` / `compute_surface_area_mesh` entry points accept `window_fp_for_accessible` and an optional `winding_kwargs` dict. The defaults are `window_fp_for_accessible=True`, which is the recommended setting for production runs.
+
+```{python}
+fp_kwargs = {
+    "window_fp_for_accessible": True,
+    "window_fp_shell_radius": 3.5,
+    "window_fp_sim_thresh": 0.88,
+    "window_fp_subprobe_gap": 0.5,
+}
+
+def sa(atoms, seg, probe, fp):
+    return mgr.compute_surface_area_mc(
+        seg, atoms, probe_radius=probe,
+        window_fp_for_accessible=fp, accessibility_method="winding",
+        winding_kwargs=fp_kwargs if fp else None,
+    )
+
+def vv(atoms, seg, probe, fp):
+    return mgr.compute_void_volume_from_results(
+        seg, atoms, probe_radius=probe,
+        window_fp_for_accessible=fp, accessibility_method="winding",
+        winding_kwargs=fp_kwargs if fp else None,
+    )
+
+print(f"{'probe [Å]':>10s}  {'VV strict':>10s}  {'VV +FP':>9s}  {'ΔVV':>8s}  "
+      f"{'SA strict':>11s}  {'SA +FP':>9s}  {'ΔSA':>9s}")
+print("-" * 78)
+for probe in [3.5, 3.6, 3.65, 3.7, 3.75, 3.8, 3.9, 4.0]:
+    vv_strict = vv(atoms, seg, probe, fp=False)
+    vv_fp     = vv(atoms, seg, probe, fp=True)
+    sa_strict = sa(atoms, seg, probe, fp=False)
+    sa_fp     = sa(atoms, seg, probe, fp=True)
+    dV = vv_fp["accessible_void_volume"] - vv_strict["accessible_void_volume"]
+    dS = sa_fp["accessible_surface_area"] - sa_strict["accessible_surface_area"]
+    print(f"{probe:10.2f}  {vv_strict['accessible_void_volume']:10.4f}  "
+          f"{vv_fp['accessible_void_volume']:9.4f}  {dV:+8.4f}  "
+          f"{sa_strict['accessible_surface_area']:11.2f}  "
+          f"{sa_fp['accessible_surface_area']:9.2f}  {dS:+9.2f}")
+```
+
+On IRMOF-1 at **probe = 3.75 Å**, window FP roughly **doubles** the accessible void volume and surface area. The strict reading misses an entire ring of small-cage regions because the smallest windows are *just* under the probe; the FP reads them as the same aperture (the cosine is essentially 1) and adds them.
+
+This is the expected behaviour for a **Mechanism B** failure (defined below): the user's probe and the grid are slightly mis-aligned, and the FP closes the gap on the user's behalf.
+
+> **Numerical note.** Because we passed `winding_kwargs` *only* when `fp=True`, the legacy reader is bit-for-bit comparable — the only difference is whether the FP expansion fires. If you want to compare against the lattice / Zeo++-style definition, use `accessibility_method="lattice"` (the FP is winding-only).
+
+## Step 9: Tweak the parameters and watch the policy change
+
+`winding_kwargs` is the single dict that controls fingerprint behaviour. Every entry has a default; the table in `docs/window_fingerprinting.org` lists them. Two are worth playing with interactively:
+
+- `window_fp_subprobe_gap` (default **0.5 Å**) — how far below the probe a window can sit and still be bridged. Lower it to make the policy stricter; raise it to be more permissive.
+- `window_fp_sim_thresh` (default **0.88**) — minimum cosine to a reference open mouth. Lower to be more permissive (less chemistry discrimination); raise to require tighter matches.
+
+```{python}
+probe = 3.75
+print(f"{'subprobe_gap':>14s}  {'sim_thresh':>11s}  {'regions':>8s}  {'VV':>8s}")
+print("-" * 50)
+for gap in [0.2, 0.5, 0.8]:
+    for sim in [0.80, 0.88, 0.95]:
+        kwargs = {
+            "window_fp_for_accessible": True,
+            "window_fp_subprobe_gap": gap,
+            "window_fp_sim_thresh": sim,
+        }
+        labels = mgr.percolating_region_labels_at_probe_winding(seg, probe, kwargs=kwargs)
+        result = mgr.compute_void_volume_from_results(
+            seg, atoms, probe_radius=probe,
+            window_fp_for_accessible=True, accessibility_method="winding",
+            winding_kwargs=kwargs,
+        )
+        print(f"{gap:14.2f}  {sim:11.2f}  {len(labels):8d}  "
+              f"{result['accessible_void_volume']:8.4f}")
+```
+
+In this sweep on IRMOF-1 the values stay similar because every window fingerprints the same Zn/O/C/H chemistry. The parameters matter much more on materials where windows have *different* local framework environments (zeolites, MOFs with mixed linkers).
+
+## Step 10: Mechanism A / B / C / D failure modes
+
+The fingerprint expansion is a *targeted* fix. It is useful for some failure modes and useless for others. The four labelled failure modes in the literature are:
+
+### Mechanism A — PLD threshold / no percolation seed (FP cannot help)
+
+- MGR PLD is just below the requested probe, so no window opens; no percolating mouth exists.
+- The BFS in `_expand_percolating_labels_with_window_fingerprint` returns immediately because `percolating_labels` is empty.
+- **Policy**: do not silently widen the probe. The user-set probe radius stays strict. This is a separate PLD / graph-edge calibration problem.
+
+```{python}
+# Above the largest window in IRMOF-1, strict winding has no percolation at all,
+# and the FP expansion has nothing to start from.
+probe_above_pld = 5.0
+strict = percolating_labels(seg, probe_above_pld, fp_on=False)
+fp     = percolating_labels(seg, probe_above_pld, fp_on=True)
+print(f"probe {probe_above_pld} Å: strict={len(strict)} regions, +FP={len(fp)} regions  (Mechanism A: still zero)")
+```
+
+### Mechanism B — watershed / graph window gating (FP helps)
+
+- A region is reachable only through a window whose `window_radius` is *slightly* below the probe (grid undershoot, watershed placement, mask thickness).
+- The BFS bridges it when the sub-probe gap ≤ `window_fp_subprobe_gap` and the shell matches an open mouth.
+- **This is the failure mode the FP expansion is designed to fix.** Step 8 above demonstrates it on IRMOF-1.
+
+### Mechanism C — dead-end annex pockets (FP does not help)
+
+- The annex is reached through a window with `window_radius ≈ 0.6–0.8 Å` and `pocket_radius ≈ 2 Å` — *much* below the probe.
+- The sub-probe gap exceeds `window_fp_subprobe_gap` (default 0.5 Å), so the BFS rejects the bridge. The annex is correctly excluded at a 1.2 Å probe — a 1.2 Å sphere cannot pass a 0.7 Å throat even if the annex interior is wide.
+- Mofography counts void only in regions *graph-reachable* from percolating mouths. Zeo++ uses a **geometric** accessibility (every voxel with `dgrid > probe` on a percolating mask) and includes annex void regardless of whether a probe can fit through.
+- **Policy**: treat a large Zeo++ excess with good PLD agreement and intact main-path winding as expected conservative bias, not a Mofography bug. The CoRE-2000 screen documents several UDEMEW-like cases.
+
+### Mechanism D — FP over-bridge to annex apertures (FP can hurt; the one-sided gate fixes it)
+
+- Before the fix, FP could bridge a candidate whose shell cosine was high but whose `window_radius` was much smaller than the reference open mouth (an annex throat on the same framework shell but at a different aperture size).
+- **Fix**: `_window_fp_matches_reference_edges` uses a *one-sided* `wr_ref − wr_cand ≤ window_fp_ref_minus_cand_tol` gate (default = `subprobe_gap` = 0.5 Å). It blocks annex bridges with Δwr ≈ 0.7–0.8 Å while preserving Mechanism B grid undershoot (Δwr ≈ 0.4–0.5 Å). See `docs/window_fingerprinting.org` for the XALDOE case study.
+
+## Step 11: When to use window FP
+
+| Scenario | Recommendation |
+|----------|----------------|
+| **Production accessible SA / void volume** | Leave `window_fp_for_accessible=True` (default). The default tuning is calibrated for CoRE-2000 / typical MOFs. |
+| **Strict probe-gated comparison vs Zeo++** | Pass `window_fp_for_accessible=False`. Use this when you want to audit Mofography's *graph-reachable* definition explicitly. |
+| **DFSD / largest-cavity diameter** | FP is **off by default** for DFSD. Enable `window_fp_for_dfsd=True` only when validating a specific outlier — it is experimental. |
+| **A material with very different window chemistries (e.g. mixed-linker MOF)** | Consider raising `window_fp_sim_thresh` (e.g. 0.95) to require tighter matches. |
+| **A material with very small framework atoms (zeolites)** | Default `shell_radius=3.5 Å` is calibrated for organic / metal-organic frameworks. On pure siliceous zeolites the shell often contains only Si/O; cosine between two windows of the same ring is essentially 1 and the gate barely fires. |
+
+## Step 12: Pointer to refinement
+
+`annotate_graph_edges_with_window_fingerprints` does not change *where* the windows are or *how wide* they are — it only adds metadata. If the window centre and radius themselves are wrong (because watershed boundaries are noisy on this material), the morphological-opening pass in `mofography/window_refinement.py` re-estimates both. See [Window Refinement](window_refinement.md) for the full procedure and a worked NU-1000 example.
+
+## Summary
+
+| Concept | What it does |
+|---------|--------------|
+| **Window shell fingerprint** | 118-element vector of framework atoms within `shell_radius` (default 3.5 Å) of a window centre, weighted by 1/d, L2-normalized. Direction-invariant. |
+| **`annotate_graph_edges_with_window_fingerprints`** | Stamps `window_fp_vec` and `window_fp_ready` onto every edge of the canonical pore graph. |
+| **BFS expansion** | Adds neighbour regions behind sub-probe windows when (a) `probe − wr ≤ window_fp_subprobe_gap`, (b) `wr_ref − wr_cand ≤ window_fp_ref_minus_cand_tol` (one-sided), and (c) `cosine(fp_cand, fp_ref) ≥ window_fp_sim_thresh`. |
+| **Effect on accessible SA / VV** | Largest impact at probes *just* above the smallest `window_radius` in the structure; no impact when the probe is far from the PLD. |
+| **Mechanism A** | No percolating mouth exists; FP cannot help. |
+| **Mechanism B** | Sub-probe window with matching shell; FP *can* help. |
+| **Mechanism C** | Annex dead-end with much smaller throat; FP deliberately does not help. |
+| **Mechanism D** | FP would over-bridge to an annex; the one-sided reference gate prevents it. |
+
+## Where to go next
+
+- [Connections and Windows](connections_and_windows.qmd) — the basic `seg['connections']` walkthrough that this page builds on.
+- [Region Segmentation](region_segmentation.qmd) — the segmentation that produces the regions and the maxima.
+- [Pore Graph (RAG)](pore_graph.md) — the region adjacency graph that the windows live on.
+- [Window Refinement](window_refinement.md) — morphological re-estimation of window centres and radii.
+- [`mofography/winding_percolation.py`](https://github.com/arung-northwestern/mofography/blob/main/mofography/winding_percolation.py) — implementation: `_window_shell_fingerprint`, `_collect_window_fp_reference_edges`, `_expand_percolating_labels_with_window_fingerprint`.
+- [`mofography/compute.py`](https://github.com/arung-northwestern/mofography/blob/main/mofography/compute.py) — public entry points: `compute_void_volume_from_results`, `compute_surface_area_mc`, `compute_surface_area_mesh`.

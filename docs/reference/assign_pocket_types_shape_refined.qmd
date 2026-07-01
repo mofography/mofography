@@ -1,0 +1,18 @@
+# assign_pocket_types_shape_refined { #mofography.pocket_typing.assign_pocket_types_shape_refined }
+
+```python
+pocket_typing.assign_pocket_types_shape_refined(
+    pockets,
+    fps,
+    *,
+    tau_merge_a=DEFAULT_TAU_MERGE_A,
+    band_gap_a=DEFAULT_MAX_R_BAND_GAP_A,
+    singleton_band_gap_a=DEFAULT_SINGLETON_BAND_GAP_A,
+    subsplit_gap_a=DEFAULT_MAX_R_SUBSPLIT_GAP_A,
+    adjacent_merge_max_r_gap_a=DEFAULT_ADJACENT_BAND_MERGE_MAX_R_GAP_A,
+    merge_cosine=FP_MERGE_COSINE,
+    merge_singleton_bands=True,
+)
+```
+
+d₁ coarse bands first; max_r refinement only for large ZIF-like groups.

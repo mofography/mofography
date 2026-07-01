@@ -1,6 +1,8 @@
 # sgraph_from_atoms { #mofography.analyze.sgraph_from_atoms }
 
-`analyze.sgraph_from_atoms(ase_atoms, node_props_dict=None, edge_props_dict=None)`
+```python
+analyze.sgraph_from_atoms(ase_atoms, node_props_dict=None, edge_props_dict=None)
+```
 
 It takes an ase atoms object and returns a networkx graph object with the nodes and edges
 corresponding to the atoms and bonds in the atoms object. 
@@ -20,16 +22,16 @@ properties.
 
 The default set of node properties are:
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name              | Type   | Description                                                                                                                                                                                  | Default    |
-|-------------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `ase_atoms`       |        | ASE atoms object                                                                                                                                                                             | _required_ |
-| `node_props_dict` |        | A dictionary of node properties. The keys are the property names and the values are the property values. The values should be a list of length equal to the number of atoms in the structure | `None`     |
-| `edge_props_dict` |        | A dictionary of edge properties. The keys are the property names and the values are the property values. The values should be a list of length equal to the number of edges in the graph     | `None`     |
+| Name            | Type   | Description                                                                                                                                                                                  | Default    |
+|-----------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms       |        | ASE atoms object                                                                                                                                                                             | _required_ |
+| node_props_dict |        | A dictionary of node properties. The keys are the property names and the values are the property values. The values should be a list of length equal to the number of atoms in the structure | `None`     |
+| edge_props_dict |        | A dictionary of edge properties. The keys are the property names and the values are the property values. The values should be a list of length equal to the number of edges in the graph     | `None`     |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description              |
-|--------|--------------------------|
-|        | A networkx graph object. |
+| Name   | Type   | Description              |
+|--------|--------|--------------------------|
+|        |        | A networkx graph object. |

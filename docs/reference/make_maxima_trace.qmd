@@ -1,0 +1,13 @@
+# make_maxima_trace { #mofography.movies.make_maxima_trace }
+
+```python
+movies.make_maxima_trace(
+    seg,
+    atoms,
+    style='internal_maxima',
+    name='Maxima',
+    trace_id='maxima',
+    cscale=None,
+)
+```
+

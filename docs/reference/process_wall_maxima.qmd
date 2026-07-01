@@ -1,0 +1,31 @@
+# process_wall_maxima { #mofography.helper.process_wall_maxima }
+
+```python
+helper.process_wall_maxima(
+    all_maxima,
+    distance_field,
+    padding_thickness,
+    wall_cells,
+    ase_atoms,
+    min_merge_ratio=0.8,
+)
+```
+
+Process wall maxima to identify and merge periodic copies.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+all_maxima : np.ndarray
+    Array of maxima positions in the original unpadded distance grid
+distance_field : np.ndarray
+    Distance field
+padding_thickness : int
+    Padding thickness used
+wall_cells : np.ndarray
+    Number of cells considered as wall region
+ase_atoms,
+    ASE atoms object
+min_merge_ratio : float
+    Minimum ratio between smaller and larger maxima values to consider merging (default: 0.8)

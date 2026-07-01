@@ -1,0 +1,14 @@
+# assign_pocket_types_by_max_probe_radius { #mofography.pocket_framework_env.assign_pocket_types_by_max_probe_radius }
+
+```python
+pocket_framework_env.assign_pocket_types_by_max_probe_radius(
+    pockets,
+    fps,
+    *,
+    band_gap_a=0.1,
+)
+```
+
+Cluster by probe radius at dgrid peak; one type per band (symmetry copies merged).
+
+Returns (n_types, rep_id -> type_id, rep_id -> band_id).

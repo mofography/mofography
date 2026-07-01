@@ -1,0 +1,14 @@
+# periodic_gaussian_filter { #mofography.helper.periodic_gaussian_filter }
+
+```python
+helper.periodic_gaussian_filter(arr, sigma)
+```
+
+Apply a periodic (wrap-around) Gaussian filter using np.roll.
+
+Parameters:
+- arr: input ndarray (1D, 2D, or 3D)
+- sigma: standard deviation of Gaussian
+
+Returns:
+- Smoothed ndarray with same shape

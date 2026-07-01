@@ -1,0 +1,7 @@
+# compute_framework_mesh { #mofography.movies.compute_framework_mesh }
+
+```python
+movies.compute_framework_mesh(atoms, bonds=None)
+```
+
+Compute raw framework mesh data (positions, indices, colors, hover).

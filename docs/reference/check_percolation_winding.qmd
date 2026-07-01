@@ -1,0 +1,13 @@
+# check_percolation_winding { #mofography.winding_percolation.check_percolation_winding }
+
+```python
+winding_percolation.check_percolation_winding(
+    results,
+    threshold,
+    graph=None,
+    base_region_labels=None,
+    include_dangling=True,
+    expand_components=True,
+)
+```
+

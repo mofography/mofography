@@ -1,0 +1,22 @@
+# percolation_winding_on_binary_grid { #mofography.winding_percolation.percolation_winding_on_binary_grid }
+
+```python
+winding_percolation.percolation_winding_on_binary_grid(
+    grid,
+    allow_diagonals=False,
+    verbose=False,
+)
+```
+
+Apply :func:`percolation_winding_multidigraph` to a binary periodic lattice.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+grid : np.ndarray
+    Binary 2D lattice treated as periodic in x/y.
+allow_diagonals : bool
+    When ``True`` includes diagonal neighbors as valid connections.
+verbose : bool
+    Print a human-readable summary when enabled.

@@ -1,23 +1,32 @@
 # spheres_for_positions { #mofography.visualize.spheres_for_positions }
 
-`visualize.spheres_for_positions(positions, radii=None, scale=0.8, color=[[255, 255, 255, 1]], theta_resolution=20, phi_resolution=20)`
+```python
+visualize.spheres_for_positions(
+    positions,
+    radii=None,
+    scale=0.8,
+    color=[[255, 255, 255, 1]],
+    theta_resolution=20,
+    phi_resolution=20,
+)
+```
 
 It takes a list of positions and a list of radii and returns a list of trimesh objects that are
 spheres centered at the positions with the given radii
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name               | Type   | Description                                                                                                  | Default                |
-|--------------------|--------|--------------------------------------------------------------------------------------------------------------|------------------------|
-| `positions`        |        | list of lists of floats, the positions of the atoms                                                          | _required_             |
-| `radii`            |        | list of floats, default None                                                                                 | `None`                 |
-| `scale`            |        | the size of the spheres                                                                                      | `0.8`                  |
-| `color`            |        | a list of colors for each atom. If you want all atoms to be the same color, just put the one color in a list | `[[255, 255, 255, 1]]` |
-| `theta_resolution` |        | The number of points around the polar angle, defaults to 20 (optional)                                       | `20`                   |
-| `phi_resolution`   |        | The number of points around the azimuthal angle, defaults to 20 (optional)                                   | `20`                   |
+| Name             | Type   | Description                                                                                                  | Default                |
+|------------------|--------|--------------------------------------------------------------------------------------------------------------|------------------------|
+| positions        |        | list of lists of floats, the positions of the atoms                                                          | _required_             |
+| radii            |        | list of floats, default None                                                                                 | `None`                 |
+| scale            |        | the size of the spheres                                                                                      | `0.8`                  |
+| color            |        | a list of colors for each atom. If you want all atoms to be the same color, just put the one color in a list | `[[255, 255, 255, 1]]` |
+| theta_resolution |        | The number of points around the polar angle, defaults to 20 (optional)                                       | `20`                   |
+| phi_resolution   |        | The number of points around the azimuthal angle, defaults to 20 (optional)                                   | `20`                   |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                |
-|--------|----------------------------|
-|        | A list of trimesh objects. |
+| Name   | Type   | Description                |
+|--------|--------|----------------------------|
+|        |        | A list of trimesh objects. |

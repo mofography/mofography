@@ -1,0 +1,6 @@
+# seg_from_connections { #mofography.threejs_viz.seg_from_connections }
+
+```python
+threejs_viz.seg_from_connections(connections, maxima, grid_shape, *, dgrid=None)
+```
+

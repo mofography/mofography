@@ -1,19 +1,21 @@
 # get_atoms_from_smiles { #mofography.analyze.get_atoms_from_smiles }
 
-`analyze.get_atoms_from_smiles(smiles, cell=None)`
+```python
+analyze.get_atoms_from_smiles(smiles, cell=None)
+```
 
 This function takes a SMILES string as input and returns an ASE Atoms object with the atomic
 positions and information about covalent bonds and bond orders.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name     | Type   | Description                                                                                                                                                                      | Default    |
-|----------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `smiles` |        | A string representing the SMILES notation of a molecule                                                                                                                          | _required_ |
-| `cell`   |        | The cell parameter is an optional argument that specifies the size of the simulation cell in Angstroms. If it is not provided, a default cell size of 10x10x10 Angstroms is used | `None`     |
+| Name   | Type   | Description                                                                                                                                                                      | Default    |
+|--------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| smiles |        | A string representing the SMILES notation of a molecule                                                                                                                          | _required_ |
+| cell   |        | The cell parameter is an optional argument that specifies the size of the simulation cell in Angstroms. If it is not provided, a default cell size of 10x10x10 Angstroms is used | `None`     |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                                                                                                                                                                          |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | an ASE Atoms object that represents the molecule specified by the SMILES string input. The Atoms object contains information about the atomic positions, atomic symbols, and covalent bonds in the molecule. Additionally, the Atoms object contains information about the SMILES string used to generate the molecule and the cell size used to embed the molecule. |
+| Name   | Type   | Description                                                                                                                                                                                                                                                                                                                                                          |
+|--------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | an ASE Atoms object that represents the molecule specified by the SMILES string input. The Atoms object contains information about the atomic positions, atomic symbols, and covalent bonds in the molecule. Additionally, the Atoms object contains information about the SMILES string used to generate the molecule and the cell size used to embed the molecule. |

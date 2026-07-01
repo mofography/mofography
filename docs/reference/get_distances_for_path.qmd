@@ -1,22 +1,30 @@
 # get_distances_for_path { #mofography.compute.get_distances_for_path }
 
-`compute.get_distances_for_path(path_indices, shape, ase_atoms, n_neighbors=10, radii=None)`
+```python
+compute.get_distances_for_path(
+    path_indices,
+    shape,
+    ase_atoms,
+    n_neighbors=10,
+    radii=None,
+)
+```
 
 > For each grid point, find the nearest neighbors, and return the minimum distance to the nearest
 neighbor minus the covalent radius of the neighbor
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type   | Description                                                                                                                                      | Default    |
-|----------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `path_indices` |        | the indices of the path                                                                                                                          | _required_ |
-| `shape`        |        | the shape of the grid                                                                                                                            | _required_ |
-| `ase_atoms`    |        | the ase atoms object for the framework                                                                                                           | _required_ |
-| `n_neighbors`  |        | the number of neighbors to consider for each grid point, defaults to 10 (optional)                                                               | `10`       |
-| `radii`        |        | the covalent radii of the atoms in the structure. If not provided, they will be calculated from the atomic numbers using ase.data.covalent_radii | `None`     |
+| Name         | Type   | Description                                                                                                                                      | Default    |
+|--------------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| path_indices |        | the indices of the path                                                                                                                          | _required_ |
+| shape        |        | the shape of the grid                                                                                                                            | _required_ |
+| ase_atoms    |        | the ase atoms object for the framework                                                                                                           | _required_ |
+| n_neighbors  |        | the number of neighbors to consider for each grid point, defaults to 10 (optional)                                                               | `10`       |
+| radii        |        | the covalent radii of the atoms in the structure. If not provided, they will be calculated from the atomic numbers using ase.data.covalent_radii | `None`     |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                          |
-|--------|------------------------------------------------------|
-|        | The distances between the atoms and the grid points. |
+| Name   | Type   | Description                                          |
+|--------|--------|------------------------------------------------------|
+|        |        | The distances between the atoms and the grid points. |

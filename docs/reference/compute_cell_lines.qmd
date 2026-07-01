@@ -1,0 +1,7 @@
+# compute_cell_lines { #mofography.movies.compute_cell_lines }
+
+```python
+movies.compute_cell_lines(atoms)
+```
+
+Compute unit-cell wireframe line-segment data.

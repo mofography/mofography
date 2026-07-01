@@ -1,0 +1,16 @@
+# merge_adjacent_groups_by_fingerprint { #mofography.pocket_typing.merge_adjacent_groups_by_fingerprint }
+
+```python
+pocket_typing.merge_adjacent_groups_by_fingerprint(
+    groups,
+    fps,
+    d1_by_rep,
+    *,
+    merge_cosine=FP_MERGE_COSINE,
+    max_probe_gap_a=DEFAULT_ADJACENT_BAND_MERGE_MAX_R_GAP_A,
+    tau_merge_a=DEFAULT_TAU_MERGE_A,
+    gray_extra_a=DEFAULT_GRAY_EXTRA_A,
+)
+```
+
+Union-merge neighboring groups (by mean max_r) when d₁ + fingerprints allow.

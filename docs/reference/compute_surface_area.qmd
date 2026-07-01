@@ -1,0 +1,26 @@
+# compute_surface_area { #mofography.compute.compute_surface_area }
+
+```python
+compute.compute_surface_area(dgrid, probe_radius=None, mat_atoms=None)
+```
+
+Compute the surface area based on the distance grid and probe radius.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+dgrid : numpy.ndarray
+    The distance grid computed from the atomic structure.
+probe_radius : float, optional
+    The radius of the probe to use for surface area calculation. 
+    If None, defaults to the radius of helium (atomic number 2).
+mat_atoms : ase.Atoms
+    The atomic structure for which the surface area is being calculated.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+float
+    The surface area in m^2/g.

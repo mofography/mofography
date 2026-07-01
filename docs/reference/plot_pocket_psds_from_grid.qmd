@@ -1,0 +1,60 @@
+# plot_pocket_psds_from_grid { #mofography.visualize.plot_pocket_psds_from_grid }
+
+```python
+visualize.plot_pocket_psds_from_grid(
+    dgrid,
+    regions_pbc,
+    atoms,
+    *,
+    labels_to_plot=None,
+    num_samples_per_region=50000,
+    bins=None,
+    layout='overlay',
+    material='',
+    probe_radius=None,
+    results=None,
+    return_pocket_psds=True,
+)
+```
+
+Compute and plot Rust pocketwise probe PSDs (not centroid CSD).
+
+Wraps :func:`mofography.rust_fun.compute_psds_pocketwise_rust` and optional
+per-pocket subplots (DUT-75 / UMCM-1 manuscript style).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+dgrid, regions_pbc, atoms
+    Distance grid, PBC region labels, and ASE atoms.
+labels_to_plot : sequence of int, optional
+    Region ids for ``layout="subplots"``. If None and layout is subplots,
+    uses all keys in ``pocket_psds``.
+num_samples_per_region : int
+    Samples per pocket for Rust sampler.
+bins : array-like, optional
+    Histogram bin edges (Å clearance); default ``linspace(0, 50, 200)``.
+layout : {"overlay", "subplots"}
+    ``overlay`` uses :func:`plot_pocket_psds` (overall + all pockets).
+    ``subplots`` builds one row per label in ``labels_to_plot``.
+material : str
+    Title label for overlay figure.
+probe_radius : float, optional
+    If set with ``results``, uses accessible pockets only
+    (:func:`compute_psds_pocketwise_accessible`).
+results : dict, optional
+    Segmentation dict for accessible PSD path.
+return_pocket_psds : bool
+    If True, return ``(pocket_psds, fig, samples)``; else only ``fig``.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+pocket_psds : dict
+    Per-region PSD data (when ``return_pocket_psds``).
+fig : plotly.graph_objects.Figure
+samples : tuple or None
+    ``(sample_points, pore_sizes, sample_point_labels)`` when subplots
+    or when samples are computed.

@@ -1,0 +1,16 @@
+# plot_framework_as_mesh_3js { #mofography.threejs_viz.plot_framework_as_mesh_3js }
+
+```python
+threejs_viz.plot_framework_as_mesh_3js(
+    ase_atoms,
+    show_rings=True,
+    stylize=False,
+    kwargs_frame_mesh=None,
+    kwargs_mesh_for_atoms=None,
+    kwargs_aromatic_rings=None,
+)
+```
+
+Plotly-parity framework mesh for Three.js (same signature as ``plot_framework_as_mesh``).
+
+Returns a trace bundle for :func:`add_traces` / :class:`Figure3js`.

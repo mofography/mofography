@@ -1,0 +1,6 @@
+# summarize_types { #mofography.pocket_typing.summarize_types }
+
+```python
+pocket_typing.summarize_types(pockets, rep_to_type, fps)
+```
+

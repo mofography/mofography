@@ -1,0 +1,6 @@
+# compute_wall_cells { #mofography.helper.compute_wall_cells }
+
+```python
+helper.compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05)
+```
+

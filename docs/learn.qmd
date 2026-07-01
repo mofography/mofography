@@ -18,19 +18,27 @@ We have tutorials in [Docs](.) folder, and you can see a bit more information ab
 ## Table of Tutorials 📚
 | Category | Title | Description | Keywords | Link |
 |----------|----------|-------|-------------|------|
-| Basic | Quick cluster | Get a feel for the whole thing | - | [Link](quick_cluster.ipynb) |
+| Basic | Quick Start | Get a feel for the whole thing | - | [Link](quick_cluster.qmd) |
 | Basic | Basic structure analysis | Basic structure analysis | - | [Link](basic_structure_io.ipynb) |
 | Basic | Basic structure visualization | Basic structure visualization | - | [Link](quick_structure_visualization.ipynb) |
-| Basic | Distance grid | Distance grid calculation and visualization | - | [Link](distance_grid.ipynb) |
-| Basic | Region Segmentation | Region Segmentation | - | [Link](region_segmentation.ipynb) |
-| Basic | PBC | Applying Periodic Boundary Conditions | - | [Link](applying_pbc.ipynb) |
+| Basic | Distance grid | Distance grid calculation and visualization | - | [Link](distance_grid.qmd) |
+| Basic | Region Segmentation | Region Segmentation | - | [Link](region_segmentation.qmd) |
+| Basic | Pocket type detection | Detecting the types of pockets | - | [Link](pockets_detection.qmd) |
+| Basic | VDW radii and segmentation | How Bondi / CRC / Alvarez radii affect the distance grid and pore analysis | - | [Link](vdw_radii.qmd) |
 | Basic | RAG | Region Adjacency Graph (Pore graph) | - | [Link](region_adjacency_graph.ipynb) |
-| Basic | Connections and windows | Detecting the windows in a material | - | [Link](connections_and_windows.ipynb) |
-| Basic | Pocket type detection | Detecting the types of pockets | - | [Link](pockets_detection.ipynb) |
+| Basic | Connections and windows | Detecting the windows in a material | - | [Link](connections_and_windows.qmd) |
+| Basic | Pocket type detection | Detecting the types of pockets | - | [Link](pockets_detection.qmd) |
+| CLI | CLI quick start | Run MOFography from the command line with mgrcli — process a CIF, get pore graphs, PSD, RAG, and textural properties in one shot | mgrcli, CLI, batch, HTS, --pore-dia, --psd, --rag, --types | [Link](cli_quickstart.qmd) |
 | Advanced | Advanced structure visualization | Visualize framework atoms and bonds like a pro | - | [Link](framework_visualization_example.ipynb) |
 | Advanced | Framework subset visualization | Visualize only a subset of the framework atoms and bonds | - | [Link](plot_subset_as_mesh_tutorial.ipynb) |
 | Advanced | Percolation paths and PLD | Compute percolation paths, pore limiting dia. and pocket accessibility | - | [Link](percolated_paths_tutorial.ipynb) |
 | Advanced | MOFDB | Grab a large DataFrame from MOFDB and do some calculations on some randomly chosen MOFs | - | [Link](mofdb_example.ipynb) |
-| Advanced | HTS Dask | Construct pore graphs for all of the IZA dataset in parallel using Mofography and Dask within Jupyter notebook | - | [Link](hts_using_mofography.ipynb) |
+| Advanced | HTS Dask | Construct pore graphs for all of the IZA dataset in parallel using Mofography and Dask within Jupyter notebook. Uses the new merged Rust API (`dgrid_from_atoms_rust` + `do_periodic_segmentation_rust`), adds pocket-type detection with `env_cluster`, saves the canonical `hts_output/<stem>/` layout (`*_results.npz`, `*_pore_dia.csv`, PSD CSVs, RAG pickle), and includes a watershed-backend comparison (`rust_det` vs `rust_det_parallel` vs `rust_bucket` vs `skimage`) and a `tar-on-done` helper for shipping finished runs. | dask, hts, rust_det, watershed backend, env_cluster, tar-on-done, pocket types, accessibility, percolation, IZA | [Link](hts_using_mofography.ipynb) |
 | Advanced | Functional groups | Detect functional groups/moeities in a dataset like CoREMOF | - | [Link](detect_functional_groups_in_dataset.ipynb) |
+| Advanced | Distance grid methods | Compare all 4 distance grid backends (rust_exact, rust_aabb, rust_aabb_interp, cpu) and pick the right one | dgrid backend, AABB, interpolation, decision tree | [Link](dgrid_methods.qmd) |
+| Advanced | Selective smoothing | How preserve_threshold, smooth_threshold, and max_smooth_radius tune h-maxima detection in do_periodic_segmentation_rust | selective smoothing, h-maxima, preserve_threshold, smooth_threshold, max_smooth_radius, tuning | [Link](selective_smoothing.qmd) |
+| Advanced | Window Fingerprinting | Annotate pore-graph windows with element-weighted shell fingerprints; Mechanism A/B accessible-region BFS; effect on accessible SA / void volume | window_fp, mechanism A/B, accessible SA, accessible VV, fingerprint expansion | [Link](window_fingerprinting.qmd) |
+| Advanced | Surface Area & Void Volume | MC shell surface area + void volume with window-fingerprint accessibility; per-pocket/per-region breakdowns; MC vs marching-cubes comparison | surface area, void volume, MC shell, mesh, window_fp, accessibility, IRMOF-1 | [Link](surface_area.qmd) |
 | Advanced | GCN | Compile a dataset of RAGs from scratch and train a small Graph Convolutional Neural Network (GCN) on it to predict hydrogen adsorption at different pressures | - | [Link](graph_convolution_on_rags_ccr.ipynb) |
+| Advanced | Accessibility Methods | Compute LCD, PLD, DFSD with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius | winding, lattice, PLD, LCD, DFSD, accessibility, percolation, threejs | [Link](accessibility.qmd) |
+| Advanced | Watershed Backends | Compare all four watershed backends (rust_det, rust_bucket, rust_det_parallel, skimage) on IRMOF-1 — timing, peak memory, determinism, and number of regions. Pick the right backend for your cell size | watershed backend, rust_det, rust_bucket, rust_det_parallel, skimage, deterministic, timing, memory, IRMOF-1 | [Link](watershed_backends.qmd) |

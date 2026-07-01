@@ -1,0 +1,6 @@
+# check_wall_per_dim { #mofography.helper.check_wall_per_dim }
+
+```python
+helper.check_wall_per_dim(maxima, ase_atoms, spacing, wall_thickness=0.075)
+```
+

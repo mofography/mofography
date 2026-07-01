@@ -1,18 +1,20 @@
 # make_pore_size_distribution_fig_from_rag { #mofography.visualize.make_pore_size_distribution_fig_from_rag }
 
-`visualize.make_pore_size_distribution_fig_from_rag(rag)`
+```python
+visualize.make_pore_size_distribution_fig_from_rag(rag)
+```
 
 The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore
 size distribution and cumulative distribution from a given RAG.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
 | Name   | Type   | Description                                                                                                                                                                                                                                                             | Default    |
 |--------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `rag`  |        | The function `make_pore_size_distribution_fig_from_rag` takes a RAG (Region Adjacency Graph) object as input and creates a plotly figure showing the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based on the data stored in the RAG object | _required_ |
+| rag    |        | The function `make_pore_size_distribution_fig_from_rag` takes a RAG (Region Adjacency Graph) object as input and creates a plotly figure showing the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based on the data stored in the RAG object | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                                                                                                                                      |
-|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `make_pore_size_distribution_fig_from_rag` returns a Plotly figure object that contains a plot of the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based on the input Reservoir Analog Graph (RAG) data. |
+| Name   | Type   | Description                                                                                                                                                                                                                                      |
+|--------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `make_pore_size_distribution_fig_from_rag` returns a Plotly figure object that contains a plot of the Pore Size Distribution (PDF) and Cumulative Distribution Function (CDF) based on the input Reservoir Analog Graph (RAG) data. |

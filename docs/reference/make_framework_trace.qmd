@@ -1,0 +1,13 @@
+# make_framework_trace { #mofography.movies.make_framework_trace }
+
+```python
+movies.make_framework_trace(
+    atoms,
+    bonds='auto',
+    style='framework',
+    name='Framework',
+    trace_id='framework',
+    representation='ball_and_stick',
+)
+```
+

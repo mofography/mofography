@@ -1,31 +1,15 @@
 # add_psd_to_rag_with_pbc { #mofography.compute.add_psd_to_rag_with_pbc }
 
-`compute.add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape)`
+```python
+compute.add_psd_to_rag_with_pbc(
+    rag,
+    props,
+    pbc_groups,
+    bins,
+    ase_atoms,
+    shape,
+    pocket_psds=None,
+)
+```
 
-> It takes a rag, a list of properties, a list of pbc groups, a list of bins, an ase atoms object
-and a shape and returns a region adjacency graph with pbc properties added to it. 
-
-Let's see how we can use this function. 
-
-First, we need to get the pbc groups. 
-
-We can do that using the `get_pbc_groups` function and setting return_conn option to True (it is False by default)
-
-Let's see how we can use it.
-
-## Parameters
-
-| Name         | Type   | Description                                                                           | Default    |
-|--------------|--------|---------------------------------------------------------------------------------------|------------|
-| `rag`        |        | the region adjacency graph                                                            | _required_ |
-| `props`      |        | list of dictionaries containing the properties of each region                         | _required_ |
-| `pbc_groups` |        | list of lists of labels of regions that are connected by periodic boundary conditions | _required_ |
-| `bins`       |        | the bins for the histogram                                                            | _required_ |
-| `ase_atoms`  |        | ASE atoms object                                                                      | _required_ |
-| `shape`      |        | shape of the image                                                                    | _required_ |
-
-## Returns
-
-| Type   | Description                                           |
-|--------|-------------------------------------------------------|
-|        | The graph with the pbc properties added to the nodes. |
+Deprecated: calls add_csd_to_rag_with_pbc and optionally add_pocket_psd_to_rag_with_pbc.

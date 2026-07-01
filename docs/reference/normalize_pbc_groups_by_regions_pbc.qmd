@@ -1,0 +1,7 @@
+# normalize_pbc_groups_by_regions_pbc { #mofography.compute.normalize_pbc_groups_by_regions_pbc }
+
+```python
+compute.normalize_pbc_groups_by_regions_pbc(pbc_groups, regions, regions_pbc)
+```
+
+Map PBC fragment groups to ``regions_pbc`` representative ids (visualization labels).

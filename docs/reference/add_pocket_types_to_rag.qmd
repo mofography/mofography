@@ -1,0 +1,34 @@
+# add_pocket_types_to_rag { #mofography.compute.add_pocket_types_to_rag }
+
+```python
+compute.add_pocket_types_to_rag(
+    rag,
+    rep_to_type,
+    pbc_groups=None,
+    *,
+    cluster_key=CLUSTER_ENV_PBC,
+    as_string=True,
+)
+```
+
+Stamp pocket-type labels on RAG nodes (parallel to ``cluster_geom_pbc``).
+
+After :func:`~mofography.workflow.assign_pocket_types` with ``env_cluster``,
+use ``cluster_key="cluster_env_pbc"`` with :func:`clustering_grid_from_regions`
+and :func:`~mofography.visualize.plot_pocket_psds_on_rag`.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type   | Description                                                                                          | Default           |
+|-------------|--------|------------------------------------------------------------------------------------------------------|-------------------|
+| rag         |        | Region adjacency graph (NetworkX).                                                                   | _required_        |
+| rep_to_type |        | ``{pbc_rep_region_id: type_id}`` (0-based), e.g. ``typed.rep_to_type``.                              | _required_        |
+| pbc_groups  |        | PBC fragment groups; when given, every periodic copy of a pocket receives the representative's type. | `None`            |
+| cluster_key | str    | Node attribute name (default ``cluster_env_pbc``).                                                   | `CLUSTER_ENV_PBC` |
+| as_string   | bool   | Store labels as strings like ``cluster_geom_pbc``.                                                   | `True`            |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                    |
+|--------|--------|------------------------------------------------|
+|        |        | Deep-copied RAG with ``cluster_key`` on nodes. |

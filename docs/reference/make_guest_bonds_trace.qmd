@@ -1,0 +1,12 @@
+# make_guest_bonds_trace { #mofography.movies.make_guest_bonds_trace }
+
+```python
+movies.make_guest_bonds_trace(
+    atoms,
+    style='guest_bonds',
+    name='Adsorbate bonds',
+    trace_id='guest_bonds',
+)
+```
+
+Build cylindrical bond mesh for polyatomic adsorbates.

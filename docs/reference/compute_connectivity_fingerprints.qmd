@@ -1,0 +1,22 @@
+# compute_connectivity_fingerprints { #mofography.pocket_framework_env.compute_connectivity_fingerprints }
+
+```python
+pocket_framework_env.compute_connectivity_fingerprints(
+    pocket_centres,
+    trusted_neighbors,
+    atoms,
+    *,
+    l_max=FP_L_MAX,
+    min_connections=1,
+)
+```
+
+SH power spectrum of direction vectors to trusted neighbour pocket centres.
+
+Returns {rep: power_spectrum_array(l_max+1)}.  Pockets with fewer than
+``min_connections`` trusted connections get a zero vector.
+
+The minimum image convention (MIC) is applied so that the nearest periodic
+image of each neighbour is used.  Connections that pass through a window
+smaller than ``WINDOW_TRUST_MIN_A`` (1 Å radius) are already excluded by
+the caller (``build_pockets_from_segmentation`` in pocket_typing.py).

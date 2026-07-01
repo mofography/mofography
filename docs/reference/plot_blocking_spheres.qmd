@@ -1,0 +1,64 @@
+# plot_blocking_spheres { #mofography.visualize.plot_blocking_spheres }
+
+```python
+visualize.plot_blocking_spheres(
+    spheres_or_builder_output,
+    ase_atoms,
+    *,
+    render_mode='points',
+    opacity=0.35,
+    color='crimson',
+    name='Blocking spheres',
+    n_points_per_sphere=42,
+    marker_size=2,
+    regions=None,
+    color_by=None,
+    hover_text=None,
+    plot_centers_only=False,
+    center_marker_size=7,
+    colorscale='Viridis',
+    mesh_opacity=0.3,
+    mesh_color='crimson',
+    mesh_theta_resolution=28,
+    mesh_phi_resolution=28,
+    auto_mesh_max_spheres=250,
+    auto_points_max_spheres=1200,
+    **kwargs,
+)
+```
+
+Plot RASPA blocking spheres (fractional ``[sx, sy, sz, r]`` with ``r`` in Å).
+
+The first argument may be:
+
+* a plain sequence of sphere rows;
+* ``(spheres, meta)`` from :func:`mofography.raspa_helper.blocking_spheres_greedy`;
+* ``(spheres, percolated, inaccessible)`` from
+  :func:`mofography.raspa_helper.blocking_spheres_for_probe_radius`.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+render_mode : {"points", "centers", "mesh", "auto"}
+    ``points`` — Fibonacci-sampled shell markers (default; matches legacy
+    ``plot_blocking_spheres``).
+    ``centers`` — one marker per sphere (also selected when
+    ``plot_centers_only=True``).
+    ``mesh`` — smooth spheres as **one** combined ``Mesh3d`` (all PyVista
+    spheres are concatenated with ``trimesh.util.concatenate`` inside
+    :func:`plot_mesh`).
+    ``auto`` — mesh for small ``N``, then points, then centers (see
+    ``auto_mesh_max_spheres`` / ``auto_points_max_spheres``).
+mesh_opacity, mesh_color, mesh_theta_resolution, mesh_phi_resolution
+    Used when ``render_mode`` is ``"mesh"`` or chosen by ``"auto"``.
+opacity, color, marker_size, n_points_per_sphere, regions, color_by,
+hover_text, center_marker_size, colorscale
+    Used for ``points`` / ``centers`` scatter modes.
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+plotly.graph_objects.Scatter3d or plotly.graph_objects.Mesh3d
+    One Plotly trace (scatter or a single combined blocking mesh).

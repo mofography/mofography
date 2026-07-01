@@ -1,0 +1,20 @@
+# find_pbc_wrap_marker_pair { #mofography.widest_path_resegment.find_pbc_wrap_marker_pair }
+
+```python
+widest_path_resegment.find_pbc_wrap_marker_pair(
+    maxima_info,
+    pbc_groups,
+    labels=None,
+    dgrid=None,
+    mask=None,
+    boundary_score_fn=None,
+)
+```
+
+Find the leakiest in-cell + single-axis wrapped marker pair.
+
+When ``labels``, ``dgrid``, ``mask``, and ``boundary_score_fn`` are supplied,
+picks the pair with the largest boundary-score (Phase 2 leak detector).
+Otherwise returns the first single-axis pair found.
+
+Returns ``(label_a, label_b, pos_a, pos_b, wrap_offset)`` or ``None``.

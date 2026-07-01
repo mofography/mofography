@@ -1,0 +1,31 @@
+# compute_pore_sizes_pocketwise_rust { #mofography.rust_fun.compute_pore_sizes_pocketwise_rust }
+
+```python
+rust_fun.compute_pore_sizes_pocketwise_rust(
+    dgrid,
+    regions_pbc,
+    ase_atoms,
+    samples_per_region=1000,
+    probe_center_min_radius=None,
+)
+```
+
+Compute pore sizes for each pocket/region separately.
+
+This function samples points within each identified pore region and calculates
+the pore size distribution for each region individually.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name               | Type          | Description                                          | Default    |
+|--------------------|---------------|------------------------------------------------------|------------|
+| dgrid              | numpy.ndarray | 3D distance grid from dgrid_from_atoms_rust          | _required_ |
+| regions_pbc        | numpy.ndarray | 3D array of region labels from periodic segmentation | _required_ |
+| ase_atoms          | ase.Atoms     | ASE Atoms object of the material                     | _required_ |
+| samples_per_region | int           | Number of sample points per region label             | `1000`     |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                 | Description                                         |
+|--------|------------------------------------------------------|-----------------------------------------------------|
+|        | tuple\[numpy.ndarray, numpy.ndarray, numpy.ndarray\] | Tuple of (sample_points, pore_sizes, region_labels) |

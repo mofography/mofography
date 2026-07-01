@@ -1,0 +1,4 @@
+# plot_blocking_spheres_styled { #mofography.visualize.plot_blocking_spheres_styled }
+
+`visualize.plot_blocking_spheres_styled`
+

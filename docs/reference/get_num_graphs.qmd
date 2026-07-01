@@ -1,18 +1,20 @@
 # get_num_graphs { #mofography.data.get_num_graphs }
 
-`data.get_num_graphs(db_path)`
+```python
+data.get_num_graphs(db_path)
+```
 
 The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified
 by the `db_path`.
 
-## Parameters
+## Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type   | Description                                                                                                                                                                                                                                                                          | Default    |
-|-----------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| `db_path` |        | The `db_path` parameter in the `get_num_graphs` function is the path to the SQLite database file that contains the table of graphs. This function connects to the SQLite database at the specified path, executes a SQL query to count the number of rows in the `graphs` table, and | _required_ |
+| Name    | Type   | Description                                                                                                                                                                                                                                                                          | Default    |
+|---------|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| db_path |        | The `db_path` parameter in the `get_num_graphs` function is the path to the SQLite database file that contains the table of graphs. This function connects to the SQLite database at the specified path, executes a SQL query to count the number of rows in the `graphs` table, and | _required_ |
 
-## Returns
+## Returns {.doc-section .doc-section-returns}
 
-| Type   | Description                                                                                                                         |
-|--------|-------------------------------------------------------------------------------------------------------------------------------------|
-|        | The function `get_num_graphs` returns the number of rows in the "graphs" table from the SQLite database specified by the `db_path`. |
+| Name   | Type   | Description                                                                                                                         |
+|--------|--------|-------------------------------------------------------------------------------------------------------------------------------------|
+|        |        | The function `get_num_graphs` returns the number of rows in the "graphs" table from the SQLite database specified by the `db_path`. |

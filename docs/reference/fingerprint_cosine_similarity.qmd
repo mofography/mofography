@@ -1,0 +1,25 @@
+# fingerprint_cosine_similarity { #mofography.pocket_framework_env.fingerprint_cosine_similarity }
+
+```python
+pocket_framework_env.fingerprint_cosine_similarity(
+    a,
+    b,
+    *,
+    angular_only=False,
+    use_psd=True,
+    use_connectivity=True,
+)
+```
+
+Mean cosine over environment + PSD + connectivity channels (rotation-invariant).
+
+Channels:
+  * global_radial, global_sh_power  — atom environment shell
+  * per-element radial, sh_power    — element-resolved atom environment
+  * psd_vec                         — pocket PSD histogram (size fingerprint)
+  * conn_sh_power                   — SH power of directions to trusted neighbours
+
+``angular_only`` suppresses radial channels (better for small pockets).
+``use_psd`` includes the pocket PSD channel when available (default True).
+``use_connectivity`` includes the connectivity-direction channel when both
+pockets have ≥1 trusted connection (default True).

@@ -1,0 +1,36 @@
+# plot_windows_from_results { #mofography.threejs_viz.plot_windows_from_results }
+
+```python
+threejs_viz.plot_windows_from_results(
+    connections_or_seg,
+    dgrid=None,
+    atoms=None,
+    spacing=None,
+    name='Windows',
+    marker_color=None,
+    marker_size=10,
+    marker_opacity=0.8,
+    outside_windows_to_periodic=True,
+)
+```
+
+Plot window positions with optional periodic reclassification (Three.js backend).
+
+This is the enriched version of :func:`plot_windows` that can reclassify
+far-outside "internal" windows as periodic (needed for non-orthogonal cells).
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+connections_or_seg : list or dict
+    Either a connections list or a full seg dict.
+dgrid : ndarray, optional
+    Distance grid (shape used for boundary checks).
+atoms : ASE Atoms, optional
+    Unit cell atoms (for cell matrix and wall computation).
+spacing : float, optional
+    Grid spacing (for wall tolerance computation).
+outside_windows_to_periodic : bool, default True
+    If True, windows tagged "internal" whose Cartesian position is far
+    outside the unit cell are reclassified as periodic.

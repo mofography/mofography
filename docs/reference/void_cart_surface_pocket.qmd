@@ -1,0 +1,24 @@
+# void_cart_surface_pocket { #mofography.pocket_framework_env.void_cart_surface_pocket }
+
+```python
+pocket_framework_env.void_cart_surface_pocket(
+    regions_pbc,
+    dgrid,
+    rep,
+    shape,
+    atoms,
+    *,
+    surface_dgrid_max=SURFACE_DGRID_MAX_A,
+    mask_thickness=0.05,
+    max_samples=SURFACE_MAX_SAMPLES,
+)
+```
+
+Surface void voxels of pocket ``rep`` (small dgrid → close to VDW surface).
+
+
+
+## Returns {.doc-section .doc-section-returns}
+
+surface_voxels_cart : (N, 3) Cartesian, MIC-wrapped around pocket maximum
+peak_cart : (3,) Cartesian position of the dgrid maximum (physical cage centre)

@@ -1,0 +1,14 @@
+# embedded_movie_dict_from_path { #mofography.movies.embedded_movie_dict_from_path }
+
+```python
+movies.embedded_movie_dict_from_path(
+    path,
+    *,
+    movie_format='auto',
+    max_frames=None,
+    frame_stride=1,
+    position_decimals=4,
+)
+```
+
+Load trajectory and return the JSON ``movie`` block used by ``md_pdb_threejs_viewer``.

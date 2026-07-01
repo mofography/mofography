@@ -1,0 +1,13 @@
+# psd_bins { #mofography.pocket_typing.psd_bins }
+
+```python
+pocket_typing.psd_bins(
+    dgrid,
+    *,
+    max_diameter_a=DEFAULT_PSD_MAX_DIAMETER_A,
+    bin_width_a=DEFAULT_PSD_BIN_WIDTH_A,
+    min_bins=200,
+)
+```
+
+Diameter bins for pocketwise probe-occupiable PSDs.

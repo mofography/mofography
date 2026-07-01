@@ -1,0 +1,7 @@
+# build_rep_to_fragment_group { #mofography.pocket_typing.build_rep_to_fragment_group }
+
+```python
+pocket_typing.build_rep_to_fragment_group(pbc_groups)
+```
+
+PBC representative (min label) → all fragment region labels in that pocket.

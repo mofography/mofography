@@ -1,0 +1,214 @@
+# MovieFigure { #mofography.threejs_viz.MovieFigure }
+
+```python
+threejs_viz.MovieFigure(
+    data=None,
+    layout=None,
+    frames=None,
+    groups=None,
+    styles=None,
+    meta=None,
+)
+```
+
+Plotly-like API for building Three.js movie scenes.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [add_cell](#mofography.threejs_viz.MovieFigure.add_cell) | Add unit-cell wireframe (static). |
+| [add_connections](#mofography.threejs_viz.MovieFigure.add_connections) | Add pore-graph connection lines + nodes (internal + optional periodic). |
+| [add_framework](#mofography.threejs_viz.MovieFigure.add_framework) | Add framework atoms + bonds as a mesh trace (static). |
+| [add_guests](#mofography.threejs_viz.MovieFigure.add_guests) | Add guest / adsorbate atoms as instanced spheres (single frame, static). |
+| [add_maxima](#mofography.threejs_viz.MovieFigure.add_maxima) | Add pore-centre maxima points (internal always visible, periodic optionally hidden). |
+| [add_surface](#mofography.threejs_viz.MovieFigure.add_surface) | Add segmentation isosurface mesh (static). |
+| [add_windows](#mofography.threejs_viz.MovieFigure.add_windows) | Add window points between connected pores (internal + optional periodic). |
+| [export_png](#mofography.threejs_viz.MovieFigure.export_png) | Export the current static scene to PNG. |
+| [set_lights](#mofography.threejs_viz.MovieFigure.set_lights) | Set Three.js scene lighting (embedded in exported HTML). |
+| [show](#mofography.threejs_viz.MovieFigure.show) | Display the figure. |
+
+### add_cell { #mofography.threejs_viz.MovieFigure.add_cell }
+
+```python
+threejs_viz.MovieFigure.add_cell(atoms, **style)
+```
+
+Add unit-cell wireframe (static).
+
+### add_connections { #mofography.threejs_viz.MovieFigure.add_connections }
+
+```python
+threejs_viz.MovieFigure.add_connections(seg, atoms, hide_periodic=True, **style)
+```
+
+Add pore-graph connection lines + nodes (internal + optional periodic).
+
+### add_framework { #mofography.threejs_viz.MovieFigure.add_framework }
+
+```python
+threejs_viz.MovieFigure.add_framework(
+    atoms,
+    bonds='auto',
+    representation='ball_and_stick',
+    **style,
+)
+```
+
+Add framework atoms + bonds as a mesh trace (static).
+representation: "ball_and_stick" (default), "stick", or "space_filling".
+When called with default representation, both ball-and-stick and stick
+meshes are added; the stick mesh starts hidden and can be toggled in the viewer.
+
+### add_guests { #mofography.threejs_viz.MovieFigure.add_guests }
+
+```python
+threejs_viz.MovieFigure.add_guests(atoms, color=None, **style)
+```
+
+Add guest / adsorbate atoms as instanced spheres (single frame, static).
+
+### add_maxima { #mofography.threejs_viz.MovieFigure.add_maxima }
+
+```python
+threejs_viz.MovieFigure.add_maxima(seg, atoms, hide_periodic=True, **style)
+```
+
+Add pore-centre maxima points (internal always visible, periodic optionally hidden).
+
+### add_surface { #mofography.threejs_viz.MovieFigure.add_surface }
+
+```python
+threejs_viz.MovieFigure.add_surface(
+    dgrid,
+    regions,
+    atoms,
+    isovalue=1.0,
+    step_size=1,
+    **style,
+)
+```
+
+Add segmentation isosurface mesh (static).
+
+### add_windows { #mofography.threejs_viz.MovieFigure.add_windows }
+
+```python
+threejs_viz.MovieFigure.add_windows(
+    seg,
+    hide_periodic=True,
+    atoms=None,
+    spacing=None,
+    reclassify_far_outside=True,
+    **style,
+)
+```
+
+Add window points between connected pores (internal + optional periodic).
+
+When *atoms* and *spacing* are supplied and *reclassify_far_outside* is True,
+windows tagged ``internal`` whose Cartesian position is far outside the unit
+cell are reclassified as periodic (prevents phantom internal-window markers
+for non-orthogonal cells).
+
+### export_png { #mofography.threejs_viz.MovieFigure.export_png }
+
+```python
+threejs_viz.MovieFigure.export_png(
+    path,
+    *,
+    resolution_mult=2,
+    width=None,
+    height=None,
+    wait_ms=1500,
+)
+```
+
+Export the current static scene to PNG.
+
+Uses Playwright headless Chromium when installed::
+
+    pip install playwright
+    playwright install chromium
+
+Otherwise raises with instructions to use the in-viewer **Export PNG**
+button after ``.show(renderer="browser")``.
+
+
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+path
+    Output ``.png`` path.
+resolution_mult
+    Supersampling factor (matches the viewer Export PNG control).
+width, height
+    Browser viewport in pixels (default 1280×720).
+wait_ms
+    Milliseconds to wait for WebGL scene load before capture.
+
+### set_lights { #mofography.threejs_viz.MovieFigure.set_lights }
+
+```python
+threejs_viz.MovieFigure.set_lights(
+    ambient=None,
+    hemisphere_intensity=None,
+    hemisphere_sky=None,
+    hemisphere_ground=None,
+    dir_key_intensity=None,
+    dir_key_position=None,
+    dir_fill_intensity=None,
+    dir_fill_position=None,
+    ssao=None,
+    explicit=True,
+)
+```
+
+Set Three.js scene lighting (embedded in exported HTML).
+
+When *explicit* is True (default), the viewer uses these intensities
+as-is and does **not** apply the automatic orthographic compensation.
+
+
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+ambient
+    Ambient light intensity (0–1 typical).
+hemisphere_intensity, hemisphere_sky, hemisphere_ground
+    Hemisphere light settings (sky/ground are hex colours).
+dir_key_intensity, dir_key_position
+    Key directional light.
+dir_fill_intensity, dir_fill_position
+    Fill directional light.
+ssao
+    Enable SSAO. Default: off in orthographic, on in perspective.
+explicit
+    If True, skip orthographic auto-boost of directional lights.
+
+### show { #mofography.threejs_viz.MovieFigure.show }
+
+```python
+threejs_viz.MovieFigure.show(renderer='notebook', *, port=None)
+```
+
+Display the figure.
+
+
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+renderer
+    ``"notebook"`` — display inline in Jupyter output cell (default).
+    ``"browser"`` — serve HTML on ``127.0.0.1`` (random free port) and
+    open in the system browser (Plotly-style). Also writes a temp HTML
+    backup and prints its path.
+port
+    Optional fixed port for ``renderer="browser"`` (default: auto).
+
+
+
+#### Returns {.doc-section .doc-section-returns}
+
+str or None
+    Viewer URL when ``renderer="browser"``, else None.

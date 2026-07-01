@@ -1,0 +1,13 @@
+# peak_cart_for_fragment_group { #mofography.pocket_framework_env.peak_cart_for_fragment_group }
+
+```python
+pocket_framework_env.peak_cart_for_fragment_group(
+    regions,
+    dgrid,
+    fragment_labels,
+    shape,
+    atoms,
+)
+```
+
+Cartesian position of the dgrid maximum for a PBC pocket group.

@@ -1,0 +1,8 @@
+# estimate_h_from_percolation_history { #mofography.helper.estimate_h_from_percolation_history }
+
+```python
+helper.estimate_h_from_percolation_history(distance_grid)
+```
+
+Estimate h parameter using PLR and analysis of percolation transition.
+Returns a suitable h value for h-maxima detection.

@@ -1,0 +1,7 @@
+# expand_bond_closure { #mofography.pocket_framework_env.expand_bond_closure }
+
+```python
+pocket_framework_env.expand_bond_closure(atom_idx, bonds, n_hops=1)
+```
+
+Add bonded neighbors up to ``n_hops`` (cushion beyond distance shell).
