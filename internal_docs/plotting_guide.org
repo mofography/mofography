@@ -1,0 +1,1195 @@
+#+title: Mofography plotting guide — Plotly & Three.js
+#+filetags: :mofography:visualization:plotly:threejs:tutorial:
+#+description: How to plot MOF pores, surfaces, maxima, connections, windows, and PSDs (both backends).
+#+property: header-args:python :eval no-export :exports code
+#+options: toc:3 html-style:nil html-scripts:nil
+#+startup: overview
+
+:PROPERTIES:
+:ID:       a1b2c3d4-e5f6-7890-abcd-ef1234567890
+:ROAM_ALIASES: "mofography plotting" "plot windows surface maxima" "Plotly vs Three.js mofography"
+:ROAM_TAGS: mofography visualization plotly threejs figure3d plotting-guide
+:END:
+
+* Overview
+
+Mofography has two 3D rendering backends. **Default for new work: Three.js** (interactive HTML, large scenes). **Plotly** remains best for notebook =go.Figure= workflows and 2D PSD curves.
+
+| Backend | Module | Trace type | Assemble with |
+|---------+--------+------------+---------------|
+| Three.js | =mofography.threejs_viz= + =movies= | Trace dict / bundle | =Figure3D=, =Figure3js=, or =show_mof_threejs= |
+| Plotly | =mofography.visualize= | =Mesh3d=, =Scatter3d= | =plotly.graph_objects.Figure= |
+
+Related: =docs/tutorial_figure3d.org=, =docs/native_granular_viz.org=.
+
+
+* Quick start
+
+**Plotly (notebook):**
+
+#+begin_src python
+import plotly.graph_objects as go
+import mofography as mgr
+
+fig = go.Figure(
+    data=[*mgr.plot_framework_as_mesh(mat_updated), mgr.plot_cell(mat_atoms)],
+    layout=mgr.white_layout,
+)
+fig.show(renderer="firefox")
+#+end_src
+
+**Three.js (HTML scene):**
+
+#+begin_src python
+from mofography import Figure3js
+
+fig = (
+    Figure3js(layout="white", stylize=True)
+    .plot_framework_as_mesh_3js(mat_updated, stylize=True)
+    .plot_cell_3js(mat_atoms, color="orange")
+)
+fig.to_html("scene.html")
+#+end_src
+
+** HTML export:** Code blocks are =:eval no-export= (shown as source only). Run a block in Emacs with =C-c C-v b= when you want live output.
+
+* API naming (migrated)
+
+| Backend | Call pattern | Figure object |
+|---------+--------------+---------------|
+| **Plotly** (notebooks, =go.Figure=) | =mgr.plot_cell=, =mgr.plot_surface_dgrid=, … | =plotly.graph_objects.Figure= |
+| **Three.js** (interactive HTML, default for new 3D work) | =mgr.plot_cell_3js=, =mgr.plot_surface_dgrid_3js=, … | =Figure3js= (alias =Figure3JS=) |
+
+- Plotly names are **unchanged** — existing tutorials keep working.
+- Three.js uses an explicit =_3js= suffix so backends never shadow each other.
+- =Figure3js.add_trace= / =.add_traces= **reject** Plotly traces; use =mgr.add_traces_plotly(fig, …)= for Plotly with the same validation.
+
+* Figure containers — which object to build
+
+| Container | Backend | Typical use |
+|-----------+---------+-------------|
+| =go.Figure(data=[...], layout=mgr.white_layout)= | Plotly | Jupyter / Firefox renderer; combine =Mesh3d= + =Scatter3d= |
+| =Figure3D()= (=MovieFigure=) | Three.js | Low-level: =.add_framework()=, =.add_cell()=, =.add_surface()=, =.to_html()= |
+| =Figure3js()= | Three.js | Fluent API: =.plot_*_3js()= (same args as Plotly) on top of =Figure3D= |
+| =show_mof_threejs(seg, atoms, …)= | Three.js | One-shot scene from segmentation dict |
+| =show_mof_plotly(seg, atoms, …)= | Plotly | One-shot Plotly scene |
+
+#+begin_src python
+from mofography.movies import Figure3D
+from mofography import Figure3js
+import mofography as mgr
+
+# Figure3D — canonical Three.js builder (same class as MovieFigure)
+fig3d = Figure3D(layout="white")
+fig3d.add_framework(mat_updated).add_cell(mat_atoms).to_html("scene.html")
+
+# Figure3js — chaining sugar on top of Figure3D
+fig = (
+    Figure3js(layout="white")
+    .plot_framework_as_mesh_3js(mat_updated, stylize=True)
+    .plot_cell_3js(mat_atoms, color="orange")
+    .to_html("scene_chain.html")
+)
+#+end_src
+
+* Master trace map (Plotly vs Three.js)
+
+Assume =results= from =do_periodic_segmentation_rust=, =mat_atoms=, =mat_updated = update_with_covalent_bonds(mat_atoms)=, =connections_trimmed=, =cscale= (e.g. =px.colors.qualitative.Pastel=).
+
+| Trace | Plotly (=go.Figure=) | Three.js (=Figure3D= / bundles) |
+|-------+----------------------+----------------------------------|
+| Framework mesh | =mgr.plot_framework_as_mesh(mat_updated, stylize=True)= | =plot_framework_as_mesh_3js(...)= or =Figure3js().plot_framework_as_mesh_3js(...)= |
+| Framework scatter/stick | =mgr.draw_framework(mat_updated, …)= | =draw_framework_3js(...)= or =.draw_framework_3js(...)= |
+| Unit cell | =mgr.plot_cell(atoms, color=…)= | =plot_cell_3js(atoms, …)= or =.plot_cell_3js(atoms)= |
+| Iso-surface (regions) | =mgr.plot_surface_dgrid(...)= | =plot_surface_dgrid_3js(...)= or =.plot_surface_dgrid_3js(...)= |
+| Iso-surface (PBC regions) | same with =region_labels=regions_pbc= | same |
+| Maxima (local subset) | =mgr.plot_maxima(dgrid, maxima, atoms, …)= | =plot_maxima_from_grid_3js(..., hide_periodic=True)= |
+| Maxima (PBC) | =mgr.plot_maxima(dgrid, maxima_pbc, atoms, …)= | =plot_maxima_from_grid_3js(...)= |
+| Connections (internal + periodic) | =mgr.plot_connections_as_it_is(...)= | =plot_connections_as_it_is_3js(...)= |
+| Connections (internal only) | =plot_periodic=False= | =plot_connections_3js(seg, atoms, hide_periodic=True)= |
+| Windows (simple) | =mgr.plot_windows(connections_trimmed, …)= | =plot_windows_3js(connections_trimmed, …)= |
+| Windows (+ far-outside → periodic) | =mgr.plot_windows_from_results(...)= | =plot_windows_from_results_3js(...)= |
+| Percolated cluster meshes | =mgr.plot_percolated_cluster_meshes(...)= | =plot_percolated_cluster_meshes_3js(...)= |
+| PLD-critical windows | =mgr.plot_percolation_windows(...)= | =plot_percolation_windows_3js(...)= |
+| CSD curves (centroid distance, for clustering) | =mgr.plot_csds(rag, pbc_groups, cluster_key=…)= | Plotly only |
+| Pocketwise probe PSDs (Rust sampler) | =compute_psds_pocketwise_rust= + =plot_pocket_psds= | Plotly only |
+| Full scene | =show_mof_plotly(results, atoms, …)= | =show_mof_threejs(results, atoms, …)= |
+
+**Add traces to Three.js:** =fig.add_traces(bundle)= flattens ={"internal": …, "periodic": …}= dicts. **Do not** pass Three.js bundles to =go.Figure=.
+
+* Prerequisites
+
+#+begin_src python
+from pathlib import Path
+from ase.io import read
+import numpy as np
+import mofography as mgr
+
+mat_atoms = read(Path("./DUT-75_uncapped.cif").expanduser())
+spacing = 0.5
+dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=spacing).astype(np.float32)
+results = mgr.do_periodic_segmentation_rust(
+    dgrid, mat_atoms, mask_thickness=0.05, h=0.2, spacing=spacing,
+    threshold_abs=1.5, min_distance=1.5, return_dgrid=True,
+    return_padded_regions=True, extra_padding=2,
+)
+dgrid = results["dgrid"]
+regions = results["regions"]
+regions_pbc = results["regions_pbc"]
+connections = results["connections"]
+all_maxima = results["all_maxima"]
+maxima_pbc = results["maxima_pbc"]
+unique_regions = results["unique_regions"]
+maxima = all_maxima[: regions.max()]
+connections_trimmed = [c for c in connections if np.all(np.isin(c[0], unique_regions))]
+mat_updated = mgr.update_with_covalent_bonds(mat_atoms)
+#+end_src
+
+Connection tuple: =[ (n1, n2), has_path, "internal"|"periodic", window_xyz_list, radii_list ]=.
+
+* Color scales (=cscale=)
+
+| Input | Three.js | Plotly |
+|-------+----------+--------|
+| =None= | 10-color default | solid =color= |
+| =px.colors.qualitative.Pastel= | parsed RGB ints | colorscale on mesh/markers |
+| ="red"=, ="#ff0000"= | single RGB | name / hex |
+| ="viridis"= | sampled colormap | scale name |
+
+#+begin_src python
+import plotly.express as px
+cscale = px.colors.qualitative.Pastel
+#+end_src
+
+* Traces in detail
+
+** Convention:** *Plotly* → =mgr.plot_*= on =go.Figure=. *Three.js* → =mgr.plot_*_3js= and =Figure3js= (chaining methods =.plot_*_3js()= mirror the functional API).
+
+*** Framework — mesh (ball-and-stick as mesh)
+
+**** Plotly
+
+#+begin_src python
+frame_traces = mgr.plot_framework_as_mesh(
+    mat_updated, stylize=True, show_rings=True)
+# list of Mesh3d — use [*frame_traces] in go.Figure
+#+end_src
+
+| Argument | Default | Notes |
+|----------+---------+-------|
+| =ase_atoms= | required | Use =update_with_covalent_bonds= first |
+| =show_rings= | =True= | Aromatic ring traces |
+| =stylize= | =False= | Lighting preset |
+| =kwargs_frame_mesh= | legend/name | Passed to =Mesh3d= |
+
+**** Three.js
+
+#+begin_src python
+# Functional trace dict
+bundle = mgr.draw_framework_3js(mat_updated, representation="mesh", name="Framework")
+
+# Or builder
+from mofography.movies import Figure3D
+fig = Figure3D().add_framework(mat_updated, show_rings=True)
+#+end_src
+
+*** Framework — scatter / ball-and-stick (lighter)
+
+**** Plotly
+
+#+begin_src python
+traces = mgr.draw_framework(mat_updated, show_aromatics=True, bond_opacity=0.9)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+bundle = mgr.draw_framework_3js(
+    mat_updated, representation="scatter", atom_scale=0.65, name="Framework")
+#+end_src
+
+*** Unit cell
+
+**** Plotly
+
+#+begin_src python
+cell_trace = mgr.plot_cell(mat_atoms, color="orange", name="cell")
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+cell_trace = mgr.plot_cell_3js(mat_atoms, color="orange", name="cell")
+# Figure3D: Figure3D().add_cell(mat_atoms, color=[1, 0.65, 0])
+#+end_src
+
+*** Iso-surfaces (segmentation / PBC)
+
+**** Plotly
+
+#+begin_src python
+iso = mgr.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=mat_atoms, region_labels=regions_pbc,
+    opacity=1.0, cscale=cscale, stepsize=1, stylize=True, name="Regions PBC",
+    taubin_smooth=False)
+#+end_src
+
+| Argument | Default | Notes |
+|----------+---------+-------|
+| =dgrid=, =isovalue=, =ase_atoms= | required | |
+| =region_labels= | =None= | Per-voxel region id; enables colored regions |
+| =cscale= | =None= | Region colors |
+| =select= | ='all'= | Subset of region ids to show |
+| =stepsize= | =1= | Marching cubes step |
+| =taubin_smooth= | =False= | Mesh smoothing |
+
+**** Three.js
+
+#+begin_src python
+iso = mgr.plot_surface_dgrid_3js(
+    dgrid, 1.0, mat_atoms, region_labels=regions_pbc,
+    cscale=cscale, stylize=True, name="Regions PBC")
+# Figure3js: .plot_surface_dgrid_3js(dgrid, 1.0, mat_atoms, region_labels=regions_pbc, ...)
+#+end_src
+
+*** Maxima — local (distinct pockets)
+
+Pass only the maxima rows you want (e.g. first =regions.max()= rows).
+
+**** Plotly
+
+#+begin_src python
+trace = mgr.plot_maxima(
+    dgrid, maxima, mat_atoms, show_spheres=False,
+    marker_size=10, marker_colorscale=cscale, name="Maxima (local)")
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+bundle = mgr.plot_maxima_from_grid_3js(
+    dgrid, maxima, mat_atoms, hide_periodic=True,
+    cscale=cscale, name="Maxima (local)")
+#+end_src
+
+*** Maxima — PBC-unified
+
+**** Plotly
+
+#+begin_src python
+trace = mgr.plot_maxima(
+    dgrid, maxima_pbc, mat_atoms, show_spheres=False,
+    marker_size=7.5, marker_colorscale=cscale, name="Maxima (pbc)")
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+bundle = mgr.plot_maxima_from_grid_3js(
+    dgrid, maxima_pbc, mat_atoms, cscale=cscale, name="Maxima (pbc)")
+# Or full seg: mgr.plot_maxima_3js(results, mat_atoms, hide_periodic=False)
+#+end_src
+
+| =show_spheres= (Plotly) | =False= | Optional sphere meshes at maxima |
+| =hide_periodic= (3js) | =False= | Hide "outside" periodic copies |
+
+*** Connections — internal and periodic (=plot_connections_as_it_is=)
+
+**** Plotly
+
+#+begin_src python
+conn_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_disconnected=False, plot_periodic=True,
+)
+#+end_src
+
+| Argument | Default | Notes |
+|----------+---------+-------|
+| =connections_trimmed= | required | List of connection tuples |
+| =all_maxima= | required | Maxima coordinates |
+| =grid_shape= | required | =regions.shape= |
+| =ase_atoms= | required | For PBC wrapping |
+| =plot_periodic= | =True= | Draw periodic image connections |
+| =plot_disconnected= | =False= | Show edges with no path |
+| =cscale= | =None= | Colors by region pair |
+
+**** Three.js
+
+#+begin_src python
+conn_bundle = mgr.plot_connections_as_it_is_3js(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_periodic=True,
+)
+#+end_src
+
+*** Connections — internal only
+
+**** Plotly
+
+#+begin_src python
+conn_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    plot_periodic=False,
+)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+seg = {
+    "connections": connections_trimmed,
+    "all_maxima": all_maxima,
+    "dgrid": dgrid,
+}
+conn_bundle = mgr.plot_connections_3js(seg, mat_atoms, hide_periodic=True)
+#+end_src
+
+*** Windows — simple (no PBC reclassification)
+
+**** Plotly
+
+#+begin_src python
+windows_trace = mgr.plot_windows(
+    connections_trimmed,
+    name="Windows",
+    marker_color="yellow",
+    marker_size=10,
+    marker_opacity=0.8,
+)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+windows_bundle = mgr.plot_windows_3js(
+    connections_trimmed, name="Windows",
+    marker_color="yellow", marker_size=10, marker_opacity=0.8,
+)
+#+end_src
+
+*** Windows — with far-outside → periodic reclassification
+
+Use when windows far outside the cell should appear as periodic images.
+
+**** Plotly
+
+#+begin_src python
+win_traces = mgr.plot_windows_from_results(
+    connections_trimmed,
+    dgrid=dgrid,
+    atoms=mat_atoms,
+    spacing=0.5,
+    outside_windows_to_periodic=True,
+    marker_color="red",
+    name="Windows",
+)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+windows_bundle = mgr.plot_windows_from_results_3js(
+    connections_trimmed,
+    dgrid=dgrid,
+    atoms=mat_atoms,
+    spacing=0.5,
+    outside_windows_to_periodic=True,
+    name="Windows",
+    marker_color="red",
+)
+#+end_src
+
+*** Percolated cluster meshes
+
+Requires =percolation_history= from a percolation analysis.
+
+**** Plotly
+
+#+begin_src python
+cluster_traces = mgr.plot_percolated_cluster_meshes(
+  percolation_history, dgrid, mat_atoms, isovalue=1.0, cscale=cscale,
+)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+cluster_traces = mgr.plot_percolated_cluster_meshes_3js(
+  percolation_history, dgrid, mat_atoms, isovalue=1.0, cscale=cscale,
+)
+#+end_src
+
+*** PLD-critical windows (percolation)
+
+Windows at the probe radius where percolation occurs.
+
+**** Plotly
+
+#+begin_src python
+pld_traces = mgr.plot_percolation_windows(
+    percolation_history, dgrid, mat_atoms, probe_radius=1.2,
+)
+#+end_src
+
+**** Three.js
+
+#+begin_src python
+pld_traces = mgr.plot_percolation_windows_3js(
+    percolation_history, dgrid, mat_atoms, probe_radius=1.2,
+)
+#+end_src
+
+
+** Pocketwise PSDs on =results= and RAG (typing + plots)
+
+| Step | Function | Stores |
+|------+----------+--------|
+| 1 | =enrich_segmentation_with_pocket_psds(results, atoms, probe_radius_psd=1.2)= | =results["pocket_psds"]= |
+| 2a | =assign_pocket_types(results, atoms)= | reuses =pocket_psds= (no second Rust run) |
+| 2b | =add_pocket_psds_to_rag_from_segmentation(rag, results, atoms)= | =pocket_psd_x_pbc= / =pocket_psd_y_pbc= on RAG nodes |
+
+Low-level (if you already have histograms): =add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)=.
+
+**Note:** =add_clustering_to_rag_geometry_js= clusters on *centroid-distance* void histograms (same family as =plot_csds=), not on =pocket_psd_*_pbc=. Pocket typing (=env_cluster=) uses probe PSDs + annulus fingerprints.
+
+*** CSD curves — =plot_csds= (NOT pocketwise Rust PSDs)
+
+Plotly only. Plots **cavity size distributions (CSD)** on the RAG: histograms of *distance from the PBC-aware pocket centroid to void voxels* (=csd_x_pbc= / =csd_y_pbc=), from =add_csd_to_rag_with_pbc= (or deprecated =add_psd_to_rag_with_pbc=).
+
+| What | Function / data |
+|------+-----------------|
+| Build histograms on RAG | =add_csd_to_rag_with_pbc(rag, props, pbc_groups, bins, atoms, shape)= |
+| Cluster pockets by CSD shape | =add_clustering_to_rag_geometry_js(...)= → =cluster_geom_pbc= |
+| Plot one curve per PBC group | =plot_csds(rag, pbc_groups, cluster_key="cluster_geom_pbc")= |
+
+**=cluster_geom_pbc= only sets line colors** (geometry JS clusters of CSD histograms). It does **not** use the Rust pocketwise probe sampler.
+
+#+begin_src python
+from skimage.measure import regionprops
+import plotly.graph_objects as go
+
+props = regionprops(regions)
+bins = np.linspace(0, 50, 30)
+rag = mgr.rag_from_connections(connections_trimmed, maxima)
+rag = mgr.add_maxima_to_rag(rag, maxima, maxima_radii, dgrid.shape, mat_atoms)
+rag = mgr.add_pbc_to_rag(rag, pbc_groups)
+rag = mgr.add_csd_to_rag_with_pbc(
+    rag, props, pbc_groups, bins, mat_atoms, dgrid.shape,
+)
+rag = mgr.add_clustering_to_rag_geometry_js(
+    rag, props, pbc_groups, mat_atoms, dgrid.shape,
+)
+
+csd_traces = mgr.plot_csds(
+    rag, pbc_groups, cscale=cscale, cluster_key="cluster_geom_pbc",
+)
+fig_csd = go.Figure(data=csd_traces, layout=mgr.white_layout)
+fig_csd.update_layout(
+    xaxis_title="Distance to centroid (Å)",
+    yaxis_title="Normalized histogram",
+)
+#+end_src
+
+*** Pocketwise probe PSDs (Rust) — =compute_psds_pocketwise_rust=
+
+**Probe-occupiable** pore size distributions: sample points inside each PBC pocket and histogram local clearance from =dgrid=. Matches =make_images.org= (DUT-75 / UMCM-1 textural figures) — **not** =plot_csds=.
+
+| Step | Function |
+|------+----------|
+| Sample per region | =compute_pore_sizes_pocketwise_rust(dgrid, regions_pbc, atoms, samples_per_region=…)= |
+| Bin + optional figure | =compute_psds_pocketwise_rust(..., return_fig=True)= or =plot_pocket_psds_from_grid(...)= |
+| Accessible pockets only | =compute_psds_pocketwise_accessible(results, atoms, probe_radius, …)= |
+| Store on RAG (fingerprints) | =add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)= |
+
+#+begin_src python
+from plotly.subplots import make_subplots
+
+material = "DUT-75_uncapped"
+bins = np.linspace(0, 50, 500)
+
+sample_points, pore_sizes, sample_point_labels = (
+    mgr.compute_pore_sizes_pocketwise_rust(
+        dgrid, regions_pbc, mat_atoms, samples_per_region=1000,
+    )
+)
+pocket_psds, fig_all = mgr.compute_psds_pocketwise_rust(
+    dgrid,
+    regions_pbc,
+    mat_atoms,
+    num_samples_per_region=50000,
+    bins=bins,
+    material=material,
+    return_fig=True,
+)
+fig_all.update_layout(
+    xaxis_range=[0, 35],
+    xaxis_title="Pore diameter (Å)",
+    yaxis_title="Pore size distribution",
+)
+#+end_src
+
+
+**Shortcut (overlay or subplots):**
+
+#+begin_src python
+pocket_psds, fig_pockets, _samples = mgr.plot_pocket_psds_from_grid(
+    dgrid,
+    regions_pbc,
+    mat_atoms,
+    labels_to_plot=[1, 2],
+    layout="subplots",
+    material=material,
+    num_samples_per_region=50000,
+    bins=bins,
+)
+# layout="overlay"  # overall + all pockets on one axes
+#+end_src
+
+**Energy histograms** (not CSD): after =add_vdw_hist_to_rag=, use =mgr.plot_vdw_hists(rag, pbc_groups, cluster_key="cluster_energy_pbc")=.
+
+**Deprecated:** =mgr.plot_psds(...)= warns and calls =plot_csds=.
+
+**Per-pocket subplots** (e.g. pockets 1 and 2 for DUT-75):
+
+#+begin_src python
+labels_to_plot = [1, 2]  # DUT-75; use [1, 2, 3] for UMCM-1
+bin_centers = 0.5 * (bins[:-1] + bins[1:])
+
+fig_pockets = make_subplots(
+    rows=len(labels_to_plot), cols=1, shared_xaxes=True, vertical_spacing=0.04,
+)
+for row_idx, label in enumerate(labels_to_plot, start=1):
+    mask = sample_point_labels == label
+    psizes = pore_sizes[mask] * 2
+    hist, _ = np.histogram(psizes, bins=bins, density=True)
+    fig_pockets.add_trace(
+        go.Scatter(
+            x=bin_centers, y=hist, mode="lines", fill="tozeroy",
+            name=f"Pocket {label}", showlegend=False,
+        ),
+        row=row_idx, col=1,
+    )
+    fig_pockets.update_yaxes(title_text="PSD", row=row_idx, col=1)
+
+fig_pockets.update_layout(plot_bgcolor="white", paper_bgcolor="white")
+fig_pockets.update_xaxes(
+    range=[0, 27], title_text="Pore diameter (Å)",
+    row=len(labels_to_plot), col=1, mirror=True,
+)
+#+end_src
+
+* Full examples
+
+** Cu-BTC (=P1-Cu-BTC.cif=) — end-to-end (interactive-app defaults)
+
+Runnable copy of the =mgr_cli_py= **Visualization** tab on =examples/TestCIFs/P1-Cu-BTC.cif=, with every main-tab trace type listed explicitly. Defaults match =interactive_app.py= (segmentation sliders, Taubin-smoothed surfaces at isovalue 1.0, instanced framework in Three.js).
+
+| Parameter | Default (app) |
+|-----------+---------------|
+| =spacing= | 0.5 Å |
+| =mask_thickness= | 0.05 Å |
+| =h_value= (=h=) | 0.2 \AA  |
+| =min_distance= | 1.5 Å |
+| =threshold_abs= | 1.5 Å |
+| =extra_padding= | 5.0 Å |
+| Surface isovalue | 1.0 |
+| Taubin smooth | on (=iterations=3, =lambda=0.2175, =nu=-0.2175=) |
+| Marching-cubes =stepsize= | 1 |
+| Three.js framework | instanced spheres (=atom_scale=0.65=) |
+
+*** Segmentation and pocket typing
+
+#+begin_src python
+from pathlib import Path
+
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from ase.io import read
+
+import mofography as mgr
+# from mofography import read_cif_to_ase
+from mofography.helper import trim_connections_to_unique_regions
+from mofography.workflow import (
+    assign_pocket_types,
+    enrich_segmentation_with_pocket_psds,
+    pocket_regions_cluster,
+)
+
+CIF = Path("~/repos/mofography/examples/TestCIFs/P1-Cu-BTC.cif").expanduser()
+SPACING = 0.5
+MASK_THICKNESS = 0.05
+H_VALUE = 0.2
+MIN_DISTANCE = 1.5
+THRESHOLD_ABS = 1.5
+EXTRA_PADDING = 5.0
+ISOVALUE = 1.0
+
+_taubin = dict(
+    taubin_smooth=True,
+    taubin_iterations=3,
+    taubin_lambda=0.2175,
+    taubin_nu=-0.2175,
+    stepsize=1,
+)
+
+mat_atoms = read(CIF)
+# mat_atoms =read_cif_to_ase(CIF)
+mat_updated = mgr.update_with_covalent_bonds(mat_atoms)
+dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=SPACING).astype(np.float32)
+results = mgr.do_periodic_segmentation_rust(
+    dgrid,
+    mat_atoms,
+    spacing=SPACING,
+    mask_thickness=MASK_THICKNESS,
+    h=H_VALUE,
+    min_distance=MIN_DISTANCE,
+    threshold_abs=THRESHOLD_ABS,
+    extra_padding=EXTRA_PADDING,
+    return_dgrid=True,
+)
+
+dgrid = results["dgrid"]
+regions = results["regions"]
+regions_pbc = results["regions_pbc"]
+connections = results["connections"]
+all_maxima = results["all_maxima"]
+maxima_pbc = results["maxima_pbc"]
+close_or_inside_maxima = results["close_or_inside_maxima"]
+unique_regions = results["unique_regions"]
+connections_trimmed = trim_connections_to_unique_regions(connections, unique_regions)
+
+# Local cap (first regions.max() rows) — same as show_mof_plotly
+n_cap = int(regions.max()) if regions.size else 0
+maxima_local = all_maxima[:n_cap] if n_cap > 0 else all_maxima[:0]
+
+# Probe-centered pocket PSD (Å) — compute once on results, reuse for typing
+PROBE_RADIUS_PSD = 1.2
+enrich_segmentation_with_pocket_psds(results, mat_atoms, probe_radius_psd=PROBE_RADIUS_PSD)
+if results.get("pocket_psd_error"):
+    raise RuntimeError(f"pocket PSD failed: {results['pocket_psd_error']}")
+
+typed = assign_pocket_types(
+    results,
+    mat_atoms,
+    method="env_cluster",
+    probe_radius_psd=PROBE_RADIUS_PSD,
+)
+if not typed.ok:
+    raise RuntimeError(f"Pocket typing failed: {typed.error}")
+print(f"Cu-BTC pocket types: {typed.n_types} (method={typed.method}, pockets={typed.n_pockets})")
+
+regions_cluster = pocket_regions_cluster(typed, results)
+
+cscale = px.colors.qualitative.Pastel
+
+# Mean spacing for window reclassification (matches show_mof_plotly)
+_cell = mat_atoms.get_cell().array.T
+_lengths = np.linalg.norm(_cell, axis=0)
+_spacing_win = float(np.mean(_lengths / np.maximum(np.asarray(dgrid.shape, dtype=float), 1.0)))
+#+end_src
+
+*** Plotly — all main-tab traces
+
+Build =go.Figure= manually so *internal and periodic* connections/windows and *all three maxima subsets* appear together (the one-liner =show_mof_plotly= only draws capped local maxima).
+
+#+begin_src python
+frame_traces = mgr.plot_framework_as_mesh(mat_updated, stylize=True, show_rings=True)
+cell_trace = mgr.plot_cell(mat_atoms, color="orange", name="cell")
+
+surface_regions = mgr.plot_surface_dgrid(
+    dgrid,
+    isovalue=ISOVALUE,
+    ase_atoms=mat_atoms,
+    region_labels=regions,
+    opacity=1.0,
+    cscale=cscale,
+    stylize=True,
+    name="Regions Surface",
+    **_taubin,
+)
+surface_regions_pbc = mgr.plot_surface_dgrid(
+    dgrid,
+    isovalue=ISOVALUE,
+    ase_atoms=mat_atoms,
+    region_labels=regions_pbc,
+    opacity=1.0,
+    cscale=cscale,
+    stylize=True,
+    name="Regions Surface (PBC)",
+    **_taubin,
+)
+surface_pocket_types = None
+if regions_cluster is not None:
+    surface_pocket_types = mgr.plot_surface_dgrid(
+        dgrid,
+        isovalue=ISOVALUE,
+        ase_atoms=mat_atoms,
+        region_labels=regions_cluster - 1,
+        opacity=1.0,
+        cscale=cscale,
+        stylize=True,
+        name="Pocket Types Surface",
+        hover_label="Pocket type :",
+        **_taubin,
+    )
+
+maxima_all_trace = mgr.plot_maxima(
+    dgrid, all_maxima, mat_atoms, show_spheres=False,
+    marker_size=8, marker_colorscale=cscale, name="All Maxima",
+)
+maxima_pbc_trace = mgr.plot_maxima(
+    dgrid, maxima_pbc, mat_atoms, show_spheres=False,
+    marker_size=7.5, marker_colorscale=cscale, name="Maxima (pbc)",
+)
+maxima_close_trace = mgr.plot_maxima(
+    dgrid, close_or_inside_maxima, mat_atoms, show_spheres=False,
+    marker_size=9, marker_colorscale=cscale, name="Close or inside maxima",
+)
+
+connections_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed,
+    all_maxima,
+    regions.shape,
+    mat_atoms,
+    cscale=cscale,
+    plot_disconnected=False,
+    plot_periodic=True,
+)
+windows_traces = mgr.plot_windows_from_results(
+    connections_trimmed,
+    dgrid=dgrid,
+    atoms=mat_atoms,
+    spacing=_spacing_win,
+    outside_windows_to_periodic=True,
+    name="Windows",
+    marker_color="red",
+    marker_size=10,
+    opacity=0.6,
+)
+
+plotly_traces = [
+    *frame_traces,
+    cell_trace,
+    surface_regions,
+    surface_regions_pbc,
+    maxima_all_trace,
+    maxima_pbc_trace,
+    maxima_close_trace,
+    *connections_traces,
+    *windows_traces,
+]
+if surface_pocket_types is not None:
+    plotly_traces.insert(3, surface_pocket_types)
+
+fig_cubtc = go.Figure(data=plotly_traces, layout=mgr.white_layout)
+# fig_cubtc.write_html("examples/viz_outputs/P1-Cu-BTC_main_plotly.html")
+#+end_src
+
+Internal / periodic connection traces are named =Internal Connections= and =Periodic Connections (Dotted)=. Window traces are split into internal (red) and periodic (orange) markers.
+
+*** Three.js — all main-tab traces (instanced framework)
+
+Prefer native =Figure3js= chaining (each layer gets a unique trace id from =name=, so legend entries do not overwrite).
+
+#+begin_src python
+from mofography import Figure3js
+
+fig3 = (
+    Figure3js(layout="white", stylize=True)
+    .plot_framework_instanced_3js(mat_updated, atom_scale=0.65)
+    .plot_cell_3js(mat_atoms, color="orange", name="cell")
+    .plot_surface_dgrid_3js(
+        dgrid, ISOVALUE, mat_atoms, region_labels=regions,
+        cscale=cscale, name="Regions Surface", stylize=True, **_taubin,
+    )
+    .plot_surface_dgrid_3js(
+        dgrid, ISOVALUE, mat_atoms, region_labels=regions_pbc,
+        cscale=cscale, name="Regions Surface (PBC)", stylize=True, **_taubin,
+    )
+)
+if regions_cluster is not None:
+    fig3.plot_surface_dgrid_3js(
+        dgrid, ISOVALUE, mat_atoms, region_labels=regions_cluster,
+        cscale=cscale, name="Pocket Types Surface", stylize=True, **_taubin,
+    )
+
+# Pass segmentation fields so PBC maxima and windows classify correctly
+fig3.plot_maxima_from_grid_3js(
+    dgrid, all_maxima, mat_atoms, regions=regions, cscale=cscale, name="All Maxima",
+    maxima_info=results.get("maxima_info"), connections=connections_trimmed,
+    hide_periodic=False,
+)
+fig3.plot_maxima_from_grid_3js(
+    dgrid, maxima_pbc, mat_atoms, regions=regions, cscale=cscale, name="Maxima (pbc)",
+    maxima_pbc=maxima_pbc, maxima_info=results.get("maxima_info"),
+    maxima_pbc_dict=results.get("maxima_pbc_dict", {}), hide_periodic=False,
+)
+fig3.plot_maxima_from_grid_3js(
+    dgrid, close_or_inside_maxima, mat_atoms, regions=regions, cscale=cscale,
+    name="Close or inside maxima",
+)
+fig3.plot_connections_as_it_is_3js(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    plot_periodic=True, name="Connections",
+)
+fig3.plot_windows_from_results_3js(
+    connections_trimmed, dgrid=dgrid, atoms=mat_atoms, spacing=_spacing_win,
+    outside_windows_to_periodic=True, hide_periodic=False, name="Windows", marker_color="red",
+)
+# fig3.to_html("examples/viz_outputs/P1-Cu-BTC_main_threejs.html")
+fig3.to_html("/tmp/P1-Cu-BTC_main_threejs.html")
+#+end_src
+
+=show_mof_threejs= shortcut (periodic layers hidden on load; toggle in HUD):
+
+#+begin_src python
+from mofography.workflow import show_mof_threejs
+
+show_mof_threejs(
+    results, mat_atoms, typed_result=typed, framework_atoms=mat_updated,
+    output_html="examples/viz_outputs/P1-Cu-BTC_show_mof_threejs.html",
+    plot_framework_representation="instanced",
+    plot_layout="white",
+)
+#+end_src
+
+When connection or window traces are present, the Three.js HUD includes a *Min window (Å)* field: connections and window markers whose radii are all below the threshold are hidden dynamically. Periodic connections are trimmed with =trim_connections_to_unique_regions= (at least one endpoint in =unique_regions=) but start hidden unless =plot_connections_periodic=True=.
+
+Runnable generator: =examples/gen_cubtc_plotting_guide_threejs.py= → =examples/viz_outputs/P1-Cu-BTC_plotting_guide_threejs.html=.
+
+# )
+#+end_src
+
+*** Cu-BTC — PLD and percolation (separate subsection)
+
+Mirrors the app's **PLD & Percolation** tab: winding LCD/PLD, percolation history, percolated cluster meshes at the limiting probe radius, and PLD-critical window markers.
+
+**** Compute percolation history and PLD trace
+
+#+begin_src python
+from mofography.winding_percolation import (
+    compute_percolation_history_winding,
+    get_pore_dia_mgr_winding,
+)
+
+lcd, pld, dfsd, _ = get_pore_dia_mgr_winding(
+    mat_atoms=mat_atoms,
+    dgrid=dgrid,
+    kwargs=dict(
+        spacing=SPACING,
+        mask_thickness=MASK_THICKNESS,
+        h=H_VALUE,
+        threshold_abs=THRESHOLD_ABS,
+        min_distance=MIN_DISTANCE,
+        extra_padding=EXTRA_PADDING,
+    ),
+    results=results,
+)
+percolation_history, pld_locations, _final = compute_percolation_history_winding(
+    results, step=0.05, expand_components=False,
+)
+
+maxima_info = results.get("maxima_info")
+maxima_radii = (
+    dgrid[tuple(maxima_info[:, 1:4].T)] if maxima_info is not None else None
+)
+rag = mgr.rag_from_connections(connections_trimmed, maxima_local)
+if maxima_radii is not None:
+    rag = mgr.add_maxima_to_rag(rag, maxima_local, maxima_radii, regions.shape, mat_atoms)
+rag.graph["regions"] = regions
+rag.graph["ase_atoms"] = mat_atoms
+
+analysis = {
+    "lcd": float(lcd),
+    "pld": float(pld),
+    "dfsd": float(dfsd),
+    "percolation_history": percolation_history,
+    "pld_locations": pld_locations,
+    "dgrid": dgrid,
+    "regions": regions,
+    "connections": connections_trimmed,
+    "maxima": maxima_local,
+    "maxima_info": maxima_info,
+    "maxima_pbc_dict": results.get("maxima_pbc_dict", {}),
+    "rag": rag,
+    "isovalue": ISOVALUE,
+}
+
+probe_r = float(analysis["percolation_history"][-1][0])
+print(f"Cu-BTC LCD={lcd:.3f} Å  PLD={pld:.3f} Å  percolation probe_r={probe_r:.3f} Å")
+#+end_src
+
+**** Plotly — percolated clusters + PLD windows
+
+#+begin_src python
+from mofography.visualize import dark_layout, plot_rag
+
+pld_plotly_traces = [
+    mgr.plot_cell(mat_atoms),
+]
+pld_plotly_traces.extend(plot_rag(analysis["rag"], name="Pore Graph"))
+pld_plotly_traces.extend(
+    mgr.plot_maxima(
+        dgrid,
+        maxima_local,
+        mat_atoms,
+        maxima_info=maxima_info,
+        maxima_pbc_dict=analysis.get("maxima_pbc_dict"),
+        name="Maxima",
+    )
+)
+pld_plotly_traces.extend(
+    mgr.plot_percolated_cluster_meshes(
+        percolation_history,
+        dgrid,
+        regions,
+        mat_atoms,
+        probe_radius=probe_r,
+        isovalue=ISOVALUE,
+        stepsize=2,
+        cscale=cscale,
+        **_taubin,
+    )
+)
+pld_plotly_traces.extend(
+    mgr.plot_percolation_windows(
+        analysis, probe_radius=probe_r, pld_tolerance=0.25,
+    )
+)
+
+fig_pld = go.Figure(data=pld_plotly_traces, layout=dark_layout)
+# fig_pld.write_html("examples/viz_outputs/P1-Cu-BTC_pld_percolation_plotly.html")
+#+end_src
+
+Yellow markers: windows on percolating paths; red diamonds: windows within ±0.25 Å of PLD/2 probe radius.
+
+**** Three.js — percolated clusters + PLD windows
+
+#+begin_src python
+from mofography.workflow import show_percolation_threejs
+
+# One-liner (dark layout, same as app PLD tab):
+# show_percolation_threejs(
+#     analysis, mat_atoms, probe_radius=probe_r,
+#     output_html="examples/viz_outputs/P1-Cu-BTC_pld_percolation_threejs.html",
+# )
+
+pld_fig3 = (
+    Figure3js(layout="dark", stylize=True)
+    .plot_cell_3js(mat_atoms)
+    .plot_connections(
+        connections_trimmed,
+        all_maxima,
+        regions.shape,
+        mat_atoms,
+        dgrid=dgrid,
+        regions=regions,
+        hide_periodic=False,
+        plot_periodic=True,
+    )
+    .plot_maxima_from_grid_3js(dgrid, maxima_local, mat_atoms, name="Maxima")
+    .add_traces(
+        mgr.plot_percolated_cluster_meshes_3js(
+            percolation_history,
+            dgrid,
+            regions,
+            mat_atoms,
+            probe_radius=probe_r,
+            isovalue=ISOVALUE,
+            cscale=cscale,
+            step_size=2,
+            **_taubin,
+        )
+    )
+    .add_traces(
+        mgr.plot_percolation_windows_3js(
+            analysis, mat_atoms, probe_radius=probe_r, pld_tolerance=0.25,
+        )
+    )
+)
+# pld_fig3.to_html("examples/viz_outputs/P1-Cu-BTC_pld_granular_threejs.html")
+#+end_src
+
+** Plotly — DUT-75 notebook figure
+
+#+begin_src python
+import plotly.express as px
+import plotly.graph_objects as go
+import mofography as mgr
+
+cscale = px.colors.qualitative.Pastel
+isovals = [1.0, 1.5]
+mat_updated = mgr.update_with_covalent_bonds(mat_atoms)
+
+frame_trace = mgr.plot_framework_as_mesh(mat_updated, stylize=True)
+isosurface_pbc = mgr.plot_surface_dgrid(
+    dgrid, isovalue=isovals[0], ase_atoms=mat_atoms,
+    region_labels=regions_pbc, opacity=1, cscale=cscale,
+    stylize=True, name="Regions PBC",
+)
+cell_trace = mgr.plot_cell(mat_atoms, color="orange")
+maxima_trace_pbc = mgr.plot_maxima(
+    dgrid, maxima_pbc, mat_atoms, show_spheres=False,
+    marker_size=7.5, marker_colorscale=cscale, name="Maxima (pbc)",
+)
+connections_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, regions.shape, mat_atoms,
+    cscale=cscale, plot_disconnected=False, plot_periodic=True,
+)
+windows_trace = mgr.plot_windows(
+    connections_trimmed, name="Windows", marker_color="yellow", marker_size=10,
+)
+
+fig = go.Figure(
+    data=[
+        *frame_trace, cell_trace, maxima_trace_pbc, isosurface_pbc,
+        *connections_traces, windows_trace,
+    ],
+    layout=mgr.white_layout,
+)
+# fig.show(renderer="firefox")
+#+end_src
+
+** Three.js — same scene as HTML
+
+#+begin_src python
+from mofography import Figure3js
+
+fig = (
+    Figure3js(layout="white", stylize=True)
+    .plot_framework_as_mesh_3js(mat_updated, stylize=True)
+    .plot_cell_3js(mat_atoms, color="orange")
+    .plot_surface_dgrid_3js(
+        dgrid, isovals[0], mat_atoms, region_labels=regions_pbc,
+        cscale=cscale, name="Regions PBC",
+    )
+    .plot_maxima_from_grid_3js(
+        dgrid, maxima_pbc, mat_atoms, cscale=cscale, name="Maxima (pbc)",
+    )
+    .add_traces(
+        mgr.plot_connections_as_it_is_3js(
+            connections_trimmed, all_maxima, regions.shape, mat_atoms,
+            cscale=cscale, plot_periodic=True,
+        )
+    )
+    .add_traces(
+        mgr.plot_windows_3js(
+            connections_trimmed, name="Windows", marker_color="yellow",
+        )
+    )
+)
+# fig.to_html("dut75_scene.html")
+#+end_src
+
+* Global PSD (2D histogram)
+
+Uniform random sampling over the unit cell — not pocketwise.
+
+#+begin_src python
+probe_radius = 0
+sample_points, pore_sizes = mgr.compute_pore_sizes_uniform_rust(
+    dgrid, mat_atoms, num_samples_total=50000,
+)
+pore_sizes = pore_sizes[pore_sizes > probe_radius]
+bins = np.linspace(0, 100, 1000)
+hist, bin_edges = np.histogram(pore_sizes * 2, bins=bins, density=True)
+bin_centers = (bin_edges[1:] + bin_edges[:-1]) / 2
+
+mgr_psd_trace = go.Scatter(
+    x=bin_centers, y=hist, mode="lines+markers",
+    name="PSD (global)", line=dict(width=2, color="black"),
+)
+fig_psd = go.Figure(data=[mgr_psd_trace], layout=mgr.white_layout)
+fig_psd.update_layout(
+    xaxis_range=[0, 27],
+    xaxis_title="Pore diameter (Å)",
+    yaxis_title="Normalized pore size distribution",
+)
+#+end_src
+
+* Quick reference
+
+| Task | Plotly | Three.js |
+|------+--------+----------|
+| Notebook 3D | =go.Figure= + =mgr.plot_*= | =Figure3js= + =plot_*_3js= |
+| CSD on RAG (cluster colors) | =plot_csds= | — |
+| Pocketwise Rust PSD | =plot_pocket_psds_from_grid= / =compute_psds_pocketwise_rust= | — |
+| Global uniform PSD | =compute_pore_sizes_uniform_rust= | — |
+
+
+** Three.js — camera, lighting, export PNG, and =.show()=
+
+After building a =Figure3js= scene (Cu-BTC or any material), set view and lights **before** =to_html= / =show=:
+
+#+begin_src python
+from mofography import Figure3js
+
+fig3 = (
+    Figure3js(layout="white", stylize=True)
+  # ... add traces ...
+)
+
+# Camera (matches HUD "Lighting Settings" readout)
+fig3.set_camera(
+    eye=(13.05, 12.92, 78.77),
+    center=(13.05, 12.92, 12.92),   # target
+    projection="orthographic",
+)
+
+# Lights — explicit=True keeps your values (no ortho auto-boost)
+fig3.set_lights(
+    ambient=0.100,
+    hemisphere_intensity=0.100,
+    hemisphere_sky=0xDEEEFF,
+    hemisphere_ground=0x3B3B3B,
+    dir_key_intensity=0.576,
+    dir_key_position=(5, 10, 7.5),
+    dir_fill_intensity=0.384,
+    dir_fill_position=(-5, -9, -7.5),
+    ssao=False,
+    explicit=True,
+)
+
+# Interactive viewer (localhost + browser, like Plotly)
+url = fig3.show(renderer="browser")   # prints URL + temp HTML path
+
+# Or write HTML
+# fig3.to_html("my_scene.html")
+
+# Static PNG (needs: pip install playwright && playwright install chromium)
+# fig3.export_png("my_scene.png", resolution_mult=2)
+#+end_src
+
+| Method | Purpose |
+|--------|---------|
+| =set_camera(eye=, center=, projection=)= | Eye / target / orthographic vs perspective |
+| =set_lights(..., ssao=False, explicit=True)= | Ambient, hemisphere, key/fill dirs; skip ortho compensation |
+| =show(renderer="browser")= | Serve on =127.0.0.1:<port>=, open browser, return URL |
+| =to_html(path)= | Standalone HTML (HUD still has Export PNG button) |
+| =export_png(path, resolution_mult=2)= | Headless PNG via Playwright |
+
+Without =explicit=True=, orthographic mode **auto-adjusts** lights (lower ambient/hemi, boosted directionals) to compensate for SSAO being off.
+
+
+* Troubleshooting
+
+
+** =PocketTypingResult(ok=False, error='no pockets extracted from segmentation')=
+Pocket typing needs probe-wise PSD histograms on the RAG (=pocket_psd_y_pbc=). That requires =compute_psds_pocketwise_rust(..., probe_center_min_radius=probe_radius_psd)= — if your install lacked that keyword, the call failed silently and =typed.ok= is false. **Fix:** =pip install -e . --no-deps= on current mofography; pass =probe_radius_psd=1.2= (interactive-app default). Cu-BTC should yield **3** types. Always check =if not typed.ok: raise RuntimeError(typed.error)= before plotting =regions_cluster=.
+
+** Confused =plot_csds= with pocketwise PSDs?**
+=plot_csds= plots =csd_x_pbc= / =csd_y_pbc= (centroid-distance CSD for geometry clustering). For Rust probe sampling use =plot_pocket_psds_from_grid= or =compute_psds_pocketwise_rust=.
+
+** =ValueError: invalid literal for int() with base 10: 'rrr...'=
+Bad =cscale= on Three.js traces. Use =px.colors.qualitative.Pastel= or omit =cscale=.
+
+** =plot_windows(...) needs grid_shape= and maxima=**
+Use =plot_windows(connections_trimmed, ...)= only.
+
+** =go.Figure= crashes with trace dict / bundle**
+You passed Three.js bundles to Plotly. Use =Figure3js= + =plot_*_3js=.
+
+** HTML export runs Python code**
+File header: =#+PROPERTY: header-args:python :eval no-export :exports code=

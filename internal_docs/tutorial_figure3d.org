@@ -1,0 +1,763 @@
+#+TITLE: Figure3D Tutorial — Building & Styling Interactive 3D MOF Visualizations
+#+AUTHOR: mofography
+#+OPTIONS: toc:2
+
+* Overview
+
+=Figure3D= (alias =MovieFigure=) is a Plotly-inspired API for rendering
+interactive 3D scenes of metal-organic frameworks using Three.js.  This
+tutorial walks through building a CuBTC visualization from scratch and
+shows every tunable knob.
+
+** Quick Start
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(
+    atoms,
+    dgrid=dgrid,
+    regions=seg["regions"],
+    seg=seg,
+)
+fig.to_html("my_cubtc.html")
+#+end_src
+
+** One-liner with =build_static_scene=
+
+#+begin_src python
+from mofography.movies import build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.to_html("cubtc_quick.html")
+#+end_src
+
+* Appearance — Background, Fonts, Labels
+
+Use =set_appearance()= to control the visual chrome around the 3D scene.
+
+** CSS Background
+
+Any valid CSS =background= value works: solid colors, gradients, or URLs.
+
+#+begin_src python :exports both
+fig = Figure3D()
+
+# Solid dark background
+fig.set_appearance(background="#1a1a2e")
+
+# Radial gradient (default)
+fig.set_appearance(
+    background="radial-gradient(circle at center, #7a7a7a 0%, #111111 100%)"
+)
+
+# Linear gradient
+fig.set_appearance(
+    background="linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)"
+)
+#+end_src
+
+** Scene Background (3D viewport)
+
+Controls the Three.js scene background behind all 3D objects.  Accepts hex
+integers or hex strings.
+
+#+begin_src python
+fig.set_appearance(scene_bg=0x0a0a1a)       # dark blue-black (hex int)
+fig.set_appearance(scene_bg=0xffffff)        # white
+fig.set_appearance(scene_bg=0x1c1c2e)       # deep indigo
+#+end_src
+
+** Font Family & Label Size
+
+#+begin_src python
+fig.set_appearance(
+    font_family='"Helvetica Neue", Arial, sans-serif',
+    label_font_size=14,     # px — controls HUD checkbox labels
+)
+#+end_src
+
+** Combined Example
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.set_camera(eye=(2.5, 0.0, 1.35))
+fig.set_appearance(
+    background="linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+    scene_bg=0x1c1c2e,
+    font_family='"Fira Code", monospace',
+    label_font_size=15,
+)
+fig.to_html("cubtc_styled.html")
+print("Saved cubtc_styled.html")
+#+end_src
+
+* Color Schemes — Using Plotly Color Palettes
+
+The =set_colorscale()= method accepts any =px.colors.qualitative.*= palette
+name or a list of color strings in Plotly format.
+
+** Using a Plotly Palette by Name
+
+Pass the palette name as a string — it will be resolved via
+=px.colors.qualitative.<name>=.
+
+#+begin_src python
+import plotly.express as px
+
+fig.set_colorscale("Pastel")          # px.colors.qualitative.Pastel
+fig.set_colorscale("Dark24")          # px.colors.qualitative.Dark24
+fig.set_colorscale("Set1")            # px.colors.qualitative.Set1
+fig.set_colorscale("Bold")            # px.colors.qualitative.Bold
+#+end_src
+
+** Passing Color Lists Directly
+
+You can also pass a list of color strings in any format Plotly uses:
+
+#+begin_src python
+fig.set_colorscale([
+    "rgb(102, 197, 204)",
+    "rgb(246, 207, 113)",
+    "rgb(248, 156, 116)",
+    "#8b5cf6",                         # hex also works
+    "#22d3ee",
+])
+
+# Or pass an actual px.colors list
+fig.set_colorscale(px.colors.qualitative.Vivid)
+#+end_src
+
+** Full Example — Dark Theme with Vivid Colors
+
+#+begin_src python :exports both
+from mofography.movies import Figure3D, build_static_scene
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = build_static_scene(atoms, dgrid=dgrid, regions=seg["regions"], seg=seg)
+fig.set_camera(eye=(2.5, 0.0, 1.35))
+
+fig.set_appearance(
+    background="linear-gradient(180deg, #0d1117 0%, #161b22 100%)",
+    scene_bg=0x0d1117,
+    font_family='"JetBrains Mono", monospace',
+    label_font_size=14,
+)
+
+fig.set_colorscale("Vivid")
+fig.to_html("cubtc_vivid.html")
+print("Saved cubtc_vivid.html")
+#+end_src
+
+* Styling Individual Traces
+
+Each =add_*= method accepts keyword arguments that override the default style.
+You can also use =update_traces()= with a selector to patch existing traces.
+
+** Framework Colors (CPK by Default)
+
+Framework atoms use CPK coloring by default. Override with style kwargs:
+
+#+begin_src python
+# Silver metallic framework
+fig.add_framework(atoms, color=[0.85, 0.85, 0.85], opacity=0.8, roughness=0.5, metalness=0.3)
+
+# Custom per-element colors via the style dict
+fig.add_framework(atoms, color=[0.9, 0.9, 0.9])
+#+end_src
+
+** Batch Updates with =update_traces=
+
+#+begin_src python
+fig.update_traces({"opacity": 0.5}, selector={"type": "mesh"})
+fig.update_traces({"visible": False}, selector={"id": "surface"})
+#+end_src
+
+** Layout Deep Merge
+
+=update_layout()= now does recursive deep merge, so nested keys are safe:
+
+#+begin_src python
+fig.update_layout({
+    "scene": {
+        "camera": {"eye": [3.0, 0.0, 2.0]},
+    },
+    "fps": 30,
+})
+#+end_src
+
+* Named Style Registry
+
+=DEFAULT_STYLES= provides named presets.  You can override at init or per-trace.
+
+#+begin_src python
+from mofography.movies import DEFAULT_STYLES
+import json
+print(json.dumps(DEFAULT_STYLES, indent=2, default=str))
+#+end_src
+
+Override at figure creation:
+
+#+begin_src python
+fig = Figure3D(styles={
+    "framework": {"color": [0.9, 0.9, 0.9], "opacity": 0.8, "roughness": 0.5},
+    "surface": {"opacity": 0.75, "roughness": 0.3},
+    "internal_maxima": {"color": [1.0, 0.2, 0.2], "size": 5.0},
+})
+#+end_src
+
+* Camera & Projection
+
+** Perspective (default)
+
+#+begin_src python
+fig.set_camera(
+    eye=(2.5, 0.0, 1.35),
+    center=(0.0, 0.0, 0.0),
+    up=(0.0, 0.0, 1.0),
+    projection="perspective",
+)
+#+end_src
+
+** Orthographic
+
+#+begin_src python
+fig.set_camera(
+    eye=(2.5, 0.0, 1.35),
+    projection="orthographic",
+)
+#+end_src
+
+Users can toggle between perspective and orthographic in the viewer via the
+"Toggle Orthographic" button.  Ortho mode automatically adjusts lighting,
+mesh roughness, and point marker sizes for best appearance.
+
+* Groups & Visibility
+
+Groups let users toggle sets of traces via checkboxes in the HUD.
+
+** Basic Groups
+
+#+begin_src python
+fig.groups["internal_pore_graph"] = {
+    "traces": ["maxima_internal", "windows_internal", "connections_internal"],
+    "label": "Internal Pore Graph",
+}
+#+end_src
+
+** Groups that Start Hidden
+
+Add =default_off: True= to hide a group at startup:
+
+#+begin_src python
+fig.groups["periodic_pore_graph"] = {
+    "traces": ["maxima_outside", "windows_periodic", "connections_periodic"],
+    "label": "Periodic Pore Graph",
+    "default_off": True,
+}
+#+end_src
+
+* Jupyter Integration
+
+#+begin_src python
+from mofography.movies import Figure3D
+
+fig = Figure3D()
+fig.add_framework(atoms)
+fig  # auto-renders via _repr_html_
+#+end_src
+
+Or explicitly:
+
+#+begin_src python
+fig.show(renderer="notebook")  # inline
+fig.show(renderer="browser")   # opens in default browser
+#+end_src
+
+* Movie HTMLs — Animated Framework + Adsorbates
+
+The Three.js viewer supports two kinds of movies: (1) fixed framework with
+moving adsorbates, and (2) flexible framework where both framework and
+adsorbates change every frame.
+
+** Fixed-Framework Movie (One-Liner)
+
+The framework and pore graph are computed once and stay static. Only guest
+molecules animate frame-to-frame.
+
+#+begin_src python :exports both
+import mofography as mgr
+from pathlib import Path
+
+fig = mgr.make_movie_from_raspa_pdb(
+    pdb_path="movie.s0.pdb",          # guest trajectory (RASPA format)
+    cif_path="framework.cif",         # static framework
+    out_html="movie.html",
+    max_frames=200,
+    spacing=0.25,
+    isovalue=1.0,
+    fps=20.0,
+)
+#+end_src
+
+** Flexible-Framework Movie (Framework + Pores Recompute Every Frame)
+
+When =framework_movie_path= is set, the framework mesh, unit cell,
+isosurface, pore graph (maxima, windows, connections), and adsorbates are
+all stored per frame.
+
+#+begin_src python :exports both
+import mofography as mgr
+from pathlib import Path
+
+base = Path("outputs/github_raspa_test")
+
+fig, payload = mgr.make_sparse_multicomponent_movie(
+    component_movie_paths={
+        "benzene": base / "movies/movie.s0.pdb",
+    },
+    framework_movie_path=base / "Movie_IRMOF1_frameworks.pdb",
+    cif_path=base / "IRMOF-1.cif",
+    out_html=base / "flexible_movie.html",
+    max_frames=15,
+    movie_format="raspa_pdb",
+    spacing=0.25,
+    isovalue=1.0,
+    surf_step_size=2,
+    fps=20.0,
+)
+#+end_src
+
+** Sidecar Streaming Mode (For Long Trajectories)
+
+For movies with hundreds of frames, embedding all frame data in the HTML
+causes browser OOM. Enable =sidecar=True= to write frame data to a
+separate =.frames.jsonl= file loaded on demand.
+
+#+begin_src python :exports both
+fig, payload = mgr.make_sparse_multicomponent_movie(
+    component_movie_paths={"benzene": "movie.s0.pdb"},
+    framework_movie_path="frameworks.pdb",
+    cif_path="IRMOF-1.cif",
+    out_html="movie_streaming.html",
+    sidecar=True,                     # writes movie_streaming.frames.jsonl
+    max_frames=200,
+    spacing=0.25,
+    isovalue=1.0,
+)
+#+end_src
+
+Serve both files from the same directory via any HTTP server:
+
+#+begin_src bash
+python -m http.server 8000
+# then open http://localhost:8000/movie_streaming.html
+#+end_src
+
+The viewer fetches only the current frame (and one ahead/behind) via HTTP
+=Range: bytes=...= requests, keeping JS heap at ~50-60 MB regardless of
+total movie length. If the server does not support Range (e.g.
+=python -m http.server=), the full sidecar is cached once and sliced
+in-memory.
+
+* Viewer Features (Built Into Every HTML)
+
+Every exported HTML includes these interactive controls without any extra
+Python code:
+
+** Exploded View
+
+Drag the "Exploded" slider to separate the framework (left), pore graph
+(right), raw surface (center), PBC surface (up), and cluster surface
+(down). A lightweight unit-cell copy follows each group for reference.
+
+** Orthographic / Perspective Toggle
+
+Click "Ortho" / "Perspective" to switch projection. Ortho mode
+automatically boosts directional light intensity and contrast for clean
+2D-style renders.
+
+** Quick Axis Views
+
+Click =+X=, =-X=, =+Y=, =-Y=, =+Z=, =-Z= to snap the camera to an axis
+alignment while preserving zoom distance.
+
+** Custom View / Light / Rotation Vectors
+
+The HUD includes numeric vector controls:
+
+- =View dir xyz= + =Set=: applies a normalized camera view direction while
+  preserving zoom distance.
+- =Dir light xyz= + =Set=: applies a normalized directional-light vector
+  for the key light.
+- =Rotate axis xyz=: controls the auto-rotate axis (normalized before use).
+
+This makes camera and lighting setups reproducible for screenshots and videos.
+
+** Video / GIF Recording
+
+- "Record" captures WebM video via =MediaRecorder= + canvas stream.
+- "REC" selects recording scale (1x/2x/3x) before recording.
+- "Record GIF" (movie-mode only, when =FRAMES.length > 0=) uses =gif.js=
+  from CDN. Captures up to 100 frames at 10 fps. The GIF worker is loaded
+  via a Blob URL so it works even when opening the file with =file://=.
+
+** Background Modes and Transparent PNG Export
+
+In addition to solid color (=Bg= picker), the viewer supports gradient
+background modes (L→R, T→B, radial) and a transparent mode.
+
+- Transparent mode shows a checkerboard preview in the canvas area.
+- Exported PNGs preserve alpha when transparent mode is active.
+
+** HUD / Legend Folding
+
+The viewer supports:
+
+- collapsing the full HUD panel (=◧= and =Controls= tab),
+- folding dynamic trace legend entries (=Fold Legend=).
+
+** Per-Mesh Opacity Sliders
+
+Every mesh trace (framework, surfaces) gets its own opacity slider in the
+HUD. A tooltip note reminds users to turn off upper surfaces to see
+through to lower ones.
+
+** Hover Tooltips
+
+Mouse over any atom, bond, surface face, or pore-graph node to see a
+rich tooltip. Local maxima now show:
+- pore radius (dgrid) in Angstroms
+- segmentation region label
+- maxima label and maxima PBC representative label
+- maxima offset vector
+- xyz coordinates and grid indices
+
+* Comparison with the Plotly Renderer
+
+Mofography originally used Plotly for 3D visualization. The Three.js
+viewer (=MovieFigure= / =Figure3D=) replaces it for all new work. Here is
+how they compare:
+
+** Similarities
+
+Both APIs follow the same object model:
+
+| Concept          | Plotly                        | Three.js (=MovieFigure=)         |
+|------------------+-------------------------------+------------------------------------|
+| Add trace        | =fig.add_trace(go.Mesh3d(...))= | =fig.add_trace({...})=            |
+| Update traces    | =fig.update_traces(...)=      | =fig.update_traces(patch, selector)= |
+| Layout / camera  | =fig.update_layout(scene_camera=...)= | =fig.set_camera(eye=..., center=...)= |
+| Color palettes   | =px.colors.qualitative.Pastel= | =fig.set_colorscale("Pastel")=    |
+| Jupyter display  | =fig.show()=                  | =fig= (last cell expression)         |
+| HTML export      | =pio.write_html(fig, ...)=   | =fig.to_html("out.html")=            |
+
+** Differences
+
+| Feature                | Plotly                        | Three.js (=MovieFigure=)         |
+|------------------------+-------------------------------+------------------------------------|
+| Rendering backend      | WebGL via stack.gl            | Three.js r128 (more mature, SSAO)  |
+| Post-processing        | None                          | SSAO, ortho lighting compensation  |
+| Orthographic mode      | Not supported                 | Full support with auto-lighting    |
+| Exploded view          | Manual trace transforms       | Built-in 5-group slider            |
+| Video/GIF recording    | External tools only           | Built-in buttons                   |
+| File size (movies)     | ~300-500 MB for 50 frames      | ~100-150 MB (binary-packed sidecar) |
+| RAM for long movies    | All frames in memory           | Sidecar streaming: ~50 MB fixed    |
+| Mesh opacity per trace | Single opacity slider          | Per-trace opacity sliders in HUD   |
+| Hover on meshes        | Not supported                  | Per-face hover with region labels  |
+| Background/export UX   | Static scene bgcolor           | Solid/gradient/transparent + alpha PNG |
+| Point hover priority   | First hit                      | Ranked: Points > Mesh-with-face > Lines > Instanced > Mesh |
+
+* API Reference Summary
+
+** Static Scene Builders
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =build_static_scene(atoms, dgrid, regions, seg)= | One-liner for framework + segmentation + pore graph   |
+| =make_framework_trace(atoms)=   | Framework mesh trace (CPK colors)                      |
+| =make_surface_trace(dgrid, regions, atoms, ...)= | Isosurface mesh trace                                |
+| =make_maxima_trace(seg, atoms)= | Local maxima points (internal + periodic + PBC reps) |
+| =make_windows_trace(seg)=       | Window markers                                         |
+| =make_connections_trace(seg, atoms)= | Pore graph edges (internal + periodic)            |
+| =make_cell_trace(atoms)=        | Unit cell wireframe                                    |
+| =make_guest_trace(atoms)=       | Adsorbate instanced spheres                            |
+| =make_guest_bonds_trace(atoms)= | Adsorbate bond cylinders                             |
+
+** Movie Builders
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =make_movie_from_raspa_pdb(...)= | Fixed framework + RASPA PDB guests                    |
+| =make_movie_from_trajectory(...)= | Fixed framework + any ASE-readable trajectory        |
+| =make_sparse_multicomponent_movie(...)= | Flexible framework + multi-component guests      |
+| =build_fixed_framework_movie(...)= | Lower-level fixed-framework movie builder             |
+
+** Figure Mutation
+
+| Method                          | Description                                           |
+|---------------------------------+-------------------------------------------------------|
+| =add_trace(trace, frame=None)=   | Add a trace dict (frame=None for static)              |
+| =add_traces(traces, frame=None)= | Batch add traces                                      |
+| =update_traces(patch, selector, frame)= | Merge patch into matching traces            |
+| =update_layout(patch)=           | Deep-merge layout dict                                |
+| =set_camera(...)=                | Set eye, center, up, projection                       |
+| =set_appearance(...)=            | Set background, scene_bg, font_family, label_size     |
+| =set_colorscale(colors)=         | Set surface colors from px.colors or color list       |
+| =to_html(path, sidecar=False)=   | Save self-contained HTML (or sidecar pair)            |
+| =show(renderer)=                 | Display in notebook or browser                        |
+
+* Figure3js — Granular Plotly-Style API
+
+=Figure3js= (import from =mofography=; alias =Figure3JS=) is a chainable API in =threejs_viz= that mirrors
+the Plotly trace model.  Every method returns =self=, so calls can be chained.
+Unlike =build_static_scene=, every visual element is added explicitly, giving
+full control over what appears and in what order.
+
+** Import
+
+#+begin_src python
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
+#+end_src
+
+** Minimal Example
+
+#+begin_src python :exports both
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg   = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+fig = Figure3js()
+fig.plot_cell(atoms, color="orange")
+fig.draw_framework(atoms)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=seg["regions"],
+    name="Regions", opacity=1.0,
+    cscale=tjs.qualitative_colorscale("Pastel"),
+)
+fig.plot_maxima(dgrid, seg["all_maxima"], atoms, name="Maxima")
+fig.set_camera(eye=(2.0, 0.0, 1.35))
+fig.to_html("my_output.html")
+#+end_src
+
+** Full Pipeline — Matching the Interactive App
+
+This is the canonical snippet that mirrors exactly what the interactive app
+produces (segmentation surfaces, PBC overlay, connections, windows).
+
+#+begin_src python :exports both
+import numpy as np
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
+import mofography as mgr
+from ase.io import read
+
+# ---------- data ----------------------------------------------------------
+atoms = mgr.update_with_covalent_bonds(
+    read("mofography/examples/TestCIFs/P1-Cu-BTC.cif")
+)
+dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5).astype("float32")
+seg   = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.5,
+    h=0.2, threshold_abs=1.5, min_distance=1.5,
+    compute_connections=True, return_dgrid=False, extra_padding=5,
+)
+
+regions             = seg["regions"]
+regions_pbc         = seg["regions_pbc"]
+connections         = seg["connections"]
+all_maxima          = seg["all_maxima"]
+unique_regions      = seg["unique_regions"]
+connections_trimmed = np.array(
+    [c for c in connections if np.any(np.isin(c[0], unique_regions))],
+    dtype=object,
+)
+
+# ---------- figure --------------------------------------------------------
+cscale = tjs.qualitative_colorscale("Pastel")
+
+fig = Figure3js()
+fig.set_camera(eye=(2.0, 0.0, 1.35))
+fig.plot_cell(atoms, color="orange")
+fig.draw_framework(atoms)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions,
+    name="Regions", opacity=1.0, cscale=cscale,
+)
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions_pbc,
+    name="Regions PBC", opacity=0.35, cscale=cscale,
+    trace_id="surface_regions_pbc",
+)
+fig.plot_maxima(dgrid, all_maxima, atoms,
+                name="Maxima (distinct)", cscale=cscale)
+fig.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, atoms,
+    cscale=cscale, plot_disconnected=False, plot_periodic=True,
+)
+fig.plot_windows(
+    connections_trimmed,
+    name="Windows",
+    marker_color="yellow", marker_size=10, marker_opacity=0.8,
+)
+fig.to_html("cubtc_granular.html")
+#+end_src
+
+** Method Reference
+
+| Method | Purpose |
+|---|---|
+| =plot_cell(atoms, color="purple")= | Unit-cell wireframe |
+| =draw_framework(atoms)= | Ball-and-stick mesh (alias: =plot_framework=) |
+| =plot_surface_dgrid(dgrid, isovalue, atoms, region_labels=…)= | Marching-cubes surface from a distance grid |
+| =plot_surface(dgrid, label_array, atoms, …)= | Low-level surface (takes pre-computed regions array) |
+| =plot_maxima(dgrid, maxima, atoms, …)= | Pore-centre markers |
+| =plot_maxima_from_grid(dgrid, maxima, atoms, …)= | Same, with explicit regions override |
+| =plot_connections(seg, atoms, …)= | Channel connections from a seg dict |
+| =plot_connections_as_it_is(connections, maxima, shape, atoms, …)= | Connections from raw arrays |
+| =plot_windows(connections, …)= | Window centroids as point markers |
+| =plot_guests(positions, atoms, …)= | Guest-molecule positions (MD snapshots) |
+| =set_camera(eye, center, up)= | Camera position |
+| =set_appearance(**kwargs)= | Background, font, scene color |
+| =update_traces(patch, selector=…)= | Bulk-patch existing traces |
+| =add_group(id, traces, label, …)= | HUD checkbox group |
+| =add_trace(trace_dict)= | Append a raw trace dict |
+| =add_traces(traces)= | Append multiple raw trace dicts |
+| =to_html(path=None)= | Write self-contained HTML (returns HTML string if path is None) |
+| =show(renderer="browser")= | Open in browser |
+
+Access the underlying =MovieFigure= object via =fig.figure= for advanced use.
+
+** Surface Smoothing
+
+Surfaces are Taubin-smoothed by default at the same level as the interactive
+app (strength 0.05):
+
+| Parameter | Default | Notes |
+|---|---|---|
+| =taubin_smooth= | =True= | Set =False= to skip smoothing entirely |
+| =taubin_iterations= | =3= | Number of Taubin passes |
+| =taubin_lambda= | =0.2175= | Shrink factor |
+| =taubin_nu= | =-0.2175= | Inflate factor |
+
+Override per-call:
+
+#+begin_src python
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions, name="No smoothing",
+    taubin_smooth=False,
+)
+
+fig.plot_surface_dgrid(
+    dgrid, 1.0, atoms,
+    region_labels=regions, name="Heavy smoothing",
+    taubin_iterations=15, taubin_lambda=0.5, taubin_nu=-0.53,
+)
+#+end_src
+
+** Chaining
+
+All methods return =self=, enabling Plotly-style method chaining:
+
+#+begin_src python
+Figure3js() \\
+    .plot_cell(atoms) \\
+    .draw_framework(atoms) \\
+    .plot_surface_dgrid(dgrid, 1.0, atoms, region_labels=regions, name="R") \\
+    .set_camera(eye=(2.0, 0.0, 1.35)) \\
+    .to_html("out.html")
+#+end_src
+
+** Colorscale Helper
+
+=tjs.qualitative_colorscale(name)= converts a Plotly qualitative palette name
+to the float RGB list expected by =Figure3js=:
+
+#+begin_src python
+cscale = tjs.qualitative_colorscale("Pastel")   # list of [[r,g,b], …]
+cscale = tjs.qualitative_colorscale("Dark24")
+cscale = tjs.qualitative_colorscale("Vivid")
+
+# Or pass a px.colors list directly
+import plotly.express as px
+fig.plot_surface_dgrid(..., cscale=px.colors.qualitative.Set2)
+#+end_src
+
+** Difference from =Figure3D= / =build_static_scene=
+
+| Feature | =Figure3D= / =build_static_scene= | =Figure3js= |
+|---|---|---|
+| Construction | Keyword-driven builder | Explicit per-trace calls |
+| Element control | Controlled by flags | Each element added manually |
+| Chaining | No | Yes |
+| Output | HTML via =.to_html()= | HTML via =.to_html()= |
+| Use case | Quick full-scene render | Custom layouts, research figures |
+
+For a quick full-scene render where you just need the default layout, prefer
+=build_static_scene=.  Use =Figure3js= when you need precise control over
+which layers appear, in what order, with custom per-trace opacity or colors.
