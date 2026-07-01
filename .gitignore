@@ -2247,3 +2247,11 @@ MOFOGRAPHY_VS_CLI_COMPARISON.md
 /cubtc_visual_check.py
 docs/_site/
 docs/interactive/*.html
+internal_docs/*.json
+internal_docs/*.npz
+internal_docs/*.pdf
+internal_docs/*.tex
+internal_docs/conf.py
+internal_docs/Makefile
+internal_docs/.quartoignore
+internal_docs/objects.json

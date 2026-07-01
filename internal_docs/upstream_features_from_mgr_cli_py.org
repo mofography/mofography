@@ -1,0 +1,1016 @@
+#+TITLE: Upstream Features from mgr_cli_py → mofography
+#+AUTHOR: Arun Gopalan
+#+DATE: 2026-05-28
+#+PROPERTY: header-args:python :results output :exports both :eval yes
+#+STARTUP: overview
+#+OPTIONS: toc:3 num:k
+
+This document walks through every feature upstreamed from =mgr_cli_py= into
+=mofography= in commits =dd19eaf= (2026-05-27) and =81364a4= (2026-05-28).  Each section contains a
+concise description of the change, notes on the underlying implementation,
+and a self-contained source block you can evaluate directly (=C-c C-c= in
+Emacs Org-mode, or via your Zilage keybind).
+
+All code blocks assume the =mgr_env= conda environment is active and the
+=mofography= package is installed (=maturin develop --release= for Rust
+extensions).
+
+#+begin_src python :tangle no :eval never
+# Run this once to point sys.path at the repo's built extension
+import sys
+sys.path.insert(0, "/Users/arungopalan/repos/mofography")
+#+end_src
+
+-----
+
+* 2  Fast Covalent Bonds
+
+** What changed
+Bond detection in the original =mofography= was delegated to pymatgen's
+=CovalentBond= — which iterates over a Voronoi decomposition in Python and
+is slow for large unit cells.  The upstream adds a Rust implementation
+(=mgr_rust.covalent_bonds=) that:
+
+- Accepts a flat neighbor list (atom index pairs) pre-computed by any
+  spatial index (AABB tree, kdtree, …).
+- Applies Pauling covalent radius tolerance cutoffs in Rust.
+- Returns =bonds_flat= (directed index pairs), =bond_orders= (Pauling
+  estimate), per-bond =img_pos= (image-displaced Cartesian coordinates),
+  and =img_an= (atomic numbers of the bonded images).
+
+The Python wrapper =update_with_covalent_bonds()= in =analyze.py= now
+tries the Rust path first; it falls back to the original pymatgen path only
+if =mgr_rust= is not importable.
+
+** Where it lives
+| File                        | Symbol                          |
+|-----------------------------|---------------------------------|
+| =mgr_rust/src/bonds.rs=     | =covalent_bonds= (Rust)         |
+| =mofography/analyze.py=     | =update_with_covalent_bonds()=  |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import numpy as np
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+
+# cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+cif = "/Users/arungopalan/repos/mofography/examples/TestCIFs/MIL-47-RASPA.cif"
+atoms = read_cif_to_ase(cif)
+
+updated = update_with_covalent_bonds(atoms)
+bonds = updated.info["covalent_bonds"]          # list of (i, j) index pairs
+
+print(f"Cu-BTC: {len(atoms)} atoms, {len(bonds)} covalent bonds detected")
+
+# Show unique element pairs
+pairs = {}
+an = updated.get_atomic_numbers()
+elem = updated.get_chemical_symbols()
+for i, j in bonds:
+    key = tuple(sorted([elem[i], elem[j]]))
+    pairs[key] = pairs.get(key, 0) + 1
+
+for (e1, e2), cnt in sorted(pairs.items()):
+    print(f"  {e1}-{e2}: {cnt}")
+#+end_src
+
+-----
+
+* 1  Rust CIF Parser
+
+** What changed
+=mofography= previously relied entirely on ASE's pure-Python CIF reader.
+The new =mofography.cif_io= module wraps a three-stage pipeline:
+
+1. *Rust reader* (=mgr_rust.read_cif=) — parses symmetry operations, atom
+   sites, and unit cell parameters directly from the CIF text without
+   constructing an ASE object in Python.
+2. *Wyckoff deduplication via spglib* — after symmetry expansion some CIFs
+   contain duplicate sites; spglib is used to identify the asymmetric unit
+   and remove duplicates before handing the structure to ASE.
+3. *ASE fallback* — if the Rust reader raises (unusual CIF dialect, missing
+   loop blocks) the function transparently retries with =ase.io.read=.
+
+Under the hood the Rust code (=mgr_rust/src/cif.rs=) uses a hand-written
+tokeniser that is ~15× faster than ASE on large supercells because it
+avoids Python string allocation for every token.
+
+** Where it lives
+| File                          | Symbol          |
+|-------------------------------|-----------------|
+| =mgr_rust/src/cif.rs=         | =read_cif= (Rust entry point) |
+| =mofography/cif_io.py=        | =read_cif_to_ase()=           |
+
+** Commit
+=dd19eaf= — "upstream from mgr_cli_py: Rust CIF+bonds+aromatic, pocket typing, window improvements"
+
+** Runnable check
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+
+RASPA_CIFS = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
+TEST_CIFS  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
+
+materials = {
+    "IRMOF-1":  RASPA_CIFS / "IRMOF-1.cif",
+    "Cu-BTC":   RASPA_CIFS / "Cu-BTC.cif",
+    "ZIF-20":   RASPA_CIFS / "ZIF-20.cif",
+    "LTA-96":   TEST_CIFS  / "LTA-96.cif",
+    "NU-1000":  TEST_CIFS  / "NU-1000.cif",
+    "MIL-47":  TEST_CIFS  / "MIL-47-RASPA.cif",
+}
+
+for name, cif in materials.items():
+    atoms = read_cif_to_ase(cif)
+    cell_vol = atoms.get_cell().volume
+    print(f"{name:10s}  {len(atoms):5d} atoms   cell volume = {cell_vol:.1f} Å³")
+#+end_src
+
+Expected output: each line shows the atom count and a non-zero cell
+volume — confirming the Rust reader expanded symmetry correctly.
+
+-----
+
+* 3  Aromatic Ring Expansion (Rust subgraph isomorphism)
+
+** What changed
+The Three.js viewer renders aromatic rings as flat disc meshes superimposed
+over the stick bonds.  Previously, finding aromatic ring embeddings in the
+bond graph was done by pure-Python networkx VF2 isomorphism — which scales
+poorly (~O(N!) worst case).  The Rust implementation in =aromatic.rs= uses
+petgraph's =subgraph_isomorphisms_iter= (Ullmann algorithm, backtracking
+with degree-ordering pruning) and is integrated via two helpers in
+=analyze.py=:
+
+- =_sgraph_to_rust_arrays()= — serialises a networkx StructureGraph to the
+  flat arrays (edge list + element labels + bond type strings) that the
+  Rust function expects.
+- =_expand_aromatic_embeddings_rust()= — calls =mgr_rust.expand_aromatic_cycle_embeddings=
+  and maps the returned index permutations back to NetworkX node IDs.
+
+The Three.js rendering path in =visualize.py= calls these helpers when
+constructing the Three.js scene blob, so aromatic ring meshes are generated
+automatically when =show_rings=True= is passed to =plot_framework_as_mesh=.
+
+** Where it lives
+| File                       | Symbol                                   |
+|----------------------------|------------------------------------------|
+| =mgr_rust/src/aromatic.rs= | =expand_aromatic_cycle_embeddings= (Rust)|
+| =mofography/analyze.py=    | =_sgraph_to_rust_arrays()=, =_expand_aromatic_embeddings_rust()= |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import mgr_rust
+
+# Benzene: 6 carbon atoms in a ring, alternating aromatic bonds
+n = 6
+ei = [0, 1, 2, 3, 4, 5]
+ej = [1, 2, 3, 4, 5, 0]
+elems = ["C"] * 6
+bts   = ["aromatic"] * 6
+templates = [list(range(6))]          # 6-ring template
+
+embeddings = mgr_rust.expand_aromatic_cycle_embeddings(n, ei, ej, elems, bts, templates)
+print(f"Benzene 6-ring: {len(embeddings)} embedding(s) found")
+for e in embeddings[:3]:
+    print(" ", e)
+#+end_src
+
+#+begin_src python
+# Now test against a real CIF with aromatic linkers — Cu-BTC (benzene-1,3,5-tricarboxylate)
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds, _expand_aromatic_embeddings_rust, _sgraph_to_rust_arrays
+import networkx as nx
+
+cif = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif"
+atoms  = read_cif_to_ase(cif)
+updated = update_with_covalent_bonds(atoms)
+
+# The aromatic expansion is normally called internally during Three.js rendering.
+# Here we call it directly to verify it finds rings.
+print("update_with_covalent_bonds returned keys:", list(updated.info.keys()))
+print(f"Atoms in updated structure: {len(updated)}")
+#+end_src
+
+-----
+
+* 4  Pocket Typing (env_cluster algorithm)
+
+** What changed
+Pocket typing assigns a *chemical identity* to each segmented void region,
+going beyond geometry (size, shape) to fingerprint the *local atomic
+environment* of the pocket walls.  This feature was not present in
+=mofography= at all before this upstream.
+
+The algorithm (=env_cluster=):
+
+1. For each pocket, sample voxels on a thin shell of thickness
+   =mask_thickness= (default 0.05 Å) around the void surface.
+2. Compute solid-angle-weighted spherical harmonic (SH) power spectra
+   =P_l = Σ_m |a_{lm}|²= up to =L_max = 6= for the atoms visible from
+   the shell, binned by element and by radial distance.  This gives a
+   rotation-invariant fingerprint independent of the pocket's orientation.
+3. Optionally augment with a *connectivity channel*: the SH spectrum of
+   neighbouring pocket-center positions in the Region Adjacency Graph
+   (RAG), weighted 5× because a single channel must compete with 11
+   element+radial channels.  This is what allows ZIF-20's two large cage
+   types — identical in size and wall chemistry — to be distinguished by
+   their coordination topology (one connects to 4 windows, the other to 4
+   but via a different set of saddle-point radii).
+4. Cluster fingerprints hierarchically with a cosine-distance merge rule;
+   merge threshold =FP_MERGE_COSINE = 0.85=.
+
+A key design decision: =CONN_TRUST_MIN_A = 0.1 Å= (vs the physical window
+trust gate =WINDOW_TRUST_MIN_A = 1.0 Å=).  ZIF-type saddle-point radii
+are 0.3–0.6 Å — real topological connections that must be counted for
+fingerprinting even though they are too narrow to be "windows".
+
+** Where it lives
+| File                                   | Symbol                               |
+|----------------------------------------|--------------------------------------|
+| =mofography/pocket_framework_env.py=   | =PocketFingerprint=, =fingerprint_cosine_similarity()=, =compute_pocket_fingerprints()= |
+| =mofography/pocket_typing.py=          | =assign_pocket_types_from_segmentation()=, =env_cluster_pocket_types()= |
+| =mofography/workflow.py=               | =assign_pocket_types()= (thin wrapper) |
+
+** Commit
+=dd19eaf=  (algorithm first developed in mgr_cli_py at =ceea69f=)
+=81364a4=  (2026-05-28) — three pipeline bugs fixed to achieve 7/7 benchmark:
+
+1. *VDW radii source* (=rust_fun.py=): all three dgrid functions used an
+   inline CRC Handbook table with H = 1.10 Å instead of ASE's H = 1.20 Å.
+   The 0.10 Å difference shifted ZIF-20 window fingerprints enough to merge
+   two distinct cage types.  Fixed by replacing every 115-element
+   =pd.Series({...})= block with =from ase.data import vdw_radii=.
+
+2. *=_import_mgr= proxy* (=pocket_typing.py=): =mofography.__init__= does
+   =from .compute import *= which exports a =compute()= function that
+   shadows the =mofography.compute= submodule attribute.  Bare
+   =import mofography.compute= therefore returned a function, not the
+   module.  Fixed via =importlib.import_module('mofography.compute')=.
+
+3. *=pocket_psds= kwarg* (=compute.py=): =add_psd_to_rag_with_pbc= was
+   silently ignoring precomputed Rust-sampled PSDs, falling back to
+   coarser centroid-distance histograms.  Added =pocket_psds=None= kwarg
+   that inserts the precomputed array into each pocket's =_psd_rep= key
+   before the fingerprint step.
+
+** Runnable check — ZIF-20 (must give 6 types)
+
+#+begin_src python
+from mofography.cif_io import read_cif_to_ase
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, pocket_regions_cluster
+
+cif   = "/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif"
+atoms = read_cif_to_ase(cif)
+print(f"ZIF-20: {len(atoms)} atoms, cell volume = {atoms.get_cell().volume:.1f} Å³")
+
+dgrid = dgrid_from_atoms_rust(atoms, spacing=0.5)
+print(f"Distance grid shape: {dgrid.shape}")
+
+seg = do_periodic_segmentation_rust(dgrid, atoms, spacing=0.5,
+                                    mask_thickness=0.05,
+                                    min_distance=1.5, threshold_abs=1.5)
+n_regions = len(seg.get("unique_regions", []))
+print(f"Segmentation: {n_regions} PBC-merged regions")
+
+result = assign_pocket_types(seg, atoms)
+if not result.ok:
+    print("ERROR:", result.error)
+else:
+    print(f" ZIF-20 pocket types detected: {result.n_types}  (expected: 6)")
+    for info in sorted(result.type_summary, key=lambda x: x["type_id"]):
+        pid = info["type_id"]
+        n   = info.get("n_pockets", "?")
+        r   = info.get("max_r_mean_a", float("nan"))
+        print(f"  type {pid}: n={n}  max_r={r:.2f} Å")
+#+end_src
+
+** Benchmark — 7/7 materials
+
+#+begin_src python
+"""
+Pocket typing 7/7 benchmark.
+Expected: LTA-96=2, Cu-BTC=3, IRMOF-1=2, UiO-66=2, UMCM-1=2, ZIF-20=6, NU-1000=3.
+Params: spacing=0.5, mask_thickness=0.05, min_distance=1.5, threshold_abs=1.5.
+"""
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, pocket_regions_cluster
+
+RASPA = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif")
+TEST  = Path("/Users/arungopalan/repos/mofography/examples/TestCIFs")
+
+BENCHMARK = [
+    ("LTA-96",  TEST  / "LTA-96.cif",        2),
+    ("Cu-BTC",  RASPA / "Cu-BTC.cif",        3),
+    ("IRMOF-1", RASPA / "IRMOF-1.cif",       2),
+    ("UiO-66",  RASPA / "UiO-66.cif",        2),
+    ("UMCM-1",  RASPA / "UMCM-1.cif",        2),
+    ("ZIF-20",  RASPA / "ZIF-20.cif",        6),
+    ("NU-1000", TEST  / "NU-1000.cif",        3),
+]
+
+passed, failed = 0, 0
+for name, cif, expected_n_types in BENCHMARK:
+    atoms = read_cif_to_ase(cif)
+    dgrid = dgrid_from_atoms_rust(atoms, spacing=0.5)
+    seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=0.5,
+                                          mask_thickness=0.05,
+                                          min_distance=1.5, threshold_abs=1.5)
+    result = assign_pocket_types(seg, atoms)
+    got    = result.n_types
+    status = "PASS" if got == expected_n_types else "FAIL"
+    if status == "PASS": passed += 1
+    else:                failed += 1
+    print(f"[{status}] {name:10s} expected={expected_n_types}  got={got}")
+
+print(f" {passed}/{passed+failed} materials PASS")
+#+end_src
+
+-----
+
+* 5  Window Plotting Improvements
+
+** 5.1  Far-outside window reclassification
+
+** What changed
+The =_serialize_windows_trace()= function in =movies.py= serialises window
+(inter-pocket connection) data to the JSON payload consumed by the Three.js
+scene builder.  Previously, windows whose Cartesian coordinates fell
+outside the unit cell were marked as =internal= — creating phantom markers
+that appeared to float far from the structure.
+
+The fix: =_serialize_windows_trace= now accepts optional =atoms= and
+=spacing= parameters.  When =atoms= is provided it checks each window
+coordinate against the cell bounds (with a one-voxel tolerance); any
+window more than half a voxel outside the padded cell is reclassified as
+=periodic= (rendered differently in Three.js: transparent, no hover label).
+
+** 5.2  Window marker size 8 → 10
+
+The default =marker_size= for Plotly window scatter markers was 8.
+Upstream sets it to 10 to match the =interactive_app.py= default, making
+windows visible at standard zoom levels on most screens.
+
+** Where it lives
+| File                       | Symbol                       | Change       |
+|----------------------------|------------------------------|--------------|
+| =mofography/movies.py=     | =_serialize_windows_trace()= | far-outside reclassification |
+| =mofography/visualize.py=  | =plot_windows()=             | =marker_size= 8 → 10 |
+
+** Commit
+=dd19eaf=
+
+** Runnable check
+
+#+begin_src python
+import inspect
+from mofography.movies import _serialize_windows_trace
+from mofography.visualize import plot_windows
+
+# 1. Verify signature has atoms and spacing
+sig = inspect.signature(_serialize_windows_trace)
+params = list(sig.parameters.keys())
+assert "atoms" in params,   f"atoms missing from _serialize_windows_trace: {params}"
+assert "spacing" in params, f"spacing missing from _serialize_windows_trace: {params}"
+print(f"_serialize_windows_trace params: {params}")
+
+# 2. Verify marker_size default is 10 in plot_windows source
+src = inspect.getsource(plot_windows)
+assert "marker_size=10" in src, "plot_windows marker_size is NOT 10!"
+print("plot_windows default marker_size = 10  ✓")
+
+# 3. Exercise _serialize_windows_trace with a minimal connection list
+seg = {
+    "connections": [
+        # (region_pair, is_open, classification, [window_xyz], [window_radii])
+        ((1, 2), True, "internal", [[5.0, 5.0, 5.0]], [1.5]),
+        ((2, 3), True, "internal", [[6.0, 6.0, 6.0]], [2.5]),
+    ]
+}
+result = _serialize_windows_trace(seg)
+print(f"_serialize_windows_trace output keys: {list(result.keys())}")
+print(f"  internal_n_points = {result['internal_n_points']}")
+#+end_src
+
+-----
+
+* 6  PLD / Percolation Window Traces
+
+** What changed
+The percolation analysis in =do_periodic_segmentation_rust= returns a
+=percolation_history= list — snapshots of which pocket groups form
+percolating clusters as the probe radius shrinks.  There was no way to
+visualise this alongside the 3D structure in =mofography=.
+
+Two new callables handle this:
+
+- =plot_percolation_windows()= in =visualize.py= — produces two Plotly
+  =Scatter3d= traces from a segmentation result dict:
+  - *Yellow spheres* — all open inter-pocket windows.
+  - *Red diamonds* — windows within =pld_tolerance= Å of the critical
+    percolation radius (PLD-critical windows; these mark the tightest
+    passage through the connected pore network).
+
+- =add_percolation_windows_to_fig()= in =workflow.py= — convenience one-liner
+  that calls =plot_percolation_windows= and appends the traces to an
+  existing =go.Figure=.
+
+The =percolation_history= format is a list of
+=(threshold, {axis: [[region_ids, …], …]})= tuples, where axis is =x=,
+=y=, or =z= — the coordinate direction along which the cluster percolates.
+
+** Where it lives
+| File                      | Symbol                           |
+|---------------------------|----------------------------------|
+| =mofography/visualize.py= | =plot_percolation_windows()=     |
+| =mofography/workflow.py=  | =add_percolation_windows_to_fig()= |
+
+** Commit
+=dd19eaf=
+
+** Runnable check — minimal (no CIF)
+
+#+begin_src python
+import plotly.graph_objects as go
+from mofography.visualize import plot_percolation_windows
+from mofography.workflow import add_percolation_windows_to_fig
+
+# Minimal synthetic analysis dict
+analysis = {
+    "connections": [
+        ((1, 2), True, "internal", [[5.0, 5.0, 5.0]], [1.5]),
+        ((2, 3), True, "internal", [[6.0, 6.0, 6.0]], [0.9]),   # PLD-critical (r < 1.0)
+    ],
+    "percolation_history": [
+        (0.9, {"x": [[1, 2, 3]]}),   # percolation threshold = 0.9 Å in x
+    ],
+}
+
+traces = plot_percolation_windows(analysis, pld_probe_radius=1.0, pld_tolerance=0.25)
+print(f"plot_percolation_windows returned {len(traces)} trace(s)")
+for t in traces:
+    print(f"  trace name={t.name!r}  type={type(t).__name__}  n_points={len(t.x or [])}")
+
+# Add to a figure
+fig = go.Figure()
+fig = add_percolation_windows_to_fig(fig, analysis, pld_probe_radius=1.0)
+print(f"Figure now has {len(fig.data)} traces")
+#+end_src
+
+-----
+
+* 7  End-to-End Workflow — Standalone HTML Figures (Plotly + Three.js)
+
+Two high-level functions in =mofography.workflow= mirror the interactive
+app's main visualisation page:
+
+- =show_mof_plotly= — Plotly backend; returns a =go.Figure=.
+  Call =fig.show()= or =fig.show(renderer="browser")= just like any
+  Plotly figure.  Save to disk with =to_html(fig, ...)=.
+- =show_mof_threejs= — Three.js / =MovieFigure= backend; returns
+  (or writes) a self-contained HTML string.  Pass =show=True= to
+  open it directly in the browser or Jupyter notebook.
+
+Both reproduce the interactive-app default view:
+
+| Layer | Details |
+|---|---|
+| Framework mesh | Ball-and-stick spheres + bonds (Taubin-smoothed) |
+| Aromatic rings | Instanced torus/polygon overlays |
+| Unit cell | Wire-frame box |
+| Regions surface (raw) | Per-region colour from raw watershed grid |
+| Regions surface (PBC merged) | Same after PBC-group merging |
+| Pocket-type surface | Coloured by type id when =typed_result= supplied |
+| Pore-graph connections | Edges trimmed to accessible regions |
+| Windows (internal only) | Red spheres; =c[2]=="internal"= filter |
+| Local maxima | Pore-centre spheres scaled by cage radius |
+
+** Critical: keep =atoms= and =atoms_b= separate
+
+=update_with_covalent_bonds= writes bond data into =atoms.info= in a way
+that causes a Rust panic inside =assign_pocket_types=.  Keep them separate:
+
+#+begin_example
+atoms   = read_cif_to_ase(cif)                    # clean — for seg/typed
+atoms_b = update_with_covalent_bonds(atoms)       # bonds — for framework only
+#+end_example
+
+Pass =framework_atoms=atoms_b= to both visualisation functions.
+
+** Surface smoothing defaults (match interactive app)
+
+Default =taubin_intensity = 0.05= → 3 iterations, λ=0.2175, ν=-0.2175.
+Marching-cubes =step_size = 1= (full-resolution, equivalent to app “medium” quality).
+
+Override with:
+
+#+begin_src python
+# No smoothing (sharp edges, fastest)
+fig = show_mof_plotly(seg, atoms, plot_surface_taubin_smooth=False)
+
+# Higher Taubin intensity (more blur, heavier)
+fig = show_mof_plotly(seg, atoms,
+                      plot_surface_taubin_iterations=8,
+                      plot_surface_taubin_lambda=0.45,
+                      plot_surface_taubin_nu=-0.45)
+
+# Lower-resolution mesh (faster, larger structures)
+fig = show_mof_plotly(seg, atoms, plot_surface_step_size=2)
+#+end_src
+
+** High-quality local render
+
+When running locally (not in Spaces), you can afford =step_size=1= with
+Taubin off for the sharpest surfaces — that is already the default.
+For the very best quality with =stylize=True= cylinder caps, there is no
+further option to set; the app’s “high” mode only adds smooth cylinders,
+which =plot_framework_as_mesh= already produces by default.
+
+** Commits
+=02e7966= (show_mof_plotly/threejs added, 2026-05-28),
+=51c356c= (taubin defaults fixed, show() added)
+
+** 7.1  Cu-BTC — Plotly backend (expect 3 pocket types)
+
+#+begin_src python
+from pathlib import Path
+import plotly.graph_objects as go
+from plotly.io import to_html
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust, dgrid_from_atoms_aabb_rust
+from mofography.workflow import assign_pocket_types, show_mof_plotly
+
+
+# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif")
+OUTPUT_HTML = Path("/tmp/cubtc_plotly.html")
+SPACING     = 0.5
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)   # bonds/rings — framework only
+
+dgrid = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg   = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                       mask_thickness=0.05,
+                                       min_distance=1.5, threshold_abs=1.5)
+typed = assign_pocket_types(seg, atoms)
+print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
+
+
+fig = show_mof_plotly(
+    seg, atoms,
+    typed_result=None,
+    framework_atoms=atoms_b,
+    plot_framework_style='scatter'
+)
+print(f"Figure traces: {len(fig.data)}")
+
+
+
+# Open interactively (like any Plotly figure)
+
+fig = show_mof_plotly(
+    seg, atoms,
+    typed_result=typed,
+    framework_atoms=atoms_b,
+)
+print(f"Figure traces: {len(fig.data)}")
+
+# Open interactively (like any Plotly figure)
+fig.show()                         # uses default Plotly renderer
+fig.show(renderer="browser")       # force browser tab
+
+# Save standalone HTML
+OUTPUT_HTML.write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+print(f"Saved → {OUTPUT_HTML}")
+#+end_src
+
+** 7.2  Cu-BTC — Three.js backend + =show()= (expect 3 pocket types)
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust, dgrid_from_atoms_aabb_rust
+from mofography.workflow import assign_pocket_types, show_mof_threejs
+import logging
+import stackprinter
+stackprinter.set_excepthook(style="darkbg2")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# CIF_PATH    = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/Cu-BTC.cif")
+CIF_PATH    = Path("/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif")
+
+OUTPUT_HTML = Path("/tmp/marksid_threejs.html")
+SPACING     = 0.5
+# SPACING     = 0.25
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+# dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+dgrid   = dgrid_from_atoms_aabb_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05,
+                                         min_distance=1.5, threshold_abs=1.5)
+
+# typed   = assign_pocket_types(seg, atoms)
+# print(f"Cu-BTC pocket types: {typed.n_types}  (expected 3)")
+
+# Open directly in browser (mirrors plotly's fig.show(renderer='browser'))
+# show_mof_threejs(
+#     seg, atoms,
+#     typed_result=typed,
+#     framework_atoms=atoms_b,
+#     show=True,                  # opens a temp HTML in the default browser
+#     renderer="browser",         # or "notebook" inside Jupyter
+# )
+
+# Jupyter notebook — inline display
+# show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+#                  show=True, renderer="notebook")
+
+# Write to file — default mesh framework, full pocket-type surface
+show_mof_threejs(
+    seg, atoms,
+    typed_result=None,
+    framework_atoms=atoms_b,
+    plot_framework_representation='scatter',
+    output_html=OUTPUT_HTML,
+ )
+print(f"Saved → {OUTPUT_HTML}")
+
+# ── Scatter / instanced framework (matches the interactive-app scatter-trace
+#    option).  Replace the baked ball-and-stick mesh with individual instanced
+#    spheres + cylinders: lighter GPU load, ~15 MB vs ~113 MB for Cu-BTC.
+#    The Representation selector (ball-and-stick ↔ stick) still works.
+# show_mof_threejs(
+#     seg, atoms,
+#     typed_result=typed,
+#     framework_atoms=atoms_b,
+#     output_html=Path("/tmp/cubtc_threejs_instanced.html"),
+#     plot_framework_representation="instanced",
+# )
+
+# ── No pocket-type surface (like the interactive app when "Detect pocket types"
+#    is unchecked).  Omit typed_result (defaults to None); the
+#    surface_regions_cluster trace is simply not generated.
+# show_mof_threejs(
+#     seg, atoms,
+#     framework_atoms=atoms_b,          # typed_result omitted → no pocket surface
+#     output_html=Path("/tmp/cubtc_threejs_no_pockets.html"),
+# )
+
+# Capture HTML string (e.g. for st.components.v1.html())
+# html_str = show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
+#+end_src
+
+
+** 7.3  ZIF-20 (expect 6 pocket types) — same pattern
+
+#+begin_src python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+from mofography.analyze import update_with_covalent_bonds
+from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+from mofography.workflow import assign_pocket_types, show_mof_plotly, show_mof_threejs
+from plotly.io import to_html
+
+CIF_PATH = Path("/Users/arungopalan/repos/RASPA2/structures/mofs/cif/ZIF-20.cif")
+SPACING  = 0.5
+
+atoms   = read_cif_to_ase(CIF_PATH)
+atoms_b = update_with_covalent_bonds(atoms)
+dgrid   = dgrid_from_atoms_rust(atoms, spacing=SPACING)
+seg     = do_periodic_segmentation_rust(dgrid, atoms, spacing=SPACING,
+                                         mask_thickness=0.05,
+                                         min_distance=1.5, threshold_abs=1.5)
+typed   = assign_pocket_types(seg, atoms)
+print(f"ZIF-20 pocket types: {typed.n_types}  (expected 6)")
+
+# Plotly — fig.show() or save
+fig = show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms_b)
+fig.show(renderer="browser")
+Path("/tmp/zif20_plotly.html").write_text(to_html(fig, full_html=True, include_plotlyjs="cdn"))
+
+# Three.js — show in browser
+show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                 show=True, renderer="browser")
+# Also save to file
+show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms_b,
+                 output_html="/tmp/zif20_threejs.html")
+print("Saved /tmp/zif20_plotly.html  and  /tmp/zif20_threejs.html")
+#+end_src
+
+-----
+
+
+* 8  Parameter Reference
+
+| Parameter          | Default  | Location                        | Notes                                        |
+|--------------------+----------+---------------------------------+----------------------------------------------|
+| =mask_thickness=   | 0.05 Å   | =pocket_framework_env.py= l.~60 | Shell thickness for SH sampling; 0.5 too coarse for ZIF windows |
+| =WINDOW_TRUST_MIN_A= | 1.0 Å  | =pocket_typing.py= l.73         | Minimum radius for a real physical passage   |
+| =CONN_TRUST_MIN_A= | 0.1 Å    | =pocket_typing.py= l.77         | Minimum saddle-point radius to count as topological connection |
+| =FP_L_MAX=         | 6        | =pocket_framework_env.py=       | Maximum SH order; higher = finer angular resolution but slower |
+| =FP_MERGE_COSINE=  | 0.85     | =pocket_framework_env.py=       | Merge fingerprints with cosine similarity > this |
+| =marker_size=      | 10       | =visualize.py= =plot_windows()= | Window sphere size in Plotly Scatter3d       |
+| =pld_tolerance=    | 0.25 Å   | =visualize.py= =plot_percolation_windows()= | Half-band around PLD for critical window classification |
+| =spacing=          | 0.5 Å    | =rust_fun.py= =dgrid_from_atoms_rust()=      | Grid spacing; 0.5 matches benchmark (exact VDW) |
+
+-----
+
+* 9  Automated Regression Test
+
+Run the official pytest suite (should report 21/21 for the upstream test
+file alone):
+
+#+begin_src shell :results output
+cd /Users/arungopalan/repos/mofography
+conda run -n mgr_env python -m pytest tests/test_upstream_from_mgr_cli_py.py -v --tb=short 2>&1
+# Verified passing at commits dd19eaf + 81364a4  (21/21 tests, 7/7 benchmark)
+#+end_src
+
+All 21 tests map one-to-one to the sections above:
+- =TestRustCifParser= (4) → §1
+- =TestCovalentBonds= (3) → §2
+- =TestAromaticRings= (3) → §3
+- =TestPocketTyping= (4) → §4
+- =TestWindowPlotting= (5) → §5
+- =TestPLDPercolation= (2) → §6
+
+
+* Marksid 018
+#+begin_src python
+import numpy as np
+import os, sys
+import plotly.graph_objects as go
+import plotly.express as px
+# import plotly.io as pio
+from plotly.subplots import make_subplots
+from ase.io import read
+from pathlib import Path
+import pickle
+import dask
+from dask.distributed import Client, progress, wait
+from dask import delayed
+import dask.bag as db
+import pandas as pd
+import mofography as mgr
+import networkx as nx
+import optuna
+from skimage.measure import regionprops
+import logging
+from io import StringIO
+import time
+import mofography as mgr
+from tqdm import tqdm
+import stackprinter
+stackprinter.set_excepthook(style="darkbg2")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+print("hello cruel world! , just to confirm the imports are working!")
+results = seg
+# grab separate variables from output
+mat_atoms = atoms_b
+dgrid = results["dgrid"]
+regions = results["regions"]
+regions_pbc = results["regions_pbc"]
+maxima_info = results["maxima_info"]
+pbc_groups = results["pbc_groups"]
+connections = results["connections"]
+all_maxima = results["all_maxima"]
+all_maxima_radii = dgrid[tuple(maxima_info[:, 1:4].T)]
+maxima_pbc = results["maxima_pbc"]
+unique_regions = results["unique_regions"]
+maxima = all_maxima[: regions.max()]
+close_maxima = results['close_or_inside_maxima']
+maxima_radii = all_maxima_radii[: regions.max()]
+connections_trimmed = [c for c in connections if np.all(np.isin(c[0], unique_regions))]
+maxima_pbc_dict = results['maxima_pbc_dict']
+connections_traces = mgr.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, mat_atoms
+)
+# regions_padded = results["regions_padded"]
+rag = mgr.rag_from_connections(connections_trimmed, maxima)
+rag = mgr.add_maxima_to_rag(rag, maxima, maxima_radii, dgrid.shape, mat_atoms)
+rag = mgr.add_pbc_to_rag(rag, pbc_groups)
+props = regionprops(regions)
+bins = np.linspace(0, 50, 30)
+rag = mgr.add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, mat_atoms, dgrid.shape)
+
+
+
+#+end_src
+#+begin_src python
+import plotly.express as px
+import plotly.graph_objects as go
+cscale = px.colors.qualitative.Pastel
+isovals = [1.0,1.5 ]
+
+mat_updated = atoms_b
+# cscale = px.colors.qualitative.Alphabet
+isosurface_segmentation = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions, ase_atoms=mat_atoms, name='Regions', opacity=1, cscale=cscale)
+isosurface_pbc = mgr.plot_surface_dgrid(dgrid, stylize=True, isovalue=isovals[0], region_labels=regions_pbc, ase_atoms=mat_atoms, name='Regions PBC',  opacity=1, cscale=cscale, stepsize=2 )
+cell_trace = mgr.plot_cell(mat_atoms, color='orange')
+maxima_trace = mgr.plot_maxima(dgrid,close_maxima, mat_atoms, marker_size=10,show_spheres=False, marker_colorscale = cscale, name='Maxima (distinct)')
+
+frame_trace = mgr.plot_framework_as_mesh(mat_updated, stylize=True, show_rings=False)
+# frame_trace = mgr.draw_framework(mat_updated)
+
+
+maxima_trace_pbc= mgr.plot_maxima(dgrid,maxima_pbc, mat_atoms,show_spheres=False,  marker_size=7.5, marker_colorscale = cscale,name='Maxima (pbc)')
+connections_traces =mgr.plot_connections_as_it_is(connections_trimmed, all_maxima, regions.shape, mat_atoms, cscale=cscale, plot_disconnected=False, plot_periodic=True)
+windows_trace = mgr.plot_windows(connections_trimmed, name='Windows', marker_color='yellow', marker_size=4, marker_opacity=0.8)
+
+
+fig = go.Figure(data=[*frame_trace, cell_trace, maxima_trace, maxima_trace_pbc, *connections_traces, windows_trace, isosurface_pbc], layout=mgr.white_layout)
+fig= mgr.make_fig_orthographic(fig)
+fig.update_layout(scene_camera=dict(up=dict(x=0, y=0, z=1), eye=dict(x=1.5, y=0, z=0)), legend=dict(groupclick='toggleitem'))
+fig.write_html('/tmp/marks_plotly.html')
+# fig.show(renderer='browser')
+#+end_src
+
+#+begin_src python
+fig.write_html('/tmp/marksid018.html')
+#+end_src
+
+-----
+
+* 7  Granular Three.js Figure for Large Structures (marksid-018)
+
+** What changed
+The =show_mof_threejs()= function in =workflow.py= provides a one-call
+"kitchen sink" visualization, but sometimes you want granular control over
+each trace — framework style, surface step size, which layers to include,
+etc.  The =Figure3js= class (and the =threejs_viz= module it wraps) exposes
+the same Plotly-style =add_trace / add_traces= API for Three.js output.
+
+This is especially useful for large structures (50K+ atoms) where the
+default =mesh= framework style produces multi-GB HTML files.  Using
+=scatter= or =instanced= style instead keeps the output manageable.
+
+** Where it lives
+| File                            | Symbol                     |
+|---------------------------------|----------------------------|
+| =mofography/threejs_viz.py=     | =Figure3js=, =plot_*_3js= on =mgr=, =draw_framework_3js=, etc. |
+| =mofography/workflow.py=        | =show_mof_threejs()=       |
+| =mofography/movies.py=          | =MovieFigure=, =make_surface_trace= |
+| =examples/gen_cubtc_granular_threejs.py= | Reference example (Cu-BTC) |
+
+** Runnable check — marksid-018 polymer (55,286 C atoms)
+
+This snippet reproduces the full interactive-app visualization pipeline
+for the marksid-018 polymer using the granular =Figure3js= API:
+
+#+begin_src python
+import sys, time
+from pathlib import Path
+import numpy as np
+
+sys.path.insert(0, str(Path("/Users/arungopalan/repos/mofography")))
+import mofography as mgr
+from mofography import Figure3js
+import mofography.threejs_viz as tjs
+
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+OUT = Path("/tmp/marksid018_granular_threejs.html")
+SPACING = 0.5
+
+# ── Load ──────────────────────────────────────────────────────────────
+print("Loading marksid-018...")
+atoms = mgr.cif_io.read_cif_to_ase(CIF)
+print(f"  {len(atoms):,} atoms")
+
+# ── Covalent bonds (AABB neighbor list → Rust) ───────────────────────
+print("Covalent bonds...")
+t0 = time.perf_counter()
+atoms = mgr.update_with_covalent_bonds(atoms)
+print(f"  {time.perf_counter()-t0:.1f}s — {len(atoms.info['covalent_bonds']):,} bonds")
+
+# ── Aromatic rings (large-graph fast path) ────────────────────────────
+print("Aromatic rings...")
+t0 = time.perf_counter()
+mgr.compute_aromatic_cycles(atoms)
+print(f"  {time.perf_counter()-t0:.1f}s — {len(atoms.info.get('aromatic_cycles', [])):,} cycles")
+
+# ── Distance grid (Rust AABB) ────────────────────────────────────────
+print("Distance grid...")
+t0 = time.perf_counter()
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=SPACING).astype(np.float32)
+print(f"  {time.perf_counter()-t0:.1f}s — shape={dgrid.shape}")
+
+# ── Segmentation ─────────────────────────────────────────────────────
+print("Segmentation...")
+t0 = time.perf_counter()
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=SPACING,
+    mask_thickness=0.5, h=0.2,
+    threshold_abs=1.5, min_distance=1.5,
+    extra_padding=5, compute_connections=True,
+    return_dgrid=False)
+print(f"  {time.perf_counter()-t0:.1f}s")
+
+regions        = seg["regions"]
+regions_pbc    = seg["regions_pbc"]
+connections    = seg["connections"]
+all_maxima     = seg["all_maxima"]
+unique_regions = seg["unique_regions"]
+connections_trimmed = [c for c in connections
+                       if np.any(np.isin(c[0], unique_regions))]
+
+# ── Build granular Three.js figure ───────────────────────────────────
+print("Building Three.js figure...")
+t0 = time.perf_counter()
+
+cscale = tjs.qualitative_colorscale("Pastel")
+
+fig = Figure3js(layout="dark", stylize=True)
+fig.set_camera(eye=(2.0, 0.0, 1.35), center=(0, 0, 0), up=(0, 0, 1))
+
+# Framework — "scatter" (points + lines, small file) or "instanced" (GPU spheres)
+fig.draw_framework(atoms, representation="scatter")
+
+# Unit cell wireframe
+fig.plot_cell(atoms, color="orange")
+
+# Segmentation surfaces — stepsize=2 for speed, stepsize=1 for quality
+fig.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=atoms,
+    region_labels=regions, name="Regions",
+    opacity=1.0, cscale=cscale, stepsize=1, stylize=True)
+fig.plot_surface_dgrid(
+    dgrid, isovalue=1.0, ase_atoms=atoms,
+    region_labels=regions_pbc, name="Regions PBC",
+    opacity=0.35, cscale=cscale, stepsize=1, stylize=True)
+
+# Maxima (distinct pore centres)
+fig.plot_maxima(seg, atoms, name="Maxima", cscale=cscale)
+
+# Channel connections
+fig.plot_connections_as_it_is(
+    connections_trimmed, all_maxima, dgrid.shape, atoms,
+    cscale=cscale, plot_periodic=True, plot_disconnected=False)
+
+# Windows
+fig.plot_windows(
+    connections_trimmed, name="Windows",
+    marker_color="yellow", marker_size=10,
+    marker_opacity=0.8)
+
+# Export
+fig.to_html(str(OUT))
+print(f"  {time.perf_counter()-t0:.1f}s — {OUT.stat().st_size/1024/1024:.0f} MB")
+print(f"Saved to {OUT}")
+#+end_src
+
+Expected: loads 55,286 atoms, computes bonds/aromatic/dgrid/segmentation,
+and produces a ~100-250 MB self-contained HTML with orbit controls and
+layer toggles for each trace (framework, surfaces, maxima, connections,
+windows).
+
+** One-liner alternative (kitchen sink)
+
+If you don't need per-trace control, =show_mof_threejs()= in =workflow.py=
+does everything in one call:
+
+#+begin_src python
+import mofography as mgr
+from pathlib import Path
+
+# CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/marksid-018.cif"
+CIF = "/Users/arungopalan/repos/mofography_manuscript/resources/mgr_org/mgr_org_scripts/LTA96.cif"
+atoms = mgr.cif_io.read_cif_to_ase(CIF)
+atoms = mgr.update_with_covalent_bonds(atoms)
+mgr.compute_aromatic_cycles(atoms)
+
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.05, h=0.2,
+    threshold_abs=1.5, min_distance=1.5, extra_padding=5,
+    compute_connections=True, return_dgrid=False)
+
+html = mgr.show_mof_threejs(
+    seg, atoms,
+    plot_framework_representation="scatter",
+    plot_surface_step_size=1,
+    output_html="/tmp/marksid018_onecall.html")
+print(f"Saved to {html}")
+#+end_src
