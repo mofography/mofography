@@ -2255,3 +2255,11 @@ internal_docs/conf.py
 internal_docs/Makefile
 internal_docs/.quartoignore
 internal_docs/objects.json
+
+# Duplicates already in docs/ — keep only the docs/ copy
+internal_docs/benchmark_rust_aabb_dgrid.md
+internal_docs/rust_backend_documentation.md
+internal_docs/outputs_from_periodic_segmentation.md
+internal_docs/periodic_segmentation_notes_ai.md
+internal_docs/pocket-typing-radii-sensitivity-problem.md
+internal_docs/window_fingerprinting.org
