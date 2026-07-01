@@ -2200,11 +2200,13 @@ def _minimum_image_displacement(
 ) -> np.ndarray:
     if cell is None or np.asarray(cell).size == 0:
         return np.asarray(p, dtype=float) - np.asarray(q, dtype=float)
+    from .helper import mic_frac_diff_batch
+
     C = np.asarray(cell, dtype=float)
-    invC = np.linalg.inv(C.T)
-    df = np.dot(np.asarray(p, dtype=float) - np.asarray(q, dtype=float), invC.T)
-    df -= np.round(df)
-    return np.dot(df, C)
+    cart_diff = np.asarray(p, dtype=float) - np.asarray(q, dtype=float)
+    frac_diff = cart_diff @ np.linalg.inv(C)
+    mic_frac = mic_frac_diff_batch(frac_diff, C.T, xp=np)
+    return mic_frac @ C
 
 
 def _strip_framework_like_atoms(
