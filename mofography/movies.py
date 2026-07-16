@@ -153,15 +153,15 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "cell": {
         "color": 0xFFA500,
-        "linewidth": 2,
+        "linewidth": 3,
     },
     "internal_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 5.0,
+        "size": 25.0,
     },
     "periodic_maxima": {
         "color": [0.85, 0.85, 0.85],
-        "size": 5.0,
+        "size": 25.0,
         "symbol": "ring",
     },
     "internal_windows": {
@@ -184,10 +184,10 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_nodes": {
         "color": 0x66CCFF,
-        "size": 5.0,
+        "size": 12.5,
     },
     "periodic_nodes": {
-        "size": 5.0,
+        "size": 12.5,
         "symbol": "ring",
     },
     "aromatic_rings": {
@@ -664,13 +664,13 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
     cmap = {rid: cscale[i % len(cscale)] for i, rid in enumerate(uniq_regions)}
     colors = [list(np.asarray(cmap.get(int(r), [180, 180, 180]), dtype=float) / 255.0) for r in region_labels]
 
-    # Marker scale (half of former 6 + 5 * norm): 3 + 2.5 * norm from cage radii
+    # Marker scale (~5× former 3 + 2.5 * norm from cage radii)
     vals = np.asarray(cage_radii, dtype=float)
     vmin = float(vals.min()) if len(vals) else 0.0
     vmax = float(vals.max()) if len(vals) else 1.0
     denom = max(vmax - vmin, 1e-12)
     norm = (vals - vmin) / denom
-    sizes = (3.0 + 2.5 * norm).astype(float).tolist()
+    sizes = (15.0 + 12.5 * norm).astype(float).tolist()
     maxima_info = np.asarray(seg.get("maxima_info", []), dtype=int)
     maxima_pbc_dict_raw = seg.get("maxima_pbc_dict", {}) or {}
 
@@ -774,7 +774,7 @@ def _serialize_maxima_trace(seg: dict[str, Any], atoms: Atoms, cscale: list[list
         pbc_regions = regions[tuple(pbc_wrapped.T)]
         pbc_colors = [list(np.asarray(cmap.get(int(r), [180, 180, 180]), dtype=float) / 255.0) for r in pbc_regions]
         pbc_norm = (np.asarray(pbc_radii, dtype=float) - vmin) / denom
-        pbc_sizes_arr = (3.0 + 2.5 * pbc_norm).astype(float)
+        pbc_sizes_arr = (15.0 + 12.5 * pbc_norm).astype(float)
         pbc_hover = [
             (
                 f"trace: maxima pbc\n"
@@ -996,7 +996,7 @@ def _serialize_connection_traces(
     vmax = float(vals.max()) if len(vals) else 1.0
     denom = max(vmax - vmin, 1e-12)
     norm = (vals - vmin) / denom
-    maxima_sizes = (3.0 + 2.5 * norm).astype(float)
+    maxima_sizes = (15.0 + 12.5 * norm).astype(float)
     maxima_info = np.asarray(seg.get("maxima_info", []), dtype=int)
     maxima_pbc_dict_raw = seg.get("maxima_pbc_dict", {}) or {}
     n_maxima = int(len(maxima))
@@ -1082,9 +1082,10 @@ def _serialize_connection_traces(
             )
             idx = int(n) - 1
             if 0 <= idx < len(maxima_sizes):
-                sizes.append(float(maxima_sizes[idx]))
+                # Pore-graph nodes default to half the maxima marker size
+                sizes.append(0.5 * float(maxima_sizes[idx]))
             else:
-                sizes.append(5.0)
+                sizes.append(7.5)
             if periodic_style:
                 rgb = _periodic_node_display_color(
                     n, n_maxima, maxima_info, maxima_pbc_dict_raw
@@ -2645,7 +2646,28 @@ class MovieFigure:
         targets = self.data if frame is None else self.frames[frame]["traces"]
         for t in targets:
             if selector is None or all(t.get(k) == v for k, v in selector.items()):
-                t.update(patch)
+                # Deep-merge style so opacity/color patches hit the renderer path
+                # (JS reads style.opacity, not top-level opacity).
+                style_patch = patch.get("style")
+                rest = {k: v for k, v in patch.items() if k != "style"}
+                # Plotly-like convenience: top-level opacity/color/size/linewidth → style
+                for key in ("opacity", "color", "size", "linewidth", "roughness", "metalness", "side"):
+                    if key in rest:
+                        if not isinstance(style_patch, dict):
+                            style_patch = {}
+                        style_patch.setdefault(key, rest.pop(key))
+                if isinstance(style_patch, dict) and style_patch:
+                    cur = t.get("style")
+                    if isinstance(cur, str):
+                        cur = dict(DEFAULT_STYLES.get(cur, {}))
+                    elif isinstance(cur, dict):
+                        cur = dict(cur)
+                    else:
+                        cur = {}
+                    cur.update(style_patch)
+                    t["style"] = cur
+                if rest:
+                    t.update(rest)
         return self
 
     @staticmethod
@@ -2683,6 +2705,9 @@ class MovieFigure:
             cam["projection"] = projection
         if keyframes is not None:
             cam["keyframes"] = keyframes
+        # Mark explicit so HTML viewer does NOT replace with default [111] cell view
+        if any(v is not None for v in (eye, center, up, projection, keyframes)):
+            cam["explicit"] = True
         return self
 
     def set_appearance(
@@ -2882,6 +2907,7 @@ class MovieFigure:
         center = tuple(cam.get("center", [0.0, 0.0, 0.0]))
         up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
         projection = str(cam.get("projection", "perspective"))
+        camera_explicit = bool(cam.get("explicit", False))
 
         ap = scene.get("layout", {}).get("appearance", {})
         theme = ap.get("theme", "dark")
@@ -2904,6 +2930,7 @@ class MovieFigure:
             up=up,
             point_size=point_size,
             projection=projection,
+            camera_explicit="true" if camera_explicit else "false",
             bg_css=bg_css,
             scene_bg=scene_bg,
             font_family=font_family,
@@ -2929,6 +2956,7 @@ class MovieFigure:
         center = tuple(cam.get("center", [0.0, 0.0, 0.0]))
         up = tuple(cam.get("up", [0.0, 0.0, 1.0]))
         projection = str(cam.get("projection", "perspective"))
+        camera_explicit = bool(cam.get("explicit", False))
         fps = float(scene.get("layout", {}).get("fps", 20.0))
 
         ap = scene.get("layout", {}).get("appearance", {})
@@ -2952,6 +2980,7 @@ class MovieFigure:
             up=up,
             point_size=0.16,
             projection=projection,
+            camera_explicit="true" if camera_explicit else "false",
             bg_css=bg_css,
             scene_bg=scene_bg,
             font_family=font_family,
@@ -4357,9 +4386,38 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     function addUnitCellLines(trace) {
+      // WebGL ignores LineBasicMaterial.linewidth (always ~1px). For linewidth > 1,
+      // draw cell edges as thin cylinders so thickness is visible in exports.
       const st = styleFor(trace);
       const c = st.color !== undefined ? st.color : 0xffa500;
-      return addLineSegments(trace, c);
+      const lw = Number(st.linewidth !== undefined ? st.linewidth : 1);
+      if (!(lw > 1)) {
+        return addLineSegments(trace, c);
+      }
+      const pts = trace.data.positions || [];
+      if (!pts.length) { console.warn("Skipping empty cell trace:", trace.id); return null; }
+      const color = threeColorFromStyle(c, 0xffa500);
+      // Radius in Å: lw=2 → 0.08, lw=3 → 0.12 (readable against MOF framework)
+      const radius = 0.04 * lw;
+      const group = new THREE.Group();
+      group.name = trace.id;
+      const mat = new THREE.MeshBasicMaterial({ color: color });
+      const unitGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+      for (let i = 0; i + 5 < pts.length; i += 6) {
+        const start = new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]);
+        const end = new THREE.Vector3(pts[i + 3], pts[i + 4], pts[i + 5]);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const len = dir.length();
+        if (len < 1e-8) continue;
+        const mesh = new THREE.Mesh(unitGeo, mat);
+        mesh.position.copy(start).add(end).multiplyScalar(0.5);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+        mesh.scale.set(radius, len, radius);
+        group.add(mesh);
+      }
+      scene.add(group);
+      objectsById[trace.id] = group;
+      return group;
     }
 
     function replaceMeshGeometry(mesh, trace) {
@@ -4680,7 +4738,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
 
         slider.max = String(Math.max(getFrameCount() - 1, 0));
     metaEl.textContent = `Frames: ${getFrameCount()}`;
-    controls.target.copy(sceneCenter);
+    if ({{camera_explicit}}) {
+      controls.target.set(centerArr[0], centerArr[1], centerArr[2]);
+    } else {
+      controls.target.copy(sceneCenter);
+    }
     controls.update();
 
     // Override default camera to 1.5 * (la, lb, lc) from scene center along (1,1,1)
@@ -4709,13 +4771,16 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         new THREE.Vector3(cpos[15], cpos[16], cpos[17]).normalize(),
       ];
       _camOverridePos = new THREE.Vector3(1.5 * la, 1.5 * lb, 1.5 * lc);
-      [perspectiveCam, orthoCam].forEach(function(cam) {
-        cam.position.copy(_camOverridePos);
-        cam.lookAt(sceneCenter);
-      });
-      controls.target.copy(sceneCenter);
-      controls.update();
-      updateOrthoFrustum();
+      // Only apply [111]-style default when set_camera was NOT called (explicit=false).
+      if (!{{camera_explicit}}) {
+        [perspectiveCam, orthoCam].forEach(function(cam) {
+          cam.position.copy(_camOverridePos);
+          cam.lookAt(sceneCenter);
+        });
+        controls.target.copy(sceneCenter);
+        controls.update();
+        updateOrthoFrustum();
+      }
       // Dynamic slider max: largest cell dimension / 6 + 1.0 cushion for extra separation
       const maxLen = Math.max(la, lb, lc);
       explodeSlider.max = (maxLen / 6.0 + 1.0).toFixed(2);
@@ -5184,8 +5249,15 @@ function readWindowMinThreshold() {
     });
 
     // ---- New dynamic controls ----
-    const _camOrigPos = _camOverridePos ? _camOverridePos.clone() : new THREE.Vector3(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2]);
-    const _camOrig = { pos: _camOrigPos, target: sceneCenter.clone() };
+    const _camOrigPos = ({{camera_explicit}} || !_camOverridePos)
+      ? new THREE.Vector3(scaledEyeArr[0], scaledEyeArr[1], scaledEyeArr[2])
+      : _camOverridePos.clone();
+    const _camOrig = {
+      pos: _camOrigPos,
+      target: {{camera_explicit}}
+        ? new THREE.Vector3(centerArr[0], centerArr[1], centerArr[2])
+        : sceneCenter.clone(),
+    };
     resetCamBtn.addEventListener("click", () => {
       camera.position.copy(_camOrig.pos);
       controls.target.copy(_camOrig.target);
