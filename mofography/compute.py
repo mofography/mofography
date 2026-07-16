@@ -5855,6 +5855,83 @@ def get_energy_interpolator_tricubic(
 
     return _TricubicInterpolator(field)
 
+
+def build_guest_interpolators(
+    ase_atoms,
+    spacing: float,
+    cutoff: float = 12.5,
+    probe_symbol: str = "He",
+    build_coulomb: bool = True,
+    coulomb_alpha=None,
+    **pacmof_kwargs,
+):
+    """Build separate LJ and optional Coulomb tricubic interpolators (Kelvin).
+
+    Parameters
+    ----------
+    ase_atoms
+        Framework structure. If ``build_coulomb`` and no ``_atom_site_charge``,
+        raises unless charges were assigned earlier (e.g. PACMOF).
+    build_coulomb
+        If True, build Coulomb grid when charges are present.
+    **pacmof_kwargs
+        Ignored here; assign charges before calling or use
+        :func:`mofography.coulomb_grid.coulomb_tricubic_from_cif_rust`.
+
+    Returns
+    -------
+    lj_interpolator, coulomb_interpolator
+        ``coulomb_interpolator`` is ``None`` when Coulomb grid not built.
+    """
+    from mofography.coulomb_grid import coulomb_tricubic_from_atoms_rust
+    from mofography.rust_fun import egrid_tricubic_from_atoms_rust
+
+    lj8 = egrid_tricubic_from_atoms_rust(
+        ase_atoms, spacing=spacing, cutoff=cutoff, probe_symbol=probe_symbol
+    )
+    lj_ip = get_energy_interpolator_tricubic(lj8[0], lj8)
+
+    coul_ip = None
+    if build_coulomb:
+        coul8 = coulomb_tricubic_from_atoms_rust(
+            ase_atoms, spacing=spacing, cutoff=cutoff, alpha=coulomb_alpha
+        )
+        if coul8 is not None:
+            coul_ip = get_energy_interpolator_tricubic(coul8[0], coul8)
+
+    return lj_ip, coul_ip
+
+
+def guest_energy_kelvin(r_frac, q_guest, lj_interpolator, coulomb_interpolator=None):
+    """Total guest–framework interaction energy in Kelvin (VdW + electrostatic).
+
+    Parameters
+    ----------
+    r_frac : array-like, shape (3,) or (N, 3)
+        Fractional coordinates (same convention as tricubic grids).
+    q_guest : float
+        Guest charge in elementary charge (e), RASPA convention.
+    lj_interpolator : callable
+        From :func:`get_energy_interpolator_tricubic` on the LJ 8-channel grid.
+    coulomb_interpolator : callable or None
+        From :func:`get_energy_interpolator_tricubic` on the Coulomb φ_K grid.
+        If ``None`` or ``q_guest == 0``, only VdW is returned.
+
+    Returns
+    -------
+    float or ndarray
+        Energy in Kelvin.
+    """
+    import numpy as np
+
+    e = lj_interpolator(r_frac)
+    e = np.asarray(e, dtype=np.float64)
+    if coulomb_interpolator is not None and q_guest != 0.0:
+        phi_k = coulomb_interpolator(r_frac)
+        e = e + q_guest * np.asarray(phi_k, dtype=np.float64)
+    return e
+
+
 # def get_energy_interpolator(egrid):
 #     """
 #     This function creates a 3D regular grid interpolator for energy values given an input energy grid.
