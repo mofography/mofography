@@ -246,6 +246,7 @@ name = "mgr_rust"
 version = "0.1.0"
 dependencies = [
  "hashbrown 0.14.5",
+ "libm",
  "log",
  "nalgebra",
  "ndarray",

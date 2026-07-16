@@ -139,16 +139,10 @@ def dgrid_from_atoms_aabb_interp_rust(
     )
 
 
-def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing, cutoff):
-    """
-    Shared setup for scalar and tricubic unit-cell energy grids.
+def _unit_cell_grid_geometry(ase_atoms, mat_atoms_repeat, spacing, cutoff):
+    """Unit-cell fractional grid nodes and supercell replication metadata.
 
-    Grid nodes span one unit cell at ``-0.5 + i/(N-1) * extent`` (RASPA /
-    tricubic convention).  When ``repeat_to_meet_cutoff`` expands the cell,
-    atoms stay in **supercell** centered fractional coordinates (no wrapping
-    into the principal cell) and ``extent = 1/n_cells`` per axis so grid nodes
-    tile the first unit cell.  When no repetition is needed, unit-cell atoms
-    and ``extent = 1`` suffice (MIC only).
+    Returns frac, cell (3x3 column vectors), nx, ny, nz, extent_x, extent_y, extent_z.
     """
     import numpy as np
     from ase.geometry import cellpar_to_cell
@@ -159,9 +153,6 @@ def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing
     extent_x = 1.0 / float(nx_c)
     extent_y = 1.0 / float(ny_c)
     extent_z = 1.0 / float(nz_c)
-
-    eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
-    sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
 
     if nx_c == ny_c == nz_c == 1:
         frac = ase_atoms.get_scaled_positions() - 0.5
@@ -177,6 +168,37 @@ def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing
         int(nx_unit),
         int(ny_unit),
         int(nz_unit),
+        extent_x,
+        extent_y,
+        extent_z,
+    )
+
+
+def _egrid_unit_cell_grid_inputs(ase_atoms, mat_atoms_repeat, ff_repeat, spacing, cutoff):
+    """
+    Shared setup for scalar and tricubic unit-cell energy grids.
+
+    Grid nodes span one unit cell at ``-0.5 + i/(N-1) * extent`` (RASPA /
+    tricubic convention).  When ``repeat_to_meet_cutoff`` expands the cell,
+    atoms stay in **supercell** centered fractional coordinates (no wrapping
+    into the principal cell) and ``extent = 1/n_cells`` per axis so grid nodes
+    tile the first unit cell.  When no repetition is needed, unit-cell atoms
+    and ``extent = 1`` suffice (MIC only).
+    """
+    import numpy as np
+
+    frac, cell, nx_unit, ny_unit, nz_unit, extent_x, extent_y, extent_z = _unit_cell_grid_geometry(
+        ase_atoms, mat_atoms_repeat, spacing, cutoff
+    )
+    eps = np.asarray(ff_repeat[:, 0], dtype=np.float64)
+    sig = np.asarray(ff_repeat[:, 1], dtype=np.float64)
+
+    return (
+        frac,
+        cell,
+        nx_unit,
+        ny_unit,
+        nz_unit,
         eps,
         sig,
         extent_x,
