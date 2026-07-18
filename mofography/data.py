@@ -640,6 +640,183 @@ def write_cifs_from_mofdb_df(
     return written
 
 
+def read_graspa_lammps_data(path_to_file):
+    """Read a gRASPA / RASPA ``WriteLammpsdata`` LAMMPS ``.data`` snapshot.
+
+    Parses the header (orthogonal or triclinic box), ``Masses`` type labels,
+    and ``Atoms # charge`` records written by gRASPA movie output
+    (``Movies/System_0/result_*.data``).
+
+    Each atom record stores:
+
+    - ``id``, ``mol_id``, ``type_id``, ``charge``, ``position`` (3,)
+    - ``mass_label`` from the ``Masses`` section (e.g. ``CH3_xyl``, ``C``)
+    - ``comment`` trailing text after ``#``
+    - ``molecule_name`` when present in the comment (e.g. ``o-xylene``)
+    - ``symbol`` element tag for ASE (framework from ``.cif`` comment token;
+      guests from mass label with united-atom xylene types mapped to C/H)
+
+    Returns
+    -------
+    dict
+        ``n_atoms``, ``cell`` (3×3), ``box`` (xlo/xhi/...), ``type_labels``,
+        ``atoms`` (list of atom dicts), ``source_path``.
+    """
+    import re
+    from pathlib import Path
+
+    import numpy as np
+
+    path = Path(path_to_file).expanduser().resolve()
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+
+    n_atoms = None
+    box = {}
+    type_labels: dict[int, str] = {}
+    atoms: list[dict] = []
+
+    section = None
+    mass_re = re.compile(r"^\s*(\d+)\s+([0-9.eE+-]+)\s*(?:#\s*(.+))?\s*$")
+
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.endswith(" atoms"):
+            n_atoms = int(line.split()[0])
+            section = None
+            continue
+
+        if line.endswith(" atom types"):
+            section = None
+            continue
+
+        if line.endswith(" xlo xhi"):
+            parts = line.split()
+            box["xlo"], box["xhi"] = float(parts[0]), float(parts[1])
+            continue
+        if line.endswith(" ylo yhi"):
+            parts = line.split()
+            box["ylo"], box["yhi"] = float(parts[0]), float(parts[1])
+            continue
+        if line.endswith(" zlo zhi"):
+            parts = line.split()
+            box["zlo"], box["zhi"] = float(parts[0]), float(parts[1])
+            continue
+        if line.endswith(" xy xz yz"):
+            parts = line.split()
+            box["xy"], box["xz"], box["yz"] = (
+                float(parts[0]),
+                float(parts[1]),
+                float(parts[2]),
+            )
+            continue
+
+        if line == "Masses":
+            section = "masses"
+            continue
+        if line.startswith("Pair ") or line.startswith("Bond ") or line.startswith("Angle "):
+            section = None
+            continue
+        if line == "Atoms":
+            section = "atoms"
+            continue
+
+        if section == "masses":
+            m = mass_re.match(line)
+            if m:
+                tid = int(m.group(1))
+                label = (m.group(3) or "").strip()
+                type_labels[tid] = label
+            continue
+
+        if section == "atoms":
+            comment = ""
+            body = line
+            if "#" in line:
+                body, comment = line.split("#", 1)
+                comment = comment.strip()
+            toks = body.split()
+            if len(toks) < 7:
+                continue
+            aid = int(toks[0])
+            mol_id = int(toks[1])
+            type_id = int(toks[2])
+            charge = float(toks[3])
+            pos = np.array([float(toks[4]), float(toks[5]), float(toks[6])])
+            mass_label = type_labels.get(type_id, f"type_{type_id}")
+            molecule_name = None
+            symbol = None
+            if comment:
+                parts = comment.split()
+                if parts and parts[0] in ("o-xylene", "m-xylene", "p-xylene"):
+                    molecule_name = parts[0]
+                if ".cif" in comment and len(parts) >= 2:
+                    symbol = parts[-1]
+            if symbol is None:
+                symbol = _graspa_mass_label_to_symbol(mass_label)
+            atoms.append(
+                {
+                    "id": aid,
+                    "mol_id": mol_id,
+                    "type_id": type_id,
+                    "charge": charge,
+                    "position": pos,
+                    "mass_label": mass_label,
+                    "comment": comment,
+                    "molecule_name": molecule_name,
+                    "symbol": symbol,
+                }
+            )
+
+    if n_atoms is None:
+        raise ValueError(f"Could not find atom count in {path}")
+    if len(atoms) != n_atoms:
+        raise ValueError(
+            f"Expected {n_atoms} atoms in {path}, parsed {len(atoms)}"
+        )
+    required = ("xlo", "xhi", "ylo", "yhi", "zlo", "zhi", "xy", "xz", "yz")
+    if any(k not in box for k in required):
+        missing = [k for k in required if k not in box]
+        raise ValueError(f"Missing box fields {missing} in {path}")
+
+    lx = box["xhi"] - box["xlo"]
+    ly = box["yhi"] - box["ylo"]
+    lz = box["zhi"] - box["zlo"]
+    xy, xz, yz = box["xy"], box["xz"], box["yz"]
+    cell = np.array(
+        [
+            [lx, 0.0, 0.0],
+            [xy, ly, 0.0],
+            [xz, yz, lz],
+        ],
+        dtype=float,
+    )
+
+    return {
+        "n_atoms": n_atoms,
+        "cell": cell,
+        "box": box,
+        "type_labels": type_labels,
+        "atoms": atoms,
+        "source_path": str(path),
+    }
+
+
+def _graspa_mass_label_to_symbol(mass_label: str) -> str:
+    """Map gRASPA mass-table labels to ASE element symbols."""
+    label = (mass_label or "").strip()
+    if not label:
+        return "X"
+    if label in ("H_xyl",):
+        return "H"
+    if label in ("C_xyl", "CH3_xyl"):
+        return "C"
+    # Framework labels are plain element names (Al, C, Co, ...).
+    return label.split("_")[0]
+
+
 def read_raspa_pdb(path_to_file, symbol_map=None):
     """
             created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 

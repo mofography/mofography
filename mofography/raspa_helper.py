@@ -1939,6 +1939,124 @@ def blocking_spheres_for_probe_radius(
     return spheres, percolated, inaccessible
 
 
+# gRASPA LAMMPS snapshot I/O (Movies/System_0/result_*.data)
+GRASPA_FRAMEWORK_MOL_ID = 1
+GRASPA_XYLENE_TYPE_IDS = frozenset({12, 13, 14})
+
+
+def read_graspa_lammps_snapshot(path_to_file):
+    """Parse a gRASPA ``result_*.data`` snapshot (see :func:`mofography.data.read_graspa_lammps_data`)."""
+    from .data import read_graspa_lammps_data
+
+    return read_graspa_lammps_data(path_to_file)
+
+
+def graspa_lammps_data_to_ase(
+    data,
+    *,
+    framework_mol_id=GRASPA_FRAMEWORK_MOL_ID,
+    guest_type_ids=GRASPA_XYLENE_TYPE_IDS,
+):
+    """Build ASE ``Atoms`` objects from :func:`read_graspa_lammps_data` output.
+
+    Returns
+    -------
+  framework : ase.Atoms
+        Framework atoms (default ``mol_id == 1``).
+    guests : ase.Atoms
+        All adsorbate atoms in one ``Atoms`` object.
+    molecules : dict[int, ase.Atoms]
+        One ``Atoms`` per guest ``mol_id`` (keys sorted).
+    """
+    from ase import Atoms
+    import numpy as np
+
+    cell = np.asarray(data["cell"], dtype=float)
+    fw_idx, guest_idx, mol_groups = [], [], {}
+    for i, rec in enumerate(data["atoms"]):
+        is_guest = rec["mol_id"] != framework_mol_id or rec["type_id"] in guest_type_ids
+        if is_guest:
+            guest_idx.append(i)
+            mol_groups.setdefault(rec["mol_id"], []).append(i)
+        else:
+            fw_idx.append(i)
+
+    def _build(indices):
+        if not indices:
+            return Atoms(cell=cell, pbc=True)
+        recs = [data["atoms"][i] for i in indices]
+        atoms = Atoms(
+            symbols=[r["symbol"] for r in recs],
+            positions=np.array([r["position"] for r in recs], dtype=float),
+            cell=cell,
+            pbc=True,
+        )
+        atoms.arrays["charge"] = np.array([r["charge"] for r in recs], dtype=float)
+        atoms.arrays["mol_id"] = np.array([r["mol_id"] for r in recs], dtype=int)
+        atoms.arrays["type_id"] = np.array([r["type_id"] for r in recs], dtype=int)
+        atoms.arrays["atom_id"] = np.array([r["id"] for r in recs], dtype=int)
+        atoms.arrays["mass_label"] = np.array(
+            [r["mass_label"] for r in recs], dtype=object
+        )
+        if any(r.get("molecule_name") for r in recs):
+            atoms.arrays["molecule_name"] = np.array(
+                [r.get("molecule_name") or "" for r in recs], dtype=object
+            )
+        return atoms
+
+    framework = _build(fw_idx)
+    guests = _build(guest_idx)
+    molecules = {mid: _build(idxs) for mid, idxs in sorted(mol_groups.items())}
+    for mid, at in molecules.items():
+        names = at.arrays.get("molecule_name")
+        if names is not None and len(names) and names[0]:
+            at.info["molecule_name"] = str(names[0])
+        at.info["mol_id"] = int(mid)
+    return framework, guests, molecules
+
+
+def get_atoms_from_graspa_lammps_snapshot(
+    path_to_file,
+    *,
+    framework_mol_id=GRASPA_FRAMEWORK_MOL_ID,
+    guest_type_ids=GRASPA_XYLENE_TYPE_IDS,
+    split_guests=True,
+):
+    """Load one gRASPA ``.data`` snapshot into ASE objects.
+
+    Parameters
+    ----------
+    path_to_file : str or Path
+        ``result_*.data`` from gRASPA ``Movies/System_0/``.
+    split_guests : bool
+        If True (default), return ``(framework, guests, molecules)``.
+        If False, return a single combined ``Atoms`` with ``arrays['is_guest']``.
+
+    Returns
+    -------
+    tuple or ase.Atoms
+    """
+    from .data import read_graspa_lammps_data
+
+    data = read_graspa_lammps_data(path_to_file)
+    framework, guests, molecules = graspa_lammps_data_to_ase(
+        data,
+        framework_mol_id=framework_mol_id,
+        guest_type_ids=guest_type_ids,
+    )
+    if split_guests:
+        return framework, guests, molecules
+
+    from ase import Atoms
+    import numpy as np
+
+    combined = framework + guests
+    is_guest = np.zeros(len(combined), dtype=bool)
+    is_guest[len(framework) :] = True
+    combined.arrays["is_guest"] = is_guest
+    return combined
+
+
 def write_blocking_spheres_file(path, spheres):
     """
     Write RASPA-style blocking list: first line = count, then ``sx sy sz r``
