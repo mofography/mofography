@@ -1346,7 +1346,12 @@ def _check_pocket_maxima_consistency(dgrid, regions, maxima_info, tol=0.25):
     )
 
 
-def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
+def compute_pore_sizes_uniform_rust(
+    dgrid,
+    ase_atoms,
+    num_samples_total=10000,
+    min_sphere_center_radius=None,
+):
     """Compute pore sizes using uniform sampling across the material.
 
     This function samples points uniformly throughout the material and calculates
@@ -1358,6 +1363,10 @@ def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
     :type ase_atoms: ase.Atoms
     :param num_samples_total: Total number of sample points to generate
     :type num_samples_total: int
+    :param min_sphere_center_radius: Minimum clearance (Å) for sphere-center voxels in the
+        largest-including-sphere search. Sample sites still use all void voxels (dgrid > 0).
+        Set to the probe radius (e.g. 1.657 Å for N₂) to match PoreBlazer Total PSD.
+    :type min_sphere_center_radius: float or None
     :return: Tuple of (sample_points, pore_sizes) where sample_points are the sampled coordinates and pore_sizes are the corresponding pore diameters
     :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
@@ -1366,8 +1375,11 @@ def compute_pore_sizes_uniform_rust(dgrid, ase_atoms, num_samples_total=10000):
     import numpy as np
 
     cell = cellpar_to_cell(ase_atoms.cell.cellpar()).T
+    kwargs = {"num_samples_total": num_samples_total}
+    if min_sphere_center_radius is not None and float(min_sphere_center_radius) > 0:
+        kwargs["min_sphere_center_radius"] = float(min_sphere_center_radius)
     sample_points, pore_sizes = mgr_rust.compute_pore_sizes_uniform(
-        dgrid, cell, num_samples_total=num_samples_total
+        dgrid, cell, **kwargs
     )
     return sample_points, pore_sizes
 
@@ -1457,6 +1469,40 @@ def _effective_dgrid_uniform_psd_sampling(dgrid, probe_center_min_radius):
     return np.where(d >= s, d, np.float32(-1.0))
 
 
+def _build_lis_regions_from_pbc_groups(regions, pbc_groups):
+    """Assign one LIS pool id per PBC group on the fragment ``regions`` grid.
+
+    All periodic images of the same pocket share an id so LIS can use MIC across
+    cell boundaries. Includes fragments that are not network-accessible.
+    """
+    import numpy as np
+
+    regions = np.asarray(regions, dtype=np.uint32)
+    lis = np.zeros_like(regions, dtype=np.uint32)
+    if not pbc_groups:
+        return lis
+    groups_iter = pbc_groups.values() if isinstance(pbc_groups, dict) else pbc_groups
+    for group_index, group in enumerate(groups_iter, start=1):
+        for fragment_id in group:
+            fid = int(fragment_id)
+            if fid == 0:
+                continue
+            lis[regions == np.uint32(fid)] = np.uint32(group_index)
+    return lis
+
+
+def _pbc_groups_from_results(results):
+    """Return PBC fragment groups from segmentation ``results``."""
+    pbc_groups = results.get("pbc_groups")
+    if pbc_groups is not None:
+        if isinstance(pbc_groups, dict):
+            return [v for v in pbc_groups.values() if 0 not in v]
+        return list(pbc_groups)
+    from mofography.compute import pbc_groups_from_segmentation
+
+    return pbc_groups_from_segmentation(results)
+
+
 def _effective_regions_pocket_psd_sampling(regions_pbc, dgrid, probe_center_min_radius):
     """Zero region labels wherever clearance would not host the probe center."""
     import numpy as np
@@ -1476,6 +1522,7 @@ def compute_pore_sizes_pocketwise_rust(
     ase_atoms,
     samples_per_region=1000,
     probe_center_min_radius=None,
+    lis_regions=None,
 ):
     """Compute pore sizes for each pocket/region separately.
 
@@ -1502,13 +1549,18 @@ def compute_pore_sizes_pocketwise_rust(
     regions_eff = _effective_regions_pocket_psd_sampling(
         regions_pbc, dgrid, probe_center_min_radius
     )
-    sample_points, pore_sizes, region_labels = (
-        mgr_rust.compute_pore_sizes_for_psd_pocketwise(
-            dgrid,
-            regions_eff,
-            cell,
-            samples_per_region=samples_per_region,
+    kwargs = {
+        "dgrid": dgrid,
+        "regions_pbc": regions_eff,
+        "cell": cell,
+        "samples_per_region": samples_per_region,
+    }
+    if lis_regions is not None:
+        kwargs["lis_regions"] = np.ascontiguousarray(
+            np.asarray(lis_regions, dtype=np.uint32)
         )
+    sample_points, pore_sizes, region_labels = (
+        mgr_rust.compute_pore_sizes_for_psd_pocketwise(**kwargs)
     )
     return sample_points, pore_sizes, region_labels
 
@@ -1733,13 +1785,17 @@ def compute_accessible_psd_from_results(
             "accessible_region_ids": [],
         }
 
-    # Sample pocketwise on the accessible mask
+    # Sample pocketwise on the accessible mask; LIS pools follow full PBC groups.
     cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
-    sample_points, pore_sizes, region_labels = mgr_rust.compute_pore_sizes_for_psd_pocketwise(
+    pbc_groups = _pbc_groups_from_results(results)
+    lis_regions = _build_lis_regions_from_pbc_groups(regions, pbc_groups)
+    sample_points, pore_sizes, region_labels = compute_pore_sizes_pocketwise_rust(
         dgrid,
         regions_accessible,
-        cell,
+        mat_atoms,
         samples_per_region=int(samples_per_region),
+        probe_center_min_radius=probe_center_min_radius,
+        lis_regions=lis_regions,
     )
 
     bin_edges = np.asarray(bin_edges)
