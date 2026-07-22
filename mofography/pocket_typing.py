@@ -532,7 +532,7 @@ def compute_pocket_fingerprints(
             for r in frag_group
             if r in props_frag
         )
-        mr = max_probe_radius_for_fragment_group(regions, dgrid_max_r, frag_group)
+        mr = max_probe_radius_for_fragment_group(regions_pbc, dgrid_max_r, frag_group)
         psd_vec = p.get("psd_vec")
         fps[rep] = compute_pocket_fingerprint(
             regions_pbc,
