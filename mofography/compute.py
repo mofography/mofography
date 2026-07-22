@@ -10437,3 +10437,184 @@ def compute_percolation_history_from_results2(results):
     results['pld_locations'] = pld_locations
     return results
 
+
+def mic_center_distance_frac(frac_a, frac_b, cell):
+    """Minimum-image center-to-center distance (Å) between fractional positions."""
+    import numpy as np
+
+    delta = np.asarray(frac_b, dtype=float) - np.asarray(frac_a, dtype=float)
+    delta -= np.round(delta)
+    return float(np.linalg.norm(delta @ np.asarray(cell, dtype=float)))
+
+
+def _node_frac_positions(graph, node_pos_attr="frac_pos"):
+    import numpy as np
+
+    return {
+        int(n): np.asarray(graph.nodes[n][node_pos_attr], dtype=float)
+        for n in graph.nodes()
+        if node_pos_attr in graph.nodes[n]
+    }
+
+
+def compute_pore_graph_kdist(
+    graph,
+    cell,
+    k=1,
+    node_pos_attr="frac_pos",
+):
+    """Return ``{node_id: d_k}`` on a periodic pore graph (default MIC metric)."""
+    pos_frac = _node_frac_positions(graph, node_pos_attr=node_pos_attr)
+    nodes = sorted(pos_frac)
+    out = {}
+    for n in nodes:
+        dists = sorted(
+            mic_center_distance_frac(pos_frac[n], pos_frac[m], cell)
+            for m in nodes
+            if m != n
+        )
+        if len(dists) >= k:
+            out[n] = dists[k - 1]
+        elif dists:
+            out[n] = dists[-1]
+        else:
+            out[n] = float("nan")
+    return out
+
+
+def pairwise_mic_distances_pore_graph(graph, cell, node_pos_attr="frac_pos"):
+    """All unordered MIC center-to-center distances between graph nodes (Å)."""
+    pos_frac = _node_frac_positions(graph, node_pos_attr=node_pos_attr)
+    nodes = sorted(pos_frac)
+    dists = []
+    for i, u in enumerate(nodes):
+        for v in nodes[i + 1 :]:
+            dists.append(mic_center_distance_frac(pos_frac[u], pos_frac[v], cell))
+    return dists
+
+
+def annotate_pore_graph_kdist(
+    graph,
+    cell,
+    k=1,
+    *,
+    node_pos_attr="frac_pos",
+    attr="d_k_mic",
+    store_pairwise=True,
+    pairwise_attr="pairwise_mic_distances",
+    inplace=True,
+):
+    """Write ``d_k`` on graph nodes. Optional pairwise list in ``graph.graph``."""
+    import copy
+
+    G = graph if inplace else copy.deepcopy(graph)
+    d_k = compute_pore_graph_kdist(
+        G, cell, k=k, node_pos_attr=node_pos_attr
+    )
+    for node, value in d_k.items():
+        G.nodes[node][attr] = float(value)
+    G.graph["kdist_k"] = int(k)
+    G.graph["kdist_metric"] = "mic"
+    if store_pairwise:
+        G.graph[pairwise_attr] = pairwise_mic_distances_pore_graph(
+            G, cell, node_pos_attr=node_pos_attr
+        )
+    return G, d_k
+
+
+def pore_graph_kdist_from_segmentation(
+    segmentation,
+    atoms=None,
+    *,
+    k=1,
+    graph=None,
+    annotate_graph=True,
+    node_pos_attr="frac_pos",
+    attr="d_k_mic",
+):
+    """Optional post-segmentation helper: canonical periodic graph + ``d_k``.
+
+    Not part of the default segmentation workflow. When ``graph`` is omitted the
+    canonical periodic graph is built with
+    :func:`~mofography.winding_percolation.make_directed_graph_from_segmentation_results`.
+    """
+    from mofography.winding_percolation import (
+        make_directed_graph_from_segmentation_results,
+    )
+
+    if atoms is None:
+        atoms = segmentation.get("ase_atoms")
+    if atoms is None:
+        raise ValueError("atoms missing (pass atoms or ase_atoms in segmentation)")
+    if graph is None:
+        graph = make_directed_graph_from_segmentation_results(segmentation)
+    cell = atoms.cell.array
+    d_k = compute_pore_graph_kdist(
+        graph, cell, k=k, node_pos_attr=node_pos_attr
+    )
+    pairwise = pairwise_mic_distances_pore_graph(
+        graph, cell, node_pos_attr=node_pos_attr
+    )
+    if annotate_graph:
+        for node, value in d_k.items():
+            graph.nodes[node][attr] = float(value)
+        graph.graph["kdist_k"] = int(k)
+        graph.graph["kdist_metric"] = "mic"
+        graph.graph["pairwise_mic_distances"] = pairwise
+    return {
+        "graph": graph,
+        "d_k": d_k,
+        "pairwise_mic_distances": pairwise,
+        "k": int(k),
+        "cell": cell,
+    }
+
+
+def pore_graph_layout_mic(
+    graph,
+    cell,
+    *,
+    node_pos_attr="frac_pos",
+    method="kamada_kawai",
+    scale=2.0,
+    seed=0,
+):
+    """Rotation-invariant 2D layout from MIC distances between pocket centers.
+
+    The layout depends only on the MIC distance matrix. Use for display only.
+    """
+    import networkx as nx
+    import numpy as np
+
+    nodes = sorted(graph.nodes())
+    if not nodes:
+        return {}
+    if len(nodes) == 1:
+        return {nodes[0]: np.array([0.0, 0.0])}
+
+    pos_frac = _node_frac_positions(graph, node_pos_attr=node_pos_attr)
+    dist = {
+        (u, v): mic_center_distance_frac(pos_frac[u], pos_frac[v], cell)
+        for i, u in enumerate(nodes)
+        for v in nodes[i + 1 :]
+    }
+    H = nx.Graph()
+    for n in nodes:
+        H.add_node(n)
+    for (u, v), length in dist.items():
+        if H.has_edge(u, v):
+            H[u][v]["weight"] = min(H[u][v].get("weight", length), length)
+        else:
+            H.add_edge(u, v, weight=length)
+
+    if method == "kamada_kawai":
+        try:
+            pos = nx.kamada_kawai_layout(H, dist=dist, scale=scale)
+        except Exception:
+            pos = nx.spring_layout(H, seed=seed, k=2.0 / np.sqrt(len(nodes)))
+    elif method == "spring":
+        pos = nx.spring_layout(H, seed=seed, weight="weight", k=2.0 / np.sqrt(len(nodes)))
+    else:
+        raise ValueError(f"unknown layout method: {method}")
+    return {int(n): np.asarray(pos[n], dtype=float) for n in nodes}
+
