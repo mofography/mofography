@@ -30,6 +30,21 @@ def _cell_matrix_for_rust(ase_atoms):
     return cell_matrix_for_dgrid(ase_atoms)
 
 
+def _stable_sort_merged_maxima(merged_maxima):
+    """Lexicographic sort so ``regions_pbc`` label *i* matches ``maxima_pbc[i-1]``.
+
+    Must run before merged-marker watershed; ``maxima_info`` / ``remap_dict`` assume
+    this order.
+    """
+    merged_maxima = np.asarray(merged_maxima, dtype=int)
+    if merged_maxima.size == 0:
+        return merged_maxima
+    order = np.lexsort(
+        (merged_maxima[:, 2], merged_maxima[:, 1], merged_maxima[:, 0])
+    )
+    return merged_maxima[order]
+
+
 def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
     """Compute a distance grid from atomic positions using the Rust backend.
 
@@ -598,6 +613,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     merged_maxima = np.vstack(
         [m for i, m in enumerate(merged_maxima) if i not in all_removals]
     )
+    merged_maxima = _stable_sort_merged_maxima(merged_maxima)
 
     logger.info(
         "time(s): %.2f computing regions with pbc \n"
@@ -677,6 +693,7 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
 
     # * remove those rows from merged_maxima nd redo segmentations
     merged_maxima = np.delete(merged_maxima, removed_maxima_labels - 1, axis=0)
+    merged_maxima = _stable_sort_merged_maxima(merged_maxima)
 
     if len(removed_maxima_labels) > 0:
         logger.info(
@@ -725,14 +742,6 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     # step 2: get unmerged maxima info using valid maxima
     original_shape = np.array(dgrid.shape)
     padded_shape = np.array(padded_grid.shape)
-
-    # Stable periodic seed IDs regardless of watershed backend / merge order.
-    merged_maxima = np.asarray(merged_maxima, dtype=int)
-    if merged_maxima.size:
-        order = np.lexsort(
-            (merged_maxima[:, 2], merged_maxima[:, 1], merged_maxima[:, 0])
-        )
-        merged_maxima = merged_maxima[order]
 
     new_maxima_info_list = []
     counter = 1
