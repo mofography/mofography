@@ -80,3 +80,51 @@ def test_compute_psds_pocketwise_accessible_return_format():
     )
     assert isinstance(pocket_psds2, dict)
     assert fig is not None
+
+
+def test_pore_graph_kdist_functions_exported():
+    """Verify pore-graph k-distance helpers are exported."""
+    assert hasattr(mofography, "mic_center_distance_frac")
+    assert hasattr(mofography, "compute_pore_graph_kdist")
+    assert hasattr(mofography, "pairwise_mic_distances_pore_graph")
+    assert hasattr(mofography, "annotate_pore_graph_kdist")
+    assert hasattr(mofography, "pore_graph_kdist_from_segmentation")
+    assert hasattr(mofography, "pore_graph_layout_mic")
+
+
+def test_pore_graph_kdist_mic_distance_and_layout():
+    """Unit test for MIC k-distance on a two-node periodic graph."""
+    import networkx as nx
+
+    from mofography.compute import (
+        annotate_pore_graph_kdist,
+        compute_pore_graph_kdist,
+        mic_center_distance_frac,
+        pairwise_mic_distances_pore_graph,
+        pore_graph_layout_mic,
+    )
+
+    cell = np.eye(3) * 10.0
+    assert mic_center_distance_frac([0.0, 0.0, 0.0], [0.5, 0.0, 0.0], cell) == pytest.approx(5.0)
+
+    graph = nx.MultiDiGraph()
+    graph.add_node(0, frac_pos=[0.0, 0.0, 0.0])
+    graph.add_node(1, frac_pos=[0.5, 0.0, 0.0])
+
+    d_k = compute_pore_graph_kdist(graph, cell, k=1)
+    assert d_k[0] == pytest.approx(5.0)
+    assert d_k[1] == pytest.approx(5.0)
+
+    pairwise = pairwise_mic_distances_pore_graph(graph, cell)
+    assert pairwise == [pytest.approx(5.0)]
+
+    annotated, d_k2 = annotate_pore_graph_kdist(graph, cell, k=1)
+    assert d_k2 == d_k
+    assert annotated.nodes[0]["d_k_mic"] == pytest.approx(5.0)
+    assert annotated.graph["kdist_k"] == 1
+    assert annotated.graph["pairwise_mic_distances"] == [pytest.approx(5.0)]
+
+    pos = pore_graph_layout_mic(graph, cell)
+    assert len(pos) == 2
+    assert pos[0].shape == (2,)
+    assert pos[1].shape == (2,)
