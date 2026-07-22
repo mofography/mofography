@@ -1142,11 +1142,10 @@ def regions_cluster_from_rep_types(
     rep_to_type: Mapping[int, int],
     pbc_groups: Sequence[Sequence[int]],
 ) -> np.ndarray:
-    """Paint the fragment ``regions`` grid from PBC group → rep → type.
+    """Paint a fragment label grid from PBC group → rep → type.
 
-    Follows the same idea as ``mgr.compute.clustering_grid_from_regions``:
-    each fragment label in a PBC group is assigned the type of that group's
-    representative, not only the representative voxel label.
+    Pass ``regions_pbc`` (when present) so surface colouring matches PBC-aware
+    pocket footprints and ``max_r`` banding. Falls back to central-cell ``regions``.
     """
     regions = np.asarray(regions)
     label_to_type = build_fragment_label_to_type(rep_to_type, pbc_groups)
@@ -1331,10 +1330,11 @@ def assign_pocket_types_from_segmentation(
             }
 
         regions = np.asarray(segmentation["regions"])
+        regions_pbc = np.asarray(segmentation.get("regions_pbc", regions))
         label_to_rep = build_fragment_label_to_rep(pbc_groups)
         label_to_type = build_fragment_label_to_type(rep_to_type, pbc_groups)
         regions_cluster = regions_cluster_from_rep_types(
-            regions, rep_to_type, pbc_groups,
+            regions_pbc, rep_to_type, pbc_groups,
         )
         type_summary = summarize_types(pockets, rep_to_type, fps)
 
