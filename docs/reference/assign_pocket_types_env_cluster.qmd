@@ -47,6 +47,6 @@ merge_gap_threshold_a : 0.20 Å
 merge_cosine : 0.90
     Tight cosine threshold for gaps ≤ merge_gap_threshold_a (prevents spurious
     merges of similar-but-different window types, e.g. ZIF-20 2.56 vs 2.74 Å).
-merge_cosine_large_gap : 0.80
-    Loose cosine threshold for gaps > merge_gap_threshold_a (allows genuine family
-    merges, e.g. ZIF-20 large cages 7.26 vs 7.61 Å, mean cosine ~0.87).
+merge_cosine_large_gap : 0.90
+    Same cosine bar as ``merge_cosine`` for gaps > merge_gap_threshold_a (keeps
+    similarly shaped but differently sized cages separate, e.g. ZIF-20 7.26 vs 7.61 Å).
