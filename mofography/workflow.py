@@ -1058,8 +1058,14 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         "dgrid": dgrid,
         "regions": regions,
         "all_maxima": all_maxima_plot,
+        "all_maxima_conn": am,
         "maxima_pbc": maxima_pbc if maxima_pbc is not None else np.zeros((0, 3), dtype=int),
         "maxima_info": maxima_info_plot,
+        "maxima_info_conn": (
+            np.asarray(maxima_info, dtype=int)
+            if maxima_info is not None
+            else np.zeros((0, 7), dtype=int)
+        ),
         "maxima_pbc_dict": maxima_pbc_dict if maxima_pbc_dict else {},
         "connections": connections,
     }
@@ -1083,45 +1089,9 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
     if defaults.get("plot_maxima", True) and len(all_maxima_plot):
         fig.add_maxima(seg_dict, atoms, hide_periodic=hide_periodic_max)
 
-    # Legend groups (interactive-app parity) for HUD toggles
+    # Legend metadata (optional); HUD legend is schema-driven in the HTML template.
     trace_ids = {t.get("id") for t in fig.data}
-    if defaults.get("plot_framework", True) and "framework_atoms" in trace_ids:
-        fig.groups["framework"] = {
-            "traces": ["framework_atoms", "framework_bonds"],
-            "label": "Framework",
-        }
-    if defaults.get("plot_surface_pbc", True) and "surface_regions_pbc" in trace_ids:
-        fig.groups["surface_regions_pbc"] = {
-            "traces": ["surface_regions_pbc"],
-            "label": "Regions (PBC merged)",
-        }
-    if rc is not None and "surface_regions_cluster" in trace_ids:
-        fig.groups["surface_regions_cluster"] = {
-            "traces": ["surface_regions_cluster"],
-            "label": "Pocket types (cluster)",
-        }
-    if defaults.get("plot_maxima", True) and "maxima_internal" in trace_ids:
-        fig.groups["maxima_internal"] = {
-            "traces": ["maxima_internal"],
-            "label": "Local maxima",
-        }
-    if defaults.get("plot_maxima_pbc", True) and "maxima_pbc" in trace_ids:
-        fig.groups["maxima_pbc"] = {
-            "traces": ["maxima_pbc"],
-            "label": "Maxima (PBC reps)",
-        }
-    if defaults.get("plot_connections", True) and "connections_periodic" in trace_ids:
-        fig.groups["connections_periodic"] = {
-            "traces": ["connections_periodic", "connections_periodic_nodes"],
-            "label": "Connections (periodic)",
-            "default_off": not bool(defaults.get("plot_connections_periodic", False)),
-        }
-    if defaults.get("plot_windows", True) and "windows_periodic" in trace_ids:
-        fig.groups["windows_periodic"] = {
-            "traces": ["windows_periodic"],
-            "label": "Windows (periodic)",
-            "default_off": not bool(defaults.get("plot_windows_periodic", False)),
-        }
+    fig.groups = {}
 
     if stylize:
         fig.update_traces(

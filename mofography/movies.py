@@ -174,13 +174,13 @@ DEFAULT_STYLES: dict[str, dict[str, Any]] = {
     },
     "internal_connections": {
         "color": 0xFF0000,
-        "linewidth": 16,
+        "linewidth": 1.5,
     },
     "periodic_connections": {
         "color": 0xFF0000,
         "dashSize": 0.9,
         "gapSize": 0.5,
-        "linewidth": 16,
+        "linewidth": 1.5,
     },
     "internal_nodes": {
         "color": 0x66CCFF,
@@ -968,7 +968,10 @@ def _serialize_connection_traces(
     seg: dict[str, Any], atoms: Atoms
 ) -> dict[str, Any]:
     conns = list(seg.get("connections", []))
-    maxima = np.asarray(seg.get("all_maxima", []), dtype=float)
+    maxima = np.asarray(
+        seg.get("all_maxima_conn", seg.get("all_maxima", [])),
+        dtype=float,
+    )
     if len(conns) == 0 or maxima.size == 0:
         return {
             "internal_segments": [],
@@ -997,7 +1000,10 @@ def _serialize_connection_traces(
     denom = max(vmax - vmin, 1e-12)
     norm = (vals - vmin) / denom
     maxima_sizes = (15.0 + 12.5 * norm).astype(float)
-    maxima_info = np.asarray(seg.get("maxima_info", []), dtype=int)
+    maxima_info = np.asarray(
+        seg.get("maxima_info_conn", seg.get("maxima_info", [])),
+        dtype=int,
+    )
     maxima_pbc_dict_raw = seg.get("maxima_pbc_dict", {}) or {}
     n_maxima = int(len(maxima))
     node_positions: dict[int, np.ndarray] = {}
@@ -1098,11 +1104,14 @@ def _serialize_connection_traces(
         a = np.vstack(arr)
         return a.reshape(-1).tolist(), hv, cols, sizes
 
+    # Mutually exclusive with internal nodes (same rule as maxima internal vs outside):
+    # nodes on both internal and periodic edges stay in internal only.
+    periodic_only_nodes = periodic_nodes - internal_nodes
     internal_points, internal_points_hover, internal_point_colors, internal_point_sizes = _pack_nodes(
         internal_nodes, "internal maxima"
     )
     periodic_points, periodic_points_hover, periodic_point_colors, periodic_point_sizes = _pack_nodes(
-        periodic_nodes, "periodic maxima", periodic_style=True
+        periodic_only_nodes, "periodic maxima", periodic_style=True
     )
     return {
         "internal_segments": (
@@ -2127,7 +2136,7 @@ def make_connections_trace(
         },
         style="periodic_connections",
         hover=payload["periodic_hover"],
-        visible=True,
+        visible=False,
     )
     internal_nodes = _make_trace(
         trace_id=f"{trace_id}_internal_nodes",
@@ -2155,7 +2164,7 @@ def make_connections_trace(
         },
         style="periodic_nodes",
         hover=payload["periodic_points_hover"],
-        visible=True,
+        visible=False,
     )
     return {
         "internal_lines": internal_lines,
@@ -3504,12 +3513,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label>Representation:
         <select id="reprSelect" style="font-size:10px;width:100%;"><option value="ball_and_stick">Ball-and-stick</option><option value="stick">Stick</option><option value="space_filling">Space-filling</option></select>
       </label>
-      <div id="meshOpacityContainer" style="display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto;font-size:10px;"></div>
-      <label>Point size: <input id="ptSizeSlider" type="range" min="0.5" max="4.5" step="0.1" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
       <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
-      <label><input id="screenDoorToggle" type="checkbox" /> Screen-door transparency</label>
       <label>Dir light xyz:
         <input id="lightDirX" type="number" step="0.1" value="5" style="width:40px;vertical-align:middle;" />
         <input id="lightDirY" type="number" step="0.1" value="10" style="width:40px;vertical-align:middle;" />
@@ -3540,16 +3546,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label>REC: <select id="recRes" style="font-size:10px;vertical-align:middle;"><option value="1" selected>1x</option><option value="2">2x</option><option value="3">3x</option></select></label>
     </div>
     <div class="checkrow">
-      <label id="labelShowCell"><input type="checkbox" id="showCell" checked /> Unit cell</label>
-      <label id="labelShowFramework"><input type="checkbox" id="showFramework" checked /> Framework mesh</label>
-      <label id="labelShowSurface"><input type="checkbox" id="showSurface" checked /> Segmentation surface (regions)</label>
-      <label id="labelShowGuests"><input type="checkbox" id="showGuests" checked /> Snapshot adsorbates (mesh spheres)</label>
-      <label id="labelShowGuestBonds"><input type="checkbox" id="showGuestBonds" checked /> Adsorbate bonds</label>
-      <label id="labelShowWindows"><input type="checkbox" id="showWindows" checked /> Internal windows</label>
-      <label id="labelShowPeriodicWindows"><input type="checkbox" id="showPeriodicWindows" /> Periodic windows</label>
-      <label id="labelShowInternalConnections"><input type="checkbox" id="showInternalConnections" checked /> Internal connections</label>
-      <label id="labelShowPeriodicConnections"><input type="checkbox" id="showPeriodicConnections" /> Periodic connections</label>
-      <label id="labelWindowMinThreshold">Min window (Å): <input id="windowMinThreshold" type="number" step="0.05" min="0" placeholder="off" style="width:52px;vertical-align:middle;" title="Hide connections/windows whose radii are all below this threshold" /></label>
+      <label id="labelWindowMinThreshold">Min window (Å): <input id="windowMinThreshold" type="number" step="0.05" min="0" placeholder="off" style="width:52px;vertical-align:middle;" title="Hide windows below this size; optionally hide edges whose max window is below it" /></label>
+      <label id="labelHideEdgesBelowWindow"><input type="checkbox" id="hideEdgesBelowWindow" checked /> Hide edges with max window below threshold</label>
     </div>
     <div class="checkrow" id="groupChecks"></div>
     <button id="toggleLegend" style="font-size:10px;margin-top:2px;" title="Fold/unfold legend entries">Fold Legend ▲</button>
@@ -3732,16 +3730,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const tooltip = document.getElementById("tooltip");
 
     const reprSelect = document.getElementById("reprSelect");
-    const showCell = document.getElementById("showCell");
-    const showFramework = document.getElementById("showFramework");
-    const showSurface = document.getElementById("showSurface");
-    const showGuests = document.getElementById("showGuests");
-    const showGuestBonds = document.getElementById("showGuestBonds");
-    const showWindows = document.getElementById("showWindows");
-    const showPeriodicWindows = document.getElementById("showPeriodicWindows");
-    const showInternalConnections = document.getElementById("showInternalConnections");
-    const showPeriodicConnections = document.getElementById("showPeriodicConnections");
     const windowMinThresholdInput = document.getElementById("windowMinThreshold");
+    const hideEdgesBelowWindowInput = document.getElementById("hideEdgesBelowWindow");
     const pivotSceneBtn = document.getElementById("pivotScene");
     const pivotOriginBtn = document.getElementById("pivotOrigin");
     const resetCamBtn = document.getElementById("resetCam");
@@ -3750,11 +3740,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const rotAxisYInput = document.getElementById("rotAxisY");
     const rotAxisZInput = document.getElementById("rotAxisZ");
     const measureBtn = document.getElementById("measureTool");
-    const ptSizeSlider = document.getElementById("ptSizeSlider");
     const speedSlider = document.getElementById("speedSlider");
     const ambSlider = document.getElementById("ambSlider");
     const dirSlider = document.getElementById("dirSlider");
-    const screenDoorToggle = document.getElementById("screenDoorToggle");
+    let screenDoorToggle = null;
     const lightDirXInput = document.getElementById("lightDirX");
     const lightDirYInput = document.getElementById("lightDirY");
     const lightDirZInput = document.getElementById("lightDirZ");
@@ -3768,10 +3757,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const bgPicker = document.getElementById("bgPicker");
     const pngResSelect = document.getElementById("pngRes");
     const recResSelect = document.getElementById("recRes");
-    let pointSizeMult = 1.0;
-    pointSizeMult = parseFloat(ptSizeSlider.value) || 1.0;
+    const pointSizeMultByTrace = {};
+    const lineWidthMultByTrace = {};
+    const legendEnabledByTrace = {};
     const screenDoorDefault = !!(DATA.layout && DATA.layout.surface_screen_door === true);
-    if (screenDoorToggle) screenDoorToggle.checked = screenDoorDefault;
 
     function getRenderViewport() {
       const hudEl = document.getElementById("hud");
@@ -4050,6 +4039,23 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       return size;
     }
 
+    function pointSizeMultFor(traceId) {
+      if (traceId && pointSizeMultByTrace[traceId] !== undefined) return pointSizeMultByTrace[traceId];
+      return 1.0;
+    }
+    function lineWidthMultFor(traceId) {
+      if (traceId && lineWidthMultByTrace[traceId] !== undefined) return lineWidthMultByTrace[traceId];
+      return 1.0;
+    }
+    function effectiveLineWidthForTrace(trace, mult) {
+      const style = styleFor(trace);
+      const base = Number(style.linewidth !== undefined ? style.linewidth : 1);
+      const m = mult !== undefined ? mult : lineWidthMultFor(trace.id);
+      return base * m;
+    }
+    function thickLineRadius(effectiveLw) {
+      return 0.04 * Math.max(Number(effectiveLw) || 0, 0.01);
+    }
     function applyPointSize(pointsObj, baseSize) {
       if (!pointsObj || !pointsObj.material || !pointsObj.material.isPointsMaterial) return;
       const base = baseSize !== undefined ? baseSize : (
@@ -4057,8 +4063,203 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           ? pointsObj.material.userData.baseSize
           : pointsObj.material.size
       );
-      pointsObj.material.size = base * pointSizeMult * (isOrtho ? 2.0 : 1.0);
+      pointsObj.material.size = base * pointSizeMultFor(pointsObj.name) * (isOrtho ? 2.0 : 1.0);
       pointsObj.material.needsUpdate = true;
+    }
+    function createThickLineGroup(traceId, pts, color, radius) {
+      const group = new THREE.Group();
+      group.name = traceId;
+      const mat = new THREE.MeshBasicMaterial({ color: color });
+      const unitGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+      for (let i = 0; i + 5 < pts.length; i += 6) {
+        const start = new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]);
+        const end = new THREE.Vector3(pts[i + 3], pts[i + 4], pts[i + 5]);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const len = dir.length();
+        if (len < 1e-8) continue;
+        const mesh = new THREE.Mesh(unitGeo, mat);
+        mesh.position.copy(start).add(end).multiplyScalar(0.5);
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+        mesh.scale.set(radius, len, radius);
+        mesh.userData.segmentLen = len;
+        group.add(mesh);
+      }
+      return group;
+    }
+    function createDashedThickLineGroup(traceId, pts, color, radius, dashSize, gapSize) {
+      const group = new THREE.Group();
+      group.name = traceId;
+      group.userData.dashedThick = true;
+      const mat = new THREE.MeshBasicMaterial({ color: color });
+      const unitGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+      const radiusScale = Math.max(radius / 0.04, 0.25);
+      const dashLen = Math.max(Number(dashSize || 0.9) * 0.15 * radiusScale, radius * 2.5);
+      const gapLen = Math.max(Number(gapSize !== undefined ? gapSize : 0.5) * 0.15 * radiusScale, radius * 1.5);
+      for (let i = 0; i + 5 < pts.length; i += 6) {
+        const start = new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]);
+        const end = new THREE.Vector3(pts[i + 3], pts[i + 4], pts[i + 5]);
+        const dir = new THREE.Vector3().subVectors(end, start);
+        const len = dir.length();
+        if (len < 1e-8) continue;
+        const dirN = dir.clone().normalize();
+        let t = 0;
+        while (t < len) {
+          const dashEnd = Math.min(t + dashLen, len);
+          const segLen = dashEnd - t;
+          if (segLen > 1e-6) {
+            const mid = start.clone().add(dirN.clone().multiplyScalar(t + segLen * 0.5));
+            const mesh = new THREE.Mesh(unitGeo, mat);
+            mesh.position.copy(mid);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirN);
+            mesh.scale.set(radius, segLen, radius);
+            mesh.userData.segmentLen = segLen;
+            group.add(mesh);
+          }
+          t = dashEnd + gapLen;
+        }
+      }
+      return group;
+    }
+    function buildThickLineGroupForTrace(trace, traceId, pts, effectiveLw) {
+      const style = styleFor(trace);
+      const color = threeColorFromStyle(style.color !== undefined ? style.color : 0xffffff, 0xffffff);
+      const radius = thickLineRadius(Math.max(effectiveLw, 0.15));
+      if (style.dashSize !== undefined) {
+        return createDashedThickLineGroup(
+          traceId, pts, color, radius, style.dashSize,
+          style.gapSize !== undefined ? style.gapSize : 0.5
+        );
+      }
+      return createThickLineGroup(traceId, pts, color, radius);
+    }
+    function updateThickLineGroupRadius(group, radius) {
+      if (!group || !group.children) return;
+      group.children.forEach(function(mesh) {
+        const len = mesh.userData && mesh.userData.segmentLen ? mesh.userData.segmentLen : mesh.scale.y;
+        mesh.scale.set(radius, len, radius);
+      });
+    }
+    function cellPositionsArray(cellObj) {
+      if (cellObj && cellObj.userData && cellObj.userData.originalPositions &&
+          cellObj.userData.originalPositions.length) {
+        return cellObj.userData.originalPositions;
+      }
+      if (cellObj && cellObj.geometry && cellObj.geometry.attributes && cellObj.geometry.attributes.position) {
+        return cellObj.geometry.attributes.position.array;
+      }
+      return null;
+    }
+    function cloneCellOutline(cellObj) {
+      if (!cellObj) return null;
+      if (cellObj instanceof THREE.Group) {
+        const group = new THREE.Group();
+        cellObj.children.forEach(function(child) {
+          group.add(child.clone());
+        });
+        return group;
+      }
+      if (cellObj.geometry) {
+        return new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
+      }
+      return null;
+    }
+    function findTraceById(traceId) {
+      const staticHit = staticTraces.find(function(t) { return t.id === traceId; });
+      if (staticHit) return staticHit;
+      if (getFrameCount() > 0 && getFrame(0) && getFrame(0).traces) {
+        return getFrame(0).traces.find(function(t) { return t.id === traceId; }) || null;
+      }
+      return null;
+    }
+    function copyLineTraceUserData(dst, src) {
+      if (!dst || !src || !src.userData) return;
+      Object.keys(src.userData).forEach(function(k) {
+        dst.userData[k] = src.userData[k];
+      });
+    }
+    function disposeLineObject(obj) {
+      if (!obj) return;
+      scene.remove(obj);
+      if (obj instanceof THREE.Group) {
+        obj.traverse(function(c) {
+          if (c.geometry) c.geometry.dispose();
+          if (c.material) c.material.dispose();
+        });
+      } else {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) obj.material.dispose();
+      }
+    }
+    function setObjectMaterialOpacity(obj, alpha) {
+      if (!obj) return;
+      const a = Math.max(0, Math.min(1, alpha));
+      const applyMat = function(mat) {
+        if (!mat) return;
+        mat.transparent = a < 0.999;
+        mat.opacity = a;
+        mat.needsUpdate = true;
+      };
+      if (obj instanceof THREE.Group) {
+        obj.traverse(function(c) { applyMat(c.material); });
+      } else {
+        applyMat(obj.material);
+      }
+    }
+    function lineWidthFadeAlpha(mult) {
+      if (mult <= 0.08) return 0;
+      if (mult >= 0.22) return 1;
+      return (mult - 0.08) / (0.22 - 0.08);
+    }
+    function applyLineWidth(traceId, mult) {
+      lineWidthMultByTrace[traceId] = mult;
+      const trace = findTraceById(traceId);
+      let obj = objectsById[traceId];
+      if (!trace || !obj) return;
+      const pts = obj.userData.originalPositions || trace.data.positions || [];
+      if (!pts.length) return;
+      const style = styleFor(trace);
+      const color = threeColorFromStyle(style.color, 0xffffff);
+      const baseLinewidth = Number(style.linewidth !== undefined ? style.linewidth : 1);
+      const effectiveLw = baseLinewidth * mult;
+      const alpha = lineWidthFadeAlpha(mult);
+      const useThick = effectiveLw > 0.35;
+      const legendOn = legendEnabledByTrace[traceId] !== false;
+      if (alpha <= 0) {
+        setObjectMaterialOpacity(obj, 0);
+        if (legendOn) obj.visible = false;
+        return;
+      }
+      if (useThick) {
+        const saved = obj.userData || {};
+        disposeLineObject(obj);
+        const group = buildThickLineGroupForTrace(trace, traceId, pts, effectiveLw);
+        group.userData = Object.assign({}, saved);
+        group.userData.baseLinewidth = saved.baseLinewidth !== undefined
+          ? saved.baseLinewidth
+          : baseLinewidth;
+        group.userData.originalPositions = pts.slice();
+        group.userData.thickLines = true;
+        group.userData.lineColor = color.getHex();
+        scene.add(group);
+        objectsById[traceId] = group;
+        obj = group;
+        setObjectMaterialOpacity(obj, alpha);
+        if (legendOn) obj.visible = true;
+        return;
+      }
+      if (!(obj instanceof THREE.LineSegments)) {
+        const saved = obj.userData || {};
+        disposeLineObject(obj);
+        const lines = addLineSegments(trace, color);
+        if (lines) {
+          copyLineTraceUserData(lines, { userData: saved });
+          lines.userData.thickLines = false;
+          objectsById[traceId] = lines;
+          obj = lines;
+        }
+      }
+      setObjectMaterialOpacity(obj, alpha);
+      if (legendOn) obj.visible = true;
     }
 
     function isSurfaceMeshId(traceId) {
@@ -4080,8 +4281,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
       const enabled = !!(screenDoorToggle && screenDoorToggle.checked);
       if (enabled) {
-        const clampedOpacity = Math.max(0.0, Math.min(1.0, mat.opacity !== undefined ? mat.opacity : 1.0));
+        if (obj.userData.screenDoorOpacity === undefined) {
+          obj.userData.screenDoorOpacity = mat.opacity !== undefined ? mat.opacity : 1.0;
+        }
+        const clampedOpacity = Math.max(0.0, Math.min(1.0, obj.userData.screenDoorOpacity));
         mat.userData.screenDoorOpacity = clampedOpacity;
+        mat.opacity = 1.0;
         mat.transparent = false;
         mat.depthWrite = true;
         mat.alphaTest = 0.0;
@@ -4131,6 +4336,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           mat.userData.screenDoorUniform.value = clampedOpacity;
         }
       } else {
+        if (obj.userData.screenDoorOpacity !== undefined) {
+          mat.opacity = obj.userData.screenDoorOpacity;
+        }
         mat.transparent = mat.opacity < 1.0;
         mat.depthWrite = mat.opacity >= 0.999;
         mat.alphaTest = 0.0;
@@ -4197,7 +4405,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = trace.id;
       mesh.userData.originalSide = mat.side;
-      if (isSurfaceMeshId(trace.id)) applySurfaceScreenDoorForObject(mesh);
+      if (isSurfaceMeshId(trace.id)) {
+        mesh.userData.screenDoorOpacity = opacity;
+        applySurfaceScreenDoorForObject(mesh);
+      }
       scene.add(mesh);
       objectsById[trace.id] = mesh;
       return mesh;
@@ -4206,11 +4417,28 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function addLineSegments(trace, colorOverride) {
       const pts = trace.data.positions || [];
       if (!pts.length) { console.warn("Skipping empty line trace:", trace.id); return null; }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       const style = styleFor(trace);
       const raw = colorOverride !== undefined ? colorOverride : (style.color !== undefined ? style.color : 0xffffff);
       const color = threeColorFromStyle(raw, 0xffffff);
+      const baseLinewidth = Number(style.linewidth !== undefined ? style.linewidth : 1);
+      const effectiveLw = effectiveLineWidthForTrace(trace);
+      if (effectiveLw > 0.35) {
+        const group = buildThickLineGroupForTrace(trace, trace.id, pts, effectiveLw);
+        group.userData.originalPositions = pts.slice();
+        group.userData.baseLinewidth = baseLinewidth;
+        group.userData.thickLines = true;
+        if (trace.data.segment_window_radii) {
+          group.userData.segmentWindowRadii = trace.data.segment_window_radii;
+          group.userData.originalHover = trace.hover ? trace.hover.slice() : [];
+          group.userData.activeHover = group.userData.originalHover.slice();
+          group.userData.windowFilterKind = "connection_lines";
+        }
+        scene.add(group);
+        objectsById[trace.id] = group;
+        return group;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
       let mat;
       if (style.dashSize !== undefined) {
         mat = new THREE.LineDashedMaterial({
@@ -4232,8 +4460,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (style.dashSize !== undefined) lines.computeLineDistances();
       lines.name = trace.id;
       lines.userData.originalOpacity = mat.opacity !== undefined ? mat.opacity : 1.0;
+      lines.userData.originalPositions = pts.slice();
+      lines.userData.baseLinewidth = baseLinewidth;
+      lines.userData.thickLines = false;
       if (trace.data.segment_window_radii) {
-        lines.userData.originalPositions = pts.slice();
         lines.userData.segmentWindowRadii = trace.data.segment_window_radii;
         lines.userData.originalHover = trace.hover ? trace.hover.slice() : [];
         lines.userData.activeHover = lines.userData.originalHover.slice();
@@ -4254,7 +4484,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
       const style = styleFor(trace);
       const baseSize = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
-      const size = baseSize * pointSizeMult * (isOrtho ? 2.0 : 1.0);
+      const size = baseSize * pointSizeMultFor(trace.id) * (isOrtho ? 2.0 : 1.0);
       const sym = style.symbol || "circle";
       const tex = spriteTextures[sym] || spriteTextures["circle"];
       const mat = new THREE.PointsMaterial({
@@ -4273,6 +4503,13 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
       const points = new THREE.Points(geo, mat);
       points.name = trace.id;
+      points.userData.originalPositions = pts.slice();
+      if (trace.data.window_radii && trace.data.window_radii.length) {
+        points.userData.windowRadii = trace.data.window_radii.slice();
+        points.userData.originalHover = trace.hover ? trace.hover.slice() : [];
+        points.userData.activeHover = points.userData.originalHover.slice();
+        points.userData.windowFilterKind = "windows";
+      }
       scene.add(points);
       objectsById[trace.id] = points;
       return points;
@@ -4390,34 +4627,20 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       // draw cell edges as thin cylinders so thickness is visible in exports.
       const st = styleFor(trace);
       const c = st.color !== undefined ? st.color : 0xffa500;
-      const lw = Number(st.linewidth !== undefined ? st.linewidth : 1);
-      if (!(lw > 1)) {
-        return addLineSegments(trace, c);
-      }
       const pts = trace.data.positions || [];
       if (!pts.length) { console.warn("Skipping empty cell trace:", trace.id); return null; }
-      const color = threeColorFromStyle(c, 0xffa500);
-      // Radius in Å: lw=2 → 0.08, lw=3 → 0.12 (readable against MOF framework)
-      const radius = 0.04 * lw;
-      const group = new THREE.Group();
-      group.name = trace.id;
-      const mat = new THREE.MeshBasicMaterial({ color: color });
-      const unitGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
-      for (let i = 0; i + 5 < pts.length; i += 6) {
-        const start = new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]);
-        const end = new THREE.Vector3(pts[i + 3], pts[i + 4], pts[i + 5]);
-        const dir = new THREE.Vector3().subVectors(end, start);
-        const len = dir.length();
-        if (len < 1e-8) continue;
-        const mesh = new THREE.Mesh(unitGeo, mat);
-        mesh.position.copy(start).add(end).multiplyScalar(0.5);
-        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
-        mesh.scale.set(radius, len, radius);
-        group.add(mesh);
+      const effectiveLw = effectiveLineWidthForTrace(trace);
+      if (effectiveLw > 0.35) {
+        const color = threeColorFromStyle(c, 0xffa500);
+        const group = createThickLineGroup(trace.id, pts, color, thickLineRadius(effectiveLw));
+        group.userData.originalPositions = pts.slice();
+        group.userData.baseLinewidth = Number(st.linewidth !== undefined ? st.linewidth : 1);
+        group.userData.thickLines = true;
+        scene.add(group);
+        objectsById[trace.id] = group;
+        return group;
       }
-      scene.add(group);
-      objectsById[trace.id] = group;
-      return group;
+      return addLineSegments(trace, c);
     }
 
     function replaceMeshGeometry(mesh, trace) {
@@ -4559,100 +4782,279 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
     });
 
-    function setVisibleIfPresent(labelId, predicate) {
-      const el = document.getElementById(labelId);
-      if (!el) return;
-      el.style.display = predicate ? "" : "none";
+    function ensureTraceObject(traceId) {
+      if (objectsById[traceId]) return objectsById[traceId];
+      const trace = findTraceById(traceId);
+      if (!trace) return null;
+      if (trace.type === "line_segments") return addLineSegments(trace);
+      if (trace.type === "points") return addPoints(trace);
+      if (trace.type === "unit_cell_lines") return addUnitCellLines(trace);
+      if (trace.type === "mesh") return addMesh(trace);
+      return null;
     }
-    function hasStaticOrFrameTrace(pred) {
-      if (staticTraces.some(pred)) return true;
-      if (!DATA.sidecar) {
-        return FRAMES.some(fr => (fr && fr.traces ? fr.traces : []).some(pred));
-      }
-      const first = getFrame(0);
-      return first && first.traces ? first.traces.some(pred) : false;
-    }
-    setVisibleIfPresent("labelShowCell", hasStaticOrFrameTrace(t => t.id === "cell"));
-    setVisibleIfPresent("labelShowFramework", hasStaticOrFrameTrace(t => t.id === "framework"));
-    setVisibleIfPresent("labelShowSurface", hasStaticOrFrameTrace(t => t.id === "surface"));
-    setVisibleIfPresent("labelShowGuests", hasStaticOrFrameTrace(t => t.id === "guests" || (t.id && t.id.startsWith("guests_"))));
-    setVisibleIfPresent("labelShowGuestBonds", hasStaticOrFrameTrace(t => t.id && t.id.startsWith("guestbonds_")));
-    setVisibleIfPresent("labelShowWindows", hasStaticOrFrameTrace(t => t.id === "windows_internal"));
-    setVisibleIfPresent("labelShowPeriodicWindows", hasStaticOrFrameTrace(t => t.id === "windows_periodic"));
-    setVisibleIfPresent("labelShowInternalConnections", hasStaticOrFrameTrace(t => t.id === "connections_internal" || t.id === "connections_internal_nodes" || t.id === "maxima_internal"));
-    setVisibleIfPresent("labelShowPeriodicConnections", hasStaticOrFrameTrace(t => t.id === "connections_periodic" || t.id === "connections_periodic_nodes" || t.id === "maxima_outside"));
 
-    // Populate dynamic group checkboxes from DATA.groups
-    const groupChecksDiv = document.getElementById("groupChecks");
-    const groups = DATA.groups || {};
-    const mergedGroups = Object.assign({}, groups);
-    const groupedTraceIds = new Set();
-    Object.values(groups).forEach(function(g) {
-      (g && g.traces ? g.traces : []).forEach(function(tid) { groupedTraceIds.add(tid); });
-    });
-    // Fallback: if surface traces exist but caller did not declare groups,
-    // auto-register legend entries so legend and mesh-opacity controls stay in sync.
-    [
-      ["surface", "Surface"],
-      ["surface_regions_raw", "Regions (raw)"],
-      ["surface_pbc", "Surface (PBC)"],
-      ["surface_regions_pbc", "Regions (PBC merged)"],
-      ["surface_pocket", "Pocket types"],
-      ["surface_regions_cluster", "Pocket types (cluster)"],
-      ["framework_atoms", "Framework (atoms)"],
-      ["framework_bonds", "Framework (bonds)"],
-      ["maxima_internal", "Local maxima"],
-      ["maxima_pbc", "Maxima (PBC reps)"],
-      ["maxima_outside", "Maxima (periodic)"],
-      ["connections_internal", "Connections (internal)"],
-      ["connections_periodic", "Connections (periodic)"],
-      ["windows_internal", "Windows (internal)"],
-      ["windows_periodic", "Windows (periodic)"],
-    ].forEach(function(defn) {
-      const tid = defn[0];
-      const label = defn[1];
-      if (objectsById[tid] && !groupedTraceIds.has(tid)) {
-        mergedGroups["__auto_" + tid] = { traces: [tid], label: label };
+    function ensurePoreGraphNodesDrawOnTop() {
+      ["maxima_internal", "maxima_outside", "maxima_pbc"].forEach(function(tid) {
+        const obj = objectsById[tid];
+        if (obj && obj.material) {
+          obj.material.depthWrite = false;
+          obj.material.needsUpdate = true;
+        }
+      });
+      ["connections_internal_nodes", "connections_periodic_nodes"].forEach(function(tid) {
+        const obj = objectsById[tid];
+        if (!obj) return;
+        obj.renderOrder = 2;
+        scene.remove(obj);
+        scene.add(obj);
+      });
+    }
+    ensurePoreGraphNodesDrawOnTop();
+
+    scene.userData.fwLegendEnabled = true;
+
+    // Schema-driven legend: one foldable section per category, sliders under each entry.
+    const TRACE_LEGEND_SECTIONS = [
+      {
+        key: "framework",
+        label: "Framework",
+        defaultOpen: true,
+        entries: [
+          { id: "cell", label: "Unit cell", traceIds: ["cell"], control: "lineWidth", lineMin: 0.05 },
+          { id: "framework", label: "Framework", traceIds: ["framework_atoms", "framework_bonds", "framework", "framework_stick", "framework_spacefill"], control: "opacity", fwMerge: true },
+        ],
+      },
+      {
+        key: "surfaces",
+        label: "Segmentation surfaces",
+        defaultOpen: true,
+        entries: [
+          { id: "surface", label: "Segmentation surface", traceIds: ["surface", "surface_regions_raw"], control: "opacity" },
+          { id: "surface_pbc", label: "Segmentation (PBC)", traceIds: ["surface_regions_pbc", "surface_pbc"], control: "opacity", pickFirst: true },
+          { id: "surface_pocket", label: "Pocket types", traceIds: ["surface_regions_cluster", "surface_pocket"], control: "opacity", pickFirst: true },
+        ],
+      },
+      {
+        key: "maxima",
+        label: "Maxima",
+        defaultOpen: true,
+        entries: [
+          { id: "maxima_internal", label: "Local maxima", traceIds: ["maxima_internal"], control: "pointSize" },
+          { id: "maxima_pbc", label: "Maxima (PBC reps)", traceIds: ["maxima_pbc"], control: "pointSize", defaultOff: true },
+          { id: "maxima_outside", label: "Maxima (periodic)", traceIds: ["maxima_outside"], control: "pointSize", defaultOff: true },
+        ],
+      },
+      {
+        key: "windows",
+        label: "Windows",
+        defaultOpen: true,
+        entries: [
+          { id: "windows_internal", label: "Internal windows", traceIds: ["windows_internal"], control: "pointSize" },
+          { id: "windows_periodic", label: "Periodic windows", traceIds: ["windows_periodic"], control: "pointSize", defaultOff: true },
+        ],
+      },
+      {
+        key: "pore_graph",
+        label: "Pore graph",
+        defaultOpen: true,
+        entries: [
+          { id: "connections_internal_nodes", label: "Internal nodes", traceIds: ["connections_internal_nodes"], control: "pointSize" },
+          { id: "connections_periodic_nodes", label: "Periodic nodes", traceIds: ["connections_periodic_nodes"], control: "pointSize", defaultOff: true },
+          { id: "connections_internal", label: "Internal connections", traceIds: ["connections_internal"], control: "lineWidth", lineMin: 0.05 },
+          { id: "connections_periodic", label: "Periodic connections", traceIds: ["connections_periodic"], control: "lineWidth", lineMin: 0.05, defaultOff: true },
+        ],
+      },
+      {
+        key: "adsorbates",
+        label: "Adsorbates",
+        defaultOpen: false,
+        entries: [
+          { id: "guests", label: "Adsorbates", traceIds: ["guests"], control: "opacity", guestPrefix: true },
+          { id: "guestbonds", label: "Adsorbate bonds", traceIds: [], control: "opacity", guestBondPrefix: true },
+        ],
+      },
+    ];
+    const FW_MERGE_IDS = ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent"];
+    function resolveLegendTraceIds(entry) {
+      if (entry.fwMerge) {
+        return FW_MERGE_IDS.filter(function(tid) { return !!objectsById[tid]; });
       }
-    });
-    const seenGroupKeys = new Set();
-    Object.entries(mergedGroups).forEach(function(entry) {
-      const groupId = entry[0];
-      const group = entry[1];
-      const traces = group.traces || [];
-      if (!traces.some(function(tid) { return objectsById[tid]; })) return;
-      const groupKey = (group.label || groupId) + "::" + traces.join(",");
-      if (seenGroupKeys.has(groupKey)) return;
-      seenGroupKeys.add(groupKey);
+      if (entry.guestPrefix) {
+        return Object.keys(objectsById).filter(function(tid) {
+          return tid === "guests" || (tid && tid.indexOf("guests_") === 0);
+        });
+      }
+      if (entry.guestBondPrefix) {
+        return Object.keys(objectsById).filter(function(tid) {
+          return tid && tid.indexOf("guestbonds_") === 0;
+        });
+      }
+      if (entry.pickFirst) {
+        for (let i = 0; i < entry.traceIds.length; i++) {
+          if (objectsById[entry.traceIds[i]]) return [entry.traceIds[i]];
+        }
+        return [];
+      }
+      return entry.traceIds.filter(function(tid) {
+        return !!objectsById[tid] || !!findTraceById(tid);
+      });
+    }
+    function applyOpacityToTraceIds(traceIds, val, fwMerge) {
+      const ids = fwMerge ? FW_MERGE_IDS.filter(function(tid) { return objectsById[tid]; }) : traceIds.slice();
+      ids.forEach(function(tid) {
+        const obj = objectsById[tid];
+        if (!obj || !obj.material) return;
+        const isFw = FW_MERGE_IDS.indexOf(tid) >= 0;
+        const hiddenByOpacity = val <= 0.001;
+        if (obj.userData && obj.userData.originalCastShadow === undefined) {
+          obj.userData.originalCastShadow = obj.castShadow;
+          obj.userData.originalReceiveShadow = obj.receiveShadow;
+        }
+        if (obj.userData && obj.userData.originalOpacity === undefined) {
+          obj.userData.originalOpacity = obj.material.opacity;
+        }
+        const baseOp = obj.userData.originalOpacity || 1.0;
+        const opaqueEnough = val >= 0.999;
+        const isSurface = isSurfaceMeshId(tid);
+        const screenDoorOn = !!(screenDoorToggle && screenDoorToggle.checked && isSurface);
+        if (screenDoorOn) {
+          obj.userData.screenDoorOpacity = val;
+          obj.visible = !hiddenByOpacity;
+          obj.castShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalCastShadow);
+          obj.receiveShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalReceiveShadow);
+          obj.material.opacity = 1.0;
+          obj.material.transparent = false;
+          obj.material.depthWrite = true;
+          if (obj.userData && obj.userData.originalSide !== undefined) {
+            obj.material.side = obj.userData.originalSide;
+          }
+          applySurfaceScreenDoorForObject(obj);
+          return;
+        }
+        if (isFw) {
+          const scaledOpacity = val * baseOp;
+          obj.material.opacity = scaledOpacity;
+          obj.material.transparent = scaledOpacity < 1.0;
+          obj.material.depthWrite = true;
+          obj.material.depthTest = true;
+          obj.material.side = THREE.FrontSide;
+          obj.visible = val > 0.001;
+          obj.castShadow = val > 0.999;
+          obj.receiveShadow = val > 0.999;
+        } else {
+          obj.visible = !hiddenByOpacity;
+          obj.castShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalCastShadow);
+          obj.receiveShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalReceiveShadow);
+          obj.material.opacity = val;
+          obj.material.transparent = val < 1.0;
+          obj.material.depthWrite = opaqueEnough;
+        }
+        if (obj.userData && obj.userData.originalSide !== undefined) {
+          obj.material.side = obj.userData.originalSide;
+        }
+        if (isSurfaceMeshId(tid)) applySurfaceScreenDoorForObject(obj);
+        obj.material.needsUpdate = true;
+      });
+      if (fwMerge) updateFrameworkVisibility();
+    }
+    function appendLegendControlSlider(parent, entry, traceIds, legendCb) {
+      const primaryId = traceIds[0];
+      const trace = findTraceById(primaryId);
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:4px;margin:2px 0 4px 18px;";
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.style.cssText = "flex:1;";
+      if (entry.control === "opacity") {
+        slider.min = "0"; slider.max = "1"; slider.step = "0.05";
+        const st = trace ? styleFor(trace) : {};
+        slider.value = String((st && st.opacity !== undefined) ? st.opacity : 1.0);
+        slider.addEventListener("input", function() {
+          applyOpacityToTraceIds(traceIds, parseFloat(slider.value), !!entry.fwMerge);
+        });
+      } else if (entry.control === "pointSize") {
+        slider.min = "0.25"; slider.max = "4.5"; slider.step = "0.1"; slider.value = "1";
+        slider.addEventListener("input", function() {
+          traceIds.forEach(function(tid) {
+            pointSizeMultByTrace[tid] = parseFloat(slider.value) || 1.0;
+            const obj = objectsById[tid];
+            if (obj && obj.material && obj.material.isPointsMaterial) {
+              const base = obj.material.userData && obj.material.userData.baseSize
+                ? obj.material.userData.baseSize : obj.material.size;
+              applyPointSize(obj, base);
+            }
+          });
+        });
+      } else if (entry.control === "lineWidth") {
+        slider.min = entry.lineMin || "0.05"; slider.max = "4"; slider.step = "0.05"; slider.value = "1";
+        slider.addEventListener("input", function() {
+          if (legendCb && !legendCb.checked) return;
+          traceIds.forEach(function(tid) {
+            applyLineWidth(tid, parseFloat(slider.value) || 1.0);
+          });
+        });
+      }
+      row.appendChild(slider);
+      parent.appendChild(row);
+    }
+    function appendLegendEntry(parent, entry) {
+      const traceIds = resolveLegendTraceIds(entry);
+      if (!traceIds.length) return;
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "margin:2px 0 4px 0;";
       const label = document.createElement("label");
+      label.style.cssText = "display:block;font-size:10px;margin-left:8px;";
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      const startOff = !!group.default_off;
+      const startOff = !!entry.defaultOff;
       cb.checked = !startOff;
+      traceIds.forEach(function(tid) {
+        legendEnabledByTrace[tid] = !startOff;
+      });
       if (startOff) {
-        (group.traces || []).forEach(function(tid) {
+        traceIds.forEach(function(tid) {
           const obj = objectsById[tid];
           if (obj) obj.visible = false;
         });
       }
       cb.addEventListener("change", function() {
-        (group.traces || []).forEach(function(tid) {
-          const obj = objectsById[tid];
-          if (obj) obj.visible = cb.checked;
-        });
+        if (entry.fwMerge) {
+          scene.userData.fwLegendEnabled = cb.checked;
+          updateFrameworkVisibility();
+        } else {
+          traceIds.forEach(function(tid) {
+            legendEnabledByTrace[tid] = cb.checked;
+            let obj = objectsById[tid];
+            if (cb.checked && !obj) obj = ensureTraceObject(tid);
+            if (obj) obj.visible = cb.checked;
+          });
+          if (cb.checked) ensurePoreGraphNodesDrawOnTop();
+          if (cb.checked && entry.control === "lineWidth") {
+            const slider = wrap.querySelector('input[type="range"]');
+            if (slider) {
+              traceIds.forEach(function(tid) {
+                applyLineWidth(tid, parseFloat(slider.value) || 1.0);
+              });
+            }
+          }
+        }
+        if (entry.id === "cell") {
+          scene.children.forEach(function(c) {
+            if (c.name && c.name.startsWith("axisLabel_")) c.visible = cb.checked;
+          });
+        }
         updateCellCopyVisibility();
         updateSurfaceCellVisibility();
         updateFrameworkCellVisibility();
       });
       label.appendChild(cb);
-      label.appendChild(document.createTextNode(" " + (group.label || groupId)));
-      // Isolate button — shows only this group, hides everything else
+      label.appendChild(document.createTextNode(" " + entry.label));
       const isoBtn = document.createElement("button");
       isoBtn.type = "button";
       isoBtn.textContent = "⊕";
-      isoBtn.title = "Isolate: show only this, hide everything else. Click again to restore.";
+      isoBtn.title = "Isolate this trace";
       isoBtn.style.cssText = "font-size:10px;padding:0 3px;margin-left:4px;cursor:pointer;background:none;border:1px solid #666;border-radius:2px;color:inherit;";
-      (function(gid, traces) {
+      (function(idsRef) {
         var isoActive = false;
         var savedVisibility = null;
         function deactivateIsolate() {
@@ -4666,46 +5068,124 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           }
           isoActive = false;
           isoBtn.textContent = "⊕";
+          isoBtn.classList.remove("isolateActive");
           updateCellCopyVisibility();
           updateSurfaceCellVisibility();
           updateFrameworkCellVisibility();
         }
         isoBtn.addEventListener("click", function(e) {
           e.stopPropagation();
-          if (isoActive) {
-            deactivateIsolate();
-          } else {
-            // Deactivate any other active isolate button
-            var others = document.querySelectorAll("#groupChecks button.isolateActive");
-            others.forEach(function(b) { b.click(); });
-            // Save current visibility of all objects
-            savedVisibility = {};
-            Object.entries(objectsById).forEach(function(e2) {
-              if (e2[1]) savedVisibility[e2[0]] = e2[1].visible;
-            });
-            // Hide everything
-            Object.values(objectsById).forEach(function(obj) {
-              if (obj) obj.visible = false;
-            });
-            // Show only this group
-            (traces || []).forEach(function(tid) {
-              var obj = objectsById[tid];
-              if (obj) obj.visible = true;
-            });
-            isoActive = true;
-            isoBtn.textContent = "⊖";
-            isoBtn.classList.add("isolateActive");
-            updateCellCopyVisibility();
-            updateSurfaceCellVisibility();
-            updateFrameworkCellVisibility();
-          }
+          if (isoActive) { deactivateIsolate(); return; }
+          document.querySelectorAll("#groupChecks button.isolateActive").forEach(function(b) {
+            if (b !== isoBtn && b._deactivate) b._deactivate();
+          });
+          savedVisibility = {};
+          Object.entries(objectsById).forEach(function(e2) {
+            if (e2[1]) savedVisibility[e2[0]] = e2[1].visible;
+          });
+          Object.values(objectsById).forEach(function(obj) { if (obj) obj.visible = false; });
+          idsRef.forEach(function(tid) {
+            var obj = objectsById[tid];
+            if (obj) obj.visible = true;
+          });
+          isoActive = true;
+          isoBtn.textContent = "⊖";
+          isoBtn.classList.add("isolateActive");
+          updateCellCopyVisibility();
+          updateSurfaceCellVisibility();
+          updateFrameworkCellVisibility();
         });
-        // Store deactivate ref for cross-button coordination
         isoBtn._deactivate = deactivateIsolate;
-      })(groupId, group.traces || []);
+      })(traceIds);
       label.appendChild(isoBtn);
-      groupChecksDiv.appendChild(label);
+      wrap.appendChild(label);
+      if (entry.control) appendLegendControlSlider(wrap, entry, traceIds, cb);
+      parent.appendChild(wrap);
+    }
+    const groupChecksDiv = document.getElementById("groupChecks");
+    const claimedLegendIds = new Set();
+    TRACE_LEGEND_SECTIONS.forEach(function(sec) {
+      let sectionHasEntries = false;
+      const sectionWrap = document.createElement("div");
+      sectionWrap.style.cssText = "margin-top:4px;border-top:1px solid rgba(128,128,128,0.35);padding-top:4px;";
+      const body = document.createElement("div");
+      var sectionOpen = !!sec.defaultOpen;
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.textContent = sec.label + (sectionOpen ? " \u25B2" : " \u25BC");
+      toggleBtn.style.cssText = "font-size:10px;width:100%;text-align:left;background:none;border:none;color:inherit;cursor:pointer;padding:2px 0;";
+      sec.entries.forEach(function(entry) {
+        const ids = resolveLegendTraceIds(entry);
+        if (!ids.length) return;
+        sectionHasEntries = true;
+        ids.forEach(function(tid) { claimedLegendIds.add(tid); });
+        appendLegendEntry(body, entry);
+      });
+      if (sec.key === "surfaces") {
+        sectionHasEntries = true;
+        const sdWrap = document.createElement("div");
+        sdWrap.style.cssText = "margin:4px 0 6px 8px;font-size:10px;";
+        const sdLabel = document.createElement("label");
+        const sdCb = document.createElement("input");
+        sdCb.type = "checkbox";
+        sdCb.id = "screenDoorToggle";
+        sdCb.checked = screenDoorDefault;
+        sdCb.addEventListener("change", function() {
+          applySurfaceScreenDoorAll();
+        });
+        screenDoorToggle = sdCb;
+        sdLabel.appendChild(sdCb);
+        sdLabel.appendChild(document.createTextNode(" Screen-door transparency"));
+        sdWrap.appendChild(sdLabel);
+        body.appendChild(sdWrap);
+        if (screenDoorDefault) applySurfaceScreenDoorAll();
+      }
+      if (!sectionHasEntries) return;
+      body.style.display = sectionOpen ? "block" : "none";
+      toggleBtn.addEventListener("click", function() {
+        sectionOpen = !sectionOpen;
+        body.style.display = sectionOpen ? "block" : "none";
+        toggleBtn.textContent = sec.label + (sectionOpen ? " \u25B2" : " \u25BC");
+      });
+      sectionWrap.appendChild(toggleBtn);
+      sectionWrap.appendChild(body);
+      groupChecksDiv.appendChild(sectionWrap);
     });
+    // Residual traces (percolation, etc.) in a catch-all section.
+    const otherIds = Object.keys(objectsById).filter(function(tid) {
+      if (!tid || claimedLegendIds.has(tid)) return false;
+      if (tid.indexOf("cell_") === 0 || tid.indexOf("axisLabel_") === 0) return false;
+      return true;
+    });
+    if (otherIds.length) {
+      const sectionWrap = document.createElement("div");
+      sectionWrap.style.cssText = "margin-top:4px;border-top:1px solid rgba(128,128,128,0.35);padding-top:4px;";
+      const body = document.createElement("div");
+      var otherOpen = false;
+      const toggleBtn = document.createElement("button");
+      toggleBtn.type = "button";
+      toggleBtn.textContent = "Other \u25BC";
+      toggleBtn.style.cssText = "font-size:10px;width:100%;text-align:left;background:none;border:none;color:inherit;cursor:pointer;padding:2px 0;";
+      otherIds.forEach(function(tid) {
+        const tr = findTraceById(tid);
+        appendLegendEntry(body, {
+          id: tid,
+          label: (tr && tr.name) ? tr.name : tid,
+          traceIds: [tid],
+          control: (tr && tr.type === "points") ? "pointSize"
+            : ((tr && (tr.type === "line_segments" || tr.type === "unit_cell_lines")) ? "lineWidth" : "opacity"),
+        });
+      });
+      body.style.display = "none";
+      toggleBtn.addEventListener("click", function() {
+        otherOpen = !otherOpen;
+        body.style.display = otherOpen ? "block" : "none";
+        toggleBtn.textContent = "Other " + (otherOpen ? "\u25B2" : "\u25BC");
+      });
+      sectionWrap.appendChild(toggleBtn);
+      sectionWrap.appendChild(body);
+      groupChecksDiv.appendChild(sectionWrap);
+    }
 
     // Fallback: if nothing expanded the bounding box (no objects created),
     // force a minimal scene center so camera doesn't look at NaN.
@@ -4717,10 +5197,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     });
     // Also expand by unit cell corners if cell trace exists
     const cellObj = objectsById["cell"];
-    if (cellObj && cellObj.geometry && cellObj.geometry.attributes && cellObj.geometry.attributes.position) {
-      const pos = cellObj.geometry.attributes.position.array;
-      for (let i = 0; i < pos.length; i += 3) {
-        sceneBox.expandByPoint(new THREE.Vector3(pos[i], pos[i+1], pos[i+2]));
+    const cellPosArr = cellPositionsArray(cellObj);
+    if (cellPosArr) {
+      for (let i = 0; i < cellPosArr.length; i += 3) {
+        sceneBox.expandByPoint(new THREE.Vector3(cellPosArr[i], cellPosArr[i+1], cellPosArr[i+2]));
       }
     }
     const sceneCenter = new THREE.Vector3();
@@ -4754,8 +5234,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       new THREE.Vector3(0, 0, 1),  // c-hat
     ];
     let _camOverridePos = null;
-    if (cellObj && cellObj.geometry && cellObj.geometry.attributes && cellObj.geometry.attributes.position) {
-      const cpos = cellObj.geometry.attributes.position.array;
+    if (cellPosArr && cellPosArr.length >= 18) {
+      const cpos = cellPosArr;
       // Cell wireframe edges encode the lattice vectors directly:
       //   cpos[0..2]  = origin, cpos[3..5]  = a-vector
       //   cpos[6..8]  = origin, cpos[9..11]  = b-vector
@@ -4807,172 +5287,34 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let cellFramework = null;
     let cellPbc = null;
     let cellPocket = null;
-    if (cellObj && cellObj.geometry) {
-      cellCopy = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellCopy.name = "cell_copy";
-      cellCopy.visible = false;
-      scene.add(cellCopy);
-      objectsById["cell_copy"] = cellCopy;
-
-      cellFramework = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellFramework.name = "cell_framework";
-      cellFramework.visible = false;
-      scene.add(cellFramework);
-      objectsById["cell_framework"] = cellFramework;
-
-      cellPbc = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellPbc.name = "cell_pbc";
-      cellPbc.visible = false;
-      scene.add(cellPbc);
-      objectsById["cell_pbc"] = cellPbc;
-
-      cellPocket = new THREE.LineSegments(cellObj.geometry.clone(), cellObj.material.clone());
-      cellPocket.name = "cell_pocket";
-      cellPocket.visible = false;
-      scene.add(cellPocket);
-      objectsById["cell_pocket"] = cellPocket;
-    }
-
-    // Populate per-mesh opacity controls (skip alt-representation meshes)
-    const meshOpacityContainer = document.getElementById("meshOpacityContainer");
-    if (meshOpacityContainer) {
-      const meshTraces = [];
-      const _opacityTypes = ["mesh", "instanced_spheres", "instanced_cylinders", "instanced_ring_outlines", "instanced_ring_fills"];
-      staticTraces.forEach(t => { if (_opacityTypes.indexOf(t.type) >= 0) meshTraces.push(t); });
-      if (getFrameCount() > 0 && getFrame(0) && getFrame(0).traces) {
-        getFrame(0).traces.forEach(t => {
-          if (_opacityTypes.indexOf(t.type) >= 0 && !meshTraces.some(mt => mt.id === t.id)) meshTraces.push(t);
-        });
+    if (cellObj) {
+      cellCopy = cloneCellOutline(cellObj);
+      if (cellCopy) {
+        cellCopy.name = "cell_copy";
+        cellCopy.visible = false;
+        scene.add(cellCopy);
+        objectsById["cell_copy"] = cellCopy;
       }
-      // IDs of all framework sub-traces that should NOT get individual sliders
-      const fwSubIds = ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent"];
-      meshTraces.forEach(trace => {
-        // Skip framework sub-traces — they get a single merged slider below
-        if (fwSubIds.indexOf(trace.id) >= 0) return;
-        // Skip percolation cluster meshes — grouped by direction in legend
-        if (trace.id && trace.id.startsWith("percolation_clusters_")) return;
-        const wrapper = document.createElement("div");
-        wrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
-        const label = document.createElement("label");
-        label.style.cssText = "font-size:10px;white-space:nowrap;width:70px;overflow:hidden;text-overflow:ellipsis;";
-        label.textContent = (trace.name || trace.id);
-        const opacitySlider = document.createElement("input");
-        opacitySlider.type = "range";
-        opacitySlider.min = "0";
-        opacitySlider.max = "1";
-        opacitySlider.step = "0.05";
-        const st = styleFor(trace);
-        var initOpacity = (st && st.opacity !== undefined) ? st.opacity : 1.0;
-        opacitySlider.value = initOpacity;
-        opacitySlider.style.cssText = "flex:1;";
-        opacitySlider.dataset.traceId = trace.id;
-        opacitySlider.addEventListener("input", () => {
-          const val = parseFloat(opacitySlider.value);
-          const targetIds = [trace.id];
-          // If this is the main framework slider, also update alternate representations
-          if (trace.id === "framework" || trace.id === "framework_atoms" || trace.id === "framework_bonds") {
-            targetIds.push("framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent");
-          }
-          targetIds.forEach(tid => {
-            const obj = objectsById[tid];
-            if (obj && obj.material) {
-              var isFw = tid === "framework" || tid === "framework_stick" || tid === "framework_spacefill" || tid === "framework_atoms" || tid === "framework_bonds" || tid === "framework_stick_atoms" || tid === "framework_stick_bonds" || tid === "aromatic_rings" || tid === "aromatic_highlights" || tid === "aromatic_highlights_hex" || tid === "aromatic_highlights_pent";
-              var hiddenByOpacity = val <= 0.001;
-              if (obj.userData && obj.userData.originalCastShadow === undefined) {
-                obj.userData.originalCastShadow = obj.castShadow;
-                obj.userData.originalReceiveShadow = obj.receiveShadow;
-              }
-              if (obj.userData && obj.userData.originalOpacity === undefined) {
-                obj.userData.originalOpacity = obj.material.opacity;
-              }
-              const baseOp = obj.userData.originalOpacity || 1.0;
-              const opaqueEnough = val >= 0.999;
-              if (isFw) {
-                const scaledOpacity = val * baseOp;
-                obj.material.opacity = scaledOpacity;
-                obj.material.transparent = scaledOpacity < 1.0;
-                // Keep depth writes on so bonds stay occluded by atoms even when translucent.
-                obj.material.depthWrite = true;
-                obj.material.depthTest = true;
-                obj.material.depthWrite = true;
-                obj.material.depthTest = true;
-                obj.material.side = THREE.FrontSide;
-                obj.visible = val > 0.001;
-                obj.castShadow = val > 0.999;
-                obj.receiveShadow = val > 0.999;
-              } else {
-                obj.visible = !hiddenByOpacity;
-                obj.castShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalCastShadow);
-                obj.receiveShadow = hiddenByOpacity ? false : !!(obj.userData && obj.userData.originalReceiveShadow);
-                obj.material.opacity = val;
-                obj.material.transparent = val < 1.0;
-                obj.material.depthWrite = opaqueEnough;
-              }
-              if (obj.userData && obj.userData.originalSide !== undefined) {
-                obj.material.side = obj.userData.originalSide;
-              }
-              if (isSurfaceMeshId(tid)) {
-                applySurfaceScreenDoorForObject(obj);
-              }
-              obj.material.needsUpdate = true;
-            }
-          });
-          if (trace.id === "framework") {
-            updateFrameworkVisibility();
-            const activeId = reprSelect.value === "stick"
-              ? "framework_stick"
-              : (reprSelect.value === "space_filling" ? "framework_spacefill" : "framework");
-            const active = objectsById[activeId];
-            if (active) active.visible = showFramework.checked && val > 0.001;
-          }
-        });
-        wrapper.appendChild(label);
-        wrapper.appendChild(opacitySlider);
-        meshOpacityContainer.appendChild(wrapper);
-      });
-      // Single merged framework slider — controls all framework sub-traces together
-      var hasFwSub = false;
-      fwSubIds.forEach(function(sid) { if (objectsById[sid]) hasFwSub = true; });
-      if (hasFwSub) {
-        const fwWrapper = document.createElement("div");
-        fwWrapper.style.cssText = "display:flex;align-items:center;gap:4px;";
-        const fwLabel = document.createElement("label");
-        fwLabel.style.cssText = "font-size:10px;white-space:nowrap;width:70px;overflow:hidden;text-overflow:ellipsis;";
-        fwLabel.textContent = "Framework";
-        const fwSlider = document.createElement("input");
-        fwSlider.type = "range"; fwSlider.min = "0"; fwSlider.max = "1"; fwSlider.step = "0.05";
-        fwSlider.value = "1";
-        fwSlider.style.cssText = "flex:1;";
-        fwSlider.addEventListener("input", () => {
-          const v = parseFloat(fwSlider.value);
-          fwSubIds.forEach(tid => {
-            const o = objectsById[tid];
-            if (!o || !o.material) return;
-            if (o.userData.originalOpacity === undefined) o.userData.originalOpacity = o.material.opacity;
-            const b = o.userData.originalOpacity || 1.0;
-            const sv = v * b;
-            o.material.opacity = sv;
-            o.material.transparent = sv < 1.0;
-            o.material.depthWrite = true;
-            o.material.depthTest = true;
-            if (o.userData.originalSide !== undefined) o.material.side = o.userData.originalSide;
-            o.visible = v > 0.001;
-            o.castShadow = v > 0.999;
-            o.receiveShadow = v > 0.999;
-            o.material.needsUpdate = true;
-          });
-          updateFrameworkVisibility();
-        });
-        fwWrapper.appendChild(fwLabel);
-        fwWrapper.appendChild(fwSlider);
-        meshOpacityContainer.appendChild(fwWrapper);
+      cellFramework = cloneCellOutline(cellObj);
+      if (cellFramework) {
+        cellFramework.name = "cell_framework";
+        cellFramework.visible = false;
+        scene.add(cellFramework);
+        objectsById["cell_framework"] = cellFramework;
       }
-      // Stacking-order note for overlapping mesh traces (e.g. multiple surfaces)
-      if (meshTraces.length > 0) {
-        const note = document.createElement("div");
-        note.style.cssText = "font-size:9px;color:#aaa;margin-top:4px;font-style:italic;";
-        note.textContent = "Tip: turn off upper surfaces to see through to lower ones";
-        meshOpacityContainer.appendChild(note);
+      cellPbc = cloneCellOutline(cellObj);
+      if (cellPbc) {
+        cellPbc.name = "cell_pbc";
+        cellPbc.visible = false;
+        scene.add(cellPbc);
+        objectsById["cell_pbc"] = cellPbc;
+      }
+      cellPocket = cloneCellOutline(cellObj);
+      if (cellPocket) {
+        cellPocket.name = "cell_pocket";
+        cellPocket.visible = false;
+        scene.add(cellPocket);
+        objectsById["cell_pocket"] = cellPocket;
       }
     }
 
@@ -5048,13 +5390,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       playBtn.textContent = playing ? "Pause" : "Play";
     });
 
-    showCell.addEventListener("change", () => {
-      const obj = objectsById["cell"];
-      if (obj) obj.visible = showCell.checked;
-      scene.children.forEach(function(c) { if (c.name && c.name.startsWith("axisLabel_")) c.visible = showCell.checked; });
-    });
     function updateFrameworkVisibility() {
       const val = reprSelect.value;
+      const fwOn = scene.userData.fwLegendEnabled !== false;
       const fw = objectsById["framework"];
       const stick = objectsById["framework_stick"];
       const sf = objectsById["framework_spacefill"];
@@ -5065,25 +5403,24 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const scatterBonds = objectsById["framework_bonds"];
       const stickAtoms = objectsById["framework_stick_atoms"];
       const stickBonds = objectsById["framework_stick_bonds"];
-      if (fw) fw.visible = showFramework.checked && val === "ball_and_stick";
-      if (stick) stick.visible = showFramework.checked && val === "stick";
-      if (sf) sf.visible = showFramework.checked && val === "space_filling";
-      if (stickAtoms) stickAtoms.visible = showFramework.checked && val === "stick";
-      if (stickBonds) stickBonds.visible = showFramework.checked && val === "stick";
+      if (fw) fw.visible = fwOn && val === "ball_and_stick";
+      if (stick) stick.visible = fwOn && val === "stick";
+      if (sf) sf.visible = fwOn && val === "space_filling";
+      if (stickAtoms) stickAtoms.visible = fwOn && val === "stick";
+      if (stickBonds) stickBonds.visible = fwOn && val === "stick";
       // Instanced/scatter ball-and-stick: show atoms+bonds for ball_and_stick selection
-      if (scatterAtoms && !fw) scatterAtoms.visible = showFramework.checked && val === "ball_and_stick";
-      if (scatterBonds && !fw) scatterBonds.visible = showFramework.checked && val === "ball_and_stick";
-      if (arRings) arRings.visible = showFramework.checked;
-      if (arHigh) arHigh.visible = showFramework.checked;
+      if (scatterAtoms && !fw) scatterAtoms.visible = fwOn && val === "ball_and_stick";
+      if (scatterBonds && !fw) scatterBonds.visible = fwOn && val === "ball_and_stick";
+      if (arRings) arRings.visible = fwOn;
+      if (arHigh) arHigh.visible = fwOn;
       ["aromatic_highlights_hex", "aromatic_highlights_pent"].forEach(function(id) {
         const o = objectsById[id];
-        if (o) o.visible = showFramework.checked;
+        if (o) o.visible = fwOn;
       });
       updateFrameworkCellVisibility();
       // Re-apply exploded offsets so newly-active representations land in the right cell.
       applyExplodeOffsets();
     }
-    showFramework.addEventListener("change", updateFrameworkVisibility);
     reprSelect.addEventListener("change", updateFrameworkVisibility);
     // Hide representation selector when only scatter traces exist (no mesh variants)
     if (!objectsById["framework"] && !objectsById["framework_stick"] && !objectsById["framework_spacefill"]
@@ -5093,26 +5430,6 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     // Initialize visibility so only the selected representation is shown
     updateFrameworkVisibility();
-    showSurface.addEventListener("change", () => {
-      // "Segmentation surface" checkbox controls only the non-PBC/raw surface.
-      // PBC/cluster overlays are controlled by their own legend group toggles.
-      ["surface", "surface_regions_raw"].forEach(function(id) {
-        const obj = objectsById[id];
-        if (obj) obj.visible = showSurface.checked;
-      });
-      updateSurfaceCellVisibility();
-    });
-    showGuests.addEventListener("change", () => {
-      Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
-    });
-    showGuestBonds.addEventListener("change", () => {
-      Object.keys(objectsById).forEach(id => {
-        if (id && id.startsWith("guestbonds_")) {
-          const obj = objectsById[id];
-          if (obj) obj.visible = showGuestBonds.checked;
-        }
-      });
-    });
     // Helpers to keep exploded cell-copy visibility in sync with actual trace visibility
     // (works for individual checkboxes, group checkboxes, and any other toggle mechanism)
     function updateCellCopyVisibility() {
@@ -5158,15 +5475,25 @@ function readWindowMinThreshold() {
       const v = parseFloat(raw);
       return Number.isFinite(v) ? v : null;
     }
+    function edgeFilterThreshold() {
+      if (!hideEdgesBelowWindowInput || !hideEdgesBelowWindowInput.checked) return null;
+      return readWindowMinThreshold();
+    }
     function connectionPassesWindowThreshold(segmentRadii, threshold) {
       if (threshold === null) return true;
       if (!segmentRadii || !segmentRadii.length) return true;
-      return !segmentRadii.every(function(r) { return r < threshold; });
+      let maxR = -Infinity;
+      for (let i = 0; i < segmentRadii.length; i++) {
+        const r = Number(segmentRadii[i]);
+        if (Number.isFinite(r)) maxR = Math.max(maxR, r);
+      }
+      if (!Number.isFinite(maxR)) return true;
+      return maxR >= threshold;
     }
     function rebuildLineSegmentsForThreshold(traceId) {
       const obj = objectsById[traceId];
       if (!obj || !obj.userData.originalPositions) return;
-      const threshold = readWindowMinThreshold();
+      const threshold = edgeFilterThreshold();
       const orig = obj.userData.originalPositions;
       const radii = obj.userData.segmentWindowRadii || [];
       const origHover = obj.userData.originalHover || [];
@@ -5179,6 +5506,20 @@ function readWindowMinThreshold() {
         const base = i * 6;
         for (let j = 0; j < 6; j++) filtered.push(orig[base + j]);
         if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+      }
+      if (obj instanceof THREE.Group) {
+        const trace = findTraceById(traceId);
+        const style = trace ? styleFor(trace) : {};
+        const color = threeColorFromStyle(style.color, 0xffffff);
+        const effectiveLw = trace ? effectiveLineWidthForTrace(trace) : 1;
+        const saved = obj.userData;
+        disposeLineObject(obj);
+        const group = buildThickLineGroupForTrace(trace, traceId, filtered, effectiveLw);
+        group.userData = Object.assign({}, saved);
+        group.userData.activeHover = filteredHover;
+        scene.add(group);
+        objectsById[traceId] = group;
+        return;
       }
       const geo = obj.geometry;
       geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(filtered), 3));
@@ -5210,35 +5551,15 @@ function readWindowMinThreshold() {
       ["connections_internal", "connections_periodic"].forEach(rebuildLineSegmentsForThreshold);
       ["windows_internal", "windows_periodic"].forEach(rebuildPointsForThreshold);
     }
+    if (windowMinThresholdInput) {
+      windowMinThresholdInput.addEventListener("input", applyWindowThresholdFilter);
+      windowMinThresholdInput.addEventListener("change", applyWindowThresholdFilter);
+    }
+    if (hideEdgesBelowWindowInput) {
+      hideEdgesBelowWindowInput.addEventListener("change", applyWindowThresholdFilter);
+    }
+    applyWindowThresholdFilter();
 
-    showWindows.addEventListener("change", () => {
-      const obj = objectsById["windows_internal"];
-      if (obj) obj.visible = showWindows.checked;
-      updateCellCopyVisibility();
-    });
-    showPeriodicWindows.addEventListener("change", () => {
-      const obj = objectsById["windows_periodic"];
-      if (obj) obj.visible = showPeriodicWindows.checked;
-      updateCellCopyVisibility();
-    });
-    showInternalConnections.addEventListener("change", () => {
-      const lineObj = objectsById["connections_internal"];
-      const nodeObj = objectsById["connections_internal_nodes"];
-      const maxObj = objectsById["maxima_internal"];
-      if (lineObj) lineObj.visible = showInternalConnections.checked;
-      if (nodeObj) nodeObj.visible = showInternalConnections.checked;
-      if (maxObj) maxObj.visible = showInternalConnections.checked;
-      updateCellCopyVisibility();
-    });
-    showPeriodicConnections.addEventListener("change", () => {
-      const lineObj = objectsById["connections_periodic"];
-      const nodeObj = objectsById["connections_periodic_nodes"];
-      const maxObj = objectsById["maxima_outside"];
-      if (lineObj) lineObj.visible = showPeriodicConnections.checked;
-      if (nodeObj) nodeObj.visible = showPeriodicConnections.checked;
-      if (maxObj) maxObj.visible = showPeriodicConnections.checked;
-      updateCellCopyVisibility();
-    });
     pivotSceneBtn.addEventListener("click", () => {
       controls.target.copy(sceneCenter);
       controls.update();
@@ -5341,22 +5662,7 @@ function readWindowMinThreshold() {
       toggleRotateBtn.textContent = autoRotating ? "Stop Rotate" : "Auto-Rotate";
     });
 
-    // Per-mesh opacity sliders are populated dynamically after scene init
-
-    ptSizeSlider.addEventListener("input", () => {
-      pointSizeMult = parseFloat(ptSizeSlider.value) || 1.0;
-      Object.values(objectsById).forEach(function(obj) {
-        if (obj && obj.material && obj.material.isPointsMaterial) {
-          var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
-          applyPointSize(obj, base);
-        }
-      });
-    });
-    if (screenDoorToggle) {
-      screenDoorToggle.addEventListener("change", () => {
-        applySurfaceScreenDoorAll();
-      });
-    }
+    // Per-trace point size sliders are populated dynamically after scene init
 
     let speedMult = 1.0;
     speedSlider.addEventListener("input", () => {
@@ -5705,25 +6011,37 @@ function readWindowMinThreshold() {
         screenDoorToggle.checked = false;
         applySurfaceScreenDoorAll();
       }
-      const oldW = renderer.domElement.width;
-      const oldH = renderer.domElement.height;
+      const vp = getRenderViewport();
+      const cssW = vp.w;
+      const cssH = vp.h;
+      const oldPixelRatio = renderer.getPixelRatio();
       if (resMult > 1) {
-        renderer.setSize(oldW * resMult, oldH * resMult, false);
+        renderer.setPixelRatio(oldPixelRatio * resMult);
+        renderer.setSize(cssW, cssH, false);
         if (camera.isPerspectiveCamera) {
-          camera.aspect = (oldW * resMult) / (oldH * resMult);
+          camera.aspect = cssW / cssH;
           camera.updateProjectionMatrix();
         }
         updateOrthoFrustum();
+        if (composer) {
+          composer.setSize(cssW, cssH);
+          if (ssaoPass && ssaoPass.setSize) ssaoPass.setSize(cssW, cssH);
+        }
       }
       if (composer) { composer.render(); } else { renderer.render(scene, camera); }
       const dataUrl = renderer.domElement.toDataURL("image/png");
       if (resMult > 1) {
-        renderer.setSize(oldW, oldH, false);
+        renderer.setPixelRatio(oldPixelRatio);
+        renderer.setSize(cssW, cssH, false);
         if (camera.isPerspectiveCamera) {
-          camera.aspect = oldW / oldH;
+          camera.aspect = cssW / cssH;
           camera.updateProjectionMatrix();
         }
         updateOrthoFrustum();
+        if (composer) {
+          composer.setSize(cssW, cssH);
+          if (ssaoPass && ssaoPass.setSize) ssaoPass.setSize(cssW, cssH);
+        }
       }
       if (restoreScreenDoor) {
         screenDoorToggle.checked = true;
@@ -5988,13 +6306,6 @@ function readWindowMinThreshold() {
       nextBtn.disabled = true;
       statusEl.textContent = "No frames";
     }
-    Object.values(guestMeshes).forEach(m => { if (m) m.visible = showGuests.checked; });
-    Object.keys(objectsById).forEach(id => {
-      if (id && id.startsWith("guestbonds_")) {
-        const obj = objectsById[id];
-        if (obj) obj.visible = showGuestBonds.checked;
-      }
-    });
     setFrame(0);
     requestAnimationFrame(animate);
   </script>
