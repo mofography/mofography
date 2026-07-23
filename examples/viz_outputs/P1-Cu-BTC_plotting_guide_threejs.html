@@ -125,10 +125,6 @@
       <label>PNG: <select id="pngRes" style="font-size:10px;vertical-align:middle;"><option value="1">1x</option><option value="2">2x</option><option value="4">4x</option></select></label>
       <label>REC: <select id="recRes" style="font-size:10px;vertical-align:middle;"><option value="1" selected>1x</option><option value="2">2x</option><option value="3">3x</option></select></label>
     </div>
-    <div class="checkrow">
-      <label id="labelWindowMinThreshold">Min window (Å): <input id="windowMinThreshold" type="number" step="0.05" min="0" placeholder="off" style="width:52px;vertical-align:middle;" title="Hide windows below this size; optionally hide edges whose max window is below it" /></label>
-      <label id="labelHideEdgesBelowWindow"><input type="checkbox" id="hideEdgesBelowWindow" checked /> Hide edges with max window below threshold</label>
-    </div>
     <div class="checkrow" id="groupChecks"></div>
     <button id="toggleLegend" style="font-size:10px;margin-top:2px;" title="Fold/unfold legend entries">Fold Legend ▲</button>
     <input id="frameSlider" type="range" min="0" max="0" step="1" value="0" />
@@ -310,8 +306,8 @@
     const tooltip = document.getElementById("tooltip");
 
     const reprSelect = document.getElementById("reprSelect");
-    const windowMinThresholdInput = document.getElementById("windowMinThreshold");
-    const hideEdgesBelowWindowInput = document.getElementById("hideEdgesBelowWindow");
+    let windowMinThresholdInput = null;
+    let hideEdgesBelowWindowInput = null;
     const pivotSceneBtn = document.getElementById("pivotScene");
     const pivotOriginBtn = document.getElementById("pivotOrigin");
     const resetCamBtn = document.getElementById("resetCam");
@@ -770,25 +766,8 @@
         if (obj.material) obj.material.dispose();
       }
     }
-    function setObjectMaterialOpacity(obj, alpha) {
-      if (!obj) return;
-      const a = Math.max(0, Math.min(1, alpha));
-      const applyMat = function(mat) {
-        if (!mat) return;
-        mat.transparent = a < 0.999;
-        mat.opacity = a;
-        mat.needsUpdate = true;
-      };
-      if (obj instanceof THREE.Group) {
-        obj.traverse(function(c) { applyMat(c.material); });
-      } else {
-        applyMat(obj.material);
-      }
-    }
-    function lineWidthFadeAlpha(mult) {
-      if (mult <= 0.08) return 0;
-      if (mult >= 0.22) return 1;
-      return (mult - 0.08) / (0.22 - 0.08);
+    function connectionLegendEnabled(traceId) {
+      return legendEnabledByTrace[traceId] !== false;
     }
     function applyLineWidth(traceId, mult) {
       lineWidthMultByTrace[traceId] = mult;
@@ -801,14 +780,13 @@
       const color = threeColorFromStyle(style.color, 0xffffff);
       const baseLinewidth = Number(style.linewidth !== undefined ? style.linewidth : 1);
       const effectiveLw = baseLinewidth * mult;
-      const alpha = lineWidthFadeAlpha(mult);
-      const useThick = effectiveLw > 0.35;
-      const legendOn = legendEnabledByTrace[traceId] !== false;
-      if (alpha <= 0) {
-        setObjectMaterialOpacity(obj, 0);
-        if (legendOn) obj.visible = false;
+      const legendOn = connectionLegendEnabled(traceId);
+      const minLw = 0.05;
+      if (!legendOn || effectiveLw < minLw) {
+        obj.visible = false;
         return;
       }
+      const useThick = effectiveLw > 0.35;
       if (useThick) {
         const saved = obj.userData || {};
         disposeLineObject(obj);
@@ -822,9 +800,7 @@
         group.userData.lineColor = color.getHex();
         scene.add(group);
         objectsById[traceId] = group;
-        obj = group;
-        setObjectMaterialOpacity(obj, alpha);
-        if (legendOn) obj.visible = true;
+        group.visible = true;
         return;
       }
       if (!(obj instanceof THREE.LineSegments)) {
@@ -838,8 +814,13 @@
           obj = lines;
         }
       }
-      setObjectMaterialOpacity(obj, alpha);
-      if (legendOn) obj.visible = true;
+      if (obj && obj.material) {
+        obj.material.transparent = false;
+        obj.material.opacity = 1;
+        obj.material.depthWrite = true;
+        obj.material.needsUpdate = true;
+      }
+      obj.visible = true;
     }
 
     function isSurfaceMeshId(traceId) {
@@ -1015,6 +996,7 @@
         }
         scene.add(group);
         objectsById[trace.id] = group;
+        if (trace.visible === false) group.visible = false;
         return group;
       }
       const geo = new THREE.BufferGeometry();
@@ -1051,6 +1033,7 @@
       }
       scene.add(lines);
       objectsById[trace.id] = lines;
+      if (trace.visible === false) lines.visible = false;
       return lines;
     }
 
@@ -1569,8 +1552,14 @@
         slider.min = entry.lineMin || "0.05"; slider.max = "4"; slider.step = "0.05"; slider.value = "1";
         slider.addEventListener("input", function() {
           if (legendCb && !legendCb.checked) return;
+          const mult = parseFloat(slider.value) || 1.0;
           traceIds.forEach(function(tid) {
-            applyLineWidth(tid, parseFloat(slider.value) || 1.0);
+            lineWidthMultByTrace[tid] = mult;
+            if (edgeFilterThreshold() !== null) {
+              rebuildLineSegmentsForThreshold(tid);
+            } else {
+              applyLineWidth(tid, mult);
+            }
           });
         });
       }
@@ -1601,6 +1590,11 @@
         if (entry.fwMerge) {
           scene.userData.fwLegendEnabled = cb.checked;
           updateFrameworkVisibility();
+        } else if (entry.id === "connections_internal" || entry.id === "connections_periodic") {
+          traceIds.forEach(function(tid) {
+            legendEnabledByTrace[tid] = cb.checked;
+          });
+          applyWindowThresholdFilter();
         } else {
           traceIds.forEach(function(tid) {
             legendEnabledByTrace[tid] = cb.checked;
@@ -1613,7 +1607,13 @@
             const slider = wrap.querySelector('input[type="range"]');
             if (slider) {
               traceIds.forEach(function(tid) {
-                applyLineWidth(tid, parseFloat(slider.value) || 1.0);
+                const mult = parseFloat(slider.value) || 1.0;
+                lineWidthMultByTrace[tid] = mult;
+                if (edgeFilterThreshold() !== null) {
+                  rebuildLineSegmentsForThreshold(tid);
+                } else {
+                  applyLineWidth(tid, mult);
+                }
               });
             }
           }
@@ -1684,6 +1684,40 @@
     }
     const groupChecksDiv = document.getElementById("groupChecks");
     const claimedLegendIds = new Set();
+    function appendWindowFilterControls(parent) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "margin:4px 0 6px 0;border-top:1px solid rgba(128,128,128,0.35);padding-top:4px;font-size:10px;display:flex;flex-direction:column;gap:3px;";
+      const thrLabel = document.createElement("label");
+      thrLabel.id = "labelWindowMinThreshold";
+      thrLabel.style.cssText = "margin-left:8px;";
+      thrLabel.appendChild(document.createTextNode("Min window (Å): "));
+      const thrInput = document.createElement("input");
+      thrInput.id = "windowMinThreshold";
+      thrInput.type = "number";
+      thrInput.step = "0.05";
+      thrInput.min = "0";
+      thrInput.placeholder = "off";
+      thrInput.style.cssText = "width:52px;vertical-align:middle;";
+      thrInput.title = "Hide windows below this size; optionally hide edges whose max window is below it";
+      thrLabel.appendChild(thrInput);
+      const edgeLabel = document.createElement("label");
+      edgeLabel.id = "labelHideEdgesBelowWindow";
+      edgeLabel.style.cssText = "margin-left:8px;";
+      const edgeCb = document.createElement("input");
+      edgeCb.type = "checkbox";
+      edgeCb.id = "hideEdgesBelowWindow";
+      edgeCb.checked = true;
+      edgeLabel.appendChild(edgeCb);
+      edgeLabel.appendChild(document.createTextNode(" Hide edges with max window below threshold"));
+      wrap.appendChild(thrLabel);
+      wrap.appendChild(edgeLabel);
+      parent.appendChild(wrap);
+      windowMinThresholdInput = thrInput;
+      hideEdgesBelowWindowInput = edgeCb;
+      thrInput.addEventListener("input", applyWindowThresholdFilter);
+      thrInput.addEventListener("change", applyWindowThresholdFilter);
+      edgeCb.addEventListener("change", applyWindowThresholdFilter);
+    }
     TRACE_LEGEND_SECTIONS.forEach(function(sec) {
       let sectionHasEntries = false;
       const sectionWrap = document.createElement("div");
@@ -1730,6 +1764,14 @@
       sectionWrap.appendChild(toggleBtn);
       sectionWrap.appendChild(body);
       groupChecksDiv.appendChild(sectionWrap);
+      if (sec.key === "windows") {
+        appendWindowFilterControls(groupChecksDiv);
+      }
+    });
+    ["connections_periodic", "connections_periodic_nodes"].forEach(function(tid) {
+      legendEnabledByTrace[tid] = false;
+      const obj = objectsById[tid];
+      if (obj) obj.visible = false;
     });
     // Residual traces (percolation, etc.) in a catch-all section.
     const otherIds = Object.keys(objectsById).filter(function(tid) {
@@ -2042,9 +2084,14 @@
     function updateFrameworkCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellFramework) {
-        const ids = ["framework", "framework_stick", "framework_spacefill"];
+        const ids = [
+          "framework", "framework_stick", "framework_spacefill",
+          "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds",
+          "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent",
+        ];
+        const fwOn = scene.userData.fwLegendEnabled !== false;
         const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
-        cellFramework.visible = exploded && anyVisible;
+        cellFramework.visible = exploded && fwOn && anyVisible;
       }
     }
 
@@ -2074,36 +2121,59 @@ function readWindowMinThreshold() {
       const obj = objectsById[traceId];
       if (!obj || !obj.userData.originalPositions) return;
       const threshold = edgeFilterThreshold();
+      const legendOn = connectionLegendEnabled(traceId);
       const orig = obj.userData.originalPositions;
       const radii = obj.userData.segmentWindowRadii || [];
       const origHover = obj.userData.originalHover || [];
       const nSeg = radii.length || Math.floor(orig.length / 6);
+      if (threshold === null) {
+        if (!obj.userData.filteredByThreshold) {
+          obj.visible = legendOn;
+          return;
+        }
+      }
       const filtered = [];
       const filteredHover = [];
-      for (let i = 0; i < nSeg; i++) {
-        const segRadii = radii[i] || [];
-        if (!connectionPassesWindowThreshold(segRadii, threshold)) continue;
-        const base = i * 6;
-        for (let j = 0; j < 6; j++) filtered.push(orig[base + j]);
-        if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+      if (threshold === null) {
+        for (let i = 0; i < nSeg; i++) {
+          const base = i * 6;
+          for (let j = 0; j < 6; j++) filtered.push(orig[base + j]);
+          if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+        }
+      } else {
+        for (let i = 0; i < nSeg; i++) {
+          const segRadii = radii[i] || [];
+          if (!connectionPassesWindowThreshold(segRadii, threshold)) continue;
+          const base = i * 6;
+          for (let j = 0; j < 6; j++) filtered.push(orig[base + j]);
+          if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+        }
       }
-      if (obj instanceof THREE.Group) {
-        const trace = findTraceById(traceId);
-        const style = trace ? styleFor(trace) : {};
-        const color = threeColorFromStyle(style.color, 0xffffff);
-        const effectiveLw = trace ? effectiveLineWidthForTrace(trace) : 1;
+      const trace = findTraceById(traceId);
+      const effectiveLw = trace ? effectiveLineWidthForTrace(trace) : 1;
+      const useThick = effectiveLw > 0.35;
+      const pts = filtered.length ? filtered : [];
+      if (!pts.length) {
+        obj.visible = false;
+        return;
+      }
+      if (useThick || obj instanceof THREE.Group) {
         const saved = obj.userData;
         disposeLineObject(obj);
-        const group = buildThickLineGroupForTrace(trace, traceId, filtered, effectiveLw);
+        const group = buildThickLineGroupForTrace(trace, traceId, pts, effectiveLw);
         group.userData = Object.assign({}, saved);
-        group.userData.activeHover = filteredHover;
+        group.userData.activeHover = threshold === null ? origHover.slice() : filteredHover;
+        group.userData.filteredByThreshold = threshold !== null;
+        group.visible = legendOn;
         scene.add(group);
         objectsById[traceId] = group;
         return;
       }
       const geo = obj.geometry;
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(filtered), 3));
-      obj.userData.activeHover = filteredHover;
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(pts), 3));
+      obj.userData.activeHover = threshold === null ? origHover.slice() : filteredHover;
+      obj.userData.filteredByThreshold = threshold !== null;
+      obj.visible = legendOn;
       if (obj.material && obj.material.dashSize !== undefined) obj.computeLineDistances();
     }
     function rebuildPointsForThreshold(traceId) {
@@ -2131,14 +2201,6 @@ function readWindowMinThreshold() {
       ["connections_internal", "connections_periodic"].forEach(rebuildLineSegmentsForThreshold);
       ["windows_internal", "windows_periodic"].forEach(rebuildPointsForThreshold);
     }
-    if (windowMinThresholdInput) {
-      windowMinThresholdInput.addEventListener("input", applyWindowThresholdFilter);
-      windowMinThresholdInput.addEventListener("change", applyWindowThresholdFilter);
-    }
-    if (hideEdgesBelowWindowInput) {
-      hideEdgesBelowWindowInput.addEventListener("change", applyWindowThresholdFilter);
-    }
-    applyWindowThresholdFilter();
 
     pivotSceneBtn.addEventListener("click", () => {
       controls.target.copy(sceneCenter);
