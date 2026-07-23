@@ -108,7 +108,7 @@ ENV_CLUSTER_MERGE_GAP_THRESHOLD_A = 0.20 # gap boundary between tight and loose 
 # Tight: for gaps in (initial_band_gap, merge_gap_threshold] — prevents spurious merges
 # Loose: for gaps > merge_gap_threshold — allows genuine same-family merges (e.g. ZIF cages)
 ENV_CLUSTER_MERGE_COSINE = 0.90          # tight cosine (small-gap candidates)
-ENV_CLUSTER_MERGE_COSINE_LARGE_GAP = 0.80  # loose cosine (large-gap candidates)
+ENV_CLUSTER_MERGE_COSINE_LARGE_GAP = 0.90  # loose cosine (large-gap candidates; same bar as tight tier)
 
 
 @dataclass
@@ -932,9 +932,10 @@ def assign_pocket_types_env_cluster(
     merge_cosine : 0.90
         Tight cosine threshold for gaps ≤ merge_gap_threshold_a (prevents spurious
         merges of similar-but-different window types, e.g. ZIF-20 2.56 vs 2.74 Å).
-    merge_cosine_large_gap : 0.80
-        Loose cosine threshold for gaps > merge_gap_threshold_a (allows genuine family
-        merges, e.g. ZIF-20 large cages 7.26 vs 7.61 Å, mean cosine ~0.87).
+    merge_cosine_large_gap : 0.90
+        Loose cosine threshold for gaps > merge_gap_threshold_a.  Set equal to
+        merge_cosine so adjacent bands merge only when fingerprints are truly
+        near-unity (e.g. keeps ZIF-20 large cages 7.26 vs 7.61 Å separate).
     """
     if not pockets:
         return 0, {}, {"method": METHOD_ENV_CLUSTER, "n_initial_bands": 0, "n_merges": 0}

@@ -107,7 +107,7 @@ This is the heart of the tutorial. The default `method='env_cluster'` runs:
 1. **Initial bands** — sort pockets by peak probe radius (`max_r`); start a new band whenever the gap to the previous pocket exceeds 0.15 Å (one third of a grid spacing — a sensible grid-noise floor).
 2. **Merge adjacent bands** whose full environment fingerprints (pocket PSD + framework SH + connectivity SH) agree:
    - Tight merge: cosine ≥ 0.90 for small `max_r` gaps (≤ 0.20 Å).
-   - Loose merge: cosine ≥ 0.80 for larger gaps (≤ 0.50 Å, = 1 grid spacing).
+   - Large-gap merge: cosine ≥ 0.90 for larger gaps (≤ 0.50 Å, = 1 grid spacing).
 3. **Optional singleton merge** — 1-pocket bands whose `max_r` is within 0.40 Å of a neighbour are folded in (e.g. ZIF-8 corner vs center cages, grid-offset artefacts).
 
 Each surviving band is one **pocket type**.
