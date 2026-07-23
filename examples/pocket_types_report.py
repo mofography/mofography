@@ -86,6 +86,12 @@ TAUBIN = dict(
 )
 ISOVALUE = 1.0
 VIEW_DIR_C = (0.0, 0.0, 1.0)
+# [001] orthographic: offset along c by factor × max(la, lb) so ab-plane fits frustum.
+PANEL_A_CAMERA_Z_FACTOR = 1.8
+# Panel (a) overlay visibility — cell + local maxima must read clearly in PDF PNG export.
+PANEL_A_CELL_KW = dict(color=0xFF6600, linewidth=5)
+PANEL_A_MAXIMA_SIZE_SCALE = 2.8
+PANEL_A_MAXIMA_STYLE_SIZE = 18.0
 
 # slug -> (cif_path, display_name, dgrid_backend)
 BATCH_MATERIALS: Dict[str, tuple] = {
@@ -339,12 +345,64 @@ def plot_four_panel(typed, tables, out_pdf, panel_a_image=None, palette: Optiona
 
 
 def _camera_eye_center(atoms):
-    cell = atoms.get_cell().array.T
-    lengths = np.linalg.norm(cell, axis=0)
-    center = lengths / 2.0
-    c_offset = float(lengths[2]) * 1.8
+    cell = atoms.get_cell().array  # rows = a, b, c (ASE convention)
+    lengths = np.linalg.norm(cell, axis=1)
+    center = 0.5 * cell.sum(axis=0)  # Cartesian center of unit cell (frac 0.5, 0.5, 0.5)
+    in_plane = float(max(lengths[0], lengths[1]))
+    c_offset = in_plane * PANEL_A_CAMERA_Z_FACTOR
     eye = center + np.asarray(VIEW_DIR_C, dtype=float) * c_offset
     return tuple(eye), tuple(center)
+
+
+def _apply_panel_a_scene(fig3, atoms):
+    """Orthographic [001] camera + explicit lighting for panel (a) export."""
+    eye, center = _camera_eye_center(atoms)
+    fig3.set_camera(eye=eye, center=center, up=VIEW_DIR_C, projection="orthographic")
+    fig3.set_lights(
+        ambient=0.015,
+        hemisphere_intensity=0.100,
+        hemisphere_sky="#ddeeff",
+        hemisphere_ground="#3b3b3b",
+        dir_key_intensity=0.576,
+        dir_key_position=(5, 10, 7.5),
+        dir_fill_intensity=0.070,
+        dir_fill_position=(-5, -9, -7.5),
+        ssao=False,
+        explicit=True,
+    )
+    return eye, center
+
+
+def _boost_panel_a_trace_visibility(fig3) -> None:
+    """Thicken unit cell + enlarge local-maxima markers for panel (a) PNG."""
+    for trace in getattr(fig3._fig, "data", []):
+        tid = str(trace.get("id", ""))
+        if trace.get("trace_type") == "unit_cell_lines" or tid == "cell":
+            st = trace.setdefault("style", {})
+            st.update(PANEL_A_CELL_KW)
+        if trace.get("trace_type") == "points" and "maxima" in tid:
+            data = trace.setdefault("data", {})
+            sizes = data.get("sizes") or []
+            if sizes:
+                data["sizes"] = [float(s) * PANEL_A_MAXIMA_SIZE_SCALE for s in sizes]
+            st = trace.setdefault("style", {})
+            st["size"] = PANEL_A_MAXIMA_STYLE_SIZE
+
+
+def _add_panel_a_cell_and_maxima(fig3, atoms, results, cscale):
+    dgrid, regions = results["dgrid"], results["regions"]
+    maxima_pbc = results["maxima_pbc"]
+    fig3.plot_cell(atoms, name="cell", **PANEL_A_CELL_KW)
+    fig3.plot_maxima_from_grid_3js(
+        dgrid,
+        maxima_pbc,
+        atoms,
+        regions=regions,
+        cscale=cscale,
+        name="Local maxima",
+        hide_periodic=False,
+    )
+    _boost_panel_a_trace_visibility(fig3)
 
 
 def should_use_lite_panel_a(results, typed) -> bool:
@@ -358,12 +416,12 @@ def build_panel_a_figure3js(atoms, mat_updated, results, typed, *, lite: bool = 
     """3D scene for panel (a) PNG export — lite omits graph overlays for huge cells."""
     dgrid, regions = results["dgrid"], results["regions"]
     cscale = pocket_type_palette(CSCALE_NAME)
-    eye, center = _camera_eye_center(atoms)
     if lite:
         fig3 = (
             Figure3JS(layout="white", stylize=True)
             .plot_framework_instanced_3js(mat_updated, atom_scale=0.45, name="Framework")
         )
+        _add_panel_a_cell_and_maxima(fig3, atoms, results, cscale)
         stepsize = 2
     else:
         connections, all_maxima = results["connections"], results["all_maxima"]
@@ -376,17 +434,8 @@ def build_panel_a_figure3js(atoms, mat_updated, results, typed, *, lite: bool = 
         fig3 = (
             Figure3JS(layout="white", stylize=True)
             .plot_framework(mat_updated, representation="ball_and_stick", name="Framework")
-            .plot_cell(atoms, color="orange", name="cell")
-            .plot_maxima_from_grid_3js(
-                dgrid,
-                maxima_pbc,
-                atoms,
-                regions=regions,
-                cscale=cscale,
-                name="Local maxima",
-                hide_periodic=False,
-            )
         )
+        _add_panel_a_cell_and_maxima(fig3, atoms, results, cscale)
         stepsize = 1
     if typed.regions_cluster is not None:
         surf_kw = dict(TAUBIN)
@@ -422,7 +471,7 @@ def build_panel_a_figure3js(atoms, mat_updated, results, typed, *, lite: bool = 
             marker_color="red",
             marker_size=8,
         )
-    fig3.set_camera(eye=eye, center=center, up=VIEW_DIR_C, projection="orthographic")
+    _apply_panel_a_scene(fig3, atoms)
     return fig3
 
 
@@ -432,7 +481,6 @@ def build_pocket_types_figure3js(atoms, mat_updated, results, typed):
     maxima_pbc, unique_regions = results["maxima_pbc"], results["unique_regions"]
     connections_trimmed = trim_connections_to_unique_regions(connections, unique_regions)
     cscale = pocket_type_palette(CSCALE_NAME)
-    eye, center = _camera_eye_center(atoms)
     spacing_win = float(
         np.mean(np.linalg.norm(atoms.get_cell().array.T, axis=0)
                 / np.maximum(np.asarray(dgrid.shape, dtype=float), 1.0))
@@ -440,17 +488,8 @@ def build_pocket_types_figure3js(atoms, mat_updated, results, typed):
     fig3 = (
         Figure3JS(layout="white", stylize=True)
         .plot_framework(mat_updated, representation="ball_and_stick", name="Framework")
-        .plot_cell(atoms, color="orange", name="cell")
-        .plot_maxima_from_grid_3js(
-            dgrid,
-            maxima_pbc,
-            atoms,
-            regions=regions,
-            cscale=cscale,
-            name="Local maxima",
-            hide_periodic=False,
-        )
     )
+    _add_panel_a_cell_and_maxima(fig3, atoms, results, cscale)
     if typed.regions_cluster is not None:
         fig3.plot_surface_dgrid(
             dgrid,
@@ -482,30 +521,28 @@ def build_pocket_types_figure3js(atoms, mat_updated, results, typed):
         marker_color="red",
         marker_size=8,
     )
-    fig3.set_camera(
-        eye=eye,
-        center=center,
-        up=VIEW_DIR_C,
-        projection="orthographic",
-    )
+    _apply_panel_a_scene(fig3, atoms)
     return fig3
 
 
-_VIEW_ALIGN_001_JS = """
-(dir) => {
-  const d = new THREE.Vector3(dir[0], dir[1], dir[2]).normalize();
-  const target = controls.target.clone();
-  const dist = camera.position.distanceTo(target);
-  camera.position.copy(target.clone().add(d.multiplyScalar(dist)));
-  camera.up.set(0, 0, 1);
-  camera.lookAt(target);
+_SET_PANEL_A_CAMERA_JS = """
+({eye, center, up}) => {
+  camera.position.set(eye[0], eye[1], eye[2]);
+  controls.target.set(center[0], center[1], center[2]);
+  camera.up.set(up[0], up[1], up[2]);
+  camera.lookAt(controls.target);
   controls.update();
+  [perspectiveCam, orthoCam].forEach(function(cam) {
+    cam.position.copy(camera.position);
+    cam.up.copy(camera.up);
+    cam.lookAt(controls.target);
+  });
   if (typeof updateOrthoFrustum === 'function') updateOrthoFrustum();
 }
 """
 
 
-def export_panel_a_png(fig3, out_png, *, wait_ms=2500, view_dir=VIEW_DIR_C):
+def export_panel_a_png(fig3, out_png, *, eye, center, wait_ms=2500, up=VIEW_DIR_C):
     import base64
     import tempfile
 
@@ -519,7 +556,11 @@ def export_panel_a_png(fig3, out_png, *, wait_ms=2500, view_dir=VIEW_DIR_C):
     from playwright.sync_api import sync_playwright
 
     w, h = 1280, 960
-    vdir = [float(view_dir[0]), float(view_dir[1]), float(view_dir[2])]
+    cam = {
+        "eye": [float(eye[0]), float(eye[1]), float(eye[2])],
+        "center": [float(center[0]), float(center[1]), float(center[2])],
+        "up": [float(up[0]), float(up[1]), float(up[2])],
+    }
     with sync_playwright() as p:
         browser = p.chromium.launch(
             args=["--disable-dev-shm-usage", "--disable-gpu", "--no-sandbox"],
@@ -527,7 +568,7 @@ def export_panel_a_png(fig3, out_png, *, wait_ms=2500, view_dir=VIEW_DIR_C):
         page = browser.new_page(viewport={"width": w, "height": h})
         page.goto(html_path.as_uri(), wait_until="domcontentloaded", timeout=120_000)
         page.wait_for_timeout(wait_ms)
-        page.evaluate(_VIEW_ALIGN_001_JS, vdir)
+        page.evaluate(_SET_PANEL_A_CAMERA_JS, cam)
         page.wait_for_timeout(200)
         data_url = page.evaluate("(mult) => window.__mofFigureExportPng(mult)", 2)
         browser.close()
@@ -598,6 +639,7 @@ def generate_report(
     no_auto_panel_a: bool = False,
     panel_a_wait_ms: int = 2500,
     write_json: bool = False,
+    panel_a_png_only: bool = False,
 ) -> Dict[str, Any]:
     cif_path = _expand(cif_path)
     if not cif_path.is_file():
@@ -634,12 +676,21 @@ def generate_report(
         )
         try:
             wait = panel_a_wait_ms * (3 if lite else 1)
-            export_panel_a_png(panel_fig3, png_path, wait_ms=wait)
+            eye, center = _camera_eye_center(atoms)
+            export_panel_a_png(panel_fig3, png_path, eye=eye, center=center, wait_ms=wait)
             panel_a_image = png_path
             mode = "lite" if lite else "full"
-            print(f"  Panel (a) PNG {png_path.name} ({mode})")
+            print(
+                f"  Panel (a) PNG {png_path.name} ({mode}) "
+                f"eye=({eye[0]:.2f},{eye[1]:.2f},{eye[2]:.2f}) "
+                f"target=({center[0]:.2f},{center[1]:.2f},{center[2]:.2f})"
+            )
         except Exception as exc:
             print(f"  Warning: panel (a) PNG failed ({exc})", file=sys.stderr)
+
+    if panel_a_png_only:
+        print(f"Done: {title} — panel (a) PNG only")
+        return {"title": title, "stem": stem, "png": str(png_path)}
 
     plot_four_panel(typed, tables, pdf_path, panel_a_image=panel_a_image, palette=pocket_type_palette())
     print(f"  PDF {pdf_path.name}")
@@ -665,6 +716,7 @@ def main(argv=None):
     p.add_argument("--probe-radius-psd", type=float, default=DEFAULT_PROBE_RADIUS_PSD_A)
     p.add_argument("--dgrid-backend", choices=("mic", "aabb"), default="mic")
     p.add_argument("--no-auto-panel-a", action="store_true")
+    p.add_argument("--panel-a-png-only", action="store_true", help="Export panel (a) PNG only (skip PDF/org/HTML)")
     p.add_argument("--panel-a-wait-ms", type=int, default=2500)
     p.add_argument("--no-html", action="store_true")
     p.add_argument("--json", action="store_true")
@@ -707,6 +759,7 @@ def main(argv=None):
                 no_html=args.no_html,
                 no_auto_panel_a=args.no_auto_panel_a,
                 panel_a_wait_ms=args.panel_a_wait_ms,
+                panel_a_png_only=args.panel_a_png_only,
                 write_json=args.json,
             )
         except Exception as exc:
