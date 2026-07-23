@@ -470,6 +470,25 @@ def test_compute_connection_data():
     assert "periodic_points" in data
 
 
+def test_connection_nodes_internal_periodic_mutually_exclusive():
+    """Periodic node markers must not duplicate internal-only wall nodes."""
+    from ase import Atoms
+    import numpy as np
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    seg = _make_minimal_seg()
+    # Node 1 on internal edge; node 2 only on periodic edge.
+    seg["connections"] = [
+        ([1, 2], True, "internal", [], [1.0]),
+        ([2, 1], True, "periodic", [], [1.2]),
+    ]
+    data = movies._serialize_connection_traces(seg, atoms)
+    internal_pts = np.asarray(data["internal_points"], dtype=float).reshape(-1, 3)
+    periodic_pts = np.asarray(data["periodic_points"], dtype=float).reshape(-1, 3)
+    assert internal_pts.shape[0] == 2
+    assert periodic_pts.shape[0] == 0
+
+
 # ---------------------------------------------------------------------------
 # Helpers for tests
 # ---------------------------------------------------------------------------
