@@ -8013,11 +8013,6 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
             tqdm(executor.map(process_pair, pairs_filtered), total=len(pairs_filtered), disable=disable_tqdm)
         )
     
-# let's mark a connection as periodic if any maxima is far from the box, no reindexing just yet.
-    for c in connections_list:
-        if np.any(~np.isin(c[0], valid_maxima_ids)):
-            # print(f"This connection is {c[0]}")
-            c[2] = "periodic"
     logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Done with computing connections\n")
     logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Reindexing part 2/2-- Connected nodes getting priority\n")
 
@@ -8051,6 +8046,13 @@ def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_d
             if ci in remap_dict2:
                 # reindx the connections list
                 connections_list_copy[i][0][j] = remap_dict2[ci]
+    from mofography.helper import classify_connections_by_close_or_inside
+
+    classify_connections_by_close_or_inside(
+        connections_list_copy,
+        valid_maxima_ids,
+        remap_dict=remap_dict2,
+    )
     maxima_info_copy_copy = copy.deepcopy(maxima_info_copy)
     for k, v in remap_dict2.items():
         # print(f"replace label {k} with {v}")
@@ -8609,11 +8611,6 @@ def do_periodic_segmentation_basic(
                 tqdm(executor.map(process_pair, pairs_filtered), total=len(pairs_filtered), disable=disable_tqdm)
             )
         
-# let's mark a connection as periodic if any maxima is far from the box, no reindexing just yet.
-        for c in connections_list:
-            if np.any(~np.isin(c[0], valid_maxima_ids)):
-                # print(f"This connection is {c[0]}")
-                c[2] = "periodic"
         logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Done with computing connections\n")
         logger.info(f"TIME(s): {np.round(time() - start_time, decimals=2)} Reindexing part 2/2-- Connected nodes getting priority\n")
 
@@ -8647,6 +8644,13 @@ def do_periodic_segmentation_basic(
                 if ci in remap_dict2:
                     # reindx the connections list
                     connections_list_copy[i][0][j] = remap_dict2[ci]
+        from mofography.helper import classify_connections_by_close_or_inside
+
+        classify_connections_by_close_or_inside(
+            connections_list_copy,
+            valid_maxima_ids,
+            remap_dict=remap_dict2,
+        )
         maxima_info_copy_copy = copy.deepcopy(maxima_info_copy)
         for k, v in remap_dict2.items():
             # print(f"replace label {k} with {v}")
