@@ -815,6 +815,30 @@ def trim_connections_to_unique_regions(connections, unique_regions):
     return [c for c in connections if np.any(np.isin(c[0], unique))]
 
 
+def classify_connections_by_close_or_inside(
+    connections,
+    close_or_inside_region_ids,
+    remap_dict=None,
+):
+    """Set ``c[2]`` to internal or periodic from close-or-inside node IDs.
+
+    Internal only when **both** endpoints are in *close_or_inside_region_ids*
+    (``results['close_or_inside_regions']``). Apply after padding-ghost reindex
+    when *remap_dict* maps pre-remap labels to final node IDs.
+    """
+    remap = remap_dict or {}
+    internal_ids = {
+        int(remap.get(int(rid), int(rid)))
+        for rid in np.asarray(close_or_inside_region_ids, dtype=int).reshape(-1)
+    }
+    for c in connections:
+        if len(c) < 3 or not c[1]:
+            continue
+        n1, n2 = int(c[0][0]), int(c[0][1])
+        c[2] = "internal" if (n1 in internal_ids and n2 in internal_ids) else "periodic"
+    return connections
+
+
 def is_inside_or_close_to_boundary(maximum_indices, box_shape, tolerance):
     """
     Determines if points are inside the box or just outside within tolerance. Typically used for checking the maxima positions, but we can use it with basically any point. To get a healthy tolerance with proper accounting of non orthogonality use the `compute_wall_cells` function to find the number of cells forming the wall region in each direction [a, b, c]

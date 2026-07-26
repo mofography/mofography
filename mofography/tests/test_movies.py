@@ -489,6 +489,59 @@ def test_connection_nodes_internal_periodic_mutually_exclusive():
     assert periodic_pts.shape[0] == 0
 
 
+def _connection_passes_window_threshold(segment_radii, threshold):
+    """Mirror movies.py connectionPassesWindowThreshold (Three.js viewer)."""
+    if threshold is None:
+        return True
+    if not segment_radii:
+        return False
+    vals = [float(x) for x in segment_radii if np.isfinite(x)]
+    if not vals:
+        return False
+    return min(vals) >= threshold
+
+
+def test_classify_connections_by_close_or_inside():
+    from mofography.helper import classify_connections_by_close_or_inside
+
+    conns = [
+        [[1, 2], True, "internal", [], [1.0]],
+        [[1, 10], True, "internal", [], [0.5]],
+        [[2, 3], True, "periodic", [], [1.0]],
+    ]
+    classify_connections_by_close_or_inside(conns, [1, 2, 3])
+    assert conns[0][2] == "internal"
+    assert conns[1][2] == "periodic"
+    assert conns[2][2] == "internal"
+    classify_connections_by_close_or_inside(conns, [1, 2], remap_dict={10: 99})
+    assert conns[1][2] == "periodic"
+
+
+def test_internal_connection_window_threshold_filter():
+    """Internal pore-graph edges filter by max window radius along edge."""
+    from ase import Atoms
+
+    atoms = Atoms("Si2", positions=[[0, 0, 0], [2.5, 2.5, 2.5]], cell=[5, 5, 5], pbc=True)
+    seg = _make_minimal_seg()
+    seg["connections"] = [
+        ([1, 2], True, "internal", [], [2.0, 3.5]),
+        ([1, 2], True, "internal", [], [4.0]),
+        ([1, 2], True, "internal", [], [1.2]),
+        ([1, 2], True, "periodic", [], [5.0]),
+    ]
+    data = movies._serialize_connection_traces(seg, atoms)
+    radii = data["internal_segment_window_radii"]
+    assert len(radii) == 3
+    kept = [
+        i for i, wr in enumerate(radii)
+        if _connection_passes_window_threshold(wr, 3.0)
+    ]
+    assert kept == [1]
+    trace = movies.make_connections_trace(seg, atoms)
+    assert trace["internal_lines"]["data"]["segment_window_radii"] == radii
+    assert trace["internal_lines"]["data"]["n_segments"] == 3
+
+
 # ---------------------------------------------------------------------------
 # Helpers for tests
 # ---------------------------------------------------------------------------

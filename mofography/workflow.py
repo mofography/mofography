@@ -940,11 +940,13 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
     else:
         maxima_info_plot = np.zeros((0, 7), dtype=int)
 
-    # Estimate grid spacing for window reclassification
+    # Estimate grid spacing for window reclassification (override with plot_spacing).
     _cell    = atoms.get_cell().array.T
     _lengths = np.linalg.norm(_cell, axis=0)
     _shape   = np.asarray(dgrid.shape, dtype=float)
-    spacing  = float(np.mean(_lengths / np.maximum(_shape, 1.0)))
+    spacing  = float(defaults["plot_spacing"]) if defaults.get("plot_spacing") is not None else float(
+        np.mean(_lengths / np.maximum(_shape, 1.0))
+    )
 
     fig = MovieFigure()
 
@@ -1078,12 +1080,14 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
         fig.add_connections(seg_dict, atoms, hide_periodic=hide_periodic_conn)
 
     if defaults.get("plot_windows", True) and connections:
+        _win_style = defaults.get("plot_windows_style") or {}
         fig.add_windows(
             seg_dict,
             hide_periodic=hide_periodic_win,
             atoms=atoms,
             spacing=spacing,
             reclassify_far_outside=defaults.get("plot_windows_reclassify_far_outside", True),
+            **_win_style,
         )
 
     if defaults.get("plot_maxima", True) and len(all_maxima_plot):
