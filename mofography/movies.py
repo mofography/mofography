@@ -4195,6 +4195,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const obj0 = objectsById[traceId];
       if (traceId === "connections_internal" && (edgeFilterThreshold() !== null || (obj0 && obj0.userData && obj0.userData.filteredByThreshold))) {
         rebuildLineSegmentsForThreshold(traceId);
+        applyExplodeOffsets();
         return;
       }
       const trace = findTraceById(traceId);
@@ -4227,6 +4228,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         scene.add(group);
         objectsById[traceId] = group;
         group.visible = true;
+        applyExplodeOffsets();
         return;
       }
       if (!(obj instanceof THREE.LineSegments)) {
@@ -4247,6 +4249,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         obj.material.needsUpdate = true;
       }
       obj.visible = true;
+      applyExplodeOffsets();
     }
 
     function isSurfaceMeshId(traceId) {
@@ -5621,6 +5624,7 @@ function readWindowMinThreshold() {
         group.visible = legendOn;
         scene.add(group);
         objectsById[traceId] = group;
+        applyExplodeOffsets();
         return;
       }
       const geo = obj.geometry;
@@ -5629,6 +5633,7 @@ function readWindowMinThreshold() {
       obj.userData.filteredByThreshold = threshold !== null;
       obj.visible = legendOn;
       if (obj.material && obj.material.dashSize !== undefined) obj.computeLineDistances();
+      applyExplodeOffsets();
     }
     function rebuildPointsForThreshold(traceId) {
       if (traceId !== "windows_internal") return;
