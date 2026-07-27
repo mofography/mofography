@@ -56,9 +56,18 @@ def main() -> int:
         )
         assert periodic_visible is False, "periodic connections should stay hidden"
 
+        page.evaluate("() => applyLineWidth('connections_internal', 2.5)")
+        page.wait_for_timeout(200)
+        pos_lw = conn_pos()
+        assert pos_lw is not None
+        dist2 = (pos_lw["x"] ** 2 + pos_lw["y"] ** 2 + pos_lw["z"] ** 2) ** 0.5
+        assert abs(dist2 - dist0) < 1e-4, (
+            f"pore graph jumped after line-width change: before={pos_exploded} after={pos_lw}"
+        )
+
         browser.close()
 
-    print("OK: exploded connections_internal position preserved after min-window filter")
+    print("OK: exploded connections_internal position preserved after filter and line-width changes")
     return 0
 
 
