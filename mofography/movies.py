@@ -4193,7 +4193,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function applyLineWidth(traceId, mult) {
       lineWidthMultByTrace[traceId] = mult;
       const obj0 = objectsById[traceId];
-      if (edgeFilterThreshold() !== null || (obj0 && obj0.userData && obj0.userData.filteredByThreshold)) {
+      if (traceId === "connections_internal" && (edgeFilterThreshold() !== null || (obj0 && obj0.userData && obj0.userData.filteredByThreshold))) {
         rebuildLineSegmentsForThreshold(traceId);
         return;
       }
@@ -4986,7 +4986,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           const mult = parseFloat(slider.value) || 1.0;
           traceIds.forEach(function(tid) {
             lineWidthMultByTrace[tid] = mult;
-            if (edgeFilterThreshold() !== null) {
+            if (tid === "connections_internal" && edgeFilterThreshold() !== null) {
               rebuildLineSegmentsForThreshold(tid);
             } else {
               applyLineWidth(tid, mult);
@@ -5040,7 +5040,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
               traceIds.forEach(function(tid) {
                 const mult = parseFloat(slider.value) || 1.0;
                 lineWidthMultByTrace[tid] = mult;
-                if (edgeFilterThreshold() !== null) {
+                if (tid === "connections_internal" && edgeFilterThreshold() !== null) {
                   rebuildLineSegmentsForThreshold(tid);
                 } else {
                   applyLineWidth(tid, mult);
@@ -5564,6 +5564,7 @@ function readWindowMinThreshold() {
       return minR >= threshold;
     }
     function rebuildLineSegmentsForThreshold(traceId) {
+      if (traceId !== "connections_internal") return;
       const obj = objectsById[traceId];
       if (!obj) return;
       if (!obj.userData.originalPositions) {
@@ -5630,6 +5631,7 @@ function readWindowMinThreshold() {
       if (obj.material && obj.material.dashSize !== undefined) obj.computeLineDistances();
     }
     function rebuildPointsForThreshold(traceId) {
+      if (traceId !== "windows_internal") return;
       const obj = objectsById[traceId];
       if (!obj || !obj.userData.originalPositions) return;
       const threshold = readWindowMinThreshold();
@@ -5651,8 +5653,9 @@ function readWindowMinThreshold() {
       obj.userData.activeHover = filteredHover;
     }
     function applyWindowThresholdFilter() {
-      ["connections_internal", "connections_periodic"].forEach(rebuildLineSegmentsForThreshold);
-      ["windows_internal", "windows_periodic"].forEach(rebuildPointsForThreshold);
+      rebuildLineSegmentsForThreshold("connections_internal");
+      rebuildPointsForThreshold("windows_internal");
+      applyExplodeOffsets();
     }
 
     pivotSceneBtn.addEventListener("click", () => {
