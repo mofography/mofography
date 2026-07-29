@@ -257,6 +257,28 @@ def test_add_guests_with_color():
     assert trace["data"]["n_atoms"] == 3
 
 
+def test_make_framework_instanced_representations():
+    """Instanced framework traces vary radii/bonds by representation."""
+    from ase import Atoms
+    from ase.data import covalent_radii, vdw_radii
+
+    atoms = Atoms("C2", positions=[[0, 0, 0], [1.4, 0, 0]], cell=[5, 5, 5], pbc=True)
+    atoms.info["covalent_bonds"] = [[0, 1]]
+    bs = movies.make_framework_instanced_trace(atoms, representation="ball_and_stick", atom_scale=0.65)
+    stick = movies.make_framework_instanced_trace(atoms, representation="stick")
+    sf = movies.make_framework_instanced_trace(atoms, representation="space_filling")
+
+    bs_r = bs["atoms"]["data"]["radii"][0]
+    stick_r = stick["atoms"]["data"]["radii"][0]
+    sf_r = sf["atoms"]["data"]["radii"][0]
+    assert stick_r < bs_r
+    assert abs(stick_r - float(covalent_radii[6] * 0.15)) < 1e-6
+    assert abs(sf_r - float(vdw_radii[6])) < 1e-6
+    assert "bonds" in bs and bs["bonds"]["data"]["n_bonds"] == 1
+    assert "bonds" in stick and stick["bonds"]["data"]["n_bonds"] == 2
+    assert "bonds" not in sf
+
+
 def test_full_chainable_pipeline():
     """All add_* methods chained together produce correct traces."""
     from ase import Atoms

@@ -1667,11 +1667,12 @@ def make_framework_instanced_trace(
     """Framework as InstancedMesh spheres + cylinder mesh bonds.
 
     Sends compact atom data for instanced spheres; browser builds sphere geometry.
-    representation: "ball_and_stick" (default) or "stick" (two-tone CPK bonds).
+    representation: "ball_and_stick" (default), "stick", or "space_filling".
     """
     from ase.data import covalent_radii as _cr
     from ase.data.colors import cpk_colors
     from ase.data import atomic_masses as atomic_masses_table
+    from ase.data import vdw_radii
     from ase.neighborlist import natural_cutoffs, neighbor_list
 
     if style is None:
@@ -1702,7 +1703,12 @@ def make_framework_instanced_trace(
     symbols = atoms.get_chemical_symbols()
     positions = atoms.get_positions()
     atom_colors = np.array([cpk_colors[an] for an in atomic_numbers], dtype=float)
-    radii = _cr[atomic_numbers] * atom_scale
+    if representation == "stick":
+        radii = _cr[atomic_numbers] * 0.15
+    elif representation == "space_filling":
+        radii = vdw_radii[atomic_numbers].astype(float)
+    else:
+        radii = _cr[atomic_numbers] * atom_scale
     masses = np.asarray([atomic_masses_table[an] for an in atomic_numbers])
 
     atom_hover = [
@@ -1727,6 +1733,8 @@ def make_framework_instanced_trace(
 
     cyl_radius = 0.08 if representation == "stick" else 0.15
     atom_radii_vals = _cr[atomic_numbers] * (0.15 if representation == "stick" else atom_scale)
+    if representation == "space_filling":
+        bond_list = []
     if bond_list:
         bond_starts: list = []; bond_ends: list = []
         bond_colors_l: list = []; bond_hover: list = []
@@ -1771,6 +1779,8 @@ def make_framework_instanced_trace(
         hover=bond_hover if bond_hover else None,
         visible=True,
     )
+    if representation == "space_filling":
+        return {"atoms": atom_trace}
     return {"atoms": atom_trace, "bonds": bond_trace}
 
 
@@ -4866,7 +4876,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         ],
       },
     ];
-    const FW_MERGE_IDS = ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent"];
+    const FW_MERGE_IDS = ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "framework_spacefill_atoms", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent"];
     function resolveLegendTraceIds(entry) {
       if (entry.fwMerge) {
         return FW_MERGE_IDS.filter(function(tid) { return !!objectsById[tid]; });
@@ -5328,7 +5338,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     //   Keep local maxima in the central cell with raw surface (not in pore-graph copy).
     //   Original cell stays at center and is controlled independently by showCell.
     const _explodeGroups = [
-      { ids: ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent", "cell_framework"], x: -1, y: 0 },
+      { ids: ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "framework_spacefill_atoms", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent", "cell_framework"], x: -1, y: 0 },
       { ids: ["windows_internal", "connections_internal", "connections_internal_nodes",
               "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
               "cell_copy"], x: 1, y: 0 },
@@ -5449,24 +5459,25 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function updateFrameworkVisibility() {
       const val = reprSelect.value;
       const fwOn = scene.userData.fwLegendEnabled !== false;
-      const fw = objectsById["framework"];
-      const stick = objectsById["framework_stick"];
-      const sf = objectsById["framework_spacefill"];
+      const isBS = val === "ball_and_stick";
+      const isStick = val === "stick";
+      const isSF = val === "space_filling";
+      function setFwVisible(tid, on) {
+        const obj = objectsById[tid];
+        if (obj) obj.visible = fwOn && on;
+      }
+      // Baked mesh variants
+      setFwVisible("framework", isBS);
+      setFwVisible("framework_stick", isStick);
+      setFwVisible("framework_spacefill", isSF);
+      // Instanced / scatter variants
+      setFwVisible("framework_atoms", isBS);
+      setFwVisible("framework_bonds", isBS);
+      setFwVisible("framework_stick_atoms", isStick);
+      setFwVisible("framework_stick_bonds", isStick);
+      setFwVisible("framework_spacefill_atoms", isSF);
       const arRings = objectsById["aromatic_rings"];
       const arHigh = objectsById["aromatic_highlights"];
-      // Scatter / instanced traces (atoms + bonds split across two trace IDs)
-      const scatterAtoms = objectsById["framework_atoms"];
-      const scatterBonds = objectsById["framework_bonds"];
-      const stickAtoms = objectsById["framework_stick_atoms"];
-      const stickBonds = objectsById["framework_stick_bonds"];
-      if (fw) fw.visible = fwOn && val === "ball_and_stick";
-      if (stick) stick.visible = fwOn && val === "stick";
-      if (sf) sf.visible = fwOn && val === "space_filling";
-      if (stickAtoms) stickAtoms.visible = fwOn && val === "stick";
-      if (stickBonds) stickBonds.visible = fwOn && val === "stick";
-      // Instanced/scatter ball-and-stick: show atoms+bonds for ball_and_stick selection
-      if (scatterAtoms && !fw) scatterAtoms.visible = fwOn && val === "ball_and_stick";
-      if (scatterBonds && !fw) scatterBonds.visible = fwOn && val === "ball_and_stick";
       if (arRings) arRings.visible = fwOn;
       if (arHigh) arHigh.visible = fwOn;
       ["aromatic_highlights_hex", "aromatic_highlights_pent"].forEach(function(id) {
@@ -5474,13 +5485,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         if (o) o.visible = fwOn;
       });
       updateFrameworkCellVisibility();
-      // Re-apply exploded offsets so newly-active representations land in the right cell.
       applyExplodeOffsets();
     }
     reprSelect.addEventListener("change", updateFrameworkVisibility);
     // Hide representation selector when only scatter traces exist (no mesh variants)
     if (!objectsById["framework"] && !objectsById["framework_stick"] && !objectsById["framework_spacefill"]
-        && !objectsById["framework_stick_atoms"]) {
+        && !objectsById["framework_stick_atoms"] && !objectsById["framework_spacefill_atoms"]) {
       const reprLabel = reprSelect.parentNode;
       if (reprLabel) reprLabel.style.display = "none";
     }
@@ -5521,6 +5531,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const ids = [
           "framework", "framework_stick", "framework_spacefill",
           "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds",
+          "framework_spacefill_atoms",
           "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent",
         ];
         const fwOn = scene.userData.fwLegendEnabled !== false;

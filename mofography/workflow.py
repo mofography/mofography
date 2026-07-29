@@ -1004,6 +1004,15 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             _st["bonds"]["visible"] = False
             fig.add_trace(_st["atoms"])
             fig.add_trace(_st["bonds"])
+            _sf = make_framework_instanced_trace(
+                _fw_atoms,
+                representation="space_filling",
+                trace_id="framework_spacefill",
+                name="Framework (spacefill)",
+                atom_scale=_fw_scale,
+            )
+            _sf["atoms"]["visible"] = False
+            fig.add_trace(_sf["atoms"])
         else:
             # Default: baked mesh (ball-and-stick + hidden stick/spacefill variants)
             fig.add_framework(_fw_atoms, representation="ball_and_stick")
