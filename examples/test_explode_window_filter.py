@@ -71,5 +71,80 @@ def main() -> int:
     return 0
 
 
+def _assert_repr_visibility(page, repr_val: str, expected_visible: list[str], expected_hidden: list[str]) -> None:
+    page.select_option("#reprSelect", repr_val)
+    page.wait_for_timeout(150)
+    state = page.evaluate(
+        """(ids) => {
+          const out = {};
+          ids.forEach(id => {
+            const o = objectsById[id];
+            out[id] = !!(o && o.visible);
+          });
+          return out;
+        }""",
+        expected_visible + expected_hidden,
+    )
+    for tid in expected_visible:
+        assert state.get(tid) is True, f"{tid} should be visible for {repr_val}, got {state}"
+    for tid in expected_hidden:
+        assert state.get(tid) is False, f"{tid} should be hidden for {repr_val}, got {state}"
+
+
+def test_framework_repr_switching() -> int:
+    path = HTML
+    if not path.is_file():
+        print(f"Missing {path}")
+        return 1
+    url = path.resolve().as_uri()
+    ids = [
+        "framework_atoms", "framework_bonds",
+        "framework_stick_atoms", "framework_stick_bonds",
+        "framework_spacefill_atoms",
+    ]
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, wait_until="networkidle", timeout=120_000)
+        page.wait_for_function("typeof objectsById !== 'undefined'")
+
+        _assert_repr_visibility(
+            page,
+            "ball_and_stick",
+            ["framework_atoms", "framework_bonds"],
+            ["framework_stick_atoms", "framework_stick_bonds", "framework_spacefill_atoms"],
+        )
+        _assert_repr_visibility(
+            page,
+            "stick",
+            ["framework_stick_atoms", "framework_stick_bonds"],
+            ["framework_atoms", "framework_bonds", "framework_spacefill_atoms"],
+        )
+        _assert_repr_visibility(
+            page,
+            "space_filling",
+            ["framework_spacefill_atoms"],
+            ["framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds"],
+        )
+
+        page.evaluate("() => { explodeSlider.value = '1.5'; applyExplodeOffsets(); }")
+        page.select_option("#reprSelect", "stick")
+        page.wait_for_timeout(150)
+        pos = page.evaluate(
+            """() => {
+              const o = objectsById.framework_stick_atoms;
+              return o ? { visible: o.visible, x: o.position.x } : null;
+            }"""
+        )
+        assert pos and pos["visible"] and abs(pos["x"]) > 1.0
+        browser.close()
+
+    print("OK: framework stick/spacefill repr switching and exploded offset")
+    return 0
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    code = main()
+    if code != 0:
+        raise SystemExit(code)
+    raise SystemExit(test_framework_repr_switching())
