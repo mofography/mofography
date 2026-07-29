@@ -397,6 +397,10 @@ def _framework_vertex_hovertext(
     return hover_atoms + hover_bonds
 
 
+# Uniform rod radius (Å) for stick representation — atoms and bonds share this value.
+FRAMEWORK_STICK_RADIUS = 0.12
+
+
 def _serialize_framework_mesh(
     atoms: Atoms, bonds: list[list[int]] | None = None, representation: str = "ball_and_stick"
 ) -> dict[str, Any]:
@@ -1704,7 +1708,7 @@ def make_framework_instanced_trace(
     positions = atoms.get_positions()
     atom_colors = np.array([cpk_colors[an] for an in atomic_numbers], dtype=float)
     if representation == "stick":
-        radii = _cr[atomic_numbers] * 0.15
+        radii = np.full(n_atoms, FRAMEWORK_STICK_RADIUS, dtype=float)
     elif representation == "space_filling":
         radii = vdw_radii[atomic_numbers].astype(float)
     else:
@@ -1731,8 +1735,8 @@ def make_framework_instanced_trace(
         visible=True,
     )
 
-    cyl_radius = 0.08 if representation == "stick" else 0.15
-    atom_radii_vals = _cr[atomic_numbers] * (0.15 if representation == "stick" else atom_scale)
+    cyl_radius = FRAMEWORK_STICK_RADIUS if representation == "stick" else 0.15
+    atom_radii_vals = _cr[atomic_numbers] * atom_scale
     if representation == "space_filling":
         bond_list = []
     if bond_list:
@@ -1746,10 +1750,10 @@ def make_framework_instanced_trace(
             if length < 1e-8:
                 continue
             unit_d = d / length
-            start = pa + unit_d * atom_radii_vals[a_idx] * 0.98
-            end = pb - unit_d * atom_radii_vals[b_idx] * 0.98
             ht = f"Bond: {symbols[a_idx]}({a_idx}) ↔ {symbols[b_idx]}({b_idx})\nLength: {length:.3f} Å"
             if representation == "stick":
+                start = pa
+                end = pb
                 mid = (start + end) / 2.0
                 bond_starts.extend(start.tolist()); bond_ends.extend(mid.tolist())
                 bond_colors_l.extend(atom_colors[a_idx].tolist())
@@ -1757,6 +1761,8 @@ def make_framework_instanced_trace(
                 bond_colors_l.extend(atom_colors[b_idx].tolist())
                 bond_hover.extend([ht, ht])
             else:
+                start = pa + unit_d * atom_radii_vals[a_idx] * 0.98
+                end = pb - unit_d * atom_radii_vals[b_idx] * 0.98
                 bond_starts.extend(start.tolist()); bond_ends.extend(end.tolist())
                 bond_colors_l.extend([0.5, 0.5, 0.5])
                 bond_hover.append(ht)
