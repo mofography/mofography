@@ -1111,6 +1111,82 @@ def _expand_aromatic_embeddings_rust(sgraph, chemically_unique_cycles: list) -> 
     return mgr_rust.expand_aromatic_cycle_embeddings(n, ei, ej, elems, bts, templates)
 
 
+def canonicalize_duplicate_site_atoms(ase_atoms, *, frac_digits: int = 3):
+    """Merge atoms with the same element and wrapped fractional coordinates.
+
+    RASPA / symmetry-expanded CIFs often contain multiple atom records per
+    crystallographic site. Those duplicates fragment the bond graph and cause
+    aromatic cycle detection to miss rings (e.g. ZIF-8 imidazolates).
+
+    Returns ``(merged_atoms, merged_to_original)`` where ``merged_atoms`` has
+    remapped ``covalent_bonds`` / ``covalent_bond_orders`` and
+    ``merged_to_original[i]`` is the source atom index in ``ase_atoms``.
+    """
+    import numpy as np
+    from ase import Atoms
+
+    n = len(ase_atoms)
+    if n == 0:
+        return ase_atoms.copy(), []
+
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    frac = ase_atoms.get_scaled_positions(wrap=True)
+    znums = ase_atoms.get_atomic_numbers()
+    rounded = np.round(frac, frac_digits)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if znums[i] != znums[j]:
+                continue
+            if np.all(rounded[i] == rounded[j]):
+                union(i, j)
+
+    rep_by_root: dict[int, int] = {}
+    for i in range(n):
+        root = find(i)
+        if root not in rep_by_root or i < rep_by_root[root]:
+            rep_by_root[root] = i
+    keep = sorted(rep_by_root.values())
+    if len(keep) == n:
+        return ase_atoms.copy(), keep
+
+    old_to_new = {old: new for new, old in enumerate(keep)}
+    merged = ase_atoms[keep].copy()
+    bonds_in = ase_atoms.info.get("covalent_bonds") or []
+    orders_in = ase_atoms.info.get("covalent_bond_orders") or []
+    bonds_out: list[list[int]] = []
+    orders_out: list[float] = []
+    seen: set[tuple[int, int]] = set()
+    for idx, (a, b) in enumerate(bonds_in):
+        ra, rb = find(int(a)), find(int(b))
+        if ra == rb:
+            continue
+        a2 = old_to_new[rep_by_root[ra]]
+        b2 = old_to_new[rep_by_root[rb]]
+        edge = (min(a2, b2), max(a2, b2))
+        if edge in seen:
+            continue
+        seen.add(edge)
+        bonds_out.append([edge[0], edge[1]])
+        if idx < len(orders_in):
+            orders_out.append(float(orders_in[idx]))
+        else:
+            orders_out.append(1.0)
+    merged.info["covalent_bonds"] = bonds_out
+    merged.info["covalent_bond_orders"] = orders_out
+    return merged, keep
+
 
 def compute_aromatic_cycles(
     ase_atoms,
@@ -1118,6 +1194,7 @@ def compute_aromatic_cycles(
     force_recompute: bool = False,
     expand_isomorphisms: bool = True,
     default_ring_sizes=None,
+    merge_duplicate_sites: bool = True,
 ):
     """Detect aromatic cycles and cache the result in ``ase_atoms.info``.
 
@@ -1129,6 +1206,10 @@ def compute_aromatic_cycles(
        ``force_recompute=False`` and the info entry is already populated.
     3. Otherwise calls :func:`find_aromatic_cycles_in_sgraph`, stores the
        result in ``ase_atoms.info["aromatic_cycles"]``, and returns it.
+
+    When ``merge_duplicate_sites`` is True (default), atoms that share the
+    same element and wrapped fractional coordinates are merged before graph
+    construction. Cycle atom indices are mapped back to the input structure.
 
     Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
     when a pre-computed cycle list is not supplied.
@@ -1143,9 +1224,20 @@ def compute_aromatic_cycles(
         return ase_atoms.info["aromatic_cycles"]
 
     kw = {} if default_ring_sizes is None else {"default_ring_sizes": default_ring_sizes}
-    cycles = find_aromatic_cycles_in_sgraph(
-        sgraph_from_atoms(ase_atoms),
-        **kw,
-    )
+    if merge_duplicate_sites:
+        merged_atoms, merged_to_original = canonicalize_duplicate_site_atoms(ase_atoms)
+        merged_cycles = find_aromatic_cycles_in_sgraph(
+            sgraph_from_atoms(merged_atoms),
+            **kw,
+        )
+        cycles = [
+            [merged_to_original[i] for i in cycle]
+            for cycle in merged_cycles
+        ]
+    else:
+        cycles = find_aromatic_cycles_in_sgraph(
+            sgraph_from_atoms(ase_atoms),
+            **kw,
+        )
     ase_atoms.info["aromatic_cycles"] = cycles
     return cycles

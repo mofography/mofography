@@ -1861,7 +1861,7 @@ def _make_aromatic_rings_instanced_trace(
     *,
     style_circles,
     style_highlights,
-    n_template_segments: int = 16,
+    n_template_segments: int = 24,
 ):
     centers_l = []; normals_l = []; inner_l = []
     pent_centers = []; pent_normals = []; pent_scales = []
@@ -1963,7 +1963,7 @@ def make_aromatic_rings_trace(
     n_circle_points: int = 72,
     *,
     use_instanced=None,
-    n_template_segments: int = 16,
+    n_template_segments: int = 24,
 ) -> dict:
     """Build aromatic ring traces (instanced torus/ngon when possible).
 
@@ -4645,7 +4645,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const key = String(radialSegments) + ":" + String(tubeRadius);
       if (!scene.userData.ringOutlineTemplates[key]) {
         scene.userData.ringOutlineTemplates[key] = new THREE.TorusGeometry(
-          1.0, tubeRadius, Math.max(4, radialSegments), 12
+          1.0, tubeRadius, 8, Math.max(16, radialSegments)
         );
       }
       return scene.userData.ringOutlineTemplates[key];
@@ -4675,7 +4675,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const centers = trace.data.centers || [];
       const normals = trace.data.normals || [];
       const innerRadii = trace.data.inner_radii || [];
-      const radialSegments = trace.data.radial_segments || 16;
+      const radialSegments = trace.data.radial_segments || 24;
       const style = styleFor(trace);
       const baseLw = Number(style.linewidth !== undefined ? style.linewidth : 4);
       const tubeRadius = Math.max(0.012, 0.008 * baseLw);

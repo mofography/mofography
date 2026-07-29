@@ -165,8 +165,8 @@ def test_aromatic_rings_rendered() -> int:
               };
             }"""
         )
-        assert state["rings"] and state["rings"]["visible"] and state["rings"]["count"] == 12
-        assert state["pent"] and state["pent"]["visible"] and state["pent"]["count"] == 12
+        assert state["rings"] and state["rings"]["visible"] and state["rings"]["count"] == 24
+        assert state["pent"] and state["pent"]["visible"] and state["pent"]["count"] == 24
 
         page.evaluate("() => { explodeSlider.value = '1.5'; applyExplodeOffsets(); }")
         pos = page.evaluate(
