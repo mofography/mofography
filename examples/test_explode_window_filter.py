@@ -143,8 +143,50 @@ def test_framework_repr_switching() -> int:
     return 0
 
 
+def test_aromatic_rings_rendered() -> int:
+    path = HTML
+    if not path.is_file():
+        print(f"Missing {path}")
+        return 1
+    url = path.resolve().as_uri()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, wait_until="networkidle", timeout=120_000)
+        page.wait_for_function("typeof objectsById !== 'undefined'")
+
+        state = page.evaluate(
+            """() => {
+              const rings = objectsById.aromatic_rings;
+              const pent = objectsById.aromatic_highlights_pent;
+              return {
+                rings: rings ? { visible: rings.visible, count: rings.count } : null,
+                pent: pent ? { visible: pent.visible, count: pent.count } : null,
+              };
+            }"""
+        )
+        assert state["rings"] and state["rings"]["visible"] and state["rings"]["count"] == 12
+        assert state["pent"] and state["pent"]["visible"] and state["pent"]["count"] == 12
+
+        page.evaluate("() => { explodeSlider.value = '1.5'; applyExplodeOffsets(); }")
+        pos = page.evaluate(
+            """() => {
+              const o = objectsById.aromatic_rings;
+              return o ? { x: o.position.x, visible: o.visible, count: o.count } : null;
+            }"""
+        )
+        assert pos and pos["visible"] and abs(pos["x"]) > 1.0
+        browser.close()
+
+    print("OK: aromatic ring instanced meshes render in viewer")
+    return 0
+
+
 if __name__ == "__main__":
     code = main()
     if code != 0:
         raise SystemExit(code)
-    raise SystemExit(test_framework_repr_switching())
+    code = test_framework_repr_switching()
+    if code != 0:
+        raise SystemExit(code)
+    raise SystemExit(test_aromatic_rings_rendered())
