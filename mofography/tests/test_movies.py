@@ -272,11 +272,14 @@ def test_make_framework_instanced_representations():
     stick_r = stick["atoms"]["data"]["radii"][0]
     sf_r = sf["atoms"]["data"]["radii"][0]
     assert stick_r < bs_r
-    assert abs(stick_r - float(covalent_radii[6] * 0.15)) < 1e-6
+    assert abs(stick_r - movies.FRAMEWORK_STICK_RADIUS) < 1e-6
+    assert abs(stick["bonds"]["data"]["radius"] - movies.FRAMEWORK_STICK_RADIUS) < 1e-6
     assert abs(sf_r - float(vdw_radii[6])) < 1e-6
     assert "bonds" in bs and bs["bonds"]["data"]["n_bonds"] == 1
     assert "bonds" in stick and stick["bonds"]["data"]["n_bonds"] == 2
     assert "bonds" not in sf
+    starts = stick["bonds"]["data"]["start_positions"]
+    assert starts[:3] == pytest.approx([0.0, 0.0, 0.0])
 
 
 def test_full_chainable_pipeline():
