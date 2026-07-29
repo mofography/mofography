@@ -282,6 +282,29 @@ def test_make_framework_instanced_representations():
     assert starts[:3] == pytest.approx([0.0, 0.0, 0.0])
 
 
+def test_zif8_aromatic_cycles_merge_duplicate_sites():
+    """RASPA-expanded ZIF-8 CIF duplicates sites; merge before ring detection."""
+    from pathlib import Path
+
+    from ase.io import read
+
+    from mofography.analyze import compute_aromatic_cycles, update_with_covalent_bonds
+
+    cif = Path(__file__).resolve().parents[2] / "examples/TestCIFs/ZIF-8-RASPA.cif"
+    if not cif.is_file():
+        pytest.skip("ZIF-8 CIF missing")
+    atoms = update_with_covalent_bonds(read(str(cif)))
+    without_merge = compute_aromatic_cycles(
+        atoms, force_recompute=True, merge_duplicate_sites=False,
+    )
+    with_merge = compute_aromatic_cycles(
+        atoms, force_recompute=True, merge_duplicate_sites=True,
+    )
+    assert len(without_merge) == 12
+    assert len(with_merge) == 24
+    assert all(len(c) == 5 for c in with_merge)
+
+
 def test_full_chainable_pipeline():
     """All add_* methods chained together produce correct traces."""
     from ase import Atoms
