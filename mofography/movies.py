@@ -4630,6 +4630,147 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       return mesh;
     }
 
+    function quaternionFromPlaneNormal(nx, ny, nz) {
+      const zAxis = new THREE.Vector3(0, 0, 1);
+      const n = new THREE.Vector3(nx || 0, ny || 0, nz || 1);
+      if (n.lengthSq() < 1e-12) n.set(0, 0, 1);
+      else n.normalize();
+      const q = new THREE.Quaternion();
+      q.setFromUnitVectors(zAxis, n);
+      return q;
+    }
+
+    function ringOutlineTemplateGeometry(radialSegments, tubeRadius) {
+      if (!scene.userData.ringOutlineTemplates) scene.userData.ringOutlineTemplates = {};
+      const key = String(radialSegments) + ":" + String(tubeRadius);
+      if (!scene.userData.ringOutlineTemplates[key]) {
+        scene.userData.ringOutlineTemplates[key] = new THREE.TorusGeometry(
+          1.0, tubeRadius, Math.max(4, radialSegments), 12
+        );
+      }
+      return scene.userData.ringOutlineTemplates[key];
+    }
+
+    function ringFillTemplateGeometry(sides) {
+      if (!scene.userData.ringFillTemplates) scene.userData.ringFillTemplates = {};
+      const nSides = Math.max(3, sides | 0);
+      if (!scene.userData.ringFillTemplates[nSides]) {
+        const shape = new THREE.Shape();
+        for (let i = 0; i < nSides; i++) {
+          const ang = (i / nSides) * Math.PI * 2.0 - Math.PI * 0.5;
+          const x = Math.cos(ang);
+          const y = Math.sin(ang);
+          if (i === 0) shape.moveTo(x, y);
+          else shape.lineTo(x, y);
+        }
+        shape.closePath();
+        scene.userData.ringFillTemplates[nSides] = new THREE.ShapeGeometry(shape);
+      }
+      return scene.userData.ringFillTemplates[nSides];
+    }
+
+    function addInstancedRingOutlines(trace) {
+      const n = trace.data.n_rings || 0;
+      if (!n) { console.warn("Skipping empty instanced ring outlines:", trace.id); return null; }
+      const centers = trace.data.centers || [];
+      const normals = trace.data.normals || [];
+      const innerRadii = trace.data.inner_radii || [];
+      const radialSegments = trace.data.radial_segments || 16;
+      const style = styleFor(trace);
+      const baseLw = Number(style.linewidth !== undefined ? style.linewidth : 4);
+      const tubeRadius = Math.max(0.012, 0.008 * baseLw);
+      const geo = ringOutlineTemplateGeometry(radialSegments, tubeRadius);
+      const col = threeColorFromStyle(style.color, 0xffffff);
+      const opacity = style.opacity !== undefined ? style.opacity : 1.0;
+      const isOpaque = opacity >= 0.999;
+      const mat = new THREE.MeshPhongMaterial({
+        color: col,
+        shininess: style.shininess !== undefined ? style.shininess : 20,
+        specular: style.specular !== undefined ? style.specular : 0x222222,
+        transparent: !isOpaque,
+        opacity: opacity,
+        depthWrite: isOpaque,
+      });
+      const mesh = new THREE.InstancedMesh(geo, mat, n);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      const dummy = new THREE.Object3D();
+      const q = new THREE.Quaternion();
+      for (let i = 0; i < n; i++) {
+        const cx = centers[i * 3] || 0;
+        const cy = centers[i * 3 + 1] || 0;
+        const cz = centers[i * 3 + 2] || 0;
+        const nx = normals[i * 3] || 0;
+        const ny = normals[i * 3 + 1] || 0;
+        const nz = normals[i * 3 + 2] || 1;
+        const r = Math.max(innerRadii[i] || 0.2, 0.05);
+        q.copy(quaternionFromPlaneNormal(nx, ny, nz));
+        dummy.position.set(cx, cy, cz);
+        dummy.quaternion.copy(q);
+        dummy.scale.set(r, r, r);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.name = trace.id;
+      mesh.userData.originalOpacity = mat.opacity;
+      mesh.renderOrder = 1;
+      scene.add(mesh);
+      objectsById[trace.id] = mesh;
+      return mesh;
+    }
+
+    function addInstancedRingFills(trace) {
+      const n = trace.data.n_instances || 0;
+      if (!n) { console.warn("Skipping empty instanced ring fills:", trace.id); return null; }
+      const sides = trace.data.sides || 6;
+      const centers = trace.data.centers || [];
+      const normals = trace.data.normals || [];
+      const scales = trace.data.scales || [];
+      const style = styleFor(trace);
+      const geo = ringFillTemplateGeometry(sides);
+      const col = threeColorFromStyle(style.color, 0x3399f2);
+      const opacity = style.opacity !== undefined ? style.opacity : 0.3;
+      const isOpaque = opacity >= 0.999;
+      const sideName = style.side || "DoubleSide";
+      const side = sideName === "FrontSide" ? THREE.FrontSide
+        : (sideName === "BackSide" ? THREE.BackSide : THREE.DoubleSide);
+      const mat = new THREE.MeshPhongMaterial({
+        color: col,
+        shininess: style.shininess !== undefined ? style.shininess : 10,
+        specular: style.specular !== undefined ? style.specular : 0x151515,
+        transparent: !isOpaque,
+        opacity: opacity,
+        depthWrite: isOpaque,
+        side: side,
+      });
+      const mesh = new THREE.InstancedMesh(geo, mat, n);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      const dummy = new THREE.Object3D();
+      const q = new THREE.Quaternion();
+      for (let i = 0; i < n; i++) {
+        const cx = centers[i * 3] || 0;
+        const cy = centers[i * 3 + 1] || 0;
+        const cz = centers[i * 3 + 2] || 0;
+        const nx = normals[i * 3] || 0;
+        const ny = normals[i * 3 + 1] || 0;
+        const nz = normals[i * 3 + 2] || 1;
+        const s = Math.max(scales[i] || 0.5, 0.05);
+        q.copy(quaternionFromPlaneNormal(nx, ny, nz));
+        dummy.position.set(cx, cy, cz);
+        dummy.quaternion.copy(q);
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.name = trace.id;
+      mesh.userData.originalOpacity = mat.opacity;
+      mesh.renderOrder = 0;
+      scene.add(mesh);
+      objectsById[trace.id] = mesh;
+      return mesh;
+    }
+
     function addUnitCellLines(trace) {
       // WebGL ignores LineBasicMaterial.linewidth (always ~1px). For linewidth > 1,
       // draw cell edges as thin cylinders so thickness is visible in exports.
@@ -4737,6 +4878,12 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       else if (trace.type === "instanced_cylinders") {
         addInstancedCylinders(trace);
       }
+      else if (trace.type === "instanced_ring_outlines") {
+        addInstancedRingOutlines(trace);
+      }
+      else if (trace.type === "instanced_ring_fills") {
+        addInstancedRingFills(trace);
+      }
     });
 
     // Traces that exist only on animation frames (e.g. flexible framework) — create once from frame 0
@@ -4752,6 +4899,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         addInstancedSpheres(trace, 14, 14);
       }
       else if (trace.type === "instanced_cylinders") addInstancedCylinders(trace);
+      else if (trace.type === "instanced_ring_outlines") addInstancedRingOutlines(trace);
+      else if (trace.type === "instanced_ring_fills") addInstancedRingFills(trace);
     });
 
     // Guest instanced meshes for animation (supports multi-component ids like guests_CO2)
@@ -4798,6 +4947,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (trace.type === "points") return addPoints(trace);
       if (trace.type === "unit_cell_lines") return addUnitCellLines(trace);
       if (trace.type === "mesh") return addMesh(trace);
+      if (trace.type === "instanced_ring_outlines") return addInstancedRingOutlines(trace);
+      if (trace.type === "instanced_ring_fills") return addInstancedRingFills(trace);
       return null;
     }
 
