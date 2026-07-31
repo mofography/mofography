@@ -382,6 +382,26 @@ def test_zif20_fused_imidazole_benzene_six_rings():
     )
 
 
+def test_plot_aromatic_rings_matches_compute_aromatic_cycles():
+    """Plotly ring path uses the same detector as Three.js."""
+    from pathlib import Path
+
+    from ase.io import read
+
+    from mofography.analyze import compute_aromatic_cycles, update_with_covalent_bonds
+    from mofography.visualize import plot_aromatic_rings
+
+    cif = Path(__file__).resolve().parents[2] / "examples/TestCIFs/NU-1000_S1.cif"
+    if not cif.is_file():
+        pytest.skip("NU-1000 CIF missing")
+    atoms = update_with_covalent_bonds(read(str(cif)))
+    expected = compute_aromatic_cycles(atoms, force_recompute=True)
+    atoms.info.pop("aromatic_cycles", None)
+    plot_aromatic_rings(atoms)
+    assert atoms.info.get("aromatic_cycles") == expected
+    assert len(expected) == 48
+
+
 def test_full_chainable_pipeline():
     """All add_* methods chained together produce correct traces."""
     from ase import Atoms

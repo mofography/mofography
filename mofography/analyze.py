@@ -1684,7 +1684,7 @@ def compute_aromatic_cycles(
        :func:`update_with_covalent_bonds` if needed).
     2. Returns the cached ``ase_atoms.info["aromatic_cycles"]`` when
        ``force_recompute=False`` and the info entry is already populated.
-    3. Otherwise calls :func:`find_aromatic_cycles_in_sgraph`, stores the
+    3. Otherwise detects rings (unit-cell chordless search by default), stores the
        result in ``ase_atoms.info["aromatic_cycles"]``, and returns it.
 
     When ``merge_duplicate_sites`` is True (default), atoms that share the
@@ -1697,8 +1697,9 @@ def compute_aromatic_cycles(
     is highlighted. When False, uses graph cycle detection on a merged or
     full structure (representative atoms only for merged sites).
 
-    Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
-    when a pre-computed cycle list is not supplied.
+    Used by :func:`~mofography.visualize.plot_aromatic_rings` (Plotly) and
+    :func:`~mofography.movies.make_aromatic_rings_trace` (Three.js) when a
+    pre-computed cycle list is not supplied.
     """
     if "covalent_bonds" not in ase_atoms.info:
         ase_atoms = update_with_covalent_bonds(ase_atoms)

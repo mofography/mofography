@@ -1292,32 +1292,25 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
                         kwargs_highlight=dict(color='skyblue', opacity=0.5, alphahull=-1, showlegend=False,
                         legendgroup='aromatics', legendgrouptitle_text='Aromatic rings', name='Aromatic highlights')):
     """
-    It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
-    used to plot the aromatic cycles
-    
-    :param sgraph: the sgraph object
-    :param isomorphic_aromatic_cycles: a list of lists of node indices that are aromatic rings. If you
-    don't have this, you can set it to None and the function will try to find it for you
-    :param highlight_color: The color of the highlighted aromatic rings, defaults to lightskyblue
-    (optional)
-    :return: A tuple of the data_circle and ring_highlight_traces
+    Plotly traces for aromatic ring outlines and semi-transparent fills.
+
+    When ``isomorphic_aromatic_cycles`` is ``None``, calls
+    :func:`~mofography.analyze.compute_aromatic_cycles` (same path as Three.js;
+    cached on ``ase_atoms.info["aromatic_cycles"]``).
+
+    :param isomorphic_aromatic_cycles: atom-index rings, or ``None`` to auto-detect
+    :return: tuple of outline + highlight Plotly traces
     """
-    from .analyze import find_aromatic_cycles_in_sgraph, update_with_covalent_bonds, sgraph_from_atoms
+    from .analyze import compute_aromatic_cycles, update_with_covalent_bonds
 
     if not ('covalent_bonds' in ase_atoms.info.keys()):
         ase_atoms = update_with_covalent_bonds(ase_atoms)
 
-    sgraph = sgraph_from_atoms(ase_atoms)
     import plotly.graph_objects as go
     import numpy as np
 
     if isomorphic_aromatic_cycles is None:
-        print('isomorphic aromatic cycles is None, trying to calculate')
-        try:
-            isomorphic_aromatic_cycles = find_aromatic_cycles_in_sgraph(sgraph)
-            # print(isomorphic_aromatic_cycles)
-        except:
-            Exception('Cannot find aromatic cycles from sgraph! Please provide as input.')
+        isomorphic_aromatic_cycles = compute_aromatic_cycles(ase_atoms)
     circle_data = []
     from numpy.core.numeric import cross
     theta = np.linspace(0, 2 * np.pi, 100)
@@ -1327,12 +1320,7 @@ def plot_aromatic_rings(ase_atoms, isomorphic_aromatic_cycles=None,
     circle_coord = np.array([xc, yc, zc]).T
 
     from scipy.spatial.transform import Rotation as R
-    import networkx as nx
-    # coord  = nx.get_node_attributes(sgraph, "position")# ring circles
-    try:
-        coord = np.vstack(list(nx.get_node_attributes(sgraph, "position").values()))
-    except:
-        raise Exception("Cannot find position data in your sgraph")
+    coord = np.asarray(ase_atoms.get_positions(), dtype=float)
     # print(isomorphic_aromatic_cycles)
     if isomorphic_aromatic_cycles is not None:
         if len(isomorphic_aromatic_cycles) >0:
