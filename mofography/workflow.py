@@ -623,6 +623,15 @@ def pocket_regions_cluster(typed_result, seg):
     return seg.get("regions_pbc")
 
 
+def _cache_aromatic_cycles_if_needed(fw_atoms, *, show_rings: bool) -> None:
+    """Compute aromatic cycles once and cache on ``fw_atoms.info`` (shared by Plotly/Three.js)."""
+    if not show_rings or fw_atoms is None:
+        return
+    from mofography.analyze import compute_aromatic_cycles
+
+    compute_aromatic_cycles(fw_atoms)
+
+
 def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms=None, **options):
     """Build the full mofography visualization figure (Plotly backend).
 
@@ -751,6 +760,10 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
 
     if defaults.get("plot_framework", True):
         _fw_atoms = framework_atoms if framework_atoms is not None else atoms
+        _cache_aromatic_cycles_if_needed(
+            _fw_atoms,
+            show_rings=bool(defaults.get("plot_framework_show_rings", True)),
+        )
         fw = plot_framework_as_mesh(
             _fw_atoms, stylize=stylize,
             show_rings=bool(defaults.get("plot_framework_show_rings", True)),
@@ -962,6 +975,10 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
 
     if defaults.get("plot_framework", True):
         _fw_atoms = framework_atoms if framework_atoms is not None else atoms
+        _cache_aromatic_cycles_if_needed(
+            _fw_atoms,
+            show_rings=bool(defaults.get("plot_framework_show_rings", True)),
+        )
         _fw_repr_raw = defaults.get("plot_framework_representation")
         if _fw_repr_raw is None:
             _fw_repr_raw = defaults.get("plot_framework_style", "mesh")

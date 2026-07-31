@@ -15,8 +15,13 @@ Entry points:
 | Layer | Function |
 |-------|----------|
 | Detection | [`compute_aromatic_cycles()`](../reference/compute_aromatic_cycles.qmd) |
-| Plotly | [`plot_aromatic_rings()`](../reference/plot_aromatic_rings.qmd), [`draw_framework()`](../reference/draw_framework.qmd) |
+| Plotly | [`plot_aromatic_rings()`](../reference/plot_aromatic_rings.qmd), [`show_mof_plotly()`](../reference/show_mof_plotly.qmd) |
 | Three.js | [`make_aromatic_rings_trace()`](../reference/make_aromatic_rings_trace.qmd), [`show_mof_threejs()`](../reference/show_mof_threejs.qmd) |
+
+Both backends call the **same** `compute_aromatic_cycles` detector. Results are
+cached on `atoms.info["aromatic_cycles"]` so Plotly mesh + ring traces do not
+detect twice. `show_mof_plotly` / `show_mof_threejs` enable rings by default
+(`plot_framework_show_rings=True`).
 
 Always call [`update_with_covalent_bonds()`](../reference/update_with_covalent_bonds.qmd) first (or let `compute_aromatic_cycles` do it).
 

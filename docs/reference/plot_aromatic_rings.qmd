@@ -13,9 +13,8 @@ It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly
 used to plot the aromatic cycles
 
 When ``isomorphic_aromatic_cycles`` is ``None``, cycles are computed via
-:func:`~mofography.analyze.compute_aromatic_cycles` (includes
-[bond-length tolerances](../aromatic_ring_detection.qmd) for fused aromatic
-rings).
+:func:`~mofography.analyze.compute_aromatic_cycles` (same detector as Three.js;
+see [bond-length tolerances](../aromatic_ring_detection.qmd)).
 
 ## Parameters {.doc-section .doc-section-parameters}
 
