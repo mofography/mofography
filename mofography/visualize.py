@@ -2493,7 +2493,11 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
     faces = combined.faces
     colors = ['rgba(' + ','.join(c.astype(str)) + ')' for c in combined.visual.vertex_colors]
     framework_mesh_trace = go.Mesh3d(x=verts[:, 0], y=verts[:, 1], z=verts[:, 2], i=faces[:, 0],
-                                     j=faces[:, 1], k=faces[:, 2], vertexcolor=colors, **kwargs_frame_mesh) 
+                                     j=faces[:, 1], k=faces[:, 2], vertexcolor=colors,
+                                     legendgroup='framework_mesh',
+                                     legendgrouptitle_text='Framework (mesh)',
+                                     **{k: v for k, v in kwargs_frame_mesh.items()
+                                        if k not in ('legendgroup', 'legendgrouptitle_text')}) 
     if stylize:
         framework_mesh_trace.update(
             lighting=dict(
@@ -2821,6 +2825,7 @@ def plot_windows_from_results(
     periodic_marker_color="orange",
     periodic_marker_size=8,
     periodic_opacity=0.4,
+    show_periodic=True,
 ):
     """Plot window positions with optional periodic reclassification (Plotly backend).
 
@@ -2901,6 +2906,7 @@ def plot_windows_from_results(
                 marker=dict(size=periodic_marker_size, color=periodic_marker_color, opacity=periodic_opacity),
                 hovertext=periodic_hover,
                 name=f"{name} (periodic)",
+                visible=bool(show_periodic),
             ))
     else:
         # Simple path: just use the existing plot_windows
@@ -3677,7 +3683,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
     traces = []
     print("1. Creating atoms trace\n")
 
-    trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext, marker=dict(opacity=atoms_opacity, size=scatter_size, color=atom_colors[ase_atoms.get_atomic_numbers() - 1], sizemode='diameter', colorscale=cscale), name='Atoms', text=names, textfont=dict(color=colorlist, size=20), surfaceaxis=-1, legendgroup='framework', legendgrouptitle_text = 'Framework',)
+    trace_scatter = go.Scatter3d(x=coord[:, 0], y=coord[:, 1], z=coord[:, 2], mode='markers', hovertext=hovertext, marker=dict(opacity=atoms_opacity, size=scatter_size, color=atom_colors[ase_atoms.get_atomic_numbers() - 1], sizemode='diameter', colorscale=cscale), name='Atoms', text=names, textfont=dict(color=colorlist, size=20), surfaceaxis=-1, legendgroup='framework_scatter', legendgrouptitle_text='Framework (scatter)',)
     traces.append(trace_scatter)
 
     if 'covalent_bonds' not in ase_atoms.info.keys():
@@ -3720,7 +3726,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
     edges_master = np.vstack(edges_master)
     # print(bond_color)
     # try:
-    trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2], line=dict(width=15, color=bond_color, colorscale=bond_colorscale, showscale=False, colorbar=dict(thickness=20, len=0.6, title='bond order', )), opacity=bond_opacity, mode='lines', name='Bonds', legendgroup='framework', )
+    trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2], line=dict(width=15, color=bond_color, colorscale=bond_colorscale, showscale=False, colorbar=dict(thickness=20, len=0.6, title='bond order', )), opacity=bond_opacity, mode='lines', name='Bonds', legendgroup='framework_scatter', )
     # except:
     #     trace_edges = go.Scatter3d(x=edges_master[:, 0], y=edges_master[:, 1], z=edges_master[:, 2],
     #                                line=dict(width=15, color='rgba(150,150,150,0.35)', colorscale='aggrnyl'),

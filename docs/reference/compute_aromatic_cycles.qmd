@@ -7,19 +7,25 @@ analyze.compute_aromatic_cycles(
     force_recompute=False,
     expand_isomorphisms=True,
     default_ring_sizes=None,
+    merge_duplicate_sites=True,
+    expand_to_unit_cell=True,
 )
 ```
 
-Detect aromatic cycles and cache the result in ``ase_atoms.info``.
-
-Mirrors ``mgr.analyze.compute_aromatic_cycles``:
+Detect aromatic cycles and cache the result in ``ase_atoms.info["aromatic_cycles"]``.
 
 1. Ensures covalent bonds are present (calls
    :func:`update_with_covalent_bonds` if needed).
-2. Returns the cached ``ase_atoms.info["aromatic_cycles"]`` when
-   ``force_recompute=False`` and the info entry is already populated.
-3. Otherwise calls :func:`find_aromatic_cycles_in_sgraph`, stores the
-   result in ``ase_atoms.info["aromatic_cycles"]``, and returns it.
+2. Returns the cached list when ``force_recompute=False`` and the cache exists.
+3. Otherwise runs unit-cell chordless cycle search on the C/N subgraph
+   (:func:`find_aromatic_cycles_in_unit_cell`) and stores the result.
 
-Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
-when a pre-computed cycle list is not supplied.
+Used by :func:`~mofography.visualize.plot_aromatic_rings` (Plotly) and
+:func:`~mofography.movies.make_aromatic_rings_trace` (Three.js).
+
+## Bond-length tolerances
+
+Borderline pymatgen bond orders are corrected using MIC distance cutoffs for
+aromatic C–C and C–N (fused benzene, imidazole–benzene links, etc.). See
+[Aromatic ring detection](../aromatic_ring_detection.qmd) for literature values,
+threshold table, and debugging tips.
