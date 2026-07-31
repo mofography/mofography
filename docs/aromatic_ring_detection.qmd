@@ -1,0 +1,116 @@
+---
+title: "Aromatic ring detection"
+eval: false
+toc: true
+---
+
+# Aromatic ring highlights (Plotly & Three.js)
+
+MOFography detects small aromatic rings (typically 5–9 members: imidazole,
+benzene, pyridine, fused linker cores) to draw **white ring outlines** and
+**semi-transparent fills** on framework plots.
+
+Entry points:
+
+| Layer | Function |
+|-------|----------|
+| Detection | [`compute_aromatic_cycles()`](../reference/compute_aromatic_cycles.qmd) |
+| Plotly | [`plot_aromatic_rings()`](../reference/plot_aromatic_rings.qmd), [`draw_framework()`](../reference/draw_framework.qmd) |
+| Three.js | [`make_aromatic_rings_trace()`](../reference/make_aromatic_rings_trace.qmd), [`show_mof_threejs()`](../reference/show_mof_threejs.qmd) |
+
+Always call [`update_with_covalent_bonds()`](../reference/update_with_covalent_bonds.qmd) first (or let `compute_aromatic_cycles` do it).
+
+## Workflow
+
+```python
+import mofography as mgr
+from ase.io import read
+
+atoms = mgr.update_with_covalent_bonds(read("framework.cif"))
+cycles = mgr.compute_aromatic_cycles(atoms)  # cached in atoms.info["aromatic_cycles"]
+
+# Plotly
+fig = mgr.show_mof_plotly(seg, atoms=atoms, plot_aromatic_rings=True)
+
+# Three.js HTML
+mgr.show_mof_threejs(seg, atoms=atoms, plot_aromatic_rings=True)
+```
+
+## Why distance tolerances are needed
+
+Bond orders come from **pymatgen** `CovalentBond.get_bond_order` (tolerance
+`tol=0.2` in `update_with_covalent_bonds`). Orders are binned:
+
+| Bond order | Label |
+|------------|-------|
+| (0, 1] | single |
+| (1, 2] | double |
+| (2, 3] | triple |
+
+Crystallographic aromatic and **fused-ring** contacts often sit on bin edges.
+Examples from real MOF linkers:
+
+| Structure | Symptom | MIC distance | Fix |
+|-----------|---------|--------------|-----|
+| NU-1000 TBAPy | Fused benzene C–C classified **single** | ~1.56 Å | C–C distance fallback |
+| ZIF-20 imidazole + benzene | Short C–N classified **triple** | ~1.30 Å | C–N triple demotion |
+
+Pure bond-order filtering then **drops valid rings** even though the geometry
+is clearly aromatic.
+
+## Literature reference distances
+
+Typical contact lengths (Å) for organic / MOF linkers (room temperature):
+
+| Contact | Range (Å) | Notes |
+|---------|-----------|-------|
+| Aromatic C–C | 1.38 – 1.42 | Benzene mean ~1.397 (Allen *et al.*, Acta Cryst. **B** 2002, CSD) |
+| Kekulé C–C in ring | 1.44 – 1.47 | “Single” bond in benzene Kekulé form |
+| Fused aromatic C–C | 1.47 – 1.58 | Naphthalene fusion; porphyrin/benzene ~1.55–1.56 |
+| Aromatic C–N | 1.30 – 1.37 | Pyridine ~1.34; imidazole ~1.33–1.37 |
+| C≡N nitrile | 1.15 – 1.16 | True triple — **not** aromatic |
+
+## Implementation thresholds
+
+Defined in `mofography/analyze.py` (search for `_AROMATIC_*_MAX_DIST`). MIC
+distances use periodic boundary conditions when the cell is set.
+
+| Constant | Value (Å) | Role |
+|----------|-----------|------|
+| `_AROMATIC_CC_MAX_DIST` | **1.62** | Promote borderline **single** C–C to aromatic double; validate 6-rings with long fusion bonds |
+| `_AROMATIC_CN_MAX_DIST` | **1.50** | Same for C–N pairs |
+| `_AROMATIC_CN_TRIPLE_MAX_DIST` | **1.42** | Demote misclassified **triple** C–N to aromatic double when distance is still in the aromatic range (above nitrile, below saturated C–N) |
+
+Additional rules:
+
+- **Chordless** C/N cycles of requested sizes (default 5–9).
+- At most **one** optional MIC closure edge (≤ 1.5 Å) per ring for duplicate-site bond gaps.
+- Ring must be **compact** after PBC unwrapping (span &lt; 4.5 Å).
+
+## Tuning or debugging
+
+```python
+from mofography.analyze import (
+    find_aromatic_cycles_in_unit_cell,
+    get_bond_types,
+    sgraph_from_atoms,
+)
+
+atoms = mgr.update_with_covalent_bonds(atoms)
+cycles = find_aromatic_cycles_in_unit_cell(atoms, default_ring_sizes=[5, 6])
+print(len(cycles), {len(c) for c in cycles})
+
+g = sgraph_from_atoms(atoms)
+import networkx as nx
+bt = nx.get_edge_attributes(g, "bond_type")
+# Inspect bond_type for atom pair (i, j): bt.get(tuple(sorted((i, j))))
+```
+
+If a ring is still missing, check MIC distance and `bond_type` for each edge
+in the cycle. Adjust thresholds only when you have a concrete false negative;
+the defaults were validated on ZIF-8, NU-1000, and ZIF-20.
+
+## Related
+
+- [Flexible framework movies (Three.js)](flexible_framework_movie_html.md) — ring traces in HTML export
+- [`get_bond_types`](../reference/get_bond_types.qmd) — bond-order binning + aromatic promotion

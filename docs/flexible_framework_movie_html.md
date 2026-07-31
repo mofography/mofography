@@ -82,5 +82,6 @@ Guest / component spheres use distinct hues via `guests_<label>` trace ids.
 
 ## See also
 
+- [Aromatic ring detection](aromatic_ring_detection.qmd) — bond-length tolerances for ring highlights (Plotly & Three.js)
 - `docs/movie_viewer_module_plan.md` — architecture and roadmap  
 - `mofography/movies.py` — `read_movie_snapshots`, `compute_sparse_segmentation_series`, `make_sparse_multicomponent_movie`, `DEFAULT_STYLES`

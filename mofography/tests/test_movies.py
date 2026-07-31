@@ -288,6 +288,8 @@ def test_zif8_aromatic_cycles_merge_duplicate_sites():
 
     from ase.io import read
 
+    import numpy as np
+
     from mofography.analyze import compute_aromatic_cycles, update_with_covalent_bonds
 
     cif = Path(__file__).resolve().parents[2] / "examples/TestCIFs/ZIF-8-RASPA.cif"
@@ -296,13 +298,88 @@ def test_zif8_aromatic_cycles_merge_duplicate_sites():
     atoms = update_with_covalent_bonds(read(str(cif)))
     without_merge = compute_aromatic_cycles(
         atoms, force_recompute=True, merge_duplicate_sites=False,
+        expand_to_unit_cell=False,
     )
     with_merge = compute_aromatic_cycles(
         atoms, force_recompute=True, merge_duplicate_sites=True,
     )
     assert len(without_merge) == 12
-    assert len(with_merge) == 24
+    assert len(with_merge) == 36
     assert all(len(c) == 5 for c in with_merge)
+
+    sym = atoms.get_chemical_symbols()
+    ring_n = {i for c in with_merge for i in c if sym[i] == "N"}
+    from mofography.analyze import sgraph_from_atoms
+    import networkx as nx
+
+    g = sgraph_from_atoms(atoms)
+    bt = nx.get_edge_attributes(g, "bond_type")
+    good_n = {
+        i
+        for i, s in enumerate(sym)
+        if s == "N"
+        and len([
+            j for j in g.neighbors(i) if sym[j] == "C" and bt.get(tuple(sorted((i, j)))) == "double"
+        ]) == 2
+    }
+    assert good_n.issubset(ring_n)
+    assert any(352 in c for c in with_merge)
+
+    from mofography.analyze import is_local_aromatic_cycle, unwrap_aromatic_cycle_positions
+
+    cell = atoms.get_cell()
+    pos = atoms.get_positions()
+    for cycle in with_merge:
+        assert is_local_aromatic_cycle(cycle, pos, cell)
+        unwrapped = unwrap_aromatic_cycle_positions(cycle, pos, cell)
+        span = float(
+            max(
+                np.linalg.norm(unwrapped[i] - unwrapped[j])
+                for i in range(len(cycle))
+                for j in range(i + 1, len(cycle))
+            )
+        )
+        assert span < 4.5
+
+
+def test_nu1000_fused_aromatic_rings_distance_tolerance():
+    """Fused benzene/pyrrole C–C links (~1.55 Å) count as aromatic framework."""
+    from pathlib import Path
+
+    from ase.io import read
+
+    from mofography.analyze import compute_aromatic_cycles, update_with_covalent_bonds
+
+    cif = Path(__file__).resolve().parents[2] / "examples/TestCIFs/NU-1000_S1.cif"
+    if not cif.is_file():
+        pytest.skip("NU-1000 CIF missing")
+    atoms = update_with_covalent_bonds(read(str(cif)))
+    cycles = compute_aromatic_cycles(atoms, force_recompute=True)
+    assert len(cycles) == 48
+    assert all(len(c) == 6 for c in cycles)
+    # porphyrin-like cluster: side rings sharing fusion bonds with central rings
+    assert any({177, 217, 214, 215, 247, 248}.issubset(set(c)) for c in cycles)
+
+
+def test_zif20_fused_imidazole_benzene_six_rings():
+    """ZIF-20: 6-rings fused to imidazole via short C–N bonds misclassified as triple."""
+    from pathlib import Path
+
+    from ase.io import read
+
+    from mofography.analyze import compute_aromatic_cycles, update_with_covalent_bonds
+
+    cif = Path.home() / "repos/RASPA2/structures/mofs/cif/ZIF-20.cif"
+    if not cif.is_file():
+        pytest.skip("ZIF-20 CIF missing")
+    atoms = update_with_covalent_bonds(read(str(cif)))
+    cycles = compute_aromatic_cycles(atoms, force_recompute=True)
+    sizes = sorted({len(c) for c in cycles})
+    assert sizes == [5, 6]
+    assert len(cycles) >= 700
+    assert any(
+        {1305, 1306, 1307, 4743, 4744, 4745}.issubset(set(c)) for c in cycles if len(c) == 6
+    )
 
 
 def test_full_chainable_pipeline():

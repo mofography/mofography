@@ -728,7 +728,7 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     bond_types = nx.get_edge_attributes(sgraph,'bond_type')
     cycles_edges = [list(zip(cycle,(cycle[1:]+cycle[:1]))) for cycle in small_cycles]
     cycle_bond_types = [[bond_types[tuple(sorted(edge))] for edge in cycle_edges] for cycle_edges in cycles_edges]
-    selected_cycles = [all(bt == 'double' for bt in cycle_bonds) for cycle_bonds in cycle_bond_types]
+    selected_cycles = [all(bt in ("double", "aromatic") for bt in cycle_bonds) for cycle_bonds in cycle_bond_types]
     aromatic_cycles = [c for c, s in zip(small_cycles, selected_cycles) if s]
     ic(aromatic_cycles)
 
@@ -822,7 +822,14 @@ def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
         if edge_props_dict is None:
             try:
                 print('No edge properties provided. Use the default set: [bond_order, bond_type]')
-                edge_props_dict = dict(bond_order = ase_atoms.info['covalent_bond_orders'], bond_type=get_bond_types(ase_atoms.info['covalent_bond_orders']))
+                edge_props_dict = dict(
+                    bond_order=ase_atoms.info["covalent_bond_orders"],
+                    bond_type=get_bond_types(
+                        ase_atoms.info["covalent_bond_orders"],
+                        bonds=bonds,
+                        ase_atoms=ase_atoms,
+                    ),
+                )
             except:
                 print("'covalent_bond_orders' not in ase_atoms.info. Hence no edge_properties added for now.")
         sgraph.add_edges_from([tuple((bonds[i][0], bonds[i][1], {key:value[i] for key,value in edge_props_dict.items()})) for i in range(len(bonds))])
@@ -847,15 +854,201 @@ def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
     #     nx.set_edge_attributes(sgraph, edge_props_dict)
     return sgraph
 
-def get_bond_types(bond_orders):
+# ---------------------------------------------------------------------------
+# Aromatic ring detection — bond-length tolerances
+# ---------------------------------------------------------------------------
+# Continuous bond orders from pymatgen (``CovalentBond.get_bond_order``, tol=0.2
+# in :func:`update_with_covalent_bonds`) are binned into single / double / triple.
+# Crystallographic aromatic and fused-ring contacts often fall near bin edges and
+# are misclassified. When bond order is ambiguous, we fall back to minimum-image
+# (MIC) distances for C/N pairs on the aromatic search graph.
+#
+# Literature reference distances (Å; room-temperature organic / MOF linkers):
+#
+#   Contact              Typical range    Example / source
+#   -------------------  ---------------  ---------------------------------
+#   Aromatic C–C         1.38 – 1.42      Benzene 1.397 (Allen et al., Acta
+#                                         Cryst. B 2002, CSD statistics)
+#   Kekulé C–C in ring   1.44 – 1.47      Alternating single in benzene ~1.46
+#   Fused aromatic C–C   1.47 – 1.58      Naphthalene fusion ~1.42–1.48;
+#                                         porphyrin/benzene fusion ~1.55–1.56
+#                                         (NU-1000 TBAPy linkers)
+#   Aromatic C–N         1.30 – 1.37      Pyridine ~1.34; imidazole ~1.33–1.37
+#   C≡N (nitrile)        1.15 – 1.16      True triple; keep below triple cutoff
+#
+# Implementation thresholds (Å, MIC) — upper bounds for “aromatic framework”:
+_AROMATIC_CC_MAX_DIST = 1.62
+# ^ Above Kekulé singles and fused benzene/pyrrole links; below typical C(sp3)–C.
+_AROMATIC_CN_MAX_DIST = 1.50
+# ^ Above aromatic C–N; below most saturated C–N singles.
+_AROMATIC_CN_TRIPLE_MAX_DIST = 1.42
+# ^ Reclassify pymatgen “triple” (bond order > 2) to aromatic double when the
+#   contact is still in the aromatic C–N range (ZIF-20 imidazole–benzene fusion
+#   ~1.30 Å was a common failure mode before this cutoff).
+#
+# See also: ``docs/aromatic_ring_detection.qmd`` (plotting / visualization).
+# ---------------------------------------------------------------------------
+
+
+def _mic_bond_distance(a, b, positions, cell):
+    """Minimum-image distance between two atom indices."""
+    import numpy as np
+    from ase.geometry import get_distances
+
+    pos = np.asarray(positions, dtype=float)
+    cell_arr = np.asarray(cell, dtype=float)
+    if bool(np.any(cell_arr)):
+        return float(
+            np.asarray(get_distances(pos[a], pos[b], cell=cell_arr, pbc=True)[1]).ravel()[0]
+        )
+    return float(np.linalg.norm(pos[a] - pos[b]))
+
+
+def _distance_is_aromatic_framework(a, b, positions, cell, symbols):
+    """True when a C/N pair is short enough to be aromatic framework (distance fallback).
+
+    Uses module thresholds ``_AROMATIC_CC_MAX_DIST`` and ``_AROMATIC_CN_MAX_DIST``
+    (see literature table in source comments above ``_AROMATIC_CC_MAX_DIST``).
     """
-    It takes a list of bond orders and returns a list of bond types
-    
+    sa, sb = symbols[int(a)], symbols[int(b)]
+    if sa not in "CN" or sb not in "CN":
+        return False
+    dist = _mic_bond_distance(int(a), int(b), positions, cell)
+    if sa == "C" and sb == "C":
+        return dist <= _AROMATIC_CC_MAX_DIST
+    if {sa, sb} == {"C", "N"}:
+        return dist <= _AROMATIC_CN_MAX_DIST
+    return False
+
+
+def _is_aromatic_framework_edge(
+    a,
+    b,
+    bond_types,
+    positions,
+    cell,
+    symbols,
+    *,
+    graph=None,
+    aug_edges=None,
+):
+    """Whether an edge counts as aromatic ring framework (type or distance)."""
+    edge = tuple(sorted((int(a), int(b))))
+    if aug_edges and edge in aug_edges:
+        return True
+    if graph is not None and graph.has_edge(a, b) and graph.edges[a, b].get("mic_closure"):
+        return True
+    bt = bond_types.get(edge)
+    if bt in ("double", "aromatic"):
+        return True
+    sa, sb = symbols[int(a)], symbols[int(b)]
+    if sa not in "CN" or sb not in "CN":
+        return False
+    dist = _mic_bond_distance(int(a), int(b), positions, cell)
+    if bt == "triple" and {sa, sb} == {"C", "N"} and dist <= _AROMATIC_CN_TRIPLE_MAX_DIST:
+        return True
+    return _distance_is_aromatic_framework(int(a), int(b), positions, cell, symbols)
+
+
+def _cycle_has_chord(graph, cycle):
+    """True if non-adjacent cycle nodes share an edge (not a chordless cycle)."""
+    import networkx as nx
+
+    n = len(cycle)
+    if n < 3:
+        return False
+    idx = {int(v): i for i, v in enumerate(cycle)}
+    g = graph if isinstance(graph, nx.Graph) else nx.Graph(graph)
+    for i, u in enumerate(cycle):
+        u = int(u)
+        for v in g.neighbors(u):
+            v = int(v)
+            if v not in idx:
+                continue
+            j = idx[v]
+            if j == (i - 1) % n or j == (i + 1) % n:
+                continue
+            return True
+    return False
+
+
+def _chordless_cycles_bounded(graph, length_bound):
+    """Enumerate chordless cycles with length <= length_bound (undirected simple graph).
+
+    Uses biconnected-component decomposition so MOF linker subgraphs stay small.
+    Compatible with NetworkX releases that lack ``chordless_cycles``.
+    """
+    import networkx as nx
+
+    if length_bound is None or length_bound < 3:
+        return
+    g = nx.Graph(graph)
+    seen: set[tuple[int, ...]] = set()
+    for nodes in nx.biconnected_components(g):
+        if len(nodes) < 3:
+            continue
+        sub = g.subgraph(nodes)
+        for start in sub.nodes():
+            stack = [(int(start), [int(start)], {int(start)})]
+            while stack:
+                node, path, visited = stack.pop()
+                plen = len(path)
+                if plen > length_bound:
+                    continue
+                for nbr in sub.neighbors(node):
+                    nbr = int(nbr)
+                    if nbr == int(start) and plen >= 3:
+                        if plen <= length_bound and not _cycle_has_chord(sub, path):
+                            key = tuple(sorted(path))
+                            if key not in seen:
+                                seen.add(key)
+                                yield list(path)
+                        continue
+                    if nbr in visited or plen >= length_bound:
+                        continue
+                    stack.append((nbr, path + [nbr], visited | {nbr}))
+
+
+def get_bond_types(bond_orders, *, bonds=None, ase_atoms=None):
+    """
+    Map continuous bond orders to single / double / triple labels.
+
+    With ``bonds`` and ``ase_atoms``, applies distance-based aromatic tolerances
+    when pymatgen bond orders sit on bin edges:
+
+    * **single → double** if MIC distance ≤ aromatic C–C / C–N limits
+    * **triple → double** if C–N distance ≤ ``_AROMATIC_CN_TRIPLE_MAX_DIST``
+      (short aromatic C–N misclassified as triple)
+
+    Bins: ``(0, 1]`` single, ``(1, 2]`` double, ``(2, 3]`` triple — same convention
+    as Plotly framework coloring via :func:`sgraph_from_atoms`.
+
     :param bond_orders: a list of bond orders, e.g. [1.0, 2.0, 1.0, 3.0]
-    :return: A pandas series with the bond types
+    :param bonds: optional ``covalent_bonds`` list; with ``ase_atoms``, enables
+        distance-based promotion of borderline singles to double (aromatic
+        framework bonds that pymatgen classifies as ~1.0 order).
+    :param ase_atoms: ASE atoms for MIC distances when applying aromatic tolerance.
+    :return: A pandas Categorical with bond types
     """
     import pandas as pd
-    return  pd.cut(bond_orders, bins=[0,1, 2, 3], labels=['single', 'double', 'triple'])
+
+    types = list(pd.cut(bond_orders, bins=[0, 1, 2, 3], labels=["single", "double", "triple"]))
+    if bonds is not None and ase_atoms is not None:
+        pos = ase_atoms.get_positions()
+        cell = ase_atoms.get_cell()
+        sym = ase_atoms.get_chemical_symbols()
+        for i, bond in enumerate(bonds):
+            a, b = int(bond[0]), int(bond[1])
+            if types[i] == "single" and _distance_is_aromatic_framework(a, b, pos, cell, sym):
+                types[i] = "double"
+                continue
+            if types[i] == "triple":
+                sa, sb = sym[a], sym[b]
+                if {sa, sb} == {"C", "N"}:
+                    dist = _mic_bond_distance(a, b, pos, cell)
+                    if dist <= _AROMATIC_CN_TRIPLE_MAX_DIST:
+                        types[i] = "double"
+    return pd.Categorical(types, categories=["single", "double", "triple"])
 
 
 def find_chemically_unique_cycles(list_of_cycles, graph):
@@ -1188,6 +1381,292 @@ def canonicalize_duplicate_site_atoms(ase_atoms, *, frac_digits: int = 3):
     return merged, keep
 
 
+# Max MIC covalent bond length (Å) for local aromatic cycle detection.
+_LOCAL_AROMATIC_MAX_MIC_BOND = 2.5
+# Max unwrapped ring span (Å) — imidazole/benzene are ~2–3 Å across.
+_LOCAL_AROMATIC_MAX_UNWRAPPED_SPAN = 4.5
+
+
+def filter_sgraph_to_local_bonds(
+    sgraph,
+    positions,
+    cell,
+    *,
+    max_mic_distance: float = _LOCAL_AROMATIC_MAX_MIC_BOND,
+):
+    """Drop graph edges whose minimum-image distance exceeds ``max_mic_distance``."""
+    import copy
+
+    import numpy as np
+    from ase.geometry import get_distances
+
+    local = copy.copy(sgraph)
+    pos = np.asarray(positions, dtype=float)
+    cell_arr = np.asarray(cell, dtype=float)
+    pbc = bool(np.any(cell_arr))
+    to_remove = []
+    for u, v in sgraph.edges():
+        if pbc:
+            mic = float(np.asarray(get_distances(pos[u], pos[v], cell=cell_arr, pbc=True)[1]).ravel()[0])
+        else:
+            mic = float(np.linalg.norm(pos[u] - pos[v]))
+        if mic > max_mic_distance:
+            to_remove.append((u, v))
+    local.remove_edges_from(to_remove)
+    return local
+
+
+def unwrap_aromatic_cycle_positions(cycle, positions, cell):
+    """Return Cartesian positions for a ring, unwrapping across periodic boundaries."""
+    import numpy as np
+    from ase.geometry import find_mic
+
+    pos = np.asarray(positions, dtype=float)
+    cell_arr = np.asarray(cell, dtype=float)
+    pbc = bool(np.any(cell_arr))
+    out = [pos[cycle[0]].copy()]
+    if not pbc:
+        return pos[np.asarray(cycle, dtype=int)]
+
+    for idx in range(1, len(cycle)):
+        a, b = cycle[idx - 1], cycle[idx]
+        vec = find_mic(pos[b] - pos[a], cell_arr, pbc=True)[0]
+        out.append(out[-1] + vec)
+    return np.asarray(out, dtype=float)
+
+
+def is_local_aromatic_cycle(
+    cycle,
+    positions,
+    cell,
+    *,
+    max_mic_bond: float = _LOCAL_AROMATIC_MAX_MIC_BOND,
+    max_unwrapped_span: float = _LOCAL_AROMATIC_MAX_UNWRAPPED_SPAN,
+):
+    """True when consecutive ring bonds are short and the unwrapped ring is compact."""
+    import numpy as np
+    from ase.geometry import get_distances, find_mic
+
+    if len(cycle) < 3:
+        return False
+    pos = np.asarray(positions, dtype=float)
+    cell_arr = np.asarray(cell, dtype=float)
+    pbc = bool(np.any(cell_arr))
+
+    unwrapped = unwrap_aromatic_cycle_positions(cycle, pos, cell_arr)
+    span = float(
+        max(
+            np.linalg.norm(unwrapped[i] - unwrapped[j])
+            for i in range(len(cycle))
+            for j in range(i + 1, len(cycle))
+        )
+    )
+    if span > max_unwrapped_span:
+        return False
+
+    for i in range(len(cycle)):
+        a, b = cycle[i], cycle[(i + 1) % len(cycle)]
+        if pbc:
+            bond_len = float(np.asarray(get_distances(pos[a], pos[b], cell=cell_arr, pbc=True)[1]).ravel()[0])
+        else:
+            bond_len = float(np.linalg.norm(pos[a] - pos[b]))
+        if bond_len > max_mic_bond:
+            return False
+        if pbc:
+            step = float(np.linalg.norm(find_mic(pos[b] - pos[a], cell_arr, pbc=True)[0]))
+            if step > max_mic_bond:
+                return False
+    return True
+
+
+def filter_local_aromatic_cycles(
+    cycles,
+    positions,
+    cell,
+    *,
+    max_mic_bond: float = _LOCAL_AROMATIC_MAX_MIC_BOND,
+    max_unwrapped_span: float = _LOCAL_AROMATIC_MAX_UNWRAPPED_SPAN,
+):
+    """Keep only aromatic cycles that are local (not PBC-spanning artifacts)."""
+    kept = []
+    for cycle in cycles:
+        if is_local_aromatic_cycle(
+            cycle,
+            positions,
+            cell,
+            max_mic_bond=max_mic_bond,
+            max_unwrapped_span=max_unwrapped_span,
+        ):
+            kept.append(cycle)
+    return kept
+
+
+# Max MIC length (Å) for optional aromatic closure edges (site-image bond gaps).
+_AROMATIC_MIC_CLOSURE_MAX = 1.5
+# Max augmented (MIC-only) edges allowed per detected ring.
+_AROMATIC_MAX_CLOSURE_EDGES = 1
+
+
+def _build_aromatic_search_graph(ase_atoms, *, mic_closure_max: float = _AROMATIC_MIC_CLOSURE_MAX):
+    """C/N subgraph with optional MIC closure edges for missing aromatic bonds."""
+    import numpy as np
+    from ase.geometry import get_distances
+    from ase.neighborlist import neighbor_list
+
+    sym = ase_atoms.get_chemical_symbols()
+    pos = ase_atoms.get_positions()
+    cell = ase_atoms.get_cell()
+    pbc = bool(np.any(ase_atoms.get_pbc()))
+    cn_nodes = [i for i, s in enumerate(sym) if s in "CN"]
+
+    base = sgraph_from_atoms(ase_atoms)
+    bond_types = __import__("networkx").get_edge_attributes(base, "bond_type")
+
+    import networkx as nx
+
+    graph = base.subgraph(cn_nodes).copy()
+    aug_edges: set[tuple[int, int]] = set()
+
+    if mic_closure_max > 0 and cn_nodes:
+        if pbc:
+            i_idx, j_idx, dists = neighbor_list(
+                "ijd", ase_atoms, cutoff=float(mic_closure_max), self_interaction=False,
+            )
+            pairs = zip(i_idx.tolist(), j_idx.tolist(), dists.tolist())
+        else:
+            pairs = []
+            for a in cn_nodes:
+                for b in cn_nodes:
+                    if b <= a:
+                        continue
+                    d = float(np.linalg.norm(pos[a] - pos[b]))
+                    if d <= mic_closure_max:
+                        pairs.append((a, b, d))
+
+        for a, b, _dist in pairs:
+            if sym[a] not in "CN" or sym[b] not in "CN":
+                continue
+            if graph.has_edge(a, b):
+                continue
+            if pbc:
+                mic = float(
+                    np.asarray(get_distances(pos[a], pos[b], cell=cell, pbc=True)[1]).ravel()[0]
+                )
+                if mic > mic_closure_max:
+                    continue
+            graph.add_edge(a, b, bond_type="double", mic_closure=True)
+            aug_edges.add(tuple(sorted((int(a), int(b)))))
+
+    return graph, bond_types, aug_edges
+
+
+def _is_valid_aromatic_cycle(
+    cycle,
+    graph,
+    bond_types,
+    aug_edges,
+    positions,
+    cell,
+    symbols,
+    *,
+    max_closure_edges: int = _AROMATIC_MAX_CLOSURE_EDGES,
+):
+    """Aromatic ring candidate: double bonds + <=N MIC closures + compact local geometry."""
+    n = len(cycle)
+    if n < 3:
+        return False
+    closure = 0
+    for i in range(n):
+        a, b = int(cycle[i]), int(cycle[(i + 1) % n])
+        edge = tuple(sorted((a, b)))
+        if not graph.has_edge(a, b):
+            return False
+        if edge in aug_edges or graph.edges[a, b].get("mic_closure"):
+            closure += 1
+            continue
+        if not _is_aromatic_framework_edge(
+            a, b, bond_types, positions, cell, symbols,
+            graph=graph, aug_edges=aug_edges,
+        ):
+            return False
+    if closure > max_closure_edges:
+        return False
+    return is_local_aromatic_cycle(cycle, positions, cell)
+
+
+def find_aromatic_cycles_in_unit_cell(
+    ase_atoms,
+    default_ring_sizes=None,
+    *,
+    mic_closure_max: float = _AROMATIC_MIC_CLOSURE_MAX,
+    max_closure_edges: int = _AROMATIC_MAX_CLOSURE_EDGES,
+):
+    """Detect local aromatic rings on every atom in the unit cell.
+
+  General detector for small aromatic rings (default sizes 5–9: imidazole,
+  benzene, pyridine, and related MOF linkers). Uses covalent bond orders from
+  ``ase_atoms.info`` (call :func:`update_with_covalent_bonds` first).
+
+  Bond graph edges marked aromatic/double define the ring framework. When
+  periodic-image duplicate sites leave a single missing short C–C/C–N contact,
+  at most one MIC closure edge (≤ ``mic_closure_max`` Å) may complete the
+  cycle. Rings must be compact after PBC unwrapping (not cell-spanning).
+
+  **Bond-length tolerances:** continuous bond orders from pymatgen are binned
+  into single/double/triple; borderline contacts use MIC distance cutoffs for
+  aromatic C–C and C–N (see module comments on ``_AROMATIC_*_MAX_DIST`` in
+  this file and ``docs/aromatic_ring_detection.qmd``). Used by Plotly
+  (:func:`~mofography.visualize.plot_aromatic_rings`) and Three.js
+  (:func:`~mofography.movies.make_aromatic_rings_trace`) ring highlights.
+
+  Inputs: atomic positions, elements, cell/PBC, and ``covalent_bonds`` /
+  ``covalent_bond_orders`` in ``ase_atoms.info``.
+    """
+    try:
+        from networkx.algorithms.cycles import chordless_cycles as _chordless_cycles
+    except ImportError:
+        _chordless_cycles = None
+
+    if default_ring_sizes is None:
+        default_ring_sizes = [5, 6, 7, 8, 9]
+
+    sym = ase_atoms.get_chemical_symbols()
+    pos = ase_atoms.get_positions()
+    cell = ase_atoms.get_cell()
+    graph, bond_types, aug_edges = _build_aromatic_search_graph(
+        ase_atoms, mic_closure_max=mic_closure_max,
+    )
+
+    kept: set[tuple[int, ...]] = set()
+    max_size = max(default_ring_sizes)
+    if _chordless_cycles is not None:
+        cycle_iter = _chordless_cycles(graph, length_bound=max_size)
+    else:
+        cycle_iter = _chordless_cycles_bounded(graph, max_size)
+    for cycle in cycle_iter:
+        n = len(cycle)
+        if n not in default_ring_sizes:
+            continue
+        if not _is_valid_aromatic_cycle(
+            cycle, graph, bond_types, aug_edges, pos, cell, sym,
+            max_closure_edges=max_closure_edges,
+        ):
+            continue
+        kept.add(tuple(sorted(int(i) for i in cycle)))
+    return [list(c) for c in sorted(kept)]
+
+
+def find_imidazole_rings_in_unit_cell(ase_atoms):
+    """Deprecated alias — use :func:`find_aromatic_cycles_in_unit_cell`."""
+    return find_aromatic_cycles_in_unit_cell(ase_atoms, default_ring_sizes=[5])
+
+
+def expand_aromatic_cycles_to_unit_cell(ase_atoms, canonical_cycles):
+    """Deprecated — use :func:`find_aromatic_cycles_in_unit_cell`."""
+    del canonical_cycles
+    return find_aromatic_cycles_in_unit_cell(ase_atoms)
+
+
 def compute_aromatic_cycles(
     ase_atoms,
     *,
@@ -1195,6 +1674,7 @@ def compute_aromatic_cycles(
     expand_isomorphisms: bool = True,
     default_ring_sizes=None,
     merge_duplicate_sites: bool = True,
+    expand_to_unit_cell: bool = True,
 ):
     """Detect aromatic cycles and cache the result in ``ase_atoms.info``.
 
@@ -1211,6 +1691,12 @@ def compute_aromatic_cycles(
     same element and wrapped fractional coordinates are merged before graph
     construction. Cycle atom indices are mapped back to the input structure.
 
+    When ``expand_to_unit_cell`` is True (default), rings are found on the
+    full structure with :func:`find_aromatic_cycles_in_unit_cell` (sizes
+    ``default_ring_sizes``, default 5–9) so every distinct linker in the cell
+    is highlighted. When False, uses graph cycle detection on a merged or
+    full structure (representative atoms only for merged sites).
+
     Used internally by :func:`~mofography.movies.make_aromatic_rings_trace`
     when a pre-computed cycle list is not supplied.
     """
@@ -1224,20 +1710,43 @@ def compute_aromatic_cycles(
         return ase_atoms.info["aromatic_cycles"]
 
     kw = {} if default_ring_sizes is None else {"default_ring_sizes": default_ring_sizes}
-    if merge_duplicate_sites:
+    ring_sizes = default_ring_sizes if default_ring_sizes is not None else [5, 6, 7, 8, 9]
+
+    if expand_to_unit_cell:
+        cycles = find_aromatic_cycles_in_unit_cell(
+            ase_atoms,
+            default_ring_sizes=ring_sizes,
+        )
+    elif merge_duplicate_sites:
         merged_atoms, merged_to_original = canonicalize_duplicate_site_atoms(ase_atoms)
-        merged_cycles = find_aromatic_cycles_in_sgraph(
-            sgraph_from_atoms(merged_atoms),
-            **kw,
+        sgraph = sgraph_from_atoms(merged_atoms)
+        sgraph = filter_sgraph_to_local_bonds(
+            sgraph,
+            merged_atoms.get_positions(),
+            merged_atoms.get_cell(),
+        )
+        merged_cycles = find_aromatic_cycles_in_sgraph(sgraph, **kw)
+        merged_cycles = filter_local_aromatic_cycles(
+            merged_cycles,
+            merged_atoms.get_positions(),
+            merged_atoms.get_cell(),
         )
         cycles = [
             [merged_to_original[i] for i in cycle]
             for cycle in merged_cycles
         ]
     else:
-        cycles = find_aromatic_cycles_in_sgraph(
-            sgraph_from_atoms(ase_atoms),
-            **kw,
+        sgraph = sgraph_from_atoms(ase_atoms)
+        sgraph = filter_sgraph_to_local_bonds(
+            sgraph,
+            ase_atoms.get_positions(),
+            ase_atoms.get_cell(),
+        )
+        cycles = find_aromatic_cycles_in_sgraph(sgraph, **kw)
+        cycles = filter_local_aromatic_cycles(
+            cycles,
+            ase_atoms.get_positions(),
+            ase_atoms.get_cell(),
         )
     ase_atoms.info["aromatic_cycles"] = cycles
     return cycles

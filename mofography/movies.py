@@ -1796,6 +1796,15 @@ def _aromatic_render_mode() -> str:
     return os.environ.get("MGR_AROMATIC_RENDER", "auto").lower()
 
 
+def _ring_positions_for_pose(ring, positions, cell=None):
+    """Cartesian ring vertices for pose fitting (unwrap PBC when needed)."""
+    if cell is None:
+        return positions[ring]
+    from .analyze import unwrap_aromatic_cycle_positions
+
+    return unwrap_aromatic_cycle_positions(ring, positions, cell)
+
+
 def _ring_pose_from_positions(ring_pos) -> tuple:
     """Best-fit plane pose: center, unit normal, mean in-plane radius, inner outline radius."""
     n = int(len(ring_pos))
@@ -1826,12 +1835,12 @@ def _sorted_ring_vertices(ring_pos, center, normal):
     return centered[np.argsort(angles)]
 
 
-def _merged_aromatic_highlight_payload(cycles, positions):
+def _merged_aromatic_highlight_payload(cycles, positions, cell=None):
     """Single merged mesh for all ring fills."""
     all_verts = []
     all_faces = []
     for ring in cycles:
-        ring_pos = positions[ring]
+        ring_pos = _ring_positions_for_pose(ring, positions, cell)
         pose = _ring_pose_from_positions(ring_pos)
         if pose is None:
             continue
@@ -1862,12 +1871,13 @@ def _make_aromatic_rings_instanced_trace(
     style_circles,
     style_highlights,
     n_template_segments: int = 24,
+    cell=None,
 ):
     centers_l = []; normals_l = []; inner_l = []
     pent_centers = []; pent_normals = []; pent_scales = []
     hex_centers = []; hex_normals = []; hex_scales = []
     for ring in cycles:
-        ring_pos = positions[ring]
+        ring_pos = _ring_positions_for_pose(ring, positions, cell)
         pose = _ring_pose_from_positions(ring_pos)
         if pose is None:
             continue
@@ -1925,13 +1935,14 @@ def _make_aromatic_rings_legacy_trace(
     style_circles,
     style_highlights,
     n_circle_points: int,
+    cell=None,
 ):
     from scipy.spatial.transform import Rotation as _Rot
     theta = np.linspace(0, 2 * np.pi, n_circle_points, endpoint=False)
     unit_circle = np.column_stack([np.cos(theta), np.sin(theta), np.zeros_like(theta)])
     line_positions = []
     for ring in cycles:
-        ring_pos = positions[ring]
+        ring_pos = _ring_positions_for_pose(ring, positions, cell)
         pose = _ring_pose_from_positions(ring_pos)
         if pose is None:
             continue
@@ -1947,7 +1958,7 @@ def _make_aromatic_rings_legacy_trace(
         {"positions": line_positions, "n_segments": len(cycles) * n_circle_points},
         style=style_circles,
     )
-    payload = _merged_aromatic_highlight_payload(cycles, positions)
+    payload = _merged_aromatic_highlight_payload(cycles, positions, cell)
     highlights_trace = _make_trace(
         "aromatic_highlights", "mesh", "Aromatic highlights",
         payload, style=style_highlights,
@@ -1993,6 +2004,7 @@ def make_aromatic_rings_trace(
         return {"circles": empty_circles, "highlights": empty_highlights}
 
     positions = atoms.get_positions()
+    cell = atoms.get_cell() if bool(np.any(atoms.get_pbc())) else None
     if use_instanced is None:
         mode = _aromatic_render_mode()
         if mode == "legacy":
@@ -2008,12 +2020,14 @@ def make_aromatic_rings_trace(
             style_circles=style_circles,
             style_highlights=style_highlights,
             n_template_segments=n_template_segments,
+            cell=cell,
         )
     return _make_aromatic_rings_legacy_trace(
         cycles, positions,
         style_circles=style_circles,
         style_highlights=style_highlights,
         n_circle_points=n_circle_points,
+        cell=cell,
     )
 
 
@@ -4571,6 +4585,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       mesh.name = trace.id;
       mesh.userData.originalOpacity = mat.opacity;
+      mesh.userData.traceHover = trace.hover ? trace.hover.slice() : [];
+      mesh.userData.traceSymbols = trace.data.symbols || [];
       scene.add(mesh);
       objectsById[trace.id] = mesh;
       return mesh;
@@ -6077,17 +6093,42 @@ function readWindowMinThreshold() {
     raycaster.params.Points.threshold = 0.3;
 
     function hoverHitPriority(obj, hit) {
+      const name = (obj && obj.name) ? String(obj.name) : "";
+      if (name === "framework_atoms" || name === "framework_stick_atoms" || name === "framework_spacefill_atoms") return 8;
       if (obj instanceof THREE.Points) return 6;
       if (hit && hit.face && obj instanceof THREE.Mesh) return 5;
       if (obj instanceof THREE.LineSegments) return 4;
+      if (name.endsWith("_bonds") || name.endsWith("_bonds")) return 2;
       if (obj instanceof THREE.InstancedMesh) return 3;
       if (obj instanceof THREE.Mesh) return 2;
       return 1;
     }
 
+    function hoverHitKey(hit) {
+      if (!hit || !hit.object) return "";
+      const inst = (hit.instanceId != null && hit.instanceId >= 0) ? hit.instanceId : -1;
+      return `${hit.object.name || ""}#${inst}`;
+    }
+
+    function buildInstancedHoverText(hit, trace) {
+      const idx = hit.instanceId;
+      if (idx == null || idx < 0) return "";
+      const hoverArr = (hit.object.userData && hit.object.userData.traceHover) || (trace && trace.hover) || [];
+      if (hoverArr.length > idx && hoverArr[idx]) return String(hoverArr[idx]);
+      const symbols = (hit.object.userData && hit.object.userData.traceSymbols) || (trace && trace.data && trace.data.symbols) || [];
+      const positions = trace && trace.data && trace.data.positions ? trace.data.positions : [];
+      const sym = symbols[idx] || "?";
+      const px = positions[idx * 3] || 0;
+      const py = positions[idx * 3 + 1] || 0;
+      const pz = positions[idx * 3 + 2] || 0;
+      const traceName = trace ? (trace.name || hit.object.name) : hit.object.name;
+      return `Id: ${idx}\nElement: ${sym}\nPosition: ${px.toFixed(4)} ${py.toFixed(4)} ${pz.toFixed(4)}`;
+    }
+
     const mouse = new THREE.Vector2();
     let hoverRaf = null;
     let pendingHoverEv = null;
+    let stickyHoverKey = null;
     function runHoverRaycast(ev) {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
@@ -6096,18 +6137,29 @@ function readWindowMinThreshold() {
       const pickables = Object.values(objectsById).filter(o => o && o.visible);
       const hits = raycaster.intersectObjects(pickables, false);
       if (!hits.length) {
+        stickyHoverKey = null;
         tooltip.style.display = "none";
         return;
       }
-      // Pick the hit with the highest hover priority; tie-break by scene order (last rendered = on top)
-      const hit = hits.reduce((best, h) => {
-        const bestPri = hoverHitPriority(best.object, best);
-        const hPri = hoverHitPriority(h.object, h);
-        if (hPri !== bestPri) return hPri > bestPri ? h : best;
-        const bestIdx = scene.children.indexOf(best.object);
-        const hIdx = scene.children.indexOf(h.object);
-        return hIdx > bestIdx ? h : best;
-      });
+      // Prefer the previous hit when still under the cursor (reduces tooltip jumping).
+      let hit = null;
+      if (stickyHoverKey) {
+        hit = hits.find(h => hoverHitKey(h) === stickyHoverKey) || null;
+      }
+      if (!hit) {
+        hit = hits.reduce((best, h) => {
+          const bestPri = hoverHitPriority(best.object, best);
+          const hPri = hoverHitPriority(h.object, h);
+          if (hPri !== bestPri) return hPri > bestPri ? h : best;
+          const bestDist = best.distance != null ? best.distance : Infinity;
+          const hDist = h.distance != null ? h.distance : Infinity;
+          if (hDist !== bestDist) return hDist < bestDist ? h : best;
+          const bestIdx = scene.children.indexOf(best.object);
+          const hIdx = scene.children.indexOf(h.object);
+          return hIdx > bestIdx ? h : best;
+        });
+      }
+      stickyHoverKey = hoverHitKey(hit);
       let txt = "";
       if (hit.object && hit.object.name && (hit.object.name === "guests" || hit.object.name.startsWith("guests_"))) {
         const idx = hit.instanceId ?? -1;
@@ -6123,7 +6175,11 @@ function readWindowMinThreshold() {
         const frNow = getFrame(frame);
         const tracesNow = frNow && frNow.traces ? frNow.traces : [];
         const trace = tracesNow.find(t => t.id === hit.object.name) || staticTraces.find(t => t.id === hit.object.name);
-        if (trace && trace.hover && hit.face) {
+        if (hit.object instanceof THREE.InstancedMesh && hit.instanceId != null && hit.instanceId >= 0) {
+          const hoverTxt = buildInstancedHoverText(hit, trace);
+          const traceName = trace ? (trace.name || hit.object.name) : hit.object.name;
+          txt = hoverTxt ? `trace: ${traceName}\n${hoverTxt}` : `trace: ${traceName}\natom: ${hit.instanceId}`;
+        } else if (trace && trace.hover && hit.face) {
           const vi = hit.face.a;
           const hoverTxt = (vi >= 0 && vi < trace.hover.length) ? trace.hover[vi] : "";
           const traceName = trace.name || hit.object.name;
@@ -6179,7 +6235,7 @@ function readWindowMinThreshold() {
       });
     }
     renderer.domElement.addEventListener("pointermove", onPointerMove);
-    renderer.domElement.addEventListener("pointerleave", () => tooltip.style.display = "none");
+    renderer.domElement.addEventListener("pointerleave", () => { stickyHoverKey = null; tooltip.style.display = "none"; });
     renderer.domElement.addEventListener("pointerdown", function(ev) {
       if (!measuring) return;
       const rc = new THREE.Raycaster();

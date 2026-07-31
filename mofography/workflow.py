@@ -816,6 +816,7 @@ def show_mof_plotly(seg, atoms, typed_result=None, stylize=True, framework_atoms
             marker_color="red",
             marker_size=10,
             opacity=0.6,
+            show_periodic=bool(defaults.get("plot_windows_periodic", False)),
         )
         traces.extend(win_traces)
 

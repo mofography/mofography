@@ -197,6 +197,7 @@ The advanced tutorials should make sense in any order once the basic tutorials a
 
 - Visualize framework atoms and bonds like a pro .[Advanced structure visualization notebook](./framework_visualization_example.ipynb)
 - Visualize only a subset of the framework atoms and bonds [Framework subset visualization notebook](./plot_subset_as_mesh_tutorial.ipynb)
+- Aromatic ring highlights (imidazole, benzene, fused linkers) and bond-length tolerances [Aromatic ring detection](./aromatic_ring_detection.qmd)
 - Flexible framework + aligned component movies → Three.js HTML [Flexible framework movie export](./flexible_framework_movie_html.md)
 - Compute percolation paths, pore limiting dia. and pocket accessibility [Percolation paths and PLD notebook](./percolated_paths_tutorial.ipynb)
 - Grab a large DataFrame from MOFDB and do some calculations on some randomly chosen MOFs [MOFDB notebook](./mofdb_example.ipynb)
