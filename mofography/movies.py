@@ -4223,7 +4223,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function applyLineWidth(traceId, mult) {
       lineWidthMultByTrace[traceId] = mult;
       const obj0 = objectsById[traceId];
-      if (traceId === "connections_internal" && (edgeFilterThreshold() !== null || (obj0 && obj0.userData && obj0.userData.filteredByThreshold))) {
+      if (isConnectionTraceId(traceId) && (edgeFilterThreshold() !== null || (obj0 && obj0.userData && obj0.userData.filteredByThreshold))) {
         rebuildLineSegmentsForThreshold(traceId);
         applyExplodeOffsets();
         return;
@@ -5172,7 +5172,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           const mult = parseFloat(slider.value) || 1.0;
           traceIds.forEach(function(tid) {
             lineWidthMultByTrace[tid] = mult;
-            if (tid === "connections_internal" && edgeFilterThreshold() !== null) {
+            if (isConnectionTraceId(tid) && edgeFilterThreshold() !== null) {
               rebuildLineSegmentsForThreshold(tid);
             } else {
               applyLineWidth(tid, mult);
@@ -5226,7 +5226,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
               traceIds.forEach(function(tid) {
                 const mult = parseFloat(slider.value) || 1.0;
                 lineWidthMultByTrace[tid] = mult;
-                if (tid === "connections_internal" && edgeFilterThreshold() !== null) {
+                if (isConnectionTraceId(tid) && edgeFilterThreshold() !== null) {
                   rebuildLineSegmentsForThreshold(tid);
                 } else {
                   applyLineWidth(tid, mult);
@@ -5724,6 +5724,12 @@ function readWindowMinThreshold() {
       if (!hideEdgesBelowWindowInput || !hideEdgesBelowWindowInput.checked) return null;
       return readWindowMinThreshold();
     }
+    function isConnectionTraceId(traceId) {
+      return traceId === "connections_internal" || traceId === "connections_periodic";
+    }
+    function isWindowTraceId(traceId) {
+      return traceId === "windows_internal" || traceId === "windows_periodic";
+    }
     function ensureConnectionWindowRadii(obj, traceId) {
       if (!obj || !obj.userData) return [];
       if (obj.userData.segmentWindowRadii && obj.userData.segmentWindowRadii.length) {
@@ -5751,7 +5757,7 @@ function readWindowMinThreshold() {
       return minR >= threshold;
     }
     function rebuildLineSegmentsForThreshold(traceId) {
-      if (traceId !== "connections_internal") return;
+      if (!isConnectionTraceId(traceId)) return;
       const obj = objectsById[traceId];
       if (!obj) return;
       if (!obj.userData.originalPositions) {
@@ -5820,30 +5826,41 @@ function readWindowMinThreshold() {
       applyExplodeOffsets();
     }
     function rebuildPointsForThreshold(traceId) {
-      if (traceId !== "windows_internal") return;
+      if (!isWindowTraceId(traceId)) return;
       const obj = objectsById[traceId];
       if (!obj || !obj.userData.originalPositions) return;
       const threshold = readWindowMinThreshold();
+      const legendOn = legendEnabledByTrace[traceId] !== false;
       const orig = obj.userData.originalPositions;
       const radii = obj.userData.windowRadii || [];
       const origHover = obj.userData.originalHover || [];
       const nPts = radii.length || Math.floor(orig.length / 3);
       const filtered = [];
       const filteredHover = [];
-      for (let i = 0; i < nPts; i++) {
-        const r = radii[i];
-        if (threshold !== null && Number.isFinite(r) && r < threshold) continue;
-        const base = i * 3;
-        filtered.push(orig[base], orig[base + 1], orig[base + 2]);
-        if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+      if (threshold === null) {
+        for (let i = 0; i < nPts; i++) {
+          const base = i * 3;
+          filtered.push(orig[base], orig[base + 1], orig[base + 2]);
+          if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+        }
+      } else {
+        for (let i = 0; i < nPts; i++) {
+          const r = radii[i];
+          if (Number.isFinite(r) && r < threshold) continue;
+          const base = i * 3;
+          filtered.push(orig[base], orig[base + 1], orig[base + 2]);
+          if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+        }
       }
       const geo = obj.geometry;
       geo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(filtered), 3));
-      obj.userData.activeHover = filteredHover;
+      obj.userData.activeHover = threshold === null ? origHover.slice() : filteredHover;
+      obj.userData.filteredByThreshold = threshold !== null;
+      obj.visible = legendOn && filtered.length > 0;
     }
     function applyWindowThresholdFilter() {
-      rebuildLineSegmentsForThreshold("connections_internal");
-      rebuildPointsForThreshold("windows_internal");
+      ["connections_internal", "connections_periodic"].forEach(rebuildLineSegmentsForThreshold);
+      ["windows_internal", "windows_periodic"].forEach(rebuildPointsForThreshold);
       applyExplodeOffsets();
     }
 
