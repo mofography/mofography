@@ -27,6 +27,8 @@ def main() -> int:
         def conn_pos() -> dict:
             return page.evaluate(
                 """() => {
+                  const grp = objectsById.pore_explode_group;
+                  if (grp) return { x: grp.position.x, y: grp.position.y, z: grp.position.z };
                   const o = objectsById.connections_internal;
                   if (!o) return null;
                   return { x: o.position.x, y: o.position.y, z: o.position.z };
@@ -133,13 +135,70 @@ def test_framework_repr_switching() -> int:
         pos = page.evaluate(
             """() => {
               const o = objectsById.framework_stick_atoms;
-              return o ? { visible: o.visible, x: o.position.x } : null;
+              const grp = objectsById.framework_explode_group;
+              return o ? {
+                visible: o.visible,
+                grpX: grp ? grp.position.x : 0,
+              } : null;
             }"""
         )
-        assert pos and pos["visible"] and abs(pos["x"]) > 1.0
+        assert pos and pos["visible"] and abs(pos["grpX"]) > 1.0
         browser.close()
 
     print("OK: framework stick/spacefill repr switching and exploded offset")
+    return 0
+
+
+def test_exploded_cell_boxes() -> int:
+    path = HTML
+    if not path.is_file():
+        print(f"Missing {path}")
+        return 1
+    url = path.resolve().as_uri()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url, wait_until="networkidle", timeout=120_000)
+        page.wait_for_function("typeof objectsById !== 'undefined'")
+
+        page.evaluate("() => { explodeSlider.value = '2.0'; applyExplodeOffsets(); }")
+        state = page.evaluate(
+            """() => {
+              function cellState(id) {
+                const o = objectsById[id];
+                return o ? { visible: o.visible, pos: o.position.toArray() } : null;
+              }
+              const fwGrp = objectsById.framework_explode_group;
+              const pbcGrp = objectsById.pbc_explode_group;
+              const ar = objectsById.aromatic_rings;
+              const fw = objectsById.framework_atoms;
+              return {
+                cell_framework: cellState('cell_framework'),
+                cell_copy: cellState('cell_copy'),
+                cell_pbc: cellState('cell_pbc'),
+                fw_grp_children: fwGrp ? fwGrp.children.length : 0,
+                pbc_grp_children: pbcGrp ? pbcGrp.children.length : 0,
+                fw_parent: fw && fw.parent ? fw.parent.name : null,
+                ar_parent: ar && ar.parent ? ar.parent.name : null,
+                fw_pos: fw ? fw.position.toArray() : null,
+                ar_pos: ar ? ar.position.toArray() : null,
+              };
+            }"""
+        )
+        assert state["cell_framework"] and state["cell_framework"]["visible"]
+        assert abs(state["cell_framework"]["pos"][0]) > 5.0
+        assert state["cell_copy"] and state["cell_copy"]["visible"]
+        assert abs(state["cell_copy"]["pos"][0]) > 5.0
+        assert state["cell_pbc"] and state["cell_pbc"]["visible"]
+        assert state["cell_pbc"]["pos"][1] > 5.0
+        assert state["fw_grp_children"] >= 3
+        assert state["pbc_grp_children"] >= 1
+        assert state["fw_parent"] == "framework_explode_group"
+        assert state["ar_parent"] == "framework_explode_group"
+        assert state["fw_pos"] == state["ar_pos"]
+        browser.close()
+
+    print("OK: exploded cell boxes visible and framework/aromatic grouped")
     return 0
 
 
@@ -172,10 +231,17 @@ def test_aromatic_rings_rendered() -> int:
         pos = page.evaluate(
             """() => {
               const o = objectsById.aromatic_rings;
-              return o ? { x: o.position.x, visible: o.visible, count: o.count } : null;
+              const grp = objectsById.framework_explode_group;
+              return o ? {
+                visible: o.visible,
+                x: o.position.x,
+                parent: o.parent ? o.parent.name : null,
+                grpX: grp ? grp.position.x : null,
+              } : null;
             }"""
         )
-        assert pos and pos["visible"] and abs(pos["x"]) > 1.0
+        assert pos and pos["visible"] and pos["parent"] == "framework_explode_group"
+        assert abs(pos["grpX"]) > 1.0
         browser.close()
 
     print("OK: aromatic ring instanced meshes render in viewer")
@@ -187,6 +253,9 @@ if __name__ == "__main__":
     if code != 0:
         raise SystemExit(code)
     code = test_framework_repr_switching()
+    if code != 0:
+        raise SystemExit(code)
+    code = test_exploded_cell_boxes()
     if code != 0:
         raise SystemExit(code)
     raise SystemExit(test_aromatic_rings_rendered())

@@ -3223,12 +3223,13 @@ class MovieFigure:
     ) -> "MovieFigure":
         traces = make_aromatic_rings_trace(atoms, cycles=cycles)
         self.add_trace(traces["circles"])
-        self.add_trace(traces["highlights"])
-        # Instanced path emits separate hex/pent fill traces
+        # Instanced path emits separate hex/pent fill traces (avoid duplicating highlights).
         if "fills_hex" in traces:
             self.add_trace(traces["fills_hex"])
-        if "fills_pent" in traces:
+        elif "fills_pent" in traces:
             self.add_trace(traces["fills_pent"])
+        else:
+            self.add_trace(traces["highlights"])
         return self
 
     def add_maxima(
@@ -4190,6 +4191,34 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       }
       return null;
     }
+    function disposeCellClone(obj) {
+      if (!obj) return;
+      scene.remove(obj);
+      obj.traverse(function(c) {
+        if (c.geometry) c.geometry.dispose();
+        if (c.material) c.material.dispose();
+      });
+    }
+    const _explodeParentByTrace = {};
+    const _explodeParentGroups = {};
+    function attachToParentGroup(group, obj) {
+      if (!group || !obj) return;
+      if (obj.parent === group) return;
+      if (obj.parent) obj.parent.remove(obj);
+      else scene.remove(obj);
+      group.add(obj);
+    }
+    function attachTraceToExplodeParent(traceId, obj) {
+      const gname = _explodeParentByTrace[traceId];
+      if (gname && _explodeParentGroups[gname]) {
+        attachToParentGroup(_explodeParentGroups[gname], obj);
+      } else {
+        scene.add(obj);
+      }
+    }
+    function placeTraceObject(traceId, obj) {
+      attachTraceToExplodeParent(traceId, obj);
+    }
     function findTraceById(traceId) {
       const staticHit = staticTraces.find(function(t) { return t.id === traceId; });
       if (staticHit) return staticHit;
@@ -4255,9 +4284,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         group.userData.originalPositions = pts.slice();
         group.userData.thickLines = true;
         group.userData.lineColor = color.getHex();
-        scene.add(group);
+        placeTraceObject(traceId, group);
         objectsById[traceId] = group;
         group.visible = true;
+        if (traceId === "cell") refreshExplodedCellCopies();
         applyExplodeOffsets();
         return;
       }
@@ -4279,6 +4309,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         obj.material.needsUpdate = true;
       }
       obj.visible = true;
+      if (traceId === "cell") refreshExplodedCellCopies();
       applyExplodeOffsets();
     }
 
@@ -4980,8 +5011,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         const obj = objectsById[tid];
         if (!obj) return;
         obj.renderOrder = 2;
-        scene.remove(obj);
-        scene.add(obj);
+        if (obj.parent) obj.parent.remove(obj);
+        else scene.remove(obj);
+        attachTraceToExplodeParent(tid, obj);
       });
     }
     ensurePoreGraphNodesDrawOnTop();
@@ -5510,14 +5542,45 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     //   Y-axis (perpendicular): PBC surface+cell_pbc up, cluster surface+cell_pocket down, raw surface middle
     //   Keep local maxima in the central cell with raw surface (not in pore-graph copy).
     //   Original cell stays at center and is controlled independently by showCell.
+    const FW_EXPLODE_CHILD_IDS = [
+      "framework", "framework_stick", "framework_spacefill",
+      "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds",
+      "framework_spacefill_atoms",
+      "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent",
+    ];
+    const PORE_EXPLODE_CHILD_IDS = [
+      "windows_internal", "connections_internal", "connections_internal_nodes",
+      "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
+    ];
+    const CENTER_SURFACE_EXPLODE_IDS = ["surface", "surface_regions_raw", "maxima_internal"];
+    const PBC_EXPLODE_CHILD_IDS = ["surface_pbc", "surface_regions_pbc", "maxima_pbc"];
+    const POCKET_EXPLODE_CHILD_IDS = ["surface_pocket", "surface_regions_cluster"];
+    function registerExplodeChildren(groupName, childIds) {
+      childIds.forEach(function(tid) { _explodeParentByTrace[tid] = groupName; });
+    }
+    function createExplodeGroup(groupName, childIds) {
+      const group = new THREE.Group();
+      group.name = groupName;
+      _explodeParentGroups[groupName] = group;
+      registerExplodeChildren(groupName, childIds);
+      childIds.forEach(function(tid) {
+        attachToParentGroup(group, objectsById[tid]);
+      });
+      scene.add(group);
+      objectsById[groupName] = group;
+      return group;
+    }
+    createExplodeGroup("framework_explode_group", FW_EXPLODE_CHILD_IDS);
+    createExplodeGroup("pore_explode_group", PORE_EXPLODE_CHILD_IDS);
+    createExplodeGroup("center_surface_explode_group", CENTER_SURFACE_EXPLODE_IDS);
+    createExplodeGroup("pbc_explode_group", PBC_EXPLODE_CHILD_IDS);
+    createExplodeGroup("pocket_explode_group", POCKET_EXPLODE_CHILD_IDS);
     const _explodeGroups = [
-      { ids: ["framework", "framework_stick", "framework_spacefill", "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds", "framework_spacefill_atoms", "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent", "cell_framework"], x: -1, y: 0 },
-      { ids: ["windows_internal", "connections_internal", "connections_internal_nodes",
-              "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes",
-              "cell_copy"], x: 1, y: 0 },
-      { ids: ["surface", "surface_regions_raw", "maxima_internal"], x: 0, y: 0 },
-      { ids: ["surface_pbc", "surface_regions_pbc", "maxima_pbc", "cell_pbc"], x: 0, y: 1 },
-      { ids: ["surface_pocket", "surface_regions_cluster", "cell_pocket"], x: 0, y: -1 },
+      { ids: ["framework_explode_group", "cell_framework"], x: -1, y: 0 },
+      { ids: ["pore_explode_group", "cell_copy"], x: 1, y: 0 },
+      { ids: ["center_surface_explode_group"], x: 0, y: 0 },
+      { ids: ["pbc_explode_group", "cell_pbc"], x: 0, y: 1 },
+      { ids: ["pocket_explode_group", "cell_pocket"], x: 0, y: -1 },
     ];
     const _explodeOrig = {};  // must be declared before updateFrameworkVisibility() runs
 
@@ -5526,35 +5589,36 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     let cellFramework = null;
     let cellPbc = null;
     let cellPocket = null;
+    function refreshExplodedCellCopies() {
+      const cell = objectsById["cell"];
+      if (!cell) return;
+      function replaceCellCopy(key, setter) {
+        const prev = objectsById[key];
+        if (prev) disposeCellClone(prev);
+        const copy = cloneCellOutline(cell);
+        if (copy) {
+          copy.name = key;
+          copy.visible = false;
+          scene.add(copy);
+          objectsById[key] = copy;
+          setter(copy);
+        } else {
+          delete objectsById[key];
+          setter(null);
+        }
+        delete _explodeOrig[key];
+      }
+      replaceCellCopy("cell_copy", function(v) { cellCopy = v; });
+      replaceCellCopy("cell_framework", function(v) { cellFramework = v; });
+      replaceCellCopy("cell_pbc", function(v) { cellPbc = v; });
+      replaceCellCopy("cell_pocket", function(v) { cellPocket = v; });
+      updateFrameworkCellVisibility();
+      updateCellCopyVisibility();
+      updateSurfaceCellVisibility();
+      applyExplodeOffsets();
+    }
     if (cellObj) {
-      cellCopy = cloneCellOutline(cellObj);
-      if (cellCopy) {
-        cellCopy.name = "cell_copy";
-        cellCopy.visible = false;
-        scene.add(cellCopy);
-        objectsById["cell_copy"] = cellCopy;
-      }
-      cellFramework = cloneCellOutline(cellObj);
-      if (cellFramework) {
-        cellFramework.name = "cell_framework";
-        cellFramework.visible = false;
-        scene.add(cellFramework);
-        objectsById["cell_framework"] = cellFramework;
-      }
-      cellPbc = cloneCellOutline(cellObj);
-      if (cellPbc) {
-        cellPbc.name = "cell_pbc";
-        cellPbc.visible = false;
-        scene.add(cellPbc);
-        objectsById["cell_pbc"] = cellPbc;
-      }
-      cellPocket = cloneCellOutline(cellObj);
-      if (cellPocket) {
-        cellPocket.name = "cell_pocket";
-        cellPocket.visible = false;
-        scene.add(cellPocket);
-        objectsById["cell_pocket"] = cellPocket;
-      }
+      refreshExplodedCellCopies();
     }
 
     function setFrame(i) {
@@ -5674,41 +5738,36 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function updateCellCopyVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellCopy) {
-        const poreGraphIds = [
-          "windows_internal", "connections_internal", "connections_internal_nodes",
-          "maxima_outside", "windows_periodic", "connections_periodic", "connections_periodic_nodes"
-        ];
-        const anyVisible = poreGraphIds.some(id => {
-          const obj = objectsById[id];
-          return obj && obj.visible;
-        });
+        const anyVisible = explodeGroupHasVisibleChild("pore_explode_group", PORE_EXPLODE_CHILD_IDS);
         cellCopy.visible = exploded && anyVisible;
       }
     }
     function updateSurfaceCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellPbc) {
-        const ids = ["surface_pbc", "surface_regions_pbc", "maxima_pbc"];
-        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        const anyVisible = explodeGroupHasVisibleChild("pbc_explode_group", PBC_EXPLODE_CHILD_IDS);
         cellPbc.visible = exploded && anyVisible;
       }
       if (cellPocket) {
-        const ids = ["surface_pocket", "surface_regions_cluster"];
-        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        const anyVisible = explodeGroupHasVisibleChild("pocket_explode_group", POCKET_EXPLODE_CHILD_IDS);
         cellPocket.visible = exploded && anyVisible;
       }
+    }
+    function explodeGroupHasVisibleChild(groupName, fallbackIds) {
+      const grp = objectsById[groupName];
+      if (grp && grp.children && grp.children.length) {
+        return grp.children.some(function(c) { return c && c.visible; });
+      }
+      return fallbackIds.some(function(id) {
+        const obj = objectsById[id];
+        return obj && obj.visible;
+      });
     }
     function updateFrameworkCellVisibility() {
       const exploded = parseFloat(explodeSlider.value) > 0;
       if (cellFramework) {
-        const ids = [
-          "framework", "framework_stick", "framework_spacefill",
-          "framework_atoms", "framework_bonds", "framework_stick_atoms", "framework_stick_bonds",
-          "framework_spacefill_atoms",
-          "aromatic_rings", "aromatic_highlights", "aromatic_highlights_hex", "aromatic_highlights_pent",
-        ];
         const fwOn = scene.userData.fwLegendEnabled !== false;
-        const anyVisible = ids.some(id => { const obj = objectsById[id]; return obj && obj.visible; });
+        const anyVisible = explodeGroupHasVisibleChild("framework_explode_group", FW_EXPLODE_CHILD_IDS);
         cellFramework.visible = exploded && fwOn && anyVisible;
       }
     }
@@ -5812,7 +5871,7 @@ function readWindowMinThreshold() {
         group.userData.activeHover = threshold === null ? origHover.slice() : filteredHover;
         group.userData.filteredByThreshold = threshold !== null;
         group.visible = legendOn;
-        scene.add(group);
+        placeTraceObject(traceId, group);
         objectsById[traceId] = group;
         applyExplodeOffsets();
         return;
