@@ -14,14 +14,20 @@ HTML = ROOT / "examples/viz_outputs/ZIF-8-RASPA_plotting_guide_threejs.html"
 
 
 def connection_passes_window_threshold(segment_radii, threshold):
+    """Logic B: keep edge if any window on the connection is >= threshold."""
     if threshold is None:
         return True
     if not segment_radii:
-        return False
-    vals = [float(x) for x in segment_radii if np.isfinite(x)]
-    if not vals:
-        return False
-    return min(vals) >= threshold
+        return True
+    any_finite = False
+    for x in segment_radii:
+        v = float(x)
+        if not np.isfinite(v):
+            continue
+        any_finite = True
+        if v >= threshold:
+            return True
+    return not any_finite
 
 
 def load_data(html_path: Path) -> dict:
