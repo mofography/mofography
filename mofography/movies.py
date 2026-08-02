@@ -4235,7 +4235,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     function disposeLineObject(obj) {
       if (!obj) return;
-      scene.remove(obj);
+      if (obj.parent) obj.parent.remove(obj);
+      else scene.remove(obj);
       if (obj instanceof THREE.Group) {
         obj.traverse(function(c) {
           if (c.geometry) c.geometry.dispose();
