@@ -2211,6 +2211,10 @@ outputs/blender_stages/mofography_tutorial_reveal.blend
 
 # --- AI agents & local tool state (keep locally, not in git) ---
 graphify-out/
+mofography/graphify-out/
+tests/graphify-out/
+.code-review-graph/
+.crg-out/
 .letta/
 .serena/
 .leann/
@@ -2263,3 +2267,24 @@ internal_docs/outputs_from_periodic_segmentation.md
 internal_docs/periodic_segmentation_notes_ai.md
 internal_docs/pocket-typing-radii-sensitivity-problem.md
 internal_docs/window_fingerprinting.org
+
+# --- Org seed: dev artifacts (keep locally, exclude from org copy) ---
+outputs/
+docs/.jupyter_cache/
+docs/_freeze/
+internal_docs/
+plans/*
+!plans/
+!plans/github_org_migration_plan.md
+devtools/
+iframe_figures/
+parity_outputs/
+examples/viz_outputs/
+archived_tutorials/
+.tmp_*
+.doom-cockpit/
+.omp/
+.cursor/
+AGENTS.md
+readthedocs.yml
+core2000_window_fp_accessible_comparison.csv
