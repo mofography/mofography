@@ -1,7 +1,0 @@
-# msd, number of counts: 1
-# column 1: time [ps]
-# column 2: msd xyz [A^2]
-# column 3: msd x [A^2]
-# column 4: msd y [A^2]
-# column 5: msd z [A^2]
-# column 6: number of samples [-]
