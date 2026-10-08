@@ -5,6 +5,7 @@ mofography
 [![Release](https://img.shields.io/github/v/release/mofography/mofography?label=release)](https://github.com/mofography/mofography/releases)
 [![Cite this code](https://img.shields.io/badge/Cite-this_code-2563eb)](docs/releases-and-citing.md)
 [![Web demo](https://img.shields.io/badge/Try-Web_demo-ff6b35)](https://arung-northwestern-mofography-web-demo.hf.space/)
+[![Docs](https://img.shields.io/badge/Docs-Quarto%20%28preview%29-0ea5e9)](https://mofography.github.io/mofography/)
 
 ![](./docs/mofography_logo_dark_background.png#gh-dark-mode-only)
 ![](./docs/mofography_logo_white_background.png#gh-light-mode-only)
@@ -19,48 +20,46 @@ mofography
 
 ---
 
-## Three ways to use mofography
+## Who should use what?
 
-The **library** (this repo), the **CLI + self-hosted web app** ([`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)), and the **public Hugging Face demo** share similar science but differ in depth, performance, and who maintains them.
+Pick your path by **role**, then use the matching tool. The **library** (this repo), **[`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)** (CLI + self-hosted Streamlit), and the **[Hugging Face demo](https://arung-northwestern-mofography-web-demo.hf.space/)** share the same core science.
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'fontFamily': 'ui-sans-serif, system-ui', 'primaryBorderColor': '#6366f1', 'lineColor': '#64748b'}}}%%
-flowchart LR
-  START(["🎯 Start here"])
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '17px', 'fontFamily': 'ui-sans-serif, system-ui', 'primaryBorderColor': '#6366f1', 'lineColor': '#64748b'}}}%%
+flowchart TB
+  YOU(["👋 Who are you?"])
 
-  START --> Q1{"📓 Notebooks,\nML, HTS?"}
-  START --> Q2{"🖥️ Browser or\nterminal locally?"}
-  START --> Q3{"☁️ Try first,\nno install?"}
+  YOU --> R(["🔬 Researcher / developer\n\nNotebooks · papers · HTS · ML\nCustom pipelines & featurization"])
+  YOU --> E(["🧫 Experimentalist\n\nA handful of MOFs\nVisual exploration · exports"])
+  YOU --> V(["👀 Curious visitor\n\nNo local install yet\nQuick look at the workflow"])
+  YOU --> G(["🤖 Agent / automation\n\nScripted jobs · batch CIFs\nMinimal Python context"])
 
-  Q1 -->|research path| LIB["🧪 ① Python library\nmofography/mofography"]
-  Q2 -->|app path| CLI["⚡ ② mgr_cli_py\nCLI + Streamlit"]
-  Q3 -->|demo path| HF["🌐 ③ HF Space\ndemo queue"]
+  R ==> LIB(["🧪 Use ① mofography library\n\nthis repo · full Python API"])
+  E ==> CLI(["⚡ Use ② mgr_cli_py\n\nlocal CLI + Streamlit web app"])
+  V ==> HF(["🌐 Use ③ HF Space demo\n\nbrowser · shared queue"])
+  G ==> PICK{"Need full API\nor terminal only?"}
+  PICK ==> LIB
+  PICK ==> CLI
 
-  LIB --> LIBd["🔬 Full API · build mgr_rust\n--release on your CPU"]
-  CLI --> CLId["🚀 mgrcli · caches · self-host\narung-northwestern/mgr_cli_py"]
-  HF --> HFd["⏳ ~2 vCPU · 16 GB RAM\nexport HTML · queue waits"]
+  LIB --> LIBd(["Build mgr_rust on your machine\nmaturin develop --release\nBest performance for research"])
+  CLI --> CLId(["Self-host Streamlit or mgrcli\nExtra caching vs library\narung-northwestern/mgr_cli_py"])
+  HF --> HFd(["~2 vCPU · 16 GB RAM · queue\nGreat for trials · export HTML\nSlower than local for big cells"])
 
-  LIBd -.->|agents OK| AG1["🤖 import mofography"]
-  CLId -.->|agents OK| AG2["🤖 mgrcli subprocess"]
-  HFd -.->|not for batch| AG3["❌ agents / HTS"]
+  classDef you fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b,stroke-width:3px
+  classDef audience fill:#faf5ff,stroke:#a855f7,color:#4c1d95,stroke-width:2px
+  classDef lib fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:3px
+  classDef cli fill:#059669,stroke:#047857,color:#ffffff,stroke-width:3px
+  classDef hf fill:#ea580c,stroke:#c2410c,color:#ffffff,stroke-width:3px
+  classDef detail fill:#f8fafc,stroke:#94a3b8,color:#0f172a,stroke-width:2px
+  classDef branch fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
 
-  classDef start fill:#eef2ff,stroke:#4f46e5,color:#312e81,stroke-width:2px
-  classDef question fill:#faf5ff,stroke:#a855f7,color:#581c87,stroke-width:1px
-  classDef lib fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:2px
-  classDef cli fill:#059669,stroke:#047857,color:#ffffff,stroke-width:2px
-  classDef hf fill:#ea580c,stroke:#c2410c,color:#ffffff,stroke-width:2px
-  classDef detail fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-width:1px
-  classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1px
-  classDef agentbad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1px
-
-  class START start
-  class Q1,Q2,Q3 question
+  class YOU you
+  class R,E,V,G audience
   class LIB lib
   class CLI cli
   class HF hf
   class LIBd,CLId,HFd detail
-  class AG1,AG2 agent
-  class AG3 agentbad
+  class PICK branch
 ```
 
 | | **① Library (this repo)** | **② CLI + web app (`mgr_cli_py`)** | **③ Public web demo (HF)** |
@@ -170,9 +169,42 @@ Interactive **Three.js HTML** is not stored in this repo; export from the **web 
 
 ---
 
-## Tutorials
+## Tutorials & documentation
 
-Notebooks under [`docs/`](docs/): start with [quick cluster](docs/quick_cluster.ipynb) → [segmentation](docs/region_segmentation.ipynb) → [RAG](docs/region_adjacency_graph.ipynb) → [pocket types](docs/pockets_detection.ipynb). See `docs/` for HTS, percolation, and GCN examples.
+Tutorials are first-class: Jupyter notebooks and Quarto pages live under [`docs/`](docs/). The site is built with **Quarto** (+ **quartodoc** API reference) into `docs/_site/`:
+
+```bash
+cd docs && quarto render
+open _site/index.html    # macOS; or use a local static server
+```
+
+**Planned public URL (GitHub Pages when `mofography/mofography` is public):** [https://mofography.github.io/mofography/](https://mofography.github.io/mofography/) — the Docs badge above will point there after deploy. Until then, render locally or browse notebook sources on GitHub under `docs/`.
+
+### Basic tutorials (recommended order)
+
+1. [Quick cluster](docs/quick_cluster.ipynb) — end-to-end workflow
+2. [Basic structure analysis](docs/basic_structure_io.ipynb)
+3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
+4. [Distance grid](docs/distance_grid.ipynb)
+5. [Region segmentation](docs/region_segmentation.ipynb)
+6. [Applying periodic boundary conditions](docs/applying_pbc.ipynb)
+7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
+8. [Connections and windows](docs/connections_and_windows.ipynb)
+9. [Pocket type detection](docs/pockets_detection.ipynb)
+
+### Advanced tutorials
+
+- [Advanced structure visualization](docs/framework_visualization_example.ipynb)
+- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb)
+- [PLD and percolation history](docs/pld_and_percolation.ipynb)
+- [Compute pore diameters](docs/compute_pore_diameters.ipynb)
+- [MOFDB example](docs/mofdb_example.ipynb)
+- [High-throughput characterization](docs/hts_using_mofography.ipynb)
+- [Periodic segmentation Rust vs Python (HTS)](docs/hts_periodic_seg_benchmark.ipynb)
+- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
+- [Graph convolutional network (GCN) on RAGs](docs/graph_convolution_on_rags_ccr.ipynb)
+
+Quarto guides (not only `.ipynb`): [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [learn hub](docs/learn.qmd), [API reference](docs/reference/index.qmd).
 
 ---
 
