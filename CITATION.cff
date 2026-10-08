@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: >-
-  If you use mofography in published work, please cite a released version
-  (git tag YYYY.MM.DD.N) from the repository releases page—not an arbitrary
+  If you use mofography in published work, please cite the software release
+  (tag YYYY.MM.DD.N) and, when applicable, the paper below—not an arbitrary
   checkout of the default branch.
 type: software
 title: mofography
@@ -11,13 +11,37 @@ url: 'https://github.com/mofography/mofography'
 authors:
   - family-names: Gopalan
     given-names: Arun
+    affiliation: 'University at Buffalo, The State University of New York; The University of Manchester'
+    email: arungopa@buffalo.edu
 keywords:
   - metal-organic frameworks
   - nanoporous materials
+  - pore graphs
   - pore analysis
   - visualization
 abstract: >-
-  Python tools for analysis, visualization, featurization, and machine learning
-  on molecular pores in nanoporous materials.
-# Bump `version` (and commit) when cutting each release tag; keep in sync with the tag name.
+  Python/Rust tools for pore segmentation, pore graphs, and visualization in
+  crystalline nanoporous materials.
 version: 2026.10.09.1
+date-released: 2026-10-09
+preferred-citation:
+  type: article
+  title: >-
+    Advanced High-Throughput Characterization of Nanoporous Materials using Pore
+    Graphs
+  authors:
+    - family-names: Gopalan
+      given-names: Arun
+    - family-names: Zheng
+      given-names: Chao
+    - family-names: Azdapour
+      given-names: Behnam
+    - family-names: Shi
+      given-names: Kaihang
+    - family-names: Sarkisov
+      given-names: Lev
+  year: 2026
+  notes: >-
+    PLACEHOLDER: add arXiv URL/ID when posted (see docs/PAPER_METADATA_TODO.md).
+    Manuscript source: mgr_sn_v2.org in the mgr_sn repository.
+  url: 'https://arxiv.org/abs/PLACEHOLDER_ARXIV_ID'
