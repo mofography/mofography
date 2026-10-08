@@ -20,4 +20,4 @@ abstract: >-
   Python tools for analysis, visualization, featurization, and machine learning
   on molecular pores in nanoporous materials.
 # Bump `version` (and commit) when cutting each release tag; keep in sync with the tag name.
-version: unreleased
+version: 2026.10.09.1
