@@ -1,0 +1,18 @@
+# GitHub language bar (github.com/github-linguist/linguist)
+# Tutorials and Quarto docs are not "application code" for language stats.
+docs/** linguist-documentation
+examples/** linguist-documentation
+mofography/examples/** linguist-documentation
+mofography/*.ipynb linguist-documentation
+
+# Generated / bulky artifacts (if ever tracked)
+examples/viz_outputs/** linguist-vendored
+*.html linguist-generated
+docs/_site/** linguist-vendored
+
+# Treat notebooks elsewhere as documentation unless added under mofography/ package code
+*.ipynb linguist-documentation
+
+# Rust + Python are the primary implementation languages
+mgr_rust/** linguist-detectable=true
+mofography/** linguist-detectable=true
