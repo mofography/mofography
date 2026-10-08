@@ -41,51 +41,30 @@ Pick your path by **role**. Three tools, one shared science core:
 - 🌐 **③ Web demo** — [Hugging Face Space](https://arung-northwestern-mofography-web-demo.hf.space/) (hosted)
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '18px', 'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryTextColor': '#0f172a', 'lineColor': '#64748b'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 50, 'rankSpacing': 70, 'padding': 16}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryTextColor': '#0f172a', 'lineColor': '#64748b'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 50, 'padding': 12}}}%%
 flowchart TB
-  YOU("<b>👋 Who are you?</b>")
+  V("<b>👀 Just curious?</b><br/>Look around")
+  E("<b>🧫 A few MOFs?</b><br/>Point & click")
+  G("<b>🤖 Scripts / agents?</b><br/>Batch jobs")
+  R("<b>🔬 Research / ML?</b><br/>Full control")
 
-  YOU --> R("<b>🔬 Researcher / developer</b><br/>Notebooks · papers · HTS · ML")
-  YOU --> G("<b>🤖 Agent / automation</b><br/>Scripted jobs · batch CIFs")
-  YOU --> E("<b>🧫 Experimentalist</b><br/>A handful of MOFs · exports")
-  YOU --> V("<b>👀 Curious visitor</b><br/>No install · quick look")
+  HF["<b>🌐 ③ Web demo</b><br/>No install<br/><i>☁️ Hugging Face</i>"]
+  CLI["<b>⚡ ② CLI + app</b><br/>Local · simple<br/><i>👤 mgr_cli_py repo</i>"]
+  LIB["<b>🧪 ① Library</b><br/>Python API · fastest<br/><i>🏛️ this repo</i>"]
 
-  PICK{"<b>Full API or<br/>terminal only?</b>"}
-  G --> PICK
-
-  subgraph ORG ["🏛️ mofography org"]
-    LIB["<b>🧪 ① Library</b><br/>mofography + Rust core<br/>🏆 Best performance<br/><i>github.com/mofography/mofography</i>"]
-  end
-  subgraph PERS ["👤 personal repo"]
-    CLI["<b>⚡ ② CLI + Streamlit</b><br/>mgr_cli_py · mgrcli<br/>Self-hosted<br/><i>github.com/arung-northwestern/mgr_cli_py</i>"]
-  end
-  subgraph HOST ["☁️ hosted"]
-    HF["<b>🌐 ③ Web demo</b><br/>Hugging Face Space<br/>Shared queue · ~2 vCPU · 16 GB<br/><i>no install</i>"]
-  end
-
-  R ==> LIB
-  PICK ==>|"import"| LIB
-  PICK ==>|"subprocess"| CLI
-  E ==> CLI
   V ==> HF
+  E ==> CLI
+  G ==> CLI
+  R ==> LIB
 
-  classDef you fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b,stroke-width:3px
   classDef audience fill:#faf5ff,stroke:#a855f7,color:#4c1d95,stroke-width:2px
   classDef lib fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:3px
   classDef cli fill:#059669,stroke:#047857,color:#ffffff,stroke-width:3px
   classDef hf fill:#ea580c,stroke:#c2410c,color:#ffffff,stroke-width:3px
-  classDef branch fill:#fef9c3,stroke:#ca8a04,color:#713f12,stroke-width:2px
-
-  class YOU you
-  class R,E,V,G audience
+  class V,E,G,R audience
   class LIB lib
   class CLI cli
   class HF hf
-  class PICK branch
-
-  style ORG fill:#eef2ff,stroke:#4f46e5,stroke-width:2px,stroke-dasharray:6 4,color:#312e81
-  style PERS fill:#ecfdf5,stroke:#059669,stroke-width:2px,stroke-dasharray:6 4,color:#065f46
-  style HOST fill:#fff7ed,stroke:#ea580c,stroke-width:2px,stroke-dasharray:6 4,color:#9a3412
 ```
 
 | | 🧪 **① Library** (this repo) | ⚡ **② CLI + web app** (`mgr_cli_py`) | 🌐 **③ Web demo** (HF) |
