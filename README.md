@@ -1,141 +1,189 @@
-mofography 🧪🔬
-==============================
-[//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/mofography/workflows/CI/badge.svg)](https://github.com/REPLACE_WITH_OWNER_ACCOUNT/mofography/actions?query=workflow%3ACI)
-[![codecov](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/mofography/branch/master/graph/badge.svg)](https://codecov.io/gh/REPLACE_WITH_OWNER_ACCOUNT/mofography/branch/master)
+mofography
+==========
 
-<!-- Add logo -->
+[![License](https://img.shields.io/github/license/mofography/mofography)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/mofography/mofography?label=release)](https://github.com/mofography/mofography/releases)
+[![Cite this code](https://img.shields.io/badge/Cite-this_code-2563eb)](docs/releases-and-citing.md)
+[![Web demo](https://img.shields.io/badge/Try-Web_demo-ff6b35)](https://arung-northwestern-mofography-web-demo.hf.space/)
 
-<!-- ![](./docs/logo.png) -->
-<!-- ![](./docs/simple_logo_black_grey.png) -->
 ![](./docs/mofography_logo_dark_background.png#gh-dark-mode-only)
 ![](./docs/mofography_logo_white_background.png#gh-light-mode-only)
 
-A powerful Python package for the analysis, visualization, featurization, and machine learning on molecular pores in nanoporous materials. 🔍🧠
+**mofography** segments void space into pockets, builds **pore graphs**, and supports visualization and featurization for crystalline nanoporous materials (MOFs, zeolites, polymers, and related frameworks). Core numerics use a **Rust** backend (`mgr_rust`) with a **Python** API.
 
-## Trying out mofography 🚀
+<p align="center">
+  <img src="docs/mofography_nu1000_exploded.png" alt="NU-1000 pore segmentation (exploded view)" width="100%" />
+</p>
 
-*Note: In all the steps below, feel free to replace `conda` with `mamba`, as it is much faster at resolving dependencies and installing packages. To install mamba use `conda install -c conda-forge -n base mamba`*
+**Canonical code:** [github.com/mofography/mofography](https://github.com/mofography/mofography) · **Latest release:** [2026.10.09.1](https://github.com/mofography/mofography/releases/tag/2026.10.09.1) · branch `master`
 
-You can simply try out mofography after installing just the dependencies. In fact, we recommend this approach, since mofography is still in active development.
+---
 
-### 1. Set up the environment 🛠️
+## Three ways to use mofography
 
-Create a new conda environment (optional, recommended so that we don't break anything. Also you can specify the python version you want like `python=3.10`. We recommend `3.10` or higher.):
+The **library** (this repo), the **CLI + self-hosted web app** ([`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)), and the **public Hugging Face demo** share similar science but differ in depth, performance, and who maintains them.
 
-```bash
-conda create -n mgr_env  python
-conda activate mgr_env
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '14px', 'fontFamily': 'ui-sans-serif, system-ui', 'primaryBorderColor': '#6366f1', 'lineColor': '#64748b'}}}%%
+flowchart LR
+  START(["🎯 Start here"])
+
+  START --> Q1{"📓 Notebooks,\nML, HTS?"}
+  START --> Q2{"🖥️ Browser or\nterminal locally?"}
+  START --> Q3{"☁️ Try first,\nno install?"}
+
+  Q1 -->|research path| LIB["🧪 ① Python library\nmofography/mofography"]
+  Q2 -->|app path| CLI["⚡ ② mgr_cli_py\nCLI + Streamlit"]
+  Q3 -->|demo path| HF["🌐 ③ HF Space\ndemo queue"]
+
+  LIB --> LIBd["🔬 Full API · build mgr_rust\n--release on your CPU"]
+  CLI --> CLId["🚀 mgrcli · caches · self-host\narung-northwestern/mgr_cli_py"]
+  HF --> HFd["⏳ ~2 vCPU · 16 GB RAM\nexport HTML · queue waits"]
+
+  LIBd -.->|agents OK| AG1["🤖 import mofography"]
+  CLId -.->|agents OK| AG2["🤖 mgrcli subprocess"]
+  HFd -.->|not for batch| AG3["❌ agents / HTS"]
+
+  classDef start fill:#eef2ff,stroke:#4f46e5,color:#312e81,stroke-width:2px
+  classDef question fill:#faf5ff,stroke:#a855f7,color:#581c87,stroke-width:1px
+  classDef lib fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:2px
+  classDef cli fill:#059669,stroke:#047857,color:#ffffff,stroke-width:2px
+  classDef hf fill:#ea580c,stroke:#c2410c,color:#ffffff,stroke-width:2px
+  classDef detail fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-width:1px
+  classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-width:1px
+  classDef agentbad fill:#fee2e2,stroke:#dc2626,color:#7f1d1d,stroke-width:1px
+
+  class START start
+  class Q1,Q2,Q3 question
+  class LIB lib
+  class CLI cli
+  class HF hf
+  class LIBd,CLId,HFd detail
+  class AG1,AG2 agent
+  class AG3 agentbad
 ```
 
-### 2. Install dependencies 📦
+| | **① Library (this repo)** | **② CLI + web app (`mgr_cli_py`)** | **③ Public web demo (HF)** |
+|---|---------------------------|-------------------------------------|----------------------------|
+| **Best for** | Papers, notebooks, HTS, custom analysis | A few structures, interactive UI, automation without full env | Try before you install |
+| **Install** | Clone + build `mgr_rust` ([below](#install-the-library)) | Separate repo; `pip install -e .` + Rust ([mgr_cli_py README](https://github.com/arung-northwestern/mgr_cli_py)) | None — [open demo](https://arung-northwestern-mofography-web-demo.hf.space/) |
+| **Performance** | **Fastest** on your hardware (`maturin develop --release` tuned to your CPU) | Fast locally; extra caching vs library | Shared **queue**, **~2 vCPUs** — often slower than local; **16 GB RAM** helps large cells |
+| **Maintainer** | [mofography](https://github.com/mofography/mofography) org | Personal repo — [**arung-northwestern/mgr_cli_py**](https://github.com/arung-northwestern/mgr_cli_py) (will go public; PRs via maintainer) | Hosted demo only |
+| **AI / agents** | Import `mofography` in code | **`mgrcli`** subprocess — no notebook context | Not for batch/agent pipelines |
 
-Using conda:
+> **Tip:** For serious work on medium/large cells, prefer **①** or **②** on your machine. Use **③** to explore the UI and export HTML; expect waiting in queue at busy times.
 
-```bash
-conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud nbformat cupy python-kaleido
-```
+**Self-hosted web app:** clone [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), install, then run Streamlit interactive mode (see that repo’s README). It is **not** the same package as `pip install mofography` from this tree.
 
-Using pip:
+---
 
-*Note*: Make sure to install into the correct environment using `python -m pip install`
+## Cite this code
 
-*Note*: If you don't have a GPU, exclude `cupy` from the list of dependencies.
-
-```bash
-python -m pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy kaleido
-```
-
-### 3. Clone the repo 📥
-
-Download the zip file or use git:
-
-```bash
-git clone https://github.com/arung-northwestern/mofography.git
-```
-
-If you already have a cloned repo, update it:
-
-```bash
-cd mofography
-git pull
-```
-
-### 4. Add mofography to your Python path 🐍 (Option A)
-
-Since Mofography is under active development, you might want to clone and update it frequently, so instead of doing a hard install, you can safely add it to your Python path and use it in your scripts and notebooks:
-
-```python
-import sys
-import os
-sys.path.append(os.path.abspath('path_to_mofography'))
-```
-
-Replace `path_to_mofography` with the relative path to the mofography directory on your local machine.
-
-### 4. Hard install (Option B)
-
-If you don't want to add Mofography to Python Path every time, you may prefer to install it as a package. Go to the Mofography cloned directory and do:
-
-```bash
-python setup.py install
-```
-
-### 5. Test the package 🧪
-
-Try a full clustering workflow with default parameters on the IRMOF-1 structure:
-
-```python
-import mofography as mgr
-from ase.io import read
-mat_atoms = read('path_to_mofography/examples/TestCIFs/P1-IRMOF-1.cif')
-figures = mgr.quick_cluster(mat_atoms)
-```
-
-## Tutorials 📚
-
-Find tutorials in the [Docs](https://arung-northwestern.github.io/mofography/docs) section. Here's a recommended order:
-
-### Basic tutorials 🌱
-
-1. [Quick cluster](docs/quick_cluster.ipynb): Get a feel for the whole thing
-2. [Basic structure analysis](docs/basic_structure_io.ipynb): Learn fundamental structure analysis techniques
-3. [Basic structure visualization](docs/quick_structure_visualization.ipynb): Explore simple visualization methods
-4. [Distance grid](docs/distance_grid.ipynb): Calculate and visualize distance grids
-5. [Region segmentation](docs/region_segmentation.ipynb): Understand how to segment regions in materials
-6. [Applying Periodic Boundary Conditions](docs/applying_pbc.ipynb): Master PBC concepts
-7. [Region Adjacency Graph (RAG)](docs/region_adjacency_graph.ipynb): Dive into pore graph analysis
-8. [Connections and windows](docs/connections_and_windows.ipynb): Detect windows in materials
-9. [Pocket type detection](docs/pockets_detection.ipynb): Identify different types of pockets
-
-### Advanced tutorials 🚀
-
-These can be completed in any order after finishing the basic tutorials:
-
-- [Advanced structure visualization](docs/framework_visualization_example.ipynb): Explore complex visualization techniques
-- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb): Learn to visualize specific parts of frameworks
-- [PLD and percolation history](docs/pld_and_percolation.ipynb): Analyze pore limiting diameter and percolation
-- [Compute pore diameters](docs/compute_pore_diameters.ipynb): Compare MOFography vs MOFDB (zeo++) in high-throughput computations
-- [MOFDB example](docs/mofdb_example.ipynb): Grab a dataset from MOFDB and perform workflow on random materials
-- [High-throughput characterization](docs/hts_using_mofography.ipynb): Construct pore graphs for IZA dataset using Mofography and Dask
-- [Bencharmark Periodic Segmentation Rust vs Python in High-Throughput](docs/hts_periodic_seg_benchmark.ipynb): Compare the periodic segmentation workflow speeds in Rust vs Python, in high-throughput, 1 core per material.
-- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb): Identify functional groups/moieties in datasets like CoREMOF
-- [Graph Convolutional Neural Network (GCN)](docs/graph_convolution_on_rags_ccr.ipynb): Train a GCN on RAGs to predict hydrogen adsorption
-
-## Releases and citing
-
-mofography uses calendar-version git tags (`YYYY.MM.DD.N`). Collaborators should cite a **released tag** and commit hash, not an untagged `master` checkout. See [docs/releases-and-citing.md](docs/releases-and-citing.md) and [CITATION.cff](CITATION.cff). Interactive Three.js HTML is produced by the web app (or `examples/gen_*_threejs.py`), not checked into the repo. Check installed version with:
+- **Software:** release tag **`2026.10.09.1`** + commit hash — [docs/releases-and-citing.md](docs/releases-and-citing.md), [CITATION.cff](CITATION.cff).
+- **Paper:** *Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs* — Arun Gopalan, Chao Zheng, Behnam Azdapour, Kaihang Shi, Lev Sarkisov.  
+  **arXiv:** *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
 
 ```python
 import mofography as m
 print(m.__version__, m.__git_revision__)
 ```
 
-## Copyright ©️
+---
 
-Copyright (c) 2022, Arun Gopalan
+## Install the library
 
-### Acknowledgements 🙏
+This repository is the **full Python package**. There is no PyPI wheel yet: you install dependencies, compile **`mgr_rust`** with [maturin](https://www.maturin.rs/) in **release** mode (important for speed on your CPU), then `pip install -e .`.
 
-Project based on the 
-[Computational Molecular Science Python Cookiecutter](https://github.com/molssi/cookiecutter-cms) version 1.6.
+**Python:** 3.10–3.12 (3.11 recommended) · **Rust:** [rustup](https://rustup.rs/) · **OS:** Linux, macOS, Windows (see PowerShell script)
+
+**Pin a paper/release checkout (optional):**
+
+```bash
+git clone https://github.com/mofography/mofography.git && cd mofography
+git checkout 2026.10.09.1
+```
+
+### One command (Linux / macOS)
+
+**A. Fresh sandbox with [uv](https://github.com/astral-sh/uv)** (creates `.venv` in the clone):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox
+```
+
+**B. Active conda / venv** (installs into the Python you already activated):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode pip-existing
+```
+
+Pin a release in the one-liner:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox --ref 2026.10.09.1
+```
+
+From an existing clone: `./scripts/install_mofography.sh --mode uv-sandbox` or `--mode pip-existing --repo-dir .`
+
+### Windows (PowerShell)
+
+```powershell
+git clone https://github.com/mofography/mofography.git
+cd mofography
+git checkout 2026.10.09.1   # optional
+.\scripts\install_mofography.ps1
+```
+
+### Manual steps (any OS)
+
+```bash
+conda create -n mgr_env python=3.11 -y && conda activate mgr_env   # or your venv
+conda install -c conda-forge pymatgen ase dask networkx scikit-image scikit-learn plotly freud rdkit -y
+
+git clone https://github.com/mofography/mofography.git && cd mofography
+python -m pip install maturin
+cd mgr_rust && maturin develop --release && cd ..
+python -m pip install -e .
+```
+
+**Verify:** `python -c "import mgr_rust, mofography as m; print(m.__version__)"`
+
+After `git pull`, rebuild Rust: `cd mgr_rust && maturin develop --release`
+
+More detail: [docs/rust_backend_documentation.md](docs/rust_backend_documentation.md), [docs/install.qmd](docs/install.qmd).
+
+We do **not** ship prebuilt `mgr_rust` wheels per OS — local `--release` builds match your machine best.
+
+---
+
+## Quick test
+
+```python
+import mofography as mgr
+from ase.io import read
+
+atoms = read("examples/TestCIFs/P1-IRMOF-1.cif")
+figures = mgr.quick_cluster(atoms)
+```
+
+Interactive **Three.js HTML** is not stored in this repo; export from the **web demo** or [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), or regenerate with `examples/gen_*_threejs.py`.
+
+---
+
+## Tutorials
+
+Notebooks under [`docs/`](docs/): start with [quick cluster](docs/quick_cluster.ipynb) → [segmentation](docs/region_segmentation.ipynb) → [RAG](docs/region_adjacency_graph.ipynb) → [pocket types](docs/pockets_detection.ipynb). See `docs/` for HTS, percolation, and GCN examples.
+
+---
+
+## Releases & metadata
+
+Calendar-version tags and collaborator citations: [docs/releases-and-citing.md](docs/releases-and-citing.md). Maintainer TODOs (arXiv, Zenodo, `mgr_cli_py` links): [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md).
+
+---
+
+## Copyright
+
+Copyright © 2022–2026, Arun Gopalan and contributors. [BSD-3-Clause](LICENSE).
+
+Scaffolding from the [MolSSI Python Cookiecutter](https://github.com/molssi/cookiecutter-cms).
