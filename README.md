@@ -8,17 +8,17 @@
 
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Release](https://img.shields.io/badge/Release-2026.10.09.1-success?logo=github&logoColor=white)](docs/releases-and-citing.md)
-[![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776ab?logo=python&logoColor=white)](#-install-the-library)
+[![Python](https://img.shields.io/badge/Python-3.10%E2%80%933.12-3776ab?logo=python&logoColor=white)](#install)
 [![Rust](https://img.shields.io/badge/Backend-Rust-dea584?logo=rust&logoColor=black)](docs/rust_backend_documentation.md)
 [![Cite this code](https://img.shields.io/badge/Cite-this_code-2563eb?logo=zenodo&logoColor=white)](docs/releases-and-citing.md)
 [![Web demo](https://img.shields.io/badge/Try-Web_demo-ff6b35?logo=huggingface&logoColor=white)](https://arung-northwestern-mofography-web-demo.hf.space/)
 [![Docs](https://img.shields.io/badge/Docs-Quarto_(preview)-0ea5e9?logo=quarto&logoColor=white)](https://mofography.github.io/mofography/)
 
-[🧭 Who is it for?](#-who-should-use-what) ·
-[⚙️ Install](#-install-the-library) ·
-[⚡ Quick test](#-quick-test) ·
-[📚 Tutorials](#-tutorials--documentation) ·
-[📝 Cite](#-cite-this-code)
+[🧭 Who is it for?](#who) ·
+[⚙️ Install](#install) ·
+[⚡ Quick test](#quick-test) ·
+[📚 Tutorials](#tutorials) ·
+[📝 Cite](#cite)
 
 <img src="docs/mofography_nu1000_exploded.png" alt="NU-1000 pore segmentation (exploded view)" width="100%" />
 
@@ -30,6 +30,8 @@
 
 ---
 
+<a id="who"></a>
+
 ## 🧭 Who should use what?
 
 Pick your path by **role**. Three tools, one shared science core:
@@ -39,35 +41,33 @@ Pick your path by **role**. Three tools, one shared science core:
 - 🌐 **③ Web demo** — [Hugging Face Space](https://arung-northwestern-mofography-web-demo.hf.space/) (hosted)
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'fontFamily': 'Inter, Helvetica, Arial, sans-serif', 'primaryTextColor': '#0f172a', 'lineColor': '#64748b'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 40, 'rankSpacing': 55, 'padding': 14}}}%%
+%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '18px', 'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryTextColor': '#0f172a', 'lineColor': '#64748b'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 50, 'rankSpacing': 70, 'padding': 16}}}%%
 flowchart TB
-  YOU(["<b>👋 Who are you?</b>"])
+  YOU("<b>👋 Who are you?</b>")
 
-  YOU --> R(["<b>🔬 Researcher / developer</b><br/>Notebooks · papers · HTS · ML<br/>Custom pipelines"])
-  YOU --> E(["<b>🧫 Experimentalist</b><br/>A handful of MOFs<br/>Visual exploration · exports"])
-  YOU --> V(["<b>👀 Curious visitor</b><br/>No install yet<br/>Quick look at the workflow"])
-  YOU --> G(["<b>🤖 Agent / automation</b><br/>Scripted jobs · batch CIFs<br/>Minimal Python context"])
+  YOU --> R("<b>🔬 Researcher / developer</b><br/>Notebooks · papers · HTS · ML")
+  YOU --> G("<b>🤖 Agent / automation</b><br/>Scripted jobs · batch CIFs")
+  YOU --> E("<b>🧫 Experimentalist</b><br/>A handful of MOFs · exports")
+  YOU --> V("<b>👀 Curious visitor</b><br/>No install · quick look")
 
-  subgraph ORG ["🏛️ <b>mofography org</b> · github.com/mofography/mofography"]
-    LIB(["<b>🧪 ① mofography library</b><br/>Full Python API + Rust core<br/>maturin develop --release<br/>🏆 Best performance"])
+  PICK{"<b>Full API or<br/>terminal only?</b>"}
+  G --> PICK
+
+  subgraph ORG ["🏛️ mofography org"]
+    LIB["<b>🧪 ① Library</b><br/>mofography + Rust core<br/>🏆 Best performance<br/><i>github.com/mofography/mofography</i>"]
   end
-
-  subgraph PERS ["👤 <b>personal repo</b> · github.com/arung-northwestern/mgr_cli_py"]
-    CLI(["<b>⚡ ② mgr_cli_py</b><br/>mgrcli terminal + Streamlit app<br/>Self-hosted · extra caching"])
+  subgraph PERS ["👤 personal repo"]
+    CLI["<b>⚡ ② CLI + Streamlit</b><br/>mgr_cli_py · mgrcli<br/>Self-hosted<br/><i>github.com/arung-northwestern/mgr_cli_py</i>"]
   end
-
-  subgraph HOST ["☁️ <b>hosted</b> · Hugging Face Space"]
-    HF(["<b>🌐 ③ Web demo</b><br/>Browser · shared queue<br/>~2 vCPU · 16 GB RAM"])
+  subgraph HOST ["☁️ hosted"]
+    HF["<b>🌐 ③ Web demo</b><br/>Hugging Face Space<br/>Shared queue · ~2 vCPU · 16 GB<br/><i>no install</i>"]
   end
-
-  PICK{"<b>Full API</b><br/>or <b>terminal only</b>?"}
 
   R ==> LIB
+  PICK ==>|"import"| LIB
+  PICK ==>|"subprocess"| CLI
   E ==> CLI
   V ==> HF
-  G ==> PICK
-  PICK ==>|"import in code"| LIB
-  PICK ==>|"subprocess"| CLI
 
   classDef you fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b,stroke-width:3px
   classDef audience fill:#faf5ff,stroke:#a855f7,color:#4c1d95,stroke-width:2px
@@ -91,7 +91,7 @@ flowchart TB
 | | 🧪 **① Library** (this repo) | ⚡ **② CLI + web app** (`mgr_cli_py`) | 🌐 **③ Web demo** (HF) |
 |---|---|---|---|
 | 🎯 **Best for** | Papers, notebooks, HTS, custom analysis | A few structures, interactive UI, automation without a full env | Try before you install |
-| 📥 **Install** | Clone + build `mgr_rust` ([below](#-install-the-library)) | Separate repo; `pip install -e .` + Rust ([README](https://github.com/arung-northwestern/mgr_cli_py)) | None — [open demo](https://arung-northwestern-mofography-web-demo.hf.space/) |
+| 📥 **Install** | Clone + build `mgr_rust` ([below](#install)) | Separate repo; `pip install -e .` + Rust ([README](https://github.com/arung-northwestern/mgr_cli_py)) | None — [open demo](https://arung-northwestern-mofography-web-demo.hf.space/) |
 | 🚀 **Performance** | **Fastest** on your hardware (`--release`, tuned to your CPU) | Fast locally; extra caching vs library | Shared **queue**, **~2 vCPUs** — often slower than local; **16 GB RAM** helps large cells |
 | 🏠 **Maintainer** | [`mofography`](https://github.com/mofography/mofography) org | Personal repo [`arung-northwestern/mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py) (will go public; PRs via maintainer) | Hosted demo only |
 | 🤖 **AI / agents** | `import mofography` in code | **`mgrcli`** subprocess — no notebook context | Not for batch/agent pipelines |
@@ -101,6 +101,8 @@ flowchart TB
 🖥️ **Self-hosted web app:** clone [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), install, then run Streamlit interactive mode (see that repo's README). It is **not** the same package as `pip install mofography` from this tree.
 
 ---
+
+<a id="cite"></a>
 
 ## 📝 Cite this code
 
@@ -114,6 +116,8 @@ print(m.__version__, m.__git_revision__)
 ```
 
 ---
+
+<a id="install"></a>
 
 ## ⚙️ Install the library
 
@@ -181,6 +185,8 @@ We do **not** ship prebuilt `mgr_rust` wheels per OS — local `--release` build
 
 ---
 
+<a id="quick-test"></a>
+
 ## ⚡ Quick test
 
 ```python
@@ -194,6 +200,8 @@ figures = mgr.quick_cluster(atoms)
 🎛️ Interactive **Three.js HTML** is not stored in this repo; export from the **web demo** or [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), or regenerate with `examples/gen_*_threejs.py`.
 
 ---
+
+<a id="tutorials"></a>
 
 ## 📚 Tutorials & documentation
 
