@@ -10,5 +10,6 @@ Complete these when the manuscript is on arXiv / accepted and when the org repo 
 - [ ] **Install:** If the project adopts a root `pyproject.toml` or publishes wheels, update README install paths and remove duplicate instructions in `docs/install.qmd`.
 - [ ] **mgr_cli_py:** When [arung-northwestern/mgr_cli_py](https://github.com/arung-northwestern/mgr_cli_py) is public, confirm README links and add PyPI/docker URLs if published.
 - [ ] **HF demo:** Confirm Space URL and resource limits in README if hosting changes.
+- [ ] **GitHub Pages:** Deploy Quarto output (`cd docs && quarto render`) to Pages for `mofography.github.io/mofography/`; enable badge link in README.
 
 Source manuscript (private): `mgr_sn` repo, `mgr_sn_v2.org`.
