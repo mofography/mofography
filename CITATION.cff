@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: >-
+  If you use mofography in published work, please cite a released version
+  (git tag YYYY.MM.DD.N) from the repository releases page—not an arbitrary
+  checkout of the default branch.
+type: software
+title: mofography
+license: BSD-3-Clause
+repository-code: 'https://github.com/mofography/mofography'
+url: 'https://github.com/mofography/mofography'
+authors:
+  - family-names: Gopalan
+    given-names: Arun
+keywords:
+  - metal-organic frameworks
+  - nanoporous materials
+  - pore analysis
+  - visualization
+abstract: >-
+  Python tools for analysis, visualization, featurization, and machine learning
+  on molecular pores in nanoporous materials.
+# Bump `version` (and commit) when cutting each release tag; keep in sync with the tag name.
+version: unreleased

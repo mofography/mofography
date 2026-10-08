@@ -2280,6 +2280,12 @@ devtools/
 iframe_figures/
 parity_outputs/
 examples/viz_outputs/
+examples/out/
+examples/pocket_reports/
+mofography_workflow_images_html_kaihang/
+mofography_workflow_images_html_kaihang.zip
+scripts/compose_figure.py
+/*.part
 archived_tutorials/
 .tmp_*
 .doom-cockpit/

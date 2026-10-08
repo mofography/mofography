@@ -122,6 +122,15 @@ These can be completed in any order after finishing the basic tutorials:
 - [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb): Identify functional groups/moieties in datasets like CoREMOF
 - [Graph Convolutional Neural Network (GCN)](docs/graph_convolution_on_rags_ccr.ipynb): Train a GCN on RAGs to predict hydrogen adsorption
 
+## Releases and citing
+
+mofography uses calendar-version git tags (`YYYY.MM.DD.N`). Collaborators should cite a **released tag** and commit hash, not an untagged `master` checkout. See [docs/releases-and-citing.md](docs/releases-and-citing.md) and [CITATION.cff](CITATION.cff). Interactive Three.js HTML is produced by the web app (or `examples/gen_*_threejs.py`), not checked into the repo. Check installed version with:
+
+```python
+import mofography as m
+print(m.__version__, m.__git_revision__)
+```
+
 ## Copyright ©️
 
 Copyright (c) 2022, Arun Gopalan
