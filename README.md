@@ -41,30 +41,33 @@ Pick your path by **role**. Three tools, one shared science core:
 - 🌐 **③ Web demo** — [Hugging Face Space](https://arung-northwestern-mofography-web-demo.hf.space/) (hosted)
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'fontSize': '20px', 'fontFamily': 'Helvetica, Arial, sans-serif', 'primaryTextColor': '#0f172a', 'lineColor': '#64748b'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 30, 'rankSpacing': 50, 'padding': 12}}}%%
+%%{init: {'themeVariables': {'fontSize': '20px', 'fontFamily': 'Helvetica, Arial, sans-serif'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 28, 'rankSpacing': 40, 'padding': 10}}}%%
 flowchart TB
-  V("<b>👀 Just curious?</b><br/>Look around")
-  E("<b>🧫 A few MOFs?</b><br/>Point & click")
-  G("<b>🤖 Scripts / agents?</b><br/>Batch jobs")
-  R("<b>🔬 Research / ML?</b><br/>Full control")
+  V("<b>👀 Just curious?</b>")
+  E("<b>🧫 A few MOFs?</b>")
+  G("<b>🤖 Scripts / agents?</b>")
+  R("<b>🔬 Research / ML?</b>")
 
-  HF["<b>🌐 ③ Web demo</b><br/>No install<br/><i>☁️ Hugging Face</i>"]
-  CLI["<b>⚡ ② CLI + app</b><br/>Local · simple<br/><i>👤 mgr_cli_py repo</i>"]
-  LIB["<b>🧪 ① Library</b><br/>Python API · fastest<br/><i>🏛️ this repo</i>"]
+  HF("<b>🌐 Web demo</b> ③<br/>No install · ☁️ hosted")
+  CLI("<b>⚡ CLI + app</b> ②<br/>Local · 👤 mgr_cli_py")
+  LIB("<b>🧪 Library</b> ①<br/>Fastest · 🏛️ this repo")
 
-  V ==> HF
-  E ==> CLI
-  G ==> CLI
-  R ==> LIB
+  V --> HF
+  E --> CLI
+  G --> CLI
+  R --> LIB
 
-  classDef audience fill:#faf5ff,stroke:#a855f7,color:#4c1d95,stroke-width:2px
-  classDef lib fill:#4f46e5,stroke:#312e81,color:#ffffff,stroke-width:3px
-  classDef cli fill:#059669,stroke:#047857,color:#ffffff,stroke-width:3px
-  classDef hf fill:#ea580c,stroke:#c2410c,color:#ffffff,stroke-width:3px
-  class V,E,G,R audience
-  class LIB lib
-  class CLI cli
+  classDef ask fill:transparent,stroke:#94a3b8,stroke-width:1.5px,stroke-dasharray:4 3
+  classDef hf fill:#f9731614,stroke:#f97316,stroke-width:2.5px
+  classDef cli fill:#14b8a614,stroke:#14b8a6,stroke-width:2.5px
+  classDef lib fill:#8b5cf614,stroke:#8b5cf6,stroke-width:2.5px
+  class V,E,G,R ask
   class HF hf
+  class CLI cli
+  class LIB lib
+  linkStyle 0 stroke:#f97316,stroke-width:2px
+  linkStyle 1,2 stroke:#14b8a6,stroke-width:2px
+  linkStyle 3 stroke:#8b5cf6,stroke-width:2px
 ```
 
 | | 🧪 **① Library** (this repo) | ⚡ **② CLI + web app** (`mgr_cli_py`) | 🌐 **③ Web demo** (HF) |
