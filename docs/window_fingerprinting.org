@@ -1,6 +1,6 @@
 #+title: Window fingerprinting — accessible textural properties and window typing
 #+filetags: :mofography:windows:fingerprinting:textural-properties:winding:
-#+description: Multi-modal window characterization (diameter + framework shell), Mechanism A/B mismatches, accessible SA/vol curation, experimental DFSD use, and window-type detection.
+#+description: Multi-modal window characterization (diameter + framework shell), Mechanism A/B mismatches, accessible SA/vol curation, experimental LIS use, and window-type detection.
 #+property: header-args:python :eval no-export :exports code
 #+options: toc:3
 #+startup: overview
@@ -20,7 +20,7 @@ This note covers:
 1. Why fingerprints exist (grid/watershed vs graph window mismatch).
 2. How they are used for **accessible** surface area and void volume.
 3. Why they do **not** override user probe radius for **Mechanism A** (PLD threshold) failures.
-4. Optional, **experimental** use in **DFSD** (winding / winding2).
+4. Optional, **experimental** use in **LIS** (winding / winding2).
 5. Prototype **window-type detection** (LTA-96 example script).
 
 * Window shell fingerprint
@@ -75,7 +75,7 @@ Pass =window_fp_for_accessible=False= for legacy behaviour (union of components 
 | =window_fp_sim_thresh= | 0.88 | Min cosine to match open window |
 | =window_fp_subprobe_gap= | 0.5 Å | Max (probe − window_radius) for candidate edge |
 | =window_fp_ref_tol= | 0.12 Å | Reference edges must be ≥ probe − this |
-| =window_fp_size_tol= | 0.20 Å | Symmetric \|Δwr\| gate for DFSD FP expansion only |
+| =window_fp_size_tol= | 0.20 Å | Symmetric \|Δwr\| gate for LIS FP expansion only |
 | =window_fp_ref_minus_cand_tol= | (=subprobe_gap=) | Max =wr_ref − wr_cand= for accessible FP bridge (one-sided) |
 
 Merged by =_merge_winding_kwargs=; caller flags override stored dict.
@@ -94,15 +94,15 @@ vol_legacy = mgr.compute_void_volume_from_results(
 )
 #+end_src
 
-* DFSD mode (winding / winding2) — experimental
+* LIS mode (winding / winding2) — experimental
 
-**Separate code path.** Largest-cavity diameter along percolating pathways uses =percolating_region_labels_at_probe_dfsd= (and winding2 analogue). An optional second stage, =_expand_dfsd_labels_with_window_fingerprint=, can rescue the max-cavity label when it sits behind a sub-probe window that fingerprint-matches an already-percolating mouth.
+**Separate code path.** Largest included sphere (LIS) along percolating pathways uses =percolating_region_labels_at_probe_dfsd= (and winding2 analogue). An optional second stage, =_expand_dfsd_labels_with_window_fingerprint=, can rescue the max-cavity label when it sits behind a sub-probe window that fingerprint-matches an already-percolating mouth.
 
-- Controlled by =window_fp_for_dfsd=True= in =winding_kwargs=.
-- **Default is False** — DFSD scalar is unchanged unless explicitly enabled.
-- Treat as **experimental**: helpful on a subset of structures with Mechanism B–like DFSD undershoot; **not required for most materials**; not coupled to accessible SA/vol unless you also enable =window_fp_for_accessible=.
+- Controlled by =window_fp_for_lis=True= in =winding_kwargs=.
+- **Default is False** — LIS scalar is unchanged unless explicitly enabled.
+- Treat as **experimental**: helpful on a subset of structures with Mechanism B–like LIS undershoot; **not required for most materials**; not coupled to accessible SA/vol unless you also enable =window_fp_for_accessible=.
 
-Most production parity work targets accessible properties; enable DFSD fingerprinting only when validating a specific outlier.
+Most production parity work targets accessible properties; enable LIS fingerprinting only when validating a specific outlier.
 
 * Window-type detection (prototype)
 
@@ -127,7 +127,7 @@ Experimental capability—API and clustering thresholds may change. Not yet inte
 
 | File | Role |
 |------+------|
-| =mofography/winding_percolation.py= | Fingerprints, accessible BFS, DFSD expansion |
+| =mofography/winding_percolation.py= | Fingerprints, accessible BFS, LIS expansion |
 | =mofography/compute.py= | Accessible SA/vol integration |
 | =mofography/pocket_typing.py= | Pocket-type analogue (PSD + shell) |
 | =examples/window_types_lta96_report.py= | LTA-96 window-type prototype |

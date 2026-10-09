@@ -28,6 +28,7 @@ self-loops.
 
 from __future__ import annotations
 
+import warnings
 from collections import deque
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
@@ -832,6 +833,22 @@ def _incident_edge_records(graph: nx.MultiDiGraph, node: int):
     return list(records.values())
 
 
+
+def _window_fp_for_lis_enabled(kwargs: Optional[Dict[str, object]]) -> bool:
+    """Read ``window_fp_for_lis``; still accept the legacy ``window_fp_for_dfsd`` key with a warning."""
+    if not kwargs:
+        return False
+    if "window_fp_for_lis" in kwargs:
+        return bool(kwargs["window_fp_for_lis"])
+    if "window_fp_for_dfsd" in kwargs:
+        warnings.warn(
+            "'window_fp_for_dfsd' was renamed to 'window_fp_for_lis'; the old key still works but will be removed.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        return bool(kwargs["window_fp_for_dfsd"])
+    return False
+
 def _expand_dfsd_labels_with_window_fingerprint(
     *,
     graph: nx.MultiDiGraph,
@@ -844,7 +861,7 @@ def _expand_dfsd_labels_with_window_fingerprint(
     atoms=None,
 ) -> set:
     """Optionally rescue max-cavity labels when near-threshold windows look similar."""
-    if kwargs is None or not bool(kwargs.get("window_fp_for_dfsd", False)):
+    if not _window_fp_for_lis_enabled(kwargs):
         return percolating_labels
     if not percolating_labels:
         return percolating_labels
