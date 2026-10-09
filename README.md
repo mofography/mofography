@@ -3,7 +3,7 @@
 <img src="./docs/mofography_logo_dark_background.png#gh-dark-mode-only" alt="mofography" width="420" />
 <img src="./docs/mofography_logo_white_background.png#gh-light-mode-only" alt="mofography" width="420" />
 
-<sub>**[Segmentation](docs/region_segmentation.qmd)** · **[Textural Properties](docs/compute_pore_diameters.ipynb)** · **[Pore Windows](docs/connections_and_windows.qmd)** · **[Percolation](docs/pld_and_percolation.ipynb)** · **[Pore Graphs](docs/region_adjacency_graph.ipynb)** · **[3D Visualization](docs/framework_visualization_example.ipynb)** · **[High&#8209;Throughput](docs/hts_using_mofography.ipynb)** · **[ML&nbsp;Features](docs/graph_convolution_on_rags_ccr.ipynb)**</sub>
+<img src="docs/feature_strip.svg" alt="Segmentation · Textural Properties · Pore Windows · Percolated Clusters · Pore Graphs · 3D Visualization · High-Throughput · ML Featurization" width="880" />
 
 *Characterization toolkit for MOFs, zeolites, polymers, and other crystalline nanoporous materials*
 
