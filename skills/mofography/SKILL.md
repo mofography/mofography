@@ -109,7 +109,7 @@ Meaning of the terms (keep them consistent in explanations):
 - **Accessible** = probe-center accessible, only regions that percolate for that probe radius.
 - LCD = 2 x global max of the distance grid. PLD = largest probe diameter that still percolates. LIS = percolation-accessible analogue of LCD.
 - Use **LIS** only. Do not use the older name DFSD. (The third return value of `get_pore_dia_mgr_winding` is LIS; it is called `dfsd` in older code.)
-- Optional guardrails: `kwargs={"window_fp_for_dfsd": True, "window_fp_for_accessible": True}` on the winding calls (window-fingerprint rescue near the percolation threshold); off by default for LIS, on by default for accessible SA/volume. `mgr.get_pore_dia_mgr_winding2(..., auto_rerun=True)` is the same but re-segments with `mask_thickness=1.5` when it detects deterministic-watershed spill (a pocket's self-loop radii spread over 30% of its radius); give it `mat_atoms`.
+- Optional guardrails: `kwargs={"window_fp_for_lis": True}` on `get_pore_dia_mgr_winding` makes the LIS robust on small unit cells (window-fingerprint rescue of the largest cavity behind a narrow window); it is off by default. `window_fp_for_accessible` (on by default) is a separate switch for accessible surface area and volume; the two flags are independent. The old key `window_fp_for_dfsd` is still read but warns. `mgr.get_pore_dia_mgr_winding2(..., auto_rerun=True)` is the same but re-segments with `mask_thickness=1.5` when it detects deterministic-watershed spill (a pocket's self-loop radii spread over 30% of its radius); give it `mat_atoms`.
 - Mesh surface area is also available: `mgr.compute_surface_area_mesh_winding(seg, atoms, probe_radius=...)`.
 - Deprecated aliases you will see in older scripts: `compute_surface_area_from_results_mc` -> `compute_surface_area_mc_winding`, `compute_surface_area_from_results` -> `compute_surface_area_mesh_winding`. `compute_void_volume_from_results` is the underlying implementation that `compute_void_volume_from_results_winding` wraps. Prefer the `*_winding` names in new code.
 
@@ -130,7 +130,7 @@ seg = mgr.do_periodic_segmentation_rust(
 ```
 
 Probe 1.2 Å (He) for surface area and volume, 50,000 MC samples with shell thickness 0.5 Å, seed 42.
-The paper builds a supercell first when a cell is thin (`mgr.get_repetitions_to_meet_cutoff(atoms, 6.0)` then `ase.build.make_supercell`), and also runs unit cells directly.
+Run the unit cell directly: `dgrid_from_atoms_rust` handles non-orthogonal cells correctly, so no supercell is needed. Add `kwargs={"window_fp_for_lis": True}` to the LIS call for small cells so the LIS is not missed.
 
 ## Windows
 
@@ -179,7 +179,24 @@ mgr.show_mof_threejs(seg, atoms, typed_result=typed, framework_atoms=atoms, outp
 fig = mgr.show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms, stylize=True)
 ```
 
-Three.js HTML is not stored in the repo; generate it on demand. Percolation scenes: `show_percolation_threejs` (see `docs/pld_and_percolation.ipynb`).
+Three.js HTML is not stored in the repo; generate it on demand. Percolated-cluster scene (accessible pockets at the percolation probe, pore graph, PLD windows):
+
+```python
+from mofography.helper import trim_connections_to_unique_regions
+from mofography.workflow import show_percolation_threejs
+
+hist, pld_locations, _ = mgr.compute_percolation_history_winding(seg, step=0.05, expand_components=False)
+probe_r = float(hist[-1][0])                       # probe radius at which percolation stops
+analysis = {
+    "percolation_history": hist, "pld_locations": pld_locations,
+    "dgrid": seg["dgrid"], "regions": seg["regions"],
+    "connections": trim_connections_to_unique_regions(seg["connections"], seg["unique_regions"]),
+    "maxima": seg["close_or_inside_maxima"], "isovalue": 1.0,
+}
+show_percolation_threejs(analysis, atoms, probe_radius=probe_r, output_html="percolation.html")
+```
+
+Options: `layout="white"`, `camera_eye=(x, y, z)`, `camera_center=(x, y, z)` (Cartesian Å).
 
 ## Parameters to tune
 
