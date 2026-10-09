@@ -3,7 +3,8 @@
 <img src="./docs/mofography_logo_dark_background.png#gh-dark-mode-only" alt="mofography" width="420" />
 <img src="./docs/mofography_logo_white_background.png#gh-light-mode-only" alt="mofography" width="420" />
 
-### Pore segmentation, pore networks, and textural properties
+**Pore Segmentation · Textural Properties · Pore Windows · Percolated Clusters · Pore Graphs · 3D Visualization · High-Throughput · ML Featurization**
+
 *Characterization toolkit for MOFs, zeolites, polymers, and other crystalline nanoporous materials*
 
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue?logo=opensourceinitiative&logoColor=white)](LICENSE)
