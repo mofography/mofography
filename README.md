@@ -20,7 +20,7 @@
 [Tutorials](#tutorials) ·
 [Cite](#cite)
 
-<img src="docs/mofography_nu1000_exploded.png" alt="NU-1000 pore segmentation (exploded view)" width="100%" />
+<img src="docs/mofography_overview.gif" alt="mofography workflow: framework, pore segmentation, pore graph, unfolded views" width="100%" />
 
 </div>
 
