@@ -436,7 +436,7 @@ print(f"probe {probe_above_pld} Å: strict={len(strict)} regions, +FP={len(fp)} 
 |----------|----------------|
 | **Production accessible SA / void volume** | Leave `window_fp_for_accessible=True` (default). The default tuning is calibrated for CoRE-2000 / typical MOFs. |
 | **Strict probe-gated comparison vs Zeo++** | Pass `window_fp_for_accessible=False`. Use this when you want to audit Mofography's *graph-reachable* definition explicitly. |
-| **DFSD / largest-cavity diameter** | FP is **off by default** for DFSD. Enable `window_fp_for_dfsd=True` only when validating a specific outlier — it is experimental. |
+| **LIS (largest included sphere)** | FP is **off by default** for LIS. Enable `window_fp_for_lis=True` only when validating a specific outlier — it is experimental. |
 | **A material with very different window chemistries (e.g. mixed-linker MOF)** | Consider raising `window_fp_sim_thresh` (e.g. 0.95) to require tighter matches. |
 | **A material with very small framework atoms (zeolites)** | Default `shell_radius=3.5 Å` is calibrated for organic / metal-organic frameworks. On pure siliceous zeolites the shell often contains only Si/O; cosine between two windows of the same ring is essentially 1 and the gate barely fires. |
 
