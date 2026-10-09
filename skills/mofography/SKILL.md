@@ -68,39 +68,106 @@ Pass the segmentation result `seg` (it carries the grid) plus `atoms`. Probe rad
 
 ```python
 # Diameters (Å): returns (LCD, PLD, LIS, dgrid). LIS = largest included sphere along percolating pathways.
-lcd, pld, lis, _ = mgr.get_pore_dia_mgr_winding(mat_atoms=atoms, results=seg)
+lcd, pld, lis, _ = mgr.get_pore_dia_mgr_winding(results=seg, mat_atoms=None, include_dangling=True)
+
+# Optional: winding percolation history (list, pld_locations, clusters); the paper pipeline stores it on seg
+hist, pld_locations, clusters = mgr.compute_percolation_history_winding(seg, include_dangling=True)
+seg["percolation_history"] = hist
 
 # Surface area, Monte Carlo shell + winding percolation accessibility (m²/g)
-sa = mgr.compute_surface_area_mc_winding(seg, atoms, probe_radius=1.2)
+np.random.seed(42)                         # MC is random; seed for reproducible numbers
+sa = mgr.compute_surface_area_mc_winding(seg, atoms, probe_radius=1.2, n_samples=50000, shell_thickness=0.5)
 sa["total_surface_area"], sa["accessible_surface_area"], sa["accessible_fraction"]
-sa["by_pocket"], sa["by_region"]          # pocket- and region-level breakdowns
+sa["by_pocket"], sa["by_region"]           # pocket- and region-level breakdowns
 
 # Void volume, voxel counting + winding accessibility (cm³/g)
 vol = mgr.compute_void_volume_from_results_winding(seg, atoms, probe_radius=1.2)
 vol["total_void_volume"], vol["accessible_void_volume"], vol["by_pocket"]
+```
 
-# Pore size distributions
-psd = mgr.compute_psd_uniform_rust(seg["dgrid"], atoms, num_samples_total=10000)               # global
+Pore size distributions (mind radius vs diameter):
+
+```python
+# Global, uniform sampling. Returns (sample_points, RADII); diameter = 2 * radii.
+# min_sphere_center_radius = probe clearance for the sphere center (1.657 Å = N2, matches PoreBlazer Total PSD).
+_, radii = mgr.compute_pore_sizes_uniform_rust(seg["dgrid"], atoms, num_samples_total=50000,
+                                               min_sphere_center_radius=1.657)
+diameters = 2.0 * radii[radii > 1.657]
+
+# Quick histogram only (counts over bins=linspace(0, 50, 200) by default; no probe clearance option)
+counts = mgr.compute_psd_uniform_rust(seg["dgrid"], atoms, num_samples_total=10000)
+
+# Pocket-wise (same sampling per pocket, so small pockets are not undersampled)
+from mofography.pocket_typing import psd_bins
 psds = mgr.compute_psds_pocketwise_rust(seg["dgrid"], seg["regions_pbc"], atoms,
-                                        num_samples_per_region=1000)                          # per pocket
+                                        num_samples_per_region=1000,
+                                        bins=psd_bins(seg["dgrid"]), probe_center_min_radius=1.2)
 ```
 
 Meaning of the terms (keep them consistent in explanations):
 - **Total** = occupiable by the probe center, in all segmented pore regions.
 - **Accessible** = probe-center accessible, only regions that percolate for that probe radius.
 - LCD = 2 x global max of the distance grid. PLD = largest probe diameter that still percolates. LIS = percolation-accessible analogue of LCD.
-- Use **LIS** only. Do not use the older name DFSD.
+- Use **LIS** only. Do not use the older name DFSD. (The third return value of `get_pore_dia_mgr_winding` is LIS; it is called `dfsd` in older code.)
+- Optional guardrails: `kwargs={"window_fp_for_dfsd": True, "window_fp_for_accessible": True}` on the winding calls (window-fingerprint rescue near the percolation threshold); off by default for LIS, on by default for accessible SA/volume. `mgr.get_pore_dia_mgr_winding2(..., auto_rerun=True)` is the same but re-segments with `mask_thickness=1.5` when it detects deterministic-watershed spill (a pocket's self-loop radii spread over 30% of its radius); give it `mat_atoms`.
 - Mesh surface area is also available: `mgr.compute_surface_area_mesh_winding(seg, atoms, probe_radius=...)`.
+- Deprecated aliases you will see in older scripts: `compute_surface_area_from_results_mc` -> `compute_surface_area_mc_winding`, `compute_surface_area_from_results` -> `compute_surface_area_mesh_winding`. `compute_void_volume_from_results` is the underlying implementation that `compute_void_volume_from_results_winding` wraps. Prefer the `*_winding` names in new code.
 
-Sanity check on `P1-IRMOF-1.cif` at spacing 0.5: LCD ≈ 15.1 Å, PLD ≈ 7.9 Å, 8 pockets, SA ≈ 3.9e3 m²/g, void volume ≈ 0.93 cm³/g.
+Sanity check on `P1-IRMOF-1.cif` at spacing 0.5 (Bondi radii): LCD ≈ 15.1 Å, PLD ≈ 7.9 Å, 8 pockets, SA ≈ 3.9e3 m²/g, void volume ≈ 0.93 cm³/g. With CRC radii (below): SA ≈ 3.7e3 m²/g, void volume ≈ 0.94 cm³/g.
+
+## Settings used for the paper (Zeo++/PoreBlazer comparison)
+
+```python
+from mofography.vdw_radii import mendeleev_vdw_radii_angstrom   # CRC handbook radii
+radii = mendeleev_vdw_radii_angstrom(atoms)
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5, radii=radii).astype(np.float32)
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, mat_atoms=atoms, spacing=0.5, mask_thickness=0.05, h=0.2,
+    threshold_abs=1.5, min_distance=1.5, extra_padding=5,
+    watershed_backend="rust_det", return_dgrid=True, compute_connections=True,
+    vdw_radii_angstrom=radii, vdw_radii_set="crc",
+)
+```
+
+Probe 1.2 Å (He) for surface area and volume, 50,000 MC samples with shell thickness 0.5 Å, seed 42.
+The paper builds a supercell first when a cell is thin (`mgr.get_repetitions_to_meet_cutoff(atoms, 6.0)` then `ase.build.make_supercell`), and also runs unit cells directly.
+
+## Windows
+
+`seg["connections"]` is a list; each entry is `[region_pair, valid, kind, window_positions, window_radii]`
+(`kind` is `"periodic"` or `"internal"`). Window **radius** is the distance-grid value at the window voxel, so diameter = 2 x radius.
+
+```python
+window_diameters = []
+for c in seg["connections"]:
+    if not c[1]:                       # skip invalid entries
+        continue
+    window_diameters.extend(2.0 * float(r) for r in np.atleast_1d(c[-1]))
+```
+
+`mofography.helper.trim_connections_to_unique_regions(connections, seg["unique_regions"])` keeps only connections that touch at least one region inside the central cell (use it for unit-cell pore graphs and plots).
+For IRMOF-1 the windows come out at 7.4 to 7.9 Å.
 
 ## Pocket types
 
+Paper pipeline (`env_cluster` typing, default method):
+
 ```python
-enriched = mgr.enrich_segmentation_with_pocket_psds(seg, atoms)
-typed = mgr.assign_pocket_types(enriched, atoms, method="env_cluster")
-typed.n_types, typed.n_pockets, typed.type_summary   # type_summary: list of dicts per type
+from mofography.pocket_typing import assign_pocket_types_from_segmentation, psd_bins
+
+mgr.update_with_covalent_bonds(atoms)                       # bond info for the framework fingerprints
+seg["pocket_psds"] = mgr.compute_psds_pocketwise_rust(
+    seg["dgrid"], seg.get("regions_pbc", seg["regions"]), atoms,
+    num_samples_per_region=1000, bins=psd_bins(seg["dgrid"]), probe_center_min_radius=1.2,
+)
+typed = assign_pocket_types_from_segmentation(seg, atoms, method="env_cluster", probe_radius_psd=1.2)
+assert typed.ok, typed.error
+typed.n_types, typed.n_pockets, typed.type_summary           # type_summary: list of dicts per type
 ```
+
+Shortcut with the same result: `enriched = mgr.enrich_segmentation_with_pocket_psds(seg, atoms)` then
+`typed = mgr.assign_pocket_types(enriched, atoms, method="env_cluster")` (a thin wrapper of the function above).
+By default typing reads `max_r` bands from a second Bondi/CRC grid; pass `typing_radii="segmentation"` to use the segmentation grid instead.
 
 ## Visualization
 
@@ -131,6 +198,8 @@ Large cells: `dgrid_from_atoms_aabb_rust` (less memory) or `dgrid_from_atoms_aab
 
 - Pass a **float32** grid to `do_periodic_segmentation_rust` (`dgrid.astype(np.float32)`).
 - Textural-property functions need `return_dgrid=True` on the segmentation call, or they cannot find `seg["dgrid"]`.
+- `compute_pore_sizes_uniform_rust` returns radii; double them for diameters. `compute_psd_uniform_rust` returns histogram counts, not samples.
+- Monte Carlo surface areas vary by about 1% between unseeded runs; seed NumPy when comparing.
 - Log lines such as `[pocket_maxima_check] ... underestimates true region max` are diagnostics, not errors.
 - Use the same `probe_radius` consistently when comparing surface area, volume and accessibility.
 - Do not add the PBC/percolation filter by hand; the `*_winding` functions already apply it.
