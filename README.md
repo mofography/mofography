@@ -14,6 +14,7 @@
 [![Web demo](https://img.shields.io/badge/Try-Web_demo-ff6b35?logo=huggingface&logoColor=white)](https://arung-northwestern-mofography-web-demo.hf.space/)
 [![Docs](https://img.shields.io/badge/Docs-Quarto_(preview)-0ea5e9?logo=quarto&logoColor=white)](https://mofography.github.io/mofography/)
 
+[Features](#features) ·
 [Who is it for?](#who) ·
 [Install](#install) ·
 [Quick test](#quick-test) ·
@@ -24,16 +25,34 @@
 
 </div>
 
-**mofography** segments the void space of crystalline nanoporous materials into pockets and builds **pore graphs** from them. From one segmentation you get:
-
-- **Textural properties:** accessible surface area, pore (void) volume, pore-size distribution, pore limiting diameter (PLD) and largest cavity diameter (LCD)
-- **Pore network characterization:** pockets, windows, connectivity, percolation and accessible pore regions, with periodic boundary conditions handled
-- **Visualization:** interactive 3D views of the framework, pore surfaces, and pore graphs
-- **Featurization:** graph-based descriptors for high-throughput screening and machine learning
+**mofography** segments the void space of crystalline nanoporous materials into pockets and builds **pore graphs** from them. One segmentation gives you global and pocket-level textural properties, pore types, windows, and percolation, plus interactive 3D views and graph descriptors for screening and machine learning (see [Features](#features)).
 
 Core numerics run in a **Rust** backend (`mgr_rust`) behind a **Python** API.
 
 > **Canonical code:** [mofography/mofography](https://github.com/mofography/mofography) · **Latest release:** [`2026.10.09.1`](https://github.com/mofography/mofography/releases/tag/2026.10.09.1) · branch `master`
+
+---
+
+<a id="features"></a>
+
+## Features
+
+Everything below is available from the Python module. Global properties and pocket-level properties come from the same segmentation, so you can go from a material-level number down to the individual pore that produced it.
+
+| Capability | What you get | Learn more |
+|---|---|---|
+| **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](docs/compute_pore_diameters.ipynb), [PLD and percolation](docs/pld_and_percolation.ipynb) |
+| **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](docs/surface_area.qmd), [Accessibility](docs/accessibility.qmd) |
+| **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Compute pore diameters](docs/compute_pore_diameters.ipynb) |
+| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](docs/region_segmentation.qmd), [Applying PBC](docs/applying_pbc.qmd) |
+| **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](docs/pockets_detection.qmd) |
+| **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](docs/connections_and_windows.qmd), [Window fingerprinting](docs/window_fingerprinting.qmd) |
+| **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](docs/region_adjacency_graph.ipynb), [GCN on RAGs](docs/graph_convolution_on_rags_ccr.ipynb) |
+| **Percolation** | Percolation thresholds for a given probe, and 3D plots of the accessible, percolating clusters of pockets | [PLD and percolation](docs/pld_and_percolation.ipynb) |
+| **Visualization** | Interactive 3D views of the framework, pore surfaces, pockets, and pore graphs | [Visualization](docs/framework_visualization_example.ipynb) |
+| **High throughput** | Parallel characterization of whole databases with a Rust core | [High-throughput characterization](docs/hts_using_mofography.ipynb) |
+
+Global textural properties agree with Zeo++, and pore size distributions agree with PoreBlazer. The CLI and web app expose a subset of these features; see [Who should use what](#who).
 
 ---
 
@@ -209,11 +228,11 @@ open _site/index.html # macOS; or use a local static server
 2. [Basic structure analysis](docs/basic_structure_io.ipynb)
 3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
 4. [Distance grid](docs/distance_grid.ipynb)
-5. [Region segmentation](docs/region_segmentation.ipynb)
-6. [Applying periodic boundary conditions](docs/applying_pbc.ipynb)
+5. [Region segmentation](docs/region_segmentation.qmd)
+6. [Applying periodic boundary conditions](docs/applying_pbc.qmd)
 7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
-8. [Connections and windows](docs/connections_and_windows.ipynb)
-9. [Pocket type detection](docs/pockets_detection.ipynb)
+8. [Connections and windows](docs/connections_and_windows.qmd)
+9. [Pocket type detection](docs/pockets_detection.qmd)
 
 ### Advanced tutorials
 
