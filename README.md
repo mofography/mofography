@@ -52,7 +52,7 @@ Everything below is available from the Python module. Global properties and pock
 | **Visualization** | Interactive 3D views of the framework, pore surfaces, pockets, and pore graphs | [Visualization](docs/framework_visualization_example.ipynb) |
 | **High throughput** | Parallel characterization of whole databases with a Rust core | [High-throughput characterization](docs/hts_using_mofography.ipynb) |
 
-Global textural properties agree with Zeo++, and pore size distributions agree with PoreBlazer. The CLI and web app expose a subset of these features; see [Who should use what](#who).
+Not a Python user? The same core is available as a **CLI** ([`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)) for terminal users and AI agents, and as a **web app** for anyone who prefers a GUI and does not code or use a terminal. Both expose a subset of the features above; see [Who should use what](#who).
 
 ---
 
