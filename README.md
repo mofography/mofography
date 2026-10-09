@@ -224,10 +224,10 @@ open _site/index.html # macOS; or use a local static server
 
 ### Basic tutorials (recommended order)
 
-1. [Quick cluster](docs/quick_cluster.ipynb) — end-to-end workflow
+1. [Quick cluster](docs/quick_cluster.qmd) — end-to-end workflow
 2. [Basic structure analysis](docs/basic_structure_io.ipynb)
 3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
-4. [Distance grid](docs/distance_grid.ipynb)
+4. [Distance grid](docs/distance_grid.qmd)
 5. [Region segmentation](docs/region_segmentation.qmd)
 6. [Applying periodic boundary conditions](docs/applying_pbc.qmd)
 7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
