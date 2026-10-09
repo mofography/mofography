@@ -104,9 +104,15 @@ def show_percolation_threejs(
         if window_traces.get("pld_critical", {}).get("data", {}).get("n_points", 0):
             fig.add_trace(window_traces["pld_critical"])
 
+    # Scene units are Cartesian Å: aim at the cell center and back off in proportion to the cell size.
+    cell = np.asarray(atoms.get_cell().array, dtype=float)
+    center = cell.T @ np.array([0.5, 0.5, 0.5])
+    extent = float(np.linalg.norm(cell.sum(axis=0))) or 1.0
+    view_dir = np.array([2.0, 0.0, 1.35])
+    eye = center + view_dir / np.linalg.norm(view_dir) * 1.8 * extent
     fig.set_camera(
-        eye=(2.0, 0.0, 1.35),
-        center=(0.0, 0.0, 0.0),
+        eye=tuple(float(x) for x in opts.get("camera_eye", eye)),
+        center=tuple(float(x) for x in opts.get("camera_center", center)),
         up=(0.0, 0.0, 1.0),
         projection="perspective",
     )
