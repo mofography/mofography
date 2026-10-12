@@ -248,7 +248,7 @@ open _site/index.html # macOS; or use a local static server
 - [High-throughput characterization](docs/hts_using_mofography.ipynb)
 - [Periodic segmentation Rust vs Python (HTS)](docs/hts_periodic_seg_benchmark.ipynb)
 - [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
-- [Graph convolutional network (GCN) on RAGs](docs/graph_convolution_on_rags_ccr.ipynb)
+- [Graph convolutional network (GCN) on RAGs](docs/PoroNet-Base_160K_5bar.ipynb)
 
 Quarto guides (not only `.ipynb`): [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [learn hub](docs/learn.qmd), [API reference](docs/reference/index.qmd).
 
