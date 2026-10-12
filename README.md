@@ -55,6 +55,8 @@ Everything below is available from the Python module. Global properties and pock
 
 Not a Python user? The same core is available as a **CLI** ([`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)) for terminal users and AI agents, and as a **web app** for anyone who prefers a GUI and does not code or use a terminal. Both expose a subset of the features above; see [Who should use what](#who).
 
+Using an AI coding agent? Copy [`skills/mofography/SKILL.md`](skills/mofography/SKILL.md) into your agent's skills folder (for Claude Code, `.claude/skills/mofography/`) so it knows the Python API, the textural-property and percolation functions, and common pitfalls.
+
 ---
 
 <a id="who"></a>
