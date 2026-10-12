@@ -116,8 +116,9 @@ flowchart TB
 ## Cite this code
 
 - **Software:** release tag **`2026.10.09.1`** + commit hash — [docs/releases-and-citing.md](docs/releases-and-citing.md), [CITATION.cff](CITATION.cff).
-- **Paper:** *Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs* — Arun Gopalan, Chao Zheng, Behnam Azdapour, Kaihang Shi, Lev Sarkisov.  
-  **arXiv:** *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
+- **Paper:**
+  - (Software) A. Gopalan*, C. Zheng, B. Azdapour, K. Shi*, L. Sarkisov, "Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs". arXiv *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
+  - (Pore graph) C. Zheng, A. Gopalan, K. Shi*, "PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks". *J. Chem. Theory Comput.* 2026, 22 (11), 5716–5730. [link](https://doi.org/10.1021/acs.jctc.6c00100)
 
 ```python
 import mofography as m
@@ -259,7 +260,7 @@ Calendar-version tags and collaborator citations: [docs/releases-and-citing.md](
 
 ## Acknowledgements
 
-This material is based upon work supported by the ACS Petroleum Research Fund under Doctoral New Investigator Grant 68604-DNI6 and NSF CAREER Award No. CBET-2543449.
+This material is based upon work supported by the ACS Petroleum Research Fund under Doctoral New Investigator Grant 68604-DNI6 and NSF CAREER Award No. 2543449.
 
 ---
 
