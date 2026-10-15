@@ -446,9 +446,9 @@ But the Python API is strictly more flexible. Drop down to Python when you need:
   `.type_summary`, `.rep_to_type`, `.regions_cluster`
   (see [Pocket Type Detection](pockets_detection.qmd)).
 - **Custom visualizations** (e.g. `show_mof_plotly(seg, atoms, typed_result=...)`).
-- **Tighter integration** with Dask, MOFDB, or GCN pipelines
+- **Tighter integration** with Dask, MOFDB, or PoroNet pipelines
   (see [HTS Dask](hts_using_mofography.ipynb) and the
-  [GCN tutorial](graph_convolution_on_rags_ccr.ipynb)).
+  [PoroNet tutorial](PoroNet.qmd)).
 - **Access to `close_or_inside_maxima`** (voxel coords of pockets' interior
   maxima) or other low-level arrays the CLI does not surface.
 
