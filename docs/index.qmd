@@ -203,7 +203,7 @@ The advanced tutorials should make sense in any order once the basic tutorials a
 - Grab a large DataFrame from MOFDB and do some calculations on some randomly chosen MOFs [MOFDB notebook](./mofdb_example.ipynb)
 - Construct pore graphs for all of the IZA dataset in parallel using Mofography and Dask within Jupyter notebook[HTS Dask notebook](./hts_using_mofography.ipynb)
 - Detect functional groups/moeities in a dataset like CoREMOF [Functional groups notebook](./detect_functional_groups_in_dataset.ipynb)
-- Compile a dataset of RAGs from scratch and train a small Graph Convolutional Neural Network (GCN) on it to predict hydrogen adsorption at different pressures. [GCN tutorial](./graph_convolution_on_rags_ccr.ipynb)
+- Compile a dataset of RAGs from scratch and train a Graph Convolutional Neural Network (PoroNet) on it to predict hydrogen adsorption at different pressures. [PoroNet tutorial](./PoroNet.qmd)
 
 
 ## Feedback 📢
