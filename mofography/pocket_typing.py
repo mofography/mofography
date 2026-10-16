@@ -84,10 +84,12 @@ DEFAULT_PROBE_RADIUS_PSD_A = 1.2
 DEFAULT_PSD_MAX_DIAMETER_A = 50.0
 DEFAULT_PSD_BIN_WIDTH_A = 0.25
 SECOND_PEAK_FRAC = 0.10
-WINDOW_TRUST_MIN_A = 1.0
+# Trusted-window gate on the window RADIUS (A): 0.5 A radius = 1.0 A window diameter,
+# i.e. a connection counts as a window when its diameter is >= 1.0 A.
+WINDOW_TRUST_MIN_A = 0.5
 # Lower trust gate for connectivity-direction fingerprint: any real saddle point.
 # Watershed region boundaries always sit at dgrid local minima which are small
-# (0.3-0.6 A for ZIF-20), so the 1.0 A gate must be relaxed to see connections.
+# (0.3-0.6 A for ZIF-20), so the 0.5 A radius (1.0 A diameter) gate must be relaxed to see connections.
 CONN_TRUST_MIN_A = 0.1
 
 METHOD_MAX_PROBE_RADIUS = "max_probe_radius"
@@ -556,7 +558,7 @@ def compute_pocket_fingerprints(
         )
         # Trusted window-connected neighbours (window > WINDOW_TRUST_MIN_A)
         # Use loose connectivity (conn_nbr_reps) for direction fingerprint;
-        # trusted_nbr_reps (strict 1.0 A gate) is for d1-neighbor computation.
+        # trusted_nbr_reps (strict gate: window radius >= 0.5 A, i.e. diameter >= 1.0 A) is for d1-neighbor computation.
         trusted_neighbors[rep] = list(p.get("conn_nbr_reps", p.get("trusted_nbr_reps", [])))
 
     # Compute connectivity-direction SH fingerprints and attach to existing FPs
