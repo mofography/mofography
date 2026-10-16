@@ -18,5 +18,5 @@ Returns {rep: power_spectrum_array(l_max+1)}.  Pockets with fewer than
 
 The minimum image convention (MIC) is applied so that the nearest periodic
 image of each neighbour is used.  Connections that pass through a window
-smaller than ``WINDOW_TRUST_MIN_A`` (1 Å radius) are already excluded by
+smaller than ``WINDOW_TRUST_MIN_A`` (0.5 Å radius = 1 Å diameter) are already excluded by
 the caller (``build_pockets_from_segmentation`` in pocket_typing.py).
