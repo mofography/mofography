@@ -2044,10 +2044,11 @@ def percolation_winding_on_binary_grid(
 #   window, so the graph below keeps one edge per window.
 #
 # What they do:
-# - collect_periodic_edges_canonical_all_cell_windows: keeps a window only if both
-#   pores own at least one voxel of the unit-cell `regions` (windows of pores made only
-#   of padding copies are duplicates and are dropped), maps image pores back to their
-#   unit-cell pore with a relative periodic offset, and returns one entry per window.
+# - collect_periodic_edges_canonical_all_cell_windows: keeps a window only if at least
+#   one of its pores owns a voxel of the unit-cell `regions` (windows between two pores
+#   made only of padding copies are dropped), maps image pores back to their unit-cell
+#   pore with a relative periodic offset, and returns one entry per window. The same
+#   window seen from different periodic images is counted once (by its wrapped position).
 # - make_directed_graph_from_segmentation_results_trimmed: builds a MultiDiGraph with
 #   one edge per window (window_radius, window_position, relative_offset).
 # - extract_percolating_pore_graph: removes pores and windows smaller than the probe
@@ -2057,13 +2058,14 @@ def percolation_winding_on_binary_grid(
 #   windows the probe can pass.
 #-----------------------------------------------------------------------------------------------------------------------------
 
-def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, regions):
+def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, regions, cell):
     import numpy as np
 
     # pores that own at least one voxel of the original unit cell
     cell_labels = set(int(x) for x in np.unique(regions)) - {0}
     label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
     _, original_maxima_mapping, _ = _maxima_pbc_data(np.asarray(maxima_info))
+    inv_cell = np.linalg.inv(np.asarray(cell, dtype=float))
 
     edge_map = {}
     edges_debug = []
@@ -2071,8 +2073,8 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
     for c in connections:
         if not c[1]:
             continue
-        # skip windows that touch a pore made only of padding copies
-        if not all(int(x) in cell_labels for x in c[0]):
+        # skip windows between two pores made only of padding copies
+        if not any(int(x) in cell_labels for x in c[0]):
             continue
 
         i_label, j_label = c[0]
@@ -2109,8 +2111,13 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
         for window_id, (pos, radius) in enumerate(zip(positions, radii)):
             if len(pos) != 3:
                 continue
-            key = (start_base, end_base, relative_offset, window_id)
+            # the same window seen from different periodic images has the same wrapped position
+            wrapped = np.round(np.asarray(pos, dtype=float) @ inv_cell % 1.0, 4) % 1.0
+            key = (start_base, end_base, relative_offset, tuple(wrapped))
+            if key in edge_map:
+                continue
             edge_map[key] = {
+                "window_id": window_id,
                 "window_radius": float(radius),
                 "window_position": tuple(float(x) for x in pos),
             }
@@ -2138,7 +2145,7 @@ def make_directed_graph_from_segmentation_results_trimmed(results, dgrid=None):
     maxima_info = results["maxima_info"]
     connections = results["connections"]
     edge_map, edges_debug = collect_periodic_edges_canonical_all_cell_windows(
-        connections, maxima_info, results["regions"]
+        connections, maxima_info, results["regions"], results["mat_atoms"].cell
     )
     if dgrid is None:
         dgrid = results["dgrid"]
@@ -2147,12 +2154,12 @@ def make_directed_graph_from_segmentation_results_trimmed(results, dgrid=None):
 
     G = nx.MultiDiGraph()
     # one graph edge = one window
-    for (i, j, rel_offset, window_id), data in edge_map.items():
+    for (i, j, rel_offset, _), data in edge_map.items():
         G.add_edge(
             i,
             j,
             relative_offset=rel_offset,
-            window_id=window_id,
+            window_id=data["window_id"],
             window_radius=float(data["window_radius"]),
             window_position=data["window_position"],
         )
@@ -2163,6 +2170,7 @@ def make_directed_graph_from_segmentation_results_trimmed(results, dgrid=None):
         G.nodes[node]["pocket_radius"] = float(dgrid[voxel_idx])
 
     return G
+
 
 
 def extract_percolating_pore_graph(
