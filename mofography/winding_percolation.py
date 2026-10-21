@@ -2058,7 +2058,7 @@ def percolation_winding_on_binary_grid(
 #   windows the probe can pass.
 #-----------------------------------------------------------------------------------------------------------------------------
 
-def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, regions, cell):
+def collect_periodic_window_edges(connections, maxima_info, regions, cell):
     import numpy as np
 
     # pores that own at least one voxel of the original unit cell
@@ -2120,9 +2120,10 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
             )
 
     # one edge per wrapped window position: the copy inside the original unit cell if
-    # there is one, otherwise the first copy found
+    # there is one, otherwise the copy with the smallest periodic offset
+    records.sort(key=lambda r: (not r[0], sum(abs(x) for x in r[4])))
     for (in_cell, wrapped, start_base, end_base, relative_offset, window_id, radius, pos,
-         i_label, j_label, start_offset, end_offset) in sorted(records, key=lambda r: not r[0]):
+         i_label, j_label, start_offset, end_offset) in records:
         if wrapped in edge_map:
             continue
         edge_map[wrapped] = {
@@ -2149,13 +2150,13 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
     return edge_map, np.array(edges_debug) if edges_debug else None
 
 
-def make_directed_graph_from_segmentation_results_trimmed(results, dgrid=None):
+def make_window_resolved_graph_from_results(results, dgrid=None):
     import networkx as nx
     import numpy as np
 
     maxima_info = results["maxima_info"]
     connections = results["connections"]
-    edge_map, edges_debug = collect_periodic_edges_canonical_all_cell_windows(
+    edge_map, edges_debug = collect_periodic_window_edges(
         connections, maxima_info, results["regions"], results["mat_atoms"].cell
     )
     if dgrid is None:
