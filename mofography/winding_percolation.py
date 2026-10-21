@@ -2069,6 +2069,7 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
 
     edge_map = {}
     edges_debug = []
+    records = []
 
     for c in connections:
         if not c[1]:
@@ -2107,36 +2108,43 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
         if positions.ndim == 1:
             positions = positions.reshape(1, -1)
 
-        # one edge per window
         for window_id, (pos, radius) in enumerate(zip(positions, radii)):
             if len(pos) != 3:
                 continue
-            # use only the copy of the window that lies inside the original unit cell
             frac = np.asarray(pos, dtype=float) @ inv_cell
-            if not np.all((frac > -1e-3) & (frac < 1 - 1e-3)):
-                continue
-            wrapped = np.round(frac % 1.0, 4) % 1.0
-            key = (start_base, end_base, relative_offset, tuple(wrapped))
-            if key in edge_map:
-                continue
-            edge_map[key] = {
-                "window_id": window_id,
-                "window_radius": float(radius),
-                "window_position": tuple(float(x) for x in pos),
-            }
-            edges_debug.append(
-                [
-                    int(i_label),
-                    int(j_label),
-                    start_base,
-                    end_base,
-                    *start_offset,
-                    *end_offset,
-                    *relative_offset,
-                    window_id,
-                    float(radius),
-                ]
+            in_cell = bool(np.all((frac > -1e-3) & (frac < 1 - 1e-3)))
+            wrapped = tuple(np.round(frac % 1.0, 4) % 1.0)
+            records.append(
+                (in_cell, wrapped, start_base, end_base, relative_offset, window_id, float(radius), pos,
+                 int(i_label), int(j_label), start_offset, end_offset)
             )
+
+    # one edge per wrapped window position: the copy inside the original unit cell if
+    # there is one, otherwise the first copy found
+    for (in_cell, wrapped, start_base, end_base, relative_offset, window_id, radius, pos,
+         i_label, j_label, start_offset, end_offset) in sorted(records, key=lambda r: not r[0]):
+        if wrapped in edge_map:
+            continue
+        edge_map[wrapped] = {
+            "pores": (start_base, end_base),
+            "relative_offset": relative_offset,
+            "window_id": window_id,
+            "window_radius": radius,
+            "window_position": tuple(float(x) for x in pos),
+        }
+        edges_debug.append(
+            [
+                i_label,
+                j_label,
+                start_base,
+                end_base,
+                *start_offset,
+                *end_offset,
+                *relative_offset,
+                window_id,
+                radius,
+            ]
+        )
 
     return edge_map, np.array(edges_debug) if edges_debug else None
 
@@ -2157,11 +2165,10 @@ def make_directed_graph_from_segmentation_results_trimmed(results, dgrid=None):
 
     G = nx.MultiDiGraph()
     # one graph edge = one window
-    for (i, j, rel_offset, _), data in edge_map.items():
+    for data in edge_map.values():
         G.add_edge(
-            i,
-            j,
-            relative_offset=rel_offset,
+            *data["pores"],
+            relative_offset=data["relative_offset"],
             window_id=data["window_id"],
             window_radius=float(data["window_radius"]),
             window_position=data["window_position"],
