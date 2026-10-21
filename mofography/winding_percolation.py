@@ -2111,8 +2111,11 @@ def collect_periodic_edges_canonical_all_cell_windows(connections, maxima_info, 
         for window_id, (pos, radius) in enumerate(zip(positions, radii)):
             if len(pos) != 3:
                 continue
-            # the same window seen from different periodic images has the same wrapped position
-            wrapped = np.round(np.asarray(pos, dtype=float) @ inv_cell % 1.0, 4) % 1.0
+            # use only the copy of the window that lies inside the original unit cell
+            frac = np.asarray(pos, dtype=float) @ inv_cell
+            if not np.all((frac > -1e-3) & (frac < 1 - 1e-3)):
+                continue
+            wrapped = np.round(frac % 1.0, 4) % 1.0
             key = (start_base, end_base, relative_offset, tuple(wrapped))
             if key in edge_map:
                 continue
