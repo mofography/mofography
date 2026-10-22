@@ -2033,4 +2033,250 @@ def percolation_winding_on_binary_grid(
 
     return percolates, loops, acc_offsets
 
+#-----------------------------------------------------------------------------------------------------------------------------
+# Pore graph with one edge per window, and its percolating subgraph
+# (used by the property calculation).
+#
+# Why these functions were added:
+#   make_directed_graph_from_segmentation_results merges all windows between a pore
+#   pair (with the same periodic offset) into one edge that keeps the largest radius.
+#   Window-level properties (e.g. pore connectivity, average window radius) need every
+#   window, so the graph below keeps one edge per window.
+#
+# What they do:
+# - collect_periodic_window_edges: keeps a window only if at least one of its pores
+#   owns a voxel of the unit-cell `regions` (windows between two pores made only of
+#   padding copies are dropped), maps image pores back to their unit-cell pore with a
+#   relative periodic offset, and returns one entry per window. The same window seen
+#   from different periodic images is counted once, keyed by its wrapped position and
+#   its pore pair; the in-cell copy is preferred, else the copy with the smallest offset.
+# - make_window_resolved_graph_from_results: builds a MultiDiGraph with one edge per
+#   window (window_radius, window_position, relative_offset).
+# - extract_percolating_pore_graph: removes pores and windows smaller than the probe
+#   radius, finds winding loops, and returns the percolating subgraph (the whole
+#   component, or only the loop nodes, optionally without dangling branches). Same idea
+#   as percolation_all_axes_winding, but it returns the graph itself, with only the
+#   windows the probe can pass.
+#-----------------------------------------------------------------------------------------------------------------------------
+
+def collect_periodic_window_edges(connections, maxima_info, regions, cell):
+    import numpy as np
+
+    # pores that own at least one voxel of the original unit cell
+    cell_labels = set(int(x) for x in np.unique(regions)) - {0}
+    label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
+    _, original_maxima_mapping, _ = _maxima_pbc_data(np.asarray(maxima_info))
+    inv_cell = np.linalg.inv(np.asarray(cell, dtype=float))
+
+    edge_map = {}
+    edges_debug = []
+    records = []
+
+    for c in connections:
+        if not c[1]:
+            continue
+        # skip windows between two pores made only of padding copies
+        if not any(int(x) in cell_labels for x in c[0]):
+            continue
+
+        i_label, j_label = c[0]
+        idx_i = label_to_idx.get(int(i_label))
+        idx_j = label_to_idx.get(int(j_label))
+        if idx_i is None or idx_j is None:
+            continue
+
+        base_i = int(original_maxima_mapping[idx_i])
+        base_j = int(original_maxima_mapping[idx_j])
+        offset_i = maxima_info[idx_i, 4:7].astype(int)
+        offset_j = maxima_info[idx_j, 4:7].astype(int)
+
+        start_base, end_base = base_i, base_j
+        start_offset, end_offset = offset_i, offset_j
+        if end_base < start_base:
+            start_base, end_base = end_base, start_base
+            start_offset, end_offset = end_offset, start_offset
+
+        relative_offset = tuple(int(x) for x in (end_offset - start_offset))
+        if start_base == end_base:
+            if relative_offset == (0, 0, 0):
+                continue
+            neg_offset = tuple(-x for x in relative_offset)
+            if neg_offset < relative_offset:
+                relative_offset = neg_offset
+
+        positions = np.asarray(c[3])
+        radii = np.asarray(c[4]).reshape(-1)
+        if positions.ndim == 1:
+            positions = positions.reshape(1, -1)
+
+        for window_id, (pos, radius) in enumerate(zip(positions, radii)):
+            if len(pos) != 3:
+                continue
+            frac = np.asarray(pos, dtype=float) @ inv_cell
+            in_cell = bool(np.all((frac > -1e-3) & (frac < 1 - 1e-3)))
+            wrapped = tuple(np.round(frac % 1.0, 4) % 1.0)
+            records.append(
+                (in_cell, wrapped, start_base, end_base, relative_offset, window_id, float(radius), pos,
+                 int(i_label), int(j_label), start_offset, end_offset)
+            )
+
+    # one edge per wrapped window position: the copy inside the original unit cell if
+    # there is one, otherwise the copy with the smallest periodic offset
+    records.sort(key=lambda r: (not r[0], sum(abs(x) for x in r[4])))
+    for (in_cell, wrapped, start_base, end_base, relative_offset, window_id, radius, pos,
+         i_label, j_label, start_offset, end_offset) in records:
+        # same position under the same pore pair is one window; the same position under
+        # different pore pairs is a junction where several pores touch, so keep each pair
+        key = (wrapped, (start_base, end_base))
+        if key in edge_map:
+            continue
+        edge_map[key] = {
+            "pores": (start_base, end_base),
+            "relative_offset": relative_offset,
+            "window_id": window_id,
+            "window_radius": radius,
+            "window_position": tuple(float(x) for x in pos),
+        }
+        edges_debug.append(
+            [
+                i_label,
+                j_label,
+                start_base,
+                end_base,
+                *start_offset,
+                *end_offset,
+                *relative_offset,
+                window_id,
+                radius,
+            ]
+        )
+
+    return edge_map, np.array(edges_debug) if edges_debug else None
+
+
+def make_window_resolved_graph_from_results(results, dgrid=None):
+    import networkx as nx
+    import numpy as np
+
+    maxima_info = results["maxima_info"]
+    connections = results["connections"]
+    edge_map, edges_debug = collect_periodic_window_edges(
+        connections, maxima_info, results["regions"], results["mat_atoms"].cell
+    )
+    if dgrid is None:
+        dgrid = results["dgrid"]
+    dgrid_shape = dgrid.shape
+    frac_coords = maxima_info[:, 1:4] / dgrid_shape + maxima_info[:, 4:7]
+
+    G = nx.MultiDiGraph()
+    # one graph edge = one window
+    for data in edge_map.values():
+        G.add_edge(
+            *data["pores"],
+            relative_offset=data["relative_offset"],
+            window_id=data["window_id"],
+            window_radius=float(data["window_radius"]),
+            window_position=data["window_position"],
+        )
+
+    for node in G.nodes():
+        G.nodes[node]["frac_pos"] = np.round(frac_coords[node - 1], 2)
+        voxel_idx = tuple(maxima_info[node - 1, 1:4].astype(int))
+        G.nodes[node]["pocket_radius"] = float(dgrid[voxel_idx])
+
+    return G
+
+
+
+def extract_percolating_pore_graph(
+    G: nx.MultiDiGraph,
+    threshold: float,
+    node_radius_attr: str = "pocket_radius",
+    edge_radius_attr: str = "window_radius",
+    expand_components: bool = True,
+    include_dangling: bool = True,
+):
+    """
+    Extract the percolating pore network from a PBC pore MultiDiGraph.
+
+    Nodes are PBC pores (``pocket_radius``); edges are individual windows
+    (``window_radius``, ``relative_offset``).
+
+    Parameters
+    ----------
+    G : nx.MultiDiGraph
+        Original PBC pore graph.
+    threshold : float
+        Minimum pore/window radius.
+    expand_components : bool
+        If True, keep the entire connected component containing a winding loop.
+        If False, keep only nodes appearing in winding loops.
+    include_dangling : bool
+        If True, keep dangling pores inside the percolating component.
+
+    Returns
+    -------
+    nx.MultiDiGraph
+        Extracted percolating pore graph.
+    """
+    import networkx as nx
+
+    # Step 1: threshold filtering
+    eligible_nodes = {
+        n
+        for n, data in G.nodes(data=True)
+        if float(data.get(node_radius_attr, 0.0)) >= threshold
+    }
+    if not eligible_nodes:
+        return nx.MultiDiGraph()
+
+    H = nx.MultiDiGraph()
+    for n in eligible_nodes:
+        H.add_node(n, **G.nodes[n])
+    for u, v, key, data in G.edges(keys=True, data=True):
+        if u not in eligible_nodes or v not in eligible_nodes:
+            continue
+        if float(data.get(edge_radius_attr, 0.0)) < threshold:
+            continue
+        H.add_edge(u, v, key=key, **data)
+    if H.number_of_edges() == 0:
+        return nx.MultiDiGraph()
+
+    # Step 2: detect winding percolation and collect winding nodes
+    percolates, loops, acc_offsets = percolation_winding_multidigraph(H)
+    if not any(percolates.values()):
+        return nx.MultiDiGraph()
+    winding_nodes = set()
+    for loop in loops:
+        winding_nodes.update(loop["nodes"])
+    if not winding_nodes:
+        return nx.MultiDiGraph()
+
+    # Step 3: expand to percolating components
+    UG = nx.Graph(H.to_undirected(as_view=True))
+    if expand_components:
+        keep_nodes = set()
+        for comp in nx.connected_components(UG):
+            if set(comp).intersection(winding_nodes):
+                keep_nodes.update(comp)
+    else:
+        keep_nodes = winding_nodes
+
+    # Step 4: remove dangling branches if requested
+    if not include_dangling:
+        sub = UG.subgraph(keep_nodes).copy()
+        # Self-loops should not affect ordinary branch degree
+        sub.remove_edges_from(list(nx.selfloop_edges(sub)))
+        # Iteratively remove non-winding leaf nodes
+        while True:
+            dangling_nodes = [
+                n for n in sub.nodes() if n not in winding_nodes and sub.degree(n) <= 1
+            ]
+            if not dangling_nodes:
+                break
+            sub.remove_nodes_from(dangling_nodes)
+        keep_nodes = set(sub.nodes())
+
+    # Step 5: build final graph
+    return H.subgraph(keep_nodes).copy()
 
