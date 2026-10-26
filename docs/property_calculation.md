@@ -6,7 +6,7 @@
 The structure is taken from https://doi.org/10.1021/acs.jctc.2c00798
 
 For detailed definitions of these properties, see our paper about
-methane diffusion: **⚠️ TODO: add the DOI of the diffusion paper**
+methane diffusion: Zheng, C.; Gopalan, A.; Shi, K. Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks (https://doi.org/10.26434/chemrxiv.15011012/v1).
 
 Requirements
 
