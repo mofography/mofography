@@ -76,7 +76,7 @@ print(f"Framework min: {dgrid.min():.1f} Å")
 # Thread-parallel brute-force distance computation
 dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5)
 
-# With explicit VDW radii (optional — defaults to Bondi CRC-fallback)
+# With explicit VDW radii (optional — defaults to Bondi/CRC radii with Mendeleev fill)
 from mofography.vdw_radii import default_vdw_radii_angstrom
 radii = default_vdw_radii_angstrom(atoms)
 dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5, radii=radii)
@@ -174,7 +174,7 @@ print(f"Found {len(seg['connections'])} window connections")
 print(f"Regions array shape: {seg['regions_pbc'].shape}")
 ```
 
-> See the [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) for a deeper walkthrough of segmentation parameters and output structure.
+> See [Region Segmentation](region_segmentation.qmd) for the segmentation parameters and output keys, and [Tuning and safe ranges](parameter_tuning.qmd) for how to adjust them.
 
 ## Performance Notes
 
@@ -185,7 +185,7 @@ print(f"Regions array shape: {seg['regions_pbc'].shape}")
 
 ## Related Documentation
 
-- [Periodic Segmentation Quick Start](periodic_segmentation_quick_start.md) — what happens after the distance grid
-- [Region Segmentation Deep Dive](region_segmentation.qmd) — maxima detection and watershed theory
+- [Region Segmentation](region_segmentation.qmd) — maxima detection, watershed, and the output keys
+- [Tuning and safe ranges](parameter_tuning.qmd) — defaults and safe ranges for segmentation
 - [VDW Radii Comparison](vdw_radii_comparison.md) — bondi vs crc vs alvarez
 - [Benchmark: Rust AABB dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods

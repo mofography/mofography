@@ -83,7 +83,7 @@ A single helper that runs `do_periodic_segmentation_rust` with one backend, repo
 def benchmark_backend(backend, dgrid, atoms, *, n_trials=3, **seg_kwargs):
     """Run the segmentation pipeline with one backend, return timing / memory / labels."""
     base_kwargs = dict(
-        mask_thickness=0.5, h=0.2, min_distance=1.5, threshold_abs=1.5,
+        mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5,
         spacing=0.5, compute_connections=False,
         watershed_backend=backend, disable_tqdm=True,
     )
@@ -229,7 +229,7 @@ fig.update_layout(
 fig
 ```
 
-You should see 8 colored blobs, one per cage, separated by 1-voxel-thick black walls (the `mask_thickness=0.5` Å cushion that the pipeline applies before flooding). All four backends produce visually identical 2D slices on IRMOF-1.
+You should see 8 colored blobs, one per cage, separated by 1-voxel-thick black walls (the `mask_thickness=0.05` Å cushion that the pipeline applies before flooding). All four backends produce visually identical 2D slices on IRMOF-1.
 
 ## Step 4 — Where each backend wins
 

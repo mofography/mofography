@@ -353,7 +353,7 @@ The pattern: at every probe radius, accessible volume is **largest for CRC, smal
 
 ## Next steps
 
-- [Quick Start: Full MOF Pore Analysis](quick_cluster.qmd) — the canonical 3-function workflow this builds on.
+- [Quick Start: Full MOF Pore Analysis](quick_start.qmd) — the canonical 3-function workflow this builds on.
 - [Region Segmentation](region_segmentation.qmd) — deeper dive on the 15 output keys of `do_periodic_segmentation_rust`.
 - [Pocket Type Detection](pockets_detection.qmd) — how pocket *types* depend on the VDW table.
 - [Distance Grid](distance_grid.qmd) — alternative dgrid backends for very large systems.
