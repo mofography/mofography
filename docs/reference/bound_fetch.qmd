@@ -4,3 +4,4 @@
 data.bound_fetch(sem, url, session)
 ```
 
+Fetch JSON from a URL while holding an asyncio semaphore (parallel MOFdb page downloads).

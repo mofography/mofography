@@ -1,5 +1,7 @@
 # mendeleev_vdw_radii_angstrom { #mofography.vdw_radii.mendeleev_vdw_radii_angstrom }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older Mendeleev-only radii (larger metals); kept for backward compatibility. Use `default_vdw_radii_angstrom` instead.
+
 ```python
 vdw_radii.mendeleev_vdw_radii_angstrom(ase_atoms)
 ```

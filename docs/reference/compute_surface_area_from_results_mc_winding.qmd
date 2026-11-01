@@ -1,5 +1,7 @@
 # compute_surface_area_from_results_mc_winding { #mofography.compute.compute_surface_area_from_results_mc_winding }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Thin wrapper to compute_surface_area_mc_winding. Use `compute_surface_area_mc_winding` instead.
+
 ```python
 compute.compute_surface_area_from_results_mc_winding(
     results_dict,
@@ -13,4 +15,4 @@ compute.compute_surface_area_from_results_mc_winding(
 )
 ```
 
-Deprecated alias for :func:`compute_surface_area_mc_winding`.
+Forward to :func:`compute_surface_area_mc_winding` for winding-accessible MC area.

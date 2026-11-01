@@ -4,3 +4,4 @@
 viz_backend.is_threejs_figure(fig)
 ```
 
+Return whether ``fig`` is a Figure3JS, Figure3D, or MovieFigure Three.js figure.

@@ -1,5 +1,7 @@
 # plot_framework_as_mesh { #mofography.visualize.plot_framework_as_mesh }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default mesh framework trace in show_mof_plotly and workflow gallery figures.
+
 ```python
 visualize.plot_framework_as_mesh(
     ase_atoms,
@@ -11,8 +13,7 @@ visualize.plot_framework_as_mesh(
 )
 ```
 
-It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
-of the aromatic rings.
+Return Plotly Mesh3d traces for the framework and optional aromatic rings.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

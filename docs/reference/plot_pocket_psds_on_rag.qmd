@@ -1,5 +1,7 @@
 # plot_pocket_psds_on_rag { #mofography.visualize.plot_pocket_psds_on_rag }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Plot probe PSD curves already stored on RAG nodes; used in pocket typing reports.
+
 ```python
 visualize.plot_pocket_psds_on_rag(
     rag,

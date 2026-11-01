@@ -1,28 +1,12 @@
 # find_cycles_in_sgraph { #mofography.analyze.find_cycles_in_sgraph }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> cycle_basis rings with isomorphism expansion; prefer compute_aromatic_cycles for MOFs. Use `compute_aromatic_cycles` instead.
+
 ```python
 analyze.find_cycles_in_sgraph(sgraph, default_ring_sizes=[5, 6, 7, 8, 9])
 ```
 
-> The function takes a graph and returns a list of cycles in the graph. 
-
-The function is written in Python and uses the [NetworkX](https://networkx.github.io/) library. 
-
-The function takes two arguments: 
-
-1. `sgraph`: The graph to be analyzed. 
-2. `default_ring_sizes`: A list of integers that specify the sizes of rings to be considered. 
-
-The function returns a list of cycles in the graph. 
-
-The function first finds all the cycles in the graph using the `cycle_basis` function from NetworkX.
-
-
-The function then filters the cycles based on the `default_ring_sizes` argument. 
-
-The function then finds the bond types of the edges in the cycles. 
-
-The function then finds the unique cycles in the graph using the `find_unique_cycles` function
+List chordless cycles in a bond graph, filtered by size and expanded by subgraph isomorphism.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

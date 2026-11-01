@@ -4,3 +4,4 @@
 pocket_typing.summarize_types(pockets, rep_to_type, fps)
 ```
 
+Summarize per-type pocket counts and max_r, volume, and d1 ranges for reporting.

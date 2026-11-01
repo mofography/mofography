@@ -1,5 +1,7 @@
 # get_pore_dia_mgr_winding2 { #mofography.winding_percolation.get_pore_dia_mgr_winding2 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Same as winding but re-segments with thick mask when watershed spill is detected. Use `get_pore_dia_mgr_winding` instead.
+
 ```python
 winding_percolation.get_pore_dia_mgr_winding2(
     mat_atoms=None,

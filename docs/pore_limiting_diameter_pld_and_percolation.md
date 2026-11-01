@@ -164,7 +164,7 @@ print(f"✅ Loaded structure: {mat_atoms.get_chemical_formula()}")
 # Define parameters
 kwargs = dict(
     spacing=0.5,              # Grid spacing (Angstroms)
-    mask_thickness=1.5,       # Void space threshold
+    mask_thickness=0.05,       # Void space threshold
     h=0.2,                    # Smoothing parameter
     threshold_abs=1.5,        # Absolute threshold for segmentation
     minimum_window_separation=1.5,
@@ -415,7 +415,7 @@ for name in materials:
     # Compute all three metrics
     lcd, pld, dfsd, _ = mgr.get_pore_dia_mgr_winding(
         mat_atoms=mat_atoms,
-        kwargs=dict(spacing=0.5, mask_thickness=1.5)
+        kwargs=dict(spacing=0.5, mask_thickness=0.05)
     )
     results_list.append((name, lcd, pld, dfsd))
 
@@ -508,13 +508,13 @@ If you just need the pore diameters without the detailed analysis:
 # Method 1: Using atoms object
 lcd, pld, dfsd, results = mgr.get_pore_dia_mgr_winding(
     mat_atoms=mat_atoms,
-    kwargs=dict(spacing=0.5, mask_thickness=1.5)
+    kwargs=dict(spacing=0.5, mask_thickness=0.05)
 )
 
 # Method 2: Using CIF file path
 lcd, pld, dfsd, results = mgr.get_pore_dia_mgr_winding(
     path_to_cif=str(path_to_cif),
-    kwargs=dict(spacing=0.5, mask_thickness=1.5)
+    kwargs=dict(spacing=0.5, mask_thickness=0.05)
 )
 
 print(f"LCD: {lcd:.2f} Å")

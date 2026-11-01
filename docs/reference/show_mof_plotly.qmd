@@ -1,5 +1,7 @@
 # show_mof_plotly { #mofography.workflow.show_mof_plotly }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default multi-layer Plotly MOF scene (framework, regions, graph, windows).
+
 ```python
 workflow.show_mof_plotly(
     seg,

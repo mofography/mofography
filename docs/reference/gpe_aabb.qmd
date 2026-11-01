@@ -1,11 +1,12 @@
 # gpe_aabb { #mofography.compute.gpe_aabb }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> LJ energy sum using a prebuilt Freud AABB query object.
+
 ```python
 compute.gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff)
 ```
 
-The function `gpe_aabb` calculates Lennard-Jones potentials for grid points based on their distances
-to neighboring points within a specified cutoff distance.
+Sum Lennard-Jones energies at grid points via Freud ball query on a prebuilt AABB neighbor search.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

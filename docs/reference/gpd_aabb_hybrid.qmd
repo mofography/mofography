@@ -1,5 +1,7 @@
 # gpd_aabb_hybrid { #mofography.compute.gpd_aabb_hybrid }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Hybrid AABB plus vectorized distances; optional dgrid performance variant.
+
 ```python
 compute.gpd_aabb_hybrid(grid_points, ase_atoms, radii, n_neighbors=10)
 ```

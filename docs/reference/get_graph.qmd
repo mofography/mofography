@@ -4,8 +4,7 @@
 data.get_graph(db_path, id)
 ```
 
-The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
-and returns the graph.
+Load one gzip-pickled graph from a SQLite graphs table by row id.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

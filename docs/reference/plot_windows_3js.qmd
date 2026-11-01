@@ -1,4 +1,6 @@
 # plot_windows_3js { #mofography.threejs_viz.plot_windows_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_windows for Plotly-parity naming. Use `plot_windows` instead.
+
 `threejs_viz.plot_windows_3js`
 

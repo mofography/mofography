@@ -1,5 +1,7 @@
 # get_energy_interpolator { #mofography.compute.get_energy_interpolator }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Linear scipy interpolator on egrid; tricubic is preferred for screening accuracy. Use `get_energy_interpolator_tricubic` instead.
+
 ```python
 compute.get_energy_interpolator(
     egrid,
@@ -10,8 +12,7 @@ compute.get_energy_interpolator(
 )
 ```
 
-Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them
-with a value higher than their local neighborhood maximum.
+Build a scipy RegularGridInterpolator for a 3D energy grid, filling NaNs from local neighborhoods.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

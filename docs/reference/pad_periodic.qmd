@@ -4,3 +4,4 @@
 compute.pad_periodic(arr)
 ```
 
+Wrap-pad a 3D array by one voxel on each face for periodic neighbor lookups.

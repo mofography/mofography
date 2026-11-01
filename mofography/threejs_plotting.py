@@ -15,12 +15,33 @@ from .movies import (
 )
 
 
+class ThreeJSHtml(str):
+    """HTML string that renders inline in notebooks (iframe srcdoc) and has ``show``/``save_html``."""
+
+    def _repr_html_(self, height: "int | str" = 600, width: "int | str" = "100%") -> str:
+        import html
+        import uuid
+        h = f"{height}px" if isinstance(height, (int, float)) else height
+        w = f"{width}px" if isinstance(width, (int, float)) else width
+        return (f'<iframe id="mofo3js-{uuid.uuid4().hex[:8]}" style="width:{w};height:{h};border:0" '
+                f'allowfullscreen srcdoc="{html.escape(str(self))}"></iframe>')
+
+    def show(self, height: "int | str" = 600, width: "int | str" = "100%") -> None:
+        from IPython.display import HTML, display
+        display(HTML(self._repr_html_(height, width)))
+
+    def save_html(self, path) -> str:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(str(self))
+        return str(path)
+
+
 def show_percolation_threejs(
     analysis: Dict[str, Any],
     atoms,
     probe_radius: float,
     options: Optional[Dict[str, Any]] = None,
-) -> str:
+) -> ThreeJSHtml:
     """Build self-contained Three.js HTML for PLD / percolation tab parity."""
     fig = MovieFigure()
     opts = options or {}
@@ -130,6 +151,6 @@ def show_percolation_threejs(
     try:
         fig.to_html(tmp.name)
         with open(tmp.name, "r", encoding="utf-8") as f:
-            return f.read()
+            return ThreeJSHtml(f.read())
     finally:
         os.unlink(tmp.name)

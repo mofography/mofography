@@ -170,7 +170,7 @@ The key advantage of the new workflow is that **connections are computed automat
 ```python
 # Parameters
 spacing = 0.5
-mask_thickness = 1.0
+mask_thickness = 0.05
 h = 0.2
 threshold_abs = 1.5
 minimum_window_separation = 1.5
@@ -458,7 +458,7 @@ Now that you have a pore graph, you can:
 ### Learn More:
 - [Connections and Windows](connections_and_windows.qmd) - Detailed window analysis
 - [Pockets Detection](pockets_detection.qmd) - Classify pore types
-- [Winding Percolation](winding_percolation.md) - Percolation analysis
+- [PLD and percolation](pld_and_percolation.ipynb) - Percolation analysis
 
 ### Advanced Analysis:
 - [Percolated Paths Tutorial](percolated_paths_tutorial.ipynb) - Find transport paths

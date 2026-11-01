@@ -1,19 +1,33 @@
 # get_bond_types { #mofography.analyze.get_bond_types }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Bin bond orders to single/double/triple with aromatic distance tolerances for plotting.
+
 ```python
-analyze.get_bond_types(bond_orders)
+analyze.get_bond_types(bond_orders, *, bonds=None, ase_atoms=None)
 ```
 
-It takes a list of bond orders and returns a list of bond types
+Map continuous bond orders to single / double / triple labels.
+
+With ``bonds`` and ``ase_atoms``, applies distance-based aromatic tolerances
+when pymatgen bond orders sit on bin edges:
+
+* **single → double** if MIC distance ≤ aromatic C–C / C–N limits
+* **triple → double** if C–N distance ≤ ``_AROMATIC_CN_TRIPLE_MAX_DIST``
+  (short aromatic C–N misclassified as triple)
+
+Bins: ``(0, 1]`` single, ``(1, 2]`` double, ``(2, 3]`` triple — same convention
+as Plotly framework coloring via :func:`sgraph_from_atoms`.
 
 ## Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type   | Description                                      | Default    |
-|-------------|--------|--------------------------------------------------|------------|
-| bond_orders |        | a list of bond orders, e.g. [1.0, 2.0, 1.0, 3.0] | _required_ |
+| Name        | Type   | Description                                                                                                                                                                               | Default    |
+|-------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| bond_orders |        | a list of bond orders, e.g. [1.0, 2.0, 1.0, 3.0]                                                                                                                                          | _required_ |
+| bonds       |        | optional ``covalent_bonds`` list; with ``ase_atoms``, enables distance-based promotion of borderline singles to double (aromatic framework bonds that pymatgen classifies as ~1.0 order). | `None`     |
+| ase_atoms   |        | ASE atoms for MIC distances when applying aromatic tolerance.                                                                                                                             | `None`     |
 
 ## Returns {.doc-section .doc-section-returns}
 
-| Name   | Type   | Description                         |
-|--------|--------|-------------------------------------|
-|        |        | A pandas series with the bond types |
+| Name   | Type   | Description                          |
+|--------|--------|--------------------------------------|
+|        |        | A pandas Categorical with bond types |

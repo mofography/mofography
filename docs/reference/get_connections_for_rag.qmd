@@ -1,5 +1,7 @@
 # get_connections_for_rag { #mofography.compute.get_connections_for_rag }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Finds region connections and window sites on a RAG; used after segmentation in tutorials.
+
 ```python
 compute.get_connections_for_rag(
     rag,

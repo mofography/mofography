@@ -1,5 +1,7 @@
 # find_aromatic_cycles_in_sgraph { #mofography.analyze.find_aromatic_cycles_in_sgraph }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Aromatic cycles on an existing bond graph; skips unit-cell bond detection. Use `compute_aromatic_cycles` instead.
+
 ```python
 analyze.find_aromatic_cycles_in_sgraph(
     sgraph,

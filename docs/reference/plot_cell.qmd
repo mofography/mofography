@@ -1,6 +1,9 @@
 # plot_cell { #mofography.threejs_viz.plot_cell }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Functional API for unit-cell wireframe trace.
+
 ```python
 threejs_viz.plot_cell(ase_atoms, color='purple', name='cell', **kwargs)
 ```
 
+Build a Three.js unit-cell wireframe trace for the given structure.

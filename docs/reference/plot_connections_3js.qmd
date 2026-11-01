@@ -1,4 +1,6 @@
 # plot_connections_3js { #mofography.threejs_viz.plot_connections_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_connections for Plotly-parity naming. Use `plot_connections` instead.
+
 `threejs_viz.plot_connections_3js`
 

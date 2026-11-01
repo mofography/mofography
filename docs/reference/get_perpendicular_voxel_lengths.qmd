@@ -4,3 +4,4 @@
 helper.get_perpendicular_voxel_lengths(ase_atoms, spacing, grid_shape)
 ```
 
+Estimate effective voxel edge lengths perpendicular to skewed grid basis vectors.

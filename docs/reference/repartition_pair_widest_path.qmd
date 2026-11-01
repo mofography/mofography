@@ -1,5 +1,7 @@
 # repartition_pair_widest_path { #mofography.widest_path_resegment.repartition_pair_widest_path }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Reassign disputed voxels between two seeds via widest-path partition.
+
 ```python
 widest_path_resegment.repartition_pair_widest_path(
     labels,

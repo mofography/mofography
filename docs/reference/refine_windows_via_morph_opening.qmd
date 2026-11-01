@@ -1,5 +1,7 @@
 # refine_windows_via_morph_opening { #mofography.window_refinement.refine_windows_via_morph_opening }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Unused morph-opening experiment; no library callers outside docs. Use `do_periodic_segmentation_rust` instead.
+
 ```python
 window_refinement.refine_windows_via_morph_opening(
     results,
@@ -9,5 +11,4 @@ window_refinement.refine_windows_via_morph_opening(
 )
 ```
 
-Refine window centers/radii by searching for the smallest distance-field
-threshold that disconnects the two regions (local morphological opening).
+Refine window centers and radii via local morphological opening on the distance field.

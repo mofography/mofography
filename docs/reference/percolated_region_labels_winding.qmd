@@ -1,5 +1,7 @@
 # percolated_region_labels_winding { #mofography.raspa_helper.percolated_region_labels_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Winding accessible region labels at probe; backbone for RASPA blocking workflows.
+
 ```python
 raspa_helper.percolated_region_labels_winding(
     results,

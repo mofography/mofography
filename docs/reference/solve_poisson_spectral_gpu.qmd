@@ -1,5 +1,7 @@
 # solve_poisson_spectral_gpu { #mofography.compute.solve_poisson_spectral_gpu }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> GPU spectral Poisson solve paired with setup_poisson_spectral_gpu.
+
 ```python
 compute.solve_poisson_spectral_gpu(atoms, grid_spacing=0.2, epsilon_r=1.0)
 ```

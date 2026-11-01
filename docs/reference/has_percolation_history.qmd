@@ -1,6 +1,9 @@
 # has_percolation_history { #mofography.percolation_results.has_percolation_history }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Predicate for whether to recompute history in compute accessibility paths.
+
 ```python
 percolation_results.has_percolation_history(results, method)
 ```
 
+Return whether percolation history for method is stored on results (incl. legacy key).

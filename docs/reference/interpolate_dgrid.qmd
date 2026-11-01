@@ -4,7 +4,7 @@
 compute.interpolate_dgrid(dgrid)
 ```
 
-The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation.
+Build a scipy RegularGridInterpolator on a unit-cube mesh for a 3D distance grid.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

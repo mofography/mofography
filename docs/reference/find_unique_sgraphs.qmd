@@ -1,6 +1,9 @@
 # find_unique_sgraphs { #mofography.analyze.find_unique_sgraphs }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Experimental structure-graph deduplication.
+
 ```python
 analyze.find_unique_sgraphs(sgraphs)
 ```
 
+Drop isomorphic duplicates from a list of NetworkX bond graphs (pairwise GraphMatcher).

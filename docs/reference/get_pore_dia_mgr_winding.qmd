@@ -1,5 +1,7 @@
 # get_pore_dia_mgr_winding { #mofography.winding_percolation.get_pore_dia_mgr_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> One-call LCD/PLD/LIS from segmentation; documented main workflow entry.
+
 ```python
 winding_percolation.get_pore_dia_mgr_winding(
     mat_atoms=None,
@@ -11,3 +13,4 @@ winding_percolation.get_pore_dia_mgr_winding(
 )
 ```
 
+Return LCD, PLD, and LIS from winding percolation (segments via rust if needed).

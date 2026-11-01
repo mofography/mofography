@@ -1,5 +1,7 @@
 # percolation_winding_on_binary_grid { #mofography.winding_percolation.percolation_winding_on_binary_grid }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> End-to-end 2D lattice demo calling make_periodic_graph_from_binary_grid.
+
 ```python
 winding_percolation.percolation_winding_on_binary_grid(
     grid,
@@ -8,7 +10,7 @@ winding_percolation.percolation_winding_on_binary_grid(
 )
 ```
 
-Apply :func:`percolation_winding_multidigraph` to a binary periodic lattice.
+Run winding percolation on a 2D binary periodic lattice (demo / tests).
 
 
 

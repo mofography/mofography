@@ -4,3 +4,4 @@
 pocket_framework_env.bond_type_from_order(order)
 ```
 
+Classify a bond as single, aromatic, or double from its bond order.

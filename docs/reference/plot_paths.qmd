@@ -1,11 +1,12 @@
 # plot_paths { #mofography.visualize.plot_paths }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Colorized Scatter3d line traces for paths through RAG nodes at maxima coordinates.
+
 ```python
 visualize.plot_paths(rag, paths, colorscale='Pastel', **kwargs)
 ```
 
-The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by
-lines in different colorscales.
+Return Plotly Scatter3d line traces for paths through RAG nodes at maxima coordinates.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -223,7 +223,7 @@ Large cells: `dgrid_from_atoms_aabb_rust` (less memory) or `dgrid_from_atoms_aab
 
 ## Where to look
 
-- Tutorials: `docs/` (`quick_cluster.qmd`, `compute_pore_diameters.ipynb`, `pld_and_percolation.ipynb`, `pockets_detection.qmd`, `connections_and_windows.qmd`, `hts_using_mofography.ipynb`)
+- Tutorials: `docs/` (`quick_start.qmd`, `compute_pore_diameters.ipynb`, `pld_and_percolation.ipynb`, `pockets_detection.qmd`, `connections_and_windows.qmd`, `hts_using_mofography.ipynb`)
 - Surface area and accessibility theory: `docs/surface_area.qmd`, `docs/accessibility.qmd`
 - Rust backend notes: `docs/rust_backend_documentation.md`
 - Test structures: `examples/TestCIFs/`

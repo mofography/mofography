@@ -4,3 +4,4 @@
 movies.make_cell_trace(atoms, style='cell', name='Unit cell', trace_id='cell')
 ```
 
+Build a Three.js unit-cell wireframe line trace for the structure cell.

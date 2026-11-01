@@ -1,5 +1,7 @@
 # make_movie_from_raspa_pdb { #mofography.movies.make_movie_from_raspa_pdb }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> RASPA PDB convenience wrapper around trajectory movie builder. Use `make_movie_from_trajectory` instead.
+
 ```python
 movies.make_movie_from_raspa_pdb(
     pdb_path,

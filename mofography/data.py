@@ -15,13 +15,14 @@
 
 
 async def fetch(url, session):
+    """Fetch JSON from a URL with aiohttp (single-page MOFdb helper)."""
     async with session.get(url) as response:
         # print(await response.read())
         return await response.json()
 
 
 async def bound_fetch(sem, url, session):
-    # Getter function with semaphoe.
+    """Fetch JSON from a URL while holding an asyncio semaphore (parallel MOFdb page downloads)."""
     async with sem:
         return await fetch(url, session)
 
@@ -88,8 +89,7 @@ def get_number_of_pages(url, headers, params):
 
 def create_db_from_pickled_graphs(db_path, pickle_path):
     """
-    The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled
-    graphs in it from a given pickle file.
+    Create a SQLite database and store gzip-compressed pickled graphs from a pickle file.
 
     :param db_path: The `db_path` parameter is the path to the SQLite database where you want to store
     the graphs. This is the location where the graphs will be saved after being pickled, compressed, and
@@ -124,8 +124,7 @@ def create_db_from_pickled_graphs(db_path, pickle_path):
 
 def get_graph(db_path, id):
     """
-    The function `get_graph` retrieves a graph from a SQLite database, decompresses and unpickles it,
-    and returns the graph.
+    Load one gzip-pickled graph from a SQLite graphs table by row id.
 
     :param db_path: The `db_path` parameter is the file path to the SQLite database where the graph data
     is stored. This function connects to the SQLite database at the specified path to retrieve the graph
@@ -154,8 +153,7 @@ def get_graph(db_path, id):
 
 def add_graph_to_db(db_path, graph):
     """
-    The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled
-    graph in it.
+    Insert one gzip-pickled NetworkX (or similar) graph into a SQLite graphs table.
 
     :param db_path: The `db_path` parameter is the file path to the SQLite database where you want to
     store the graph data. This function connects to the SQLite database at the specified path and
@@ -182,8 +180,7 @@ def add_graph_to_db(db_path, graph):
 
 def get_num_graphs(db_path):
     """
-    The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified
-    by the `db_path`.
+    Return the number of rows in the SQLite ``graphs`` table at ``db_path``.
 
     :param db_path: The `db_path` parameter in the `get_num_graphs` function is the path to the SQLite
     database file that contains the table of graphs. This function connects to the SQLite database at
@@ -212,6 +209,7 @@ async def get_data_from_mofdb(
     npages=None,
     limit=1000,
 ):
+    """Download MOFdb search pages in parallel and return a combined results DataFrame."""
     import aiohttp
     import pandas as pd
     import numpy as np
@@ -486,7 +484,7 @@ def plot_representative_sample_subplots(
 
 def read_cif_string(cif):
     """
-    It takes a string of CIF data and returns an ASE atoms object.
+    Parse a CIF string into an ASE Atoms object, or the string ``NaN`` on failure.
 
     :param cif: The CIF file as a string
     :return: the ASE atoms object.
@@ -503,8 +501,7 @@ def read_cif_string(cif):
 
 def atoms_from_mofdb_df(mofdb_df):
     """
-    This function takes a MOFDB dataframe from get_data_from_mofdb routine, which has a column called 'cif' that contains CIF data as strings, and
-    returns a list of ASE atoms objects
+    Parse each MOFdb DataFrame ``cif`` column to ASE Atoms and attach ``info['name']`` from ``name``.
 
     :param mofdb_df: the dataframe containing the MOFDB data
     :return: A list of atoms objects.
@@ -819,15 +816,7 @@ def _graspa_mass_label_to_symbol(mass_label: str) -> str:
 
 def read_raspa_pdb(path_to_file, symbol_map=None):
     """
-            created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
-            _ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __\
-            | '__/ _ \/ _` |/ _` | | '__/ _` / __| '_ \ / _` |  / /_)/ /\ /__\//
-            | | |  __/ (_| | (_| | | | | (_| \__ \ |_) | (_| | / ___/ /_// \/  \
-            |_|  \___|\__,_|\__,_| |_|  \__,_|___/ .__/ \__,_| \/  /___,'\_____/
-                                                |_|                            
-
-            Reads the output PDB movie file from RASPA into separate configurations, including the chemical symbols and
-            cell dimensions. 
+    Parse a RASPA trajectory PDB into per-frame cells, symbols, and Cartesian coordinates.
             :type path_to_file: str
             :param path_to_file: path to the RASPA PDB file
             :param symbol_map: Optional dictionary mapping custom symbols to standard element symbols.
@@ -1027,7 +1016,7 @@ forcefields = dict(
 
 def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields["uff"], probe_symbol="He"):
     """
-    It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary
+    Mix framework and probe UFF parameters with Lorentz-Berthelot rules for each framework atom.
 
     :param ase_atoms: the atoms object from ASE
     :param forcefield: a dictionary of force field parameters for the atoms in the framework
@@ -1052,10 +1041,8 @@ def mix_lorentz_berthelot(ase_atoms, forcefield=forcefields["uff"], probe_symbol
 
 def show_percolated_paths_as_df(paths, path_windows, path_lengths):
     """
-    The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path
-    lengths, sorts it by the number of elements in the paths list and then by path lengths, and returns
-    the sorted DataFrame.
-
+    Build a sorted DataFrame of pore-graph paths, window diameters along each path, and hop counts.
+    
     :param paths: A list of paths, where each entry represent teh index of a pocket/node on the pore graph
     :param path_windows: Path windows are the sizes of the windows encountered along the path
     :param path_lengths: The number of jumps or edges along the path

@@ -1,5 +1,7 @@
 # assign_pocket_types_env_cluster { #mofography.pocket_typing.assign_pocket_types_env_cluster }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default env_cluster banding and fingerprint merge algorithm.
+
 ```python
 pocket_typing.assign_pocket_types_env_cluster(
     pockets,
@@ -48,5 +50,6 @@ merge_cosine : 0.90
     Tight cosine threshold for gaps ≤ merge_gap_threshold_a (prevents spurious
     merges of similar-but-different window types, e.g. ZIF-20 2.56 vs 2.74 Å).
 merge_cosine_large_gap : 0.90
-    Same cosine bar as ``merge_cosine`` for gaps > merge_gap_threshold_a (keeps
-    similarly shaped but differently sized cages separate, e.g. ZIF-20 7.26 vs 7.61 Å).
+    Loose cosine threshold for gaps > merge_gap_threshold_a.  Set equal to
+    merge_cosine so adjacent bands merge only when fingerprints are truly
+    near-unity (e.g. keeps ZIF-20 large cages 7.26 vs 7.61 Å separate).

@@ -11,8 +11,7 @@ visualize.spheres_for_positions(
 )
 ```
 
-It takes a list of positions and a list of radii and returns a list of trimesh objects that are
-spheres centered at the positions with the given radii
+Return trimesh spheres at arbitrary positions with given radii and colors.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

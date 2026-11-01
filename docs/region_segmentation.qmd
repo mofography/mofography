@@ -4,14 +4,14 @@ description: "How region segmentation breaks pore space into discrete pockets �
 image: tutorial_images/regions_pbc_merged.png
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 ## Overview
 
 Region segmentation breaks the void space of a nanoporous material into **discrete pockets**, each centered on a local maximum of the distance field. It is the conceptual bridge between the [distance grid](distance_grid.qmd) (a continuous scalar field) and the [pore graph](pore_graph.md) (a discrete graph you can analyze with NetworkX).
 
-This tutorial covers the *why* behind the algorithm: what maxima and watershed do, why periodic boundary conditions (PBC) matter, and which parameters to tune. For the hands-on three-call pipeline, see the [Quick Start](quick_cluster.qmd). For a deeper reference on every output key, see [Periodic Segmentation Notes](periodic_segmentation_quick_start.md).
+This tutorial covers the *why* behind the algorithm: what maxima and watershed do, why periodic boundary conditions (PBC) matter, and which parameters to tune. For the hands-on three-call pipeline, see the [Quick Start](quick_start.qmd). For defaults and safe ranges of every parameter, see [Tuning and safe ranges](parameter_tuning.qmd).
 
 ## The Core Question
 
@@ -142,7 +142,7 @@ dgrid_f32 = dgrid.astype(np.float32)
 
 seg = mgr.do_periodic_segmentation_rust(
     dgrid_f32, atoms,
-    mask_thickness=1.0,        # void-space threshold (Å) — anything closer to framework is "wall"
+    mask_thickness=0.05,       # void-space threshold (Å) — default and recommended; anything closer to framework is "wall"
     h=0.2,                     # h-maxima persistence (Å) — keep only peaks this tall
     min_distance=1.5,          # min separation between distinct maxima (Å)
     threshold_abs=1.5,         # absolute height threshold — ignore maxima shallower than this
@@ -254,7 +254,7 @@ These four control the *number and shape* of the detected pores:
 | `h` | 0.2 Å | h-maxima persistence. Higher → fewer, larger pockets. |
 | `min_distance` | 1.5 Å | Maxima closer than this get merged. Higher → fewer pockets. |
 | `threshold_abs` | 1.5 Å | Ignore peaks shallower than this. Higher → only large pores. |
-| `mask_thickness` | 1.0 Å | Voxels closer to framework than this are "wall", not pore. Higher → more aggressive wall exclusion. |
+| `mask_thickness` | 0.05 Å | Voxels closer to framework than this are "wall", not pore. 0.05 is the default and recommended; raise to ~0.15 only to drop wall slivers. Keep it well below the plotting isovalue. |
 
 ### Advanced smoothing parameters
 
@@ -286,18 +286,30 @@ Lower `smooth_threshold` to smooth more aggressively; raise `preserve_threshold`
 | Missing small pockets | Decrease `threshold_abs` (1.5 → 1.0) or `h` (0.2 → 0.1) |
 | Spurious maxima in large channels | Decrease `smooth_threshold` or increase `max_smooth_radius` |
 | Real small pockets getting smoothed away | Increase `preserve_threshold` (3.0 → 4.0) |
-| Wall fragments in `regions` | Increase `mask_thickness` (1.0 → 1.5) |
+| Wall fragments in `regions` | Increase `mask_thickness` (0.05 → 0.15; see [Tuning](parameter_tuning.qmd)) |
 | Out of memory | Use `dgrid_from_atoms_aabb_rust` (R-tree, less RAM) |
 
 ## Visualization
 
-The fastest way to see what you got is `show_mof_plotly`, which lays framework, isosurface, regions, and maxima in one interactive figure:
+The fastest way to see what you got is `show_mof_plotly`, which lays framework, isosurface, regions, and maxima in one figure (static preview below, interactive version linked):
 
 ```{python}
 # Interactive 3D — framework + regions + maxima
-fig = mgr.show_mof_plotly(seg, atoms, framework_atoms=atoms, stylize=True)
+# plot_surface_isovalue is a distance-from-framework contour (Å); keep it well above mask_thickness
+fig = mgr.show_mof_plotly(seg, atoms, framework_atoms=atoms, stylize=True, plot_surface_isovalue=1.5)
+fig.write_image("tutorial_images/region_segmentation_overview.png", width=1100, height=800)  # static preview for the docs
+```
+
+![IRMOF-1: framework, isosurface, regions, and maxima](tutorial_images/region_segmentation_overview.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+fig = mgr.show_mof_plotly(seg, atoms, framework_atoms=atoms, stylize=True, plot_surface_isovalue=1.5)
 fig.show()
 ```
+:::
+
+[Open the interactive version](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
 
 If you want more control (e.g. coloring a specific subset of regions), pull out the lower-level helpers:
 
@@ -308,7 +320,9 @@ import plotly.express as px
 cscale = px.colors.qualitative.Pastel
 maxima = seg['all_maxima'][: int(seg['regions_pbc'].max())]
 
-# Region isosurface, colored by pore label
+# Region isosurface, colored by pore label.
+# isovalue = distance from framework (Å); it must be well above mask_thickness (0.05)
+# or the surface hugs the masked wall and looks blotchy.
 surf = mgr.plot_surface_dgrid(
     dgrid, isovalue=1.5,
     ase_atoms=atoms,
@@ -337,8 +351,10 @@ fig.update_layout(
     scene_aspectmode='data',
     title=dict(text='IRMOF-1: segmented pores', x=0.5, xanchor='center', font=dict(color='white', size=16)),
 )
-fig.show()
+fig.write_image("tutorial_images/region_segmentation_custom.png", width=1100, height=800)  # static preview; use fig.show() interactively
 ```
+
+![Custom figure built from lower-level helpers](tutorial_images/region_segmentation_custom.png)
 
 ## Common Pitfalls
 
@@ -351,8 +367,8 @@ fig.show()
 
 ## Next Steps
 
-- **[Quick Start](quick_cluster.qmd)** — the canonical three-call pipeline (load → grid → segment → visualize) in one page
+- **[Quick Start](quick_start.qmd)** — the canonical three-call pipeline (load → grid → segment → visualize) in one page
 - **[Distance Grid](distance_grid.qmd)** — how the distance grid is computed, with method comparisons
-- **[Periodic Segmentation Notes](periodic_segmentation_quick_start.md)** — full reference on every output key and parameter
+- **[Tuning and safe ranges](parameter_tuning.qmd)** — defaults, safe ranges, and symptoms for every segmentation parameter
 - **[Pore Graph](pore_graph.md)** — once you have regions and connections, build the Region Adjacency Graph
 - **[Connections and Windows](connections_and_windows.qmd)** — the window detection step in detail

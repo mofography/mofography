@@ -4,3 +4,4 @@
 viz_backend.ensure_plotly_trace(obj, *, context='add_trace')
 ```
 
+Raise ``TypeError`` if ``obj`` is not a Plotly trace.

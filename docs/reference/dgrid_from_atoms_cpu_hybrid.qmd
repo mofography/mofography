@@ -1,5 +1,7 @@
 # dgrid_from_atoms_cpu_hybrid { #mofography.compute.dgrid_from_atoms_cpu_hybrid }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Hybrid AABB plus explicit distances; niche smoothness experiments only. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 compute.dgrid_from_atoms_cpu_hybrid(
     ase_atoms,

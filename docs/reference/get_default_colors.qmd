@@ -4,7 +4,7 @@
 visualize.get_default_colors()
 ```
 
-[summary]
+Return normalized ASE Jmol RGB colors for default atom coloring.
 Uses the ASE's jmol colorscheme as the default for plotting the atoms.
 
 ## Returns {.doc-section .doc-section-returns}

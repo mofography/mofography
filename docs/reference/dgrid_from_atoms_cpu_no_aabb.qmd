@@ -1,5 +1,7 @@
 # dgrid_from_atoms_cpu_no_aabb { #mofography.compute.dgrid_from_atoms_cpu_no_aabb }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Brute-force CPU dgrid without AABB; very slow, occasional smoothness tests. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 compute.dgrid_from_atoms_cpu_no_aabb(
     ase_atoms,
@@ -9,9 +11,7 @@ compute.dgrid_from_atoms_cpu_no_aabb(
 )
 ```
 
-The function `dgrid_from_atoms_no_aabb` calculates a distance grid based on the cpu but without using 
-an AABB cell list to accelerate the calculation. Although substantially slower, this function might provide
-better smoothness of the distance grid, especially matrials with small pores. 
+Build a CPU distance grid without AABB acceleration (slower, sometimes smoother in tight pores).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -1,5 +1,7 @@
 # make_sparse_multicomponent_movie { #mofography.movies.make_sparse_multicomponent_movie }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Sparse-index movie with per-component guest traces. Use `build_fixed_framework_movie` instead.
+
 ```python
 movies.make_sparse_multicomponent_movie(
     component_movie_paths,

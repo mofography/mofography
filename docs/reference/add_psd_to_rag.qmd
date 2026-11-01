@@ -1,7 +1,9 @@
 # add_psd_to_rag { #mofography.compute.add_psd_to_rag }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Renamed to add_csd_to_rag; emits DeprecationWarning on call. Use `add_csd_to_rag` instead.
+
 ```python
 compute.add_psd_to_rag(G, region_props, bins, ase_atoms, shape)
 ```
 
-Deprecated alias for :func:`add_csd_to_rag`.
+Attach CSD histograms to RAG nodes; forwards to :func:`add_csd_to_rag`.

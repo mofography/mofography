@@ -1,5 +1,7 @@
 # get_pore_size_distribution_trace { #mofography.visualize.get_pore_size_distribution_trace }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Build Plotly traces for PDF/CDF pore size data stored on a RAG graph object.
+
 ```python
 visualize.get_pore_size_distribution_trace(
     distances,

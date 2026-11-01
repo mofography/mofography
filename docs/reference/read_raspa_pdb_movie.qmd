@@ -1,5 +1,7 @@
 # read_raspa_pdb_movie { #mofography.movies.read_raspa_pdb_movie }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> RASPA PDB parser; read_movie_snapshots with movie_format raspa_pdb covers this. Use `read_movie_snapshots` instead.
+
 ```python
 movies.read_raspa_pdb_movie(
     path,

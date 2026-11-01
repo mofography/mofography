@@ -4,8 +4,7 @@
 analyze.get_atoms_from_smiles(smiles, cell=None)
 ```
 
-This function takes a SMILES string as input and returns an ASE Atoms object with the atomic
-positions and information about covalent bonds and bond orders.
+Build an ASE Atoms object from a SMILES string with RDKit 3D embedding and covalent bond metadata.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

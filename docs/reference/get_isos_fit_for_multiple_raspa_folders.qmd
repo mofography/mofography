@@ -8,8 +8,7 @@ raspa_helper.get_isos_fit_for_multiple_raspa_folders(
 )
 ```
 
-It takes a list of folder paths, and a temperature, and returns a dictionary of the
-isosteric heat fits for each folder
+Run get_isos_fit_for_raspa_folder on each folder and return a path-keyed dict.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -4,3 +4,4 @@
 threejs_viz.add_traces(fig, traces)
 ```
 
+Add Three.js trace dicts or bundles to a Figure3D and return the figure.

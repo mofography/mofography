@@ -4,8 +4,7 @@
 raspa_helper.get_isotherm_df_for_raspa_folder(path_to_folder)
 ```
 
-It takes a list of paths to folders containing raspa output files and returns a dictionary with the
-isotherm data
+Parse RASPA output *.data files in a folder into a sorted isotherm DataFrame.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

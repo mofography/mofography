@@ -1,5 +1,7 @@
 # compute_surface_area_mc_lattice { #mofography.compute.compute_surface_area_mc_lattice }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> MC shell area with lattice accessibility; comparison to winding MC variant. Use `compute_surface_area_mc_winding` instead.
+
 ```python
 compute.compute_surface_area_mc_lattice(
     results_dict,

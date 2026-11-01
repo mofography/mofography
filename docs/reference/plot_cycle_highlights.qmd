@@ -8,8 +8,7 @@ visualize.plot_cycle_highlights(
 )
 ```
 
-It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
-used to plot the aromatic cycles
+Return Plotly mesh traces highlighting selected aromatic cycles on a structure graph.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -1,5 +1,7 @@
 # assign_pocket_types_from_segmentation { #mofography.pocket_typing.assign_pocket_types_from_segmentation }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Main pocket-typing API on a segmentation dict (methods include env_cluster).
+
 ```python
 pocket_typing.assign_pocket_types_from_segmentation(
     segmentation,

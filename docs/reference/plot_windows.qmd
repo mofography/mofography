@@ -1,5 +1,7 @@
 # plot_windows { #mofography.threejs_viz.plot_windows }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Window markers from connections or seg dict (basic, no far-outside reclass).
+
 ```python
 threejs_viz.plot_windows(
     connections_or_seg,

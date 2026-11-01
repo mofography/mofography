@@ -1,5 +1,7 @@
 # plot_surface_dgrid { #mofography.threejs_viz.plot_surface_dgrid }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Colored segmentation isosurface from distance grid (Three.js mesh trace).
+
 ```python
 threejs_viz.plot_surface_dgrid(
     dgrid,
@@ -22,3 +24,4 @@ threejs_viz.plot_surface_dgrid(
 )
 ```
 
+Build a Three.js isosurface mesh trace from a distance grid and region labels.

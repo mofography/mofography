@@ -1,5 +1,7 @@
 # compute_surface_area { #mofography.compute.compute_surface_area }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Direct dgrid surface-area wrapper; prefer mesh winding helpers on segmentation results. Use `compute_surface_area_mesh_winding` instead.
+
 ```python
 compute.compute_surface_area(dgrid, probe_radius=None, mat_atoms=None)
 ```

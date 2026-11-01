@@ -299,7 +299,7 @@ dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000)
 - [Distance Grid tutorial](distance_grid.qmd) — basic usage, spacing tradeoffs, visualization.
 - [Benchmark: Rust AABB dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods.
 - [Region Segmentation](region_segmentation.qmd) — what happens after the distance grid.
-- [Appyling Periodic Boundary Conditions](applying_pbc.qmd) — PBC group structure on top of the segmentation.
+- [Appyling Periodic Boundary Conditions](pbc_considerations.qmd) — PBC group structure on top of the segmentation.
 
 ## Related documentation
 

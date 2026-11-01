@@ -164,8 +164,7 @@ def ase_frac_to_egrid_query(frac, extent_x=1.0, extent_y=1.0, extent_z=1.0):
 
 def zoom_grid(grid, zoom_factor):
     """
-    It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by
-    the zoom factor
+    Resample a grid with periodic wrap (``grid-wrap``) via scipy zoom, wrapped as a Dask array.
     
     :param grid: the grid to be zoomed
     :param zoom_factor: The zoom factor along the axes. If a float, zoom is the same for each axis. If
@@ -180,6 +179,7 @@ def zoom_grid(grid, zoom_factor):
     return da.from_array(zoom(grid, zoom_factor, mode = 'grid-wrap', order=1))
 
 def find_psd_peaks(psd, **kwargs):
+    """Locate PSD peaks with scipy continuous wavelet transform peak finding (``find_peaks_cwt``)."""
 
 
     from scipy.signal import find_peaks_cwt, cwt, ricker
@@ -203,7 +203,7 @@ def find_psd_peaks(psd, **kwargs):
 
 
 def compare_psd_peaks(peak_values1, peak_values2):
-
+    """Pairwise match shorter PSD peak diameter lists to the nearest peaks in a longer list."""
 
 
     import numpy as np 
@@ -422,6 +422,7 @@ def spectral_smooth_3d(dgrid: np.ndarray, atoms, grid_spacing: float, sigma: flo
 
 # these are new functions for periodic segmentation.
 def compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05):
+    """Return voxel counts per axis for a wall band of thickness ``wall_thickness`` times cell height."""
     import numpy as np
     from ase.geometry import complete_cell
 
@@ -443,6 +444,7 @@ def compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05):
 
 
 def check_wall(maxima, ase_atoms, spacing, wall_thickness=0.075):
+    """Flag grid maxima that lie in the near-wall voxel band along any cell direction."""
     import numpy as np
     wall_cells = compute_wall_cells(ase_atoms, spacing, wall_thickness)
     # find shape consistent with how the dgrid is constructed in dask_grid_over_atoms
@@ -463,6 +465,7 @@ def check_wall(maxima, ase_atoms, spacing, wall_thickness=0.075):
 
 # functino to check if a maxim is at the wall of a cell, in multiple directions
 def check_wall_per_dim(maxima, ase_atoms, spacing, wall_thickness=0.075):
+    """Like ``check_wall`` but return per-axis wall flags (shape N×3) instead of a single boolean."""
     import numpy as np
     wall_cells = compute_wall_cells(ase_atoms, spacing, wall_thickness)
     # find shape consistent with how the dgrid is constructed in dask_grid_over_atoms
@@ -1055,6 +1058,7 @@ def periodic_gaussian_filter(arr, sigma):
     return smoothed
 
 def find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3):
+    """Pair wall-adjacent segmented regions that share a PBC label and may form end-to-end channels."""
     import numpy as np
     from scipy.ndimage import binary_dilation
     box_shape = regions_nonpbc.shape
@@ -1202,6 +1206,7 @@ def merge_small_regions(labels, min_size):
     return labels
 
 def get_perpendicular_voxel_lengths(ase_atoms, spacing, grid_shape):
+    """Estimate effective voxel edge lengths perpendicular to skewed grid basis vectors."""
     import numpy as np
     voxel_volume = ase_atoms.get_volume() / np.prod(grid_shape)
     la, lb, lc, alpha, beta, gamma = ase_atoms.cell.cellpar()

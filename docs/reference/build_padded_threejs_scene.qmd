@@ -1,5 +1,7 @@
 # build_padded_threejs_scene { #mofography.workflow.build_padded_threejs_scene }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Script wrapper for padded transparent Three.js segmentation export.
+
 ```python
 workflow.build_padded_threejs_scene(cif_path, output_path=None, **kwargs)
 ```

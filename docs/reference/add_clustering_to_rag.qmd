@@ -1,5 +1,7 @@
 # add_clustering_to_rag { #mofography.compute.add_clustering_to_rag }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older CSD-based clustering; env_cluster typing is more accurate. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_clustering_to_rag(
     rag2,
@@ -9,8 +11,7 @@ compute.add_clustering_to_rag(
 )
 ```
 
-The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph
-and adds clustering information to the graph nodes.
+Agglomeratively cluster RAG node feature vectors and write cluster labels on nodes.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

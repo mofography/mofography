@@ -1,4 +1,6 @@
 # plot_surface_dgrid_3js { #mofography.threejs_viz.plot_surface_dgrid_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_surface_dgrid for Plotly-parity naming. Use `plot_surface_dgrid` instead.
+
 `threejs_viz.plot_surface_dgrid_3js`
 

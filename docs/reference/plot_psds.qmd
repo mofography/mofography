@@ -1,5 +1,7 @@
 # plot_psds { #mofography.visualize.plot_psds }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Emits DeprecationWarning; renamed to plot_csds for centroid-distance cavity histograms. Use `plot_csds` instead.
+
 ```python
 visualize.plot_psds(
     rag,

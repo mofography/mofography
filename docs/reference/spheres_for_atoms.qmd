@@ -11,8 +11,7 @@ visualize.spheres_for_atoms(
 )
 ```
 
-It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
-radius and center corresponding to the atom's covalent radius and position.
+Return a list of trimesh spheres at ASE atom sites with scaled covalent radii.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

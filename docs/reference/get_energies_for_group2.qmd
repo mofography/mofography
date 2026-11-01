@@ -1,5 +1,7 @@
 # get_energies_for_group2 { #mofography.compute.get_energies_for_group2 }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Energy-interpolator variant of group sampling for legacy clustering workflows. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.get_energies_for_group2(
     group,
@@ -11,8 +13,7 @@ compute.get_energies_for_group2(
 )
 ```
 
-This function calculates the energies for a group of regions using an energy interpolator and
-returns the energies and scaled coordinates if specified.
+Sample grid energies for a region group using an energy interpolator (legacy pocket typing).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

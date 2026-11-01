@@ -9,3 +9,4 @@ compute.get_diametrically_opposite_points(
 )
 ```
 
+Pick evenly spaced convex-hull vertices around a region for path-sampling seed points.

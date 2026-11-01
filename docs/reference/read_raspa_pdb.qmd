@@ -4,17 +4,12 @@
 data.read_raspa_pdb(path_to_file, symbol_map=None)
 ```
 
-created by Arun Gopalan, Snurr Research Group.                   _                                 ___  ___  ___ 
-_ __ ___  __ _  __| |  _ __ __ _ ___ _ __   __ _    / _ \/   \/ __            | '__/ _ \/ _` |/ _` | | '__/ _` / __| '_ \ / _` |  / /_)/ /\ /__\//
-| | |  __/ (_| | (_| | | | | (_| \__ \ |_) | (_| | / ___/ /_// \/              |_|  \___|\__,_|\__,_| |_|  \__,_|___/ .__/ \__,_| \/  /___,'\_____/
-                                    |_|                            
-
-Reads the output PDB movie file from RASPA into separate configurations, including the chemical symbols and
-cell dimensions. 
-
-## Parameters {.doc-section .doc-section-parameters}
-
-| Name         | Type   | Description                                                             | Default    |
-|--------------|--------|-------------------------------------------------------------------------|------------|
-| path_to_file | str    | path to the RASPA PDB file                                              | _required_ |
-| symbol_map   |        | Optional dictionary mapping custom symbols to standard element symbols. | `None`     |
+Parse a RASPA trajectory PDB into per-frame cells, symbols, and Cartesian coordinates.
+        :type path_to_file: str
+        :param path_to_file: path to the RASPA PDB file
+        :param symbol_map: Optional dictionary mapping custom symbols to standard element symbols.
+    
+        :raises:
+        Not sure.
+    
+        :rtype: a python dictionary with 'cells', 'symbols' and 'coord' which stand for cell dimensions, printed symbols and coordinates

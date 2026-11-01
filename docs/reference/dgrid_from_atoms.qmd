@@ -1,5 +1,7 @@
 # dgrid_from_atoms { #mofography.compute.dgrid_from_atoms }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Python/Dask distance grid router; superseded by dgrid_from_atoms_rust for speed. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 compute.dgrid_from_atoms(
     ase_atoms,
@@ -11,8 +13,7 @@ compute.dgrid_from_atoms(
 )
 ```
 
-The function `dgrid_from_atoms` generates a distance grid over atoms using Dask arrays and computes
-the grid based on atomic radii and specified parameters.
+Build a Dask distance grid over atoms (dispatches to CPU implementation).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

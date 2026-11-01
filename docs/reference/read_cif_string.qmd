@@ -1,10 +1,12 @@
 # read_cif_string { #mofography.data.read_cif_string }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Parse in-memory CIF text; file paths should use read_cif_to_ase instead. Use `read_cif_to_ase` instead.
+
 ```python
 data.read_cif_string(cif)
 ```
 
-It takes a string of CIF data and returns an ASE atoms object.
+Parse a CIF string into an ASE Atoms object, or the string ``NaN`` on failure.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -1,6 +1,9 @@
 # find_paths { #mofography.compute.find_paths }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Experimental path search.
+
 ```python
 compute.find_paths(regions, rag2)
 ```
 
+Enumerate Bellman–Ford paths in the RAG that connect opposing periodic faces.

@@ -1,5 +1,7 @@
 # compute_psds_pocketwise_accessible { #mofography.rust_fun.compute_psds_pocketwise_accessible }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Pocket-wise PSD restricted to winding-percolating regions at a probe radius.
+
 ```python
 rust_fun.compute_psds_pocketwise_accessible(
     results,

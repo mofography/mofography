@@ -1,5 +1,7 @@
 # add_clustering_to_rag_energy_js { #mofography.compute.add_clustering_to_rag_energy_js }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older energy+JS clustering, less accurate than env_cluster. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_clustering_to_rag_energy_js(
     rag,
@@ -12,3 +14,4 @@ compute.add_clustering_to_rag_energy_js(
 )
 ```
 
+Cluster RAG pockets using Jensen–Shannon distance between energy histograms.

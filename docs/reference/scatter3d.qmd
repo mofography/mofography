@@ -18,7 +18,7 @@ visualize.scatter3d(
 )
 ```
 
-It takes a 3D array of points and returns a Plotly scatter3d object
+Return a Plotly Scatter3d for an N×3 array of points with configurable markers and lines.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

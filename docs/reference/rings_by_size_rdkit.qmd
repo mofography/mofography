@@ -1,5 +1,7 @@
 # rings_by_size_rdkit { #mofography.analyze.rings_by_size_rdkit }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> RDKit ring perception by size when RDKit-centric workflows are preferred. Use `compute_aromatic_cycles` instead.
+
 ```python
 analyze.rings_by_size_rdkit(atoms, ring_lengths)
 ```

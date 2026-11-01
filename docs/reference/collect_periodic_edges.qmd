@@ -1,5 +1,7 @@
 # collect_periodic_edges { #mofography.winding_percolation.collect_periodic_edges }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Backward-compatible alias; same return shape as canonical collector. Use `collect_periodic_edges_canonical` instead.
+
 ```python
 winding_percolation.collect_periodic_edges(connections, maxima_info)
 ```

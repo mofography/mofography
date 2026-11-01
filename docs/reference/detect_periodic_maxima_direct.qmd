@@ -1,5 +1,7 @@
 # detect_periodic_maxima_direct { #mofography.compute.detect_periodic_maxima_direct }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Maxima detection on the distance grid; used by Python and Rust segmentation paths.
+
 ```python
 compute.detect_periodic_maxima_direct(
     distance_grid,

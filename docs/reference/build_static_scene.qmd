@@ -1,5 +1,7 @@
 # build_static_scene { #mofography.movies.build_static_scene }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Tutorial entry point: framework, cell, surface, maxima, connections, windows.
+
 ```python
 movies.build_static_scene(
     atoms,

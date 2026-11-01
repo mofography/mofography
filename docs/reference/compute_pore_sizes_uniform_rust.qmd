@@ -5,6 +5,7 @@ rust_fun.compute_pore_sizes_uniform_rust(
     dgrid,
     ase_atoms,
     num_samples_total=10000,
+    min_sphere_center_radius=None,
 )
 ```
 
@@ -15,11 +16,12 @@ the pore size (distance to nearest atom surface) at each sample point.
 
 ## Parameters {.doc-section .doc-section-parameters}
 
-| Name              | Type          | Description                                 | Default    |
-|-------------------|---------------|---------------------------------------------|------------|
-| dgrid             | numpy.ndarray | 3D distance grid from dgrid_from_atoms_rust | _required_ |
-| ase_atoms         | ase.Atoms     | ASE Atoms object of the material            | _required_ |
-| num_samples_total | int           | Total number of sample points to generate   | `10000`    |
+| Name                     | Type          | Description                                                                                                                                                                                                             | Default    |
+|--------------------------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| dgrid                    | numpy.ndarray | 3D distance grid from dgrid_from_atoms_rust                                                                                                                                                                             | _required_ |
+| ase_atoms                | ase.Atoms     | ASE Atoms object of the material                                                                                                                                                                                        | _required_ |
+| num_samples_total        | int           | Total number of sample points to generate                                                                                                                                                                               | `10000`    |
+| min_sphere_center_radius | float \| None | Minimum clearance (Å) for sphere-center voxels in the largest-including-sphere search. Sample sites still use all void voxels (dgrid > 0). Set to the probe radius (e.g. 1.657 Å for N₂) to match PoreBlazer Total PSD. | `None`     |
 
 ## Returns {.doc-section .doc-section-returns}
 

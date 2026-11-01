@@ -4,3 +4,4 @@
 viz_backend.validate_plotly_traces(traces, *, context='add_traces')
 ```
 
+Ensure every leaf in nested ``traces`` is a Plotly trace.

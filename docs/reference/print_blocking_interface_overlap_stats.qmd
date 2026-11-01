@@ -1,5 +1,7 @@
 # print_blocking_interface_overlap_stats { #mofography.raspa_helper.print_blocking_interface_overlap_stats }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Renamed alias kept for old scripts. Use `print_blocking_spheres_overlap_report` instead.
+
 ```python
 raspa_helper.print_blocking_interface_overlap_stats(stats)
 ```

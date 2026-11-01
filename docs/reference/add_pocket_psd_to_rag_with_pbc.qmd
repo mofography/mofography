@@ -1,5 +1,7 @@
 # add_pocket_psd_to_rag_with_pbc { #mofography.compute.add_pocket_psd_to_rag_with_pbc }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Attaches Rust pocket-wise PSD histograms with PBC; use after segmentation PSD compute.
+
 ```python
 compute.add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds)
 ```

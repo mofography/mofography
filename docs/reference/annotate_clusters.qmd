@@ -4,3 +4,4 @@
 winding_percolation.annotate_clusters(loop_list)
 ```
 
+Assign cluster IDs to winding loops from node sets and |winding| tuples.

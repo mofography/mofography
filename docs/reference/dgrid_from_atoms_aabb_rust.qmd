@@ -1,5 +1,7 @@
 # dgrid_from_atoms_aabb_rust { #mofography.rust_fun.dgrid_from_atoms_aabb_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> AABB neighbor-search dgrid; faster/coarser than exact MIC Rust path.
+
 ```python
 rust_fun.dgrid_from_atoms_aabb_rust(
     ase_atoms,
