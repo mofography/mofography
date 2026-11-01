@@ -4,7 +4,7 @@ description: "Compute accessible surface area, void volume, and per-pocket/per-r
 image: tutorial_images/surface_area_dgrid.png
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 ## Overview
@@ -292,7 +292,7 @@ For IRMOF-1 all four rows should agree within ~3% — the MC noise level for 40 
 
 ## Step 9: Visualize the accessible pockets
 
-`plot_maxima` returns a *tuple* `(Scatter3d, Mesh3d)` when `show_spheres=True` — we unpack it and add both traces to a `go.Figure`. `plot_surface_dgrid` returns a single `Mesh3d` trace; we add it directly.
+`plot_maxima` returns a *tuple* `(Scatter3d, Mesh3d)` when `show_spheres=True` — we unpack it and add both traces to a `go.Figure`. `plot_surface_dgrid` returns a single `Mesh3d` trace; we add it directly. Passing `select=` with the accessible region labels (the keys of `by_region`) trims the isosurface to the accessible domains, so a blocked pocket would not be drawn.
 
 ```{python}
 n_pockets = int(seg["regions_pbc"].max())
@@ -305,12 +305,15 @@ scatter_tr, mesh_tr = mgr.plot_maxima(
     name=f"Pockets ({n_pockets})",
 )
 
-# Translucent dgrid isosurface at the probe radius
+# Translucent dgrid isosurface at the probe radius, trimmed to the accessible regions.
+# `by_region` holds the accessible region labels of the un-merged `seg["regions"]`
+# (labels of the PBC-merged array would also pull in partial pores).
+accessible_labels = list(sa_mc["by_region"])
 surf_tr = mgr.plot_surface_dgrid(
     dgrid, probe_radius, atoms,
-    region_labels=seg["regions_pbc"],
+    region_labels=seg["regions"], select=accessible_labels,
     opacity=0.35, cscale=px.colors.qualitative.Pastel,
-    stylize=True, name=f"dgrid isosurface @ {probe_radius} Å",
+    stylize=True, name=f"accessible isosurface @ {probe_radius} Å",
 )
 
 # Faint framework
@@ -328,8 +331,20 @@ fig.update_layout(
     ),
     paper_bgcolor="black",
 )
-fig.show()
+fig.write_image("tutorial_images/surface_area_pockets.png", width=1100, height=800)  # static preview for the docs
 ```
+
+![IRMOF-1: PBC pockets inside the probe-radius isosurface](tutorial_images/surface_area_pockets.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+# build `fig` as above, then:
+fig.show()   # rotatable Plotly figure
+fig.write_html("surface_area_pockets.html")
+```
+:::
+
+[Open the interactive version](interactive/cubtc_surface_area_plotly.html){target="_blank"}
 
 You should see one sphere per PBC pocket (eight for IRMOF-1) sitting inside a translucent isosurface at the probe radius. The two cage families — small and large — are visually obvious in the cube.
 
@@ -478,4 +493,4 @@ The fields you actually want in a screening report are usually:
 - [Connections and Windows](connections_and_windows.qmd) — how to extract the per-window sizes that the SA routines use implicitly.
 - [Window fingerprinting](window_fingerprinting.org) — the direction-invariant shell fingerprint matcher that powers `window_fp=True`.
 - [Pockets detection](pockets_detection.qmd) — classify each pocket as cage / channel / dead-end; combine with `by_pocket` SA for chemistry-aware ranking.
-- [Quick Start: Full MOF Pore Analysis](quick_cluster.qmd) — the canonical pipeline that this tutorial extends.
+- [Quick Start: Full MOF Pore Analysis](quick_start.qmd) — the canonical pipeline that this tutorial extends.
