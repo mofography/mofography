@@ -326,6 +326,16 @@ def resolve_typing_vdw_radii(
     )
 
 
+def _segmentation_spacing(segmentation: Mapping[str, Any]) -> float:
+    """Grid spacing (Å) of a segmentation result.
+
+    ``do_periodic_segmentation_rust`` stores it under ``input_params["spacing"]``, not at top level.
+    """
+    if "spacing" in segmentation:
+        return float(segmentation["spacing"])
+    return float((segmentation.get("input_params") or {}).get("spacing", DEFAULT_SPACING_A))
+
+
 def compute_typing_dgrid(
     atoms,
     segmentation: Mapping[str, Any],
@@ -337,7 +347,7 @@ def compute_typing_dgrid(
         return None
     from mofography.rust_fun import dgrid_from_atoms_rust
 
-    spacing = float(segmentation.get("spacing", DEFAULT_SPACING_A))
+    spacing = _segmentation_spacing(segmentation)
     return dgrid_from_atoms_rust(
         atoms, spacing=spacing, radii=radii,
     ).astype(np.float32)
@@ -1179,6 +1189,7 @@ def summarize_types(
     rep_to_type: Mapping[int, int],
     fps: Mapping[int, PocketFingerprint],
 ) -> List[Dict[str, Any]]:
+    """Summarize per-type pocket counts and max_r, volume, and d1 ranges for reporting."""
     from collections import defaultdict
 
     by_type: Dict[int, List[int]] = defaultdict(list)
@@ -1346,7 +1357,7 @@ def assign_pocket_types_from_segmentation(
             "band_gap_a": band_gap_a,
             "singleton_band_gap_a": singleton_band_gap_a,
             "probe_radius_psd_a": probe_radius_psd,
-            "spacing_a": segmentation.get("spacing", DEFAULT_SPACING_A),
+            "spacing_a": _segmentation_spacing(segmentation),
             "mask_thickness_a": segmentation.get("mask_thickness", DEFAULT_MASK_THICKNESS_A),
             "typing_radii": (
                 "segmentation"
