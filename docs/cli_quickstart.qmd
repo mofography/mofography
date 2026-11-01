@@ -4,7 +4,7 @@ description: "Run MOFography from the command line with mgrcli — process a CIF
 image: tutorial_images/pore_graph_concept.png
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 ## Overview
@@ -183,6 +183,8 @@ for p in sorted(out_dir.iterdir()):
 | `IRMOF-1_rag_clustered.pkl` | `--rag` or `--types` | Pickled NetworkX region-adjacency graph; load with `pickle.load` / `networkx.readwrite.read_gpickle`. |
 | `IRMOF-1.html` | `--plot-html` | Standalone 3D visualization of the segmentation (Plotly or Three.js). |
 | `IRMOF-1_percolation.html` | `--percolation-plot` | Percolation cluster growth, useful for sanity-checking the LCD/PLD. |
+
+For a look at what the 3D outputs resemble, see the [IRMOF-1 interactive scene](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}.
 
 ```{python}
 import pandas as pd
@@ -528,15 +530,14 @@ For one-line reference, this is the entire `process` flag surface:
   to force one specific backend.
 - **VDW sensitivity:** if pocket-type counts look wrong, re-run with
   `--vdw-radii-set bondi` and compare against `crc` / `alvarez`. See the
-  [VDW Sensitivity Problem](pocket-typing-radii-sensitivity-problem.md)
-  deep dive.
+  [pocket type detection](pockets_detection.qmd) page for the caution on radii.
 - **The CLI hides nothing the API exposes** — every artifact on disk is
   also reachable from Python. The `*_results.npz` is the canonical
   handoff.
 
 ## Next Steps
 
-- [Quick Cluster tutorial](quick_cluster.qmd) — the canonical Python
+- [Quick start tutorial](quick_start.qmd) — the canonical Python
   workflow this CLI wraps.
 - [Distance Grid tutorial](distance_grid.qmd) — the dgrid backends in
   detail, including the AABB and interp variants.

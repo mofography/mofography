@@ -1,126 +1,106 @@
 ---
-title: "Installation"
-format: html
+title: "Install"
+description: "Build mgr_rust and install the mofography Python package on Linux, macOS, or Windows."
 toc: true
+code-fold: false
 eval: false
 ---
 
+This repository is the **full Python package**. There is no PyPI wheel yet: you install dependencies, compile `mgr_rust` with [maturin](https://www.maturin.rs/) in **release** mode (important for speed on your CPU), then `pip install -e .`.
 
-:::: {.callout-note}
+**Requirements:** Python 3.10–3.12 (3.11 recommended) · Rust via [rustup](https://rustup.rs/) · Linux, macOS, or Windows. NumPy 1.20 and the 2.x series are both supported; if you hit a deprecation or type-promotion warning, open an issue with your `numpy` version.
 
-MOFography is tested with `numpy >= 1.20`, including the current `2.x` series. If you hit a deprecation or type-promotion warning, please open an issue with the failing `numpy` version.
-
-::::
-
-### Install dependencies, Add path and Use. ⏩
-You can simply try out mofography after installing just the dependencies. In fact, I would recommend this approach, since mofography is still in active development
-
-:::: {.callout-caution}
-MOFography has been tested with `Python 3.10`–`3.12`; the `mgrcli` companion supports `3.8`–`3.12`. We recommend creating a fresh `Python 3.11` environment for new installs:
+## Pin a release (optional)
 
 ```bash
-conda create -n mgr_env python=3.11
-conda activate mgr_env
+git clone https://github.com/mofography/mofography.git && cd mofography
+git checkout 2026.10.09.1
 ```
 
-If you hit any issues on a different Python version, please open an issue.
-::::
+## One command (Linux / macOS)
 
-- Install the dependencies using conda or pip. A fresh `Python 3.11` environment is recommended but not required.
-### Install Dependencies using Conda 
-
-::: {.callout-note}
-*Note: In all the steps below, feel free to replace `conda` with `mamba`, as it is much faster at resolving dependencies and installing packages. To install mamba use `conda install -c conda-forge -n base mamba`*
-:::
-
+**A. Fresh sandbox with [uv](https://github.com/astral-sh/uv)** (creates `.venv` in the clone):
 
 ```bash
-conda create -n mgr_env python=3.11
-conda activate mgr_env
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox
 ```
 
-```bash
-conda install -c conda-forge pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud cupy
-```
-### Install Dependencies using Pip
-
-if you'd like to install these dependencies using pip, the name of the `freud` package is `freud-analysis` so use this command instead
+**B. Active conda or venv** (installs into the Python you already activated):
 
 ```bash
-pip install pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp icecream sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis cupy
-```
-::: {.callout-note}
-*Note*: If you are using a GPU, you can install the `cupy` package, which is a GPU-accelerated version of numpy. This will speed up the calculations significantly. If you don't have a GPU, you can exclude `cupy` from the list of dependencies.j
-:::
-
-### Clone the repo 🎎
-
-- Clone the repo 
-  Click on the green `Code` button and download the zip file. Unzip the file to get the repo folder, the path to which we can add and use. Alternatively, if you are using git, you may instead clone the repo using the following command from your terminal with git installed
-
-```bash
-git clone https://github.com/arung-northwestern/mofography.git .
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode pip-existing
 ```
 
-#### Update if need be 🔄
-- If you already have a cloned repo, pull the latest changes, since the package is being updated frequently
-  
+Pin a release in the one-liner:
+
 ```bash
+curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox --ref 2026.10.09.1
+```
+
+From an existing clone: `./scripts/install_mofography.sh --mode uv-sandbox`, or `--mode pip-existing --repo-dir .`
+
+## Windows (PowerShell)
+
+```powershell
+git clone https://github.com/mofography/mofography.git
 cd mofography
-git pull
-```
-### Add path 🔗
-- Add the path to mofography to your python path in your scripts and notebooks before you import,
-  
-```{python}
-import sys
-import os
-sys.path.append(os.path.abspath('path_to_mofography'))
+git checkout 2026.10.09.1   # optional
+.\scripts\install_mofography.ps1
 ```
 
-of course, replace `path_to_mofography` with the relative path to the mofography directory on your local machine. This way we are not installing anything yet, so if there are changes to the source code, you can simply pull the latest changes using `git pull` and use them withouth having to reinstall the package everytime.
+Further Windows details live in the [README](https://github.com/mofography/mofography#install-the-library).
 
-### Install the CLI companion (`mgrcli`) ⌨️
-
-If you mostly want to run MOFography on one or many CIFs without writing a notebook, install the `mgrcli` companion. It ships the same Rust-accelerated pipeline (`dgrid_from_atoms_rust` → `do_periodic_segmentation_rust`) plus a prebuilt extension, and bundles its own dependency set so no manual install is needed:
+## Manual steps (any OS)
 
 ```bash
-pip install mgrcli
+conda create -n mgr_env python=3.11 -y && conda activate mgr_env   # or your venv
+conda install -c conda-forge pymatgen ase dask networkx scikit-image scikit-learn plotly freud rdkit -y
+
+git clone https://github.com/mofography/mofography.git && cd mofography
+python -m pip install maturin
+cd mgr_rust && maturin develop --release && cd ..
+python -m pip install -e .
 ```
 
-Verify the install:
+`mamba` can replace `conda` for faster solves. With pip, the `freud` package is named `freud-analysis`.
+
+## Verify
 
 ```bash
-mgrcli --version
-mgrcli --help
+python -c "import mgr_rust, mofography as m; print(m.__version__)"
 ```
 
-One-shot full analysis on a CIF:
+## After `git pull`
+
+Rebuild the Rust extension:
 
 ```bash
-mgrcli process IRMOF-1.cif \
-  --dgrid-method rust_exact \
-  --vdw-radii-set bondi \
-  --b rust_det \
-  --pore-dia --psd --rag --types
+cd mgr_rust && maturin develop --release
 ```
 
-To install from source (e.g. for hacking on the CLI), clone the companion repo and install editable:
+We do **not** ship prebuilt `mgr_rust` wheels per OS: local `--release` builds match your machine best. More on the backend: [Rust backend notes](https://github.com/mofography/mofography/blob/master/docs/rust_backend_documentation.md).
 
-```bash
-git clone https://github.com/arung-northwestern/mgr_cli_py.git
-cd mgr_cli_py/python_cli
-pip install -e .
-```
+## Quick test
 
-For the full flag reference, output layout, and how to drop down to the Python API when the CLI is not enough, see the [CLI Quick Start](./cli_quickstart.qmd) tutorial.
-
-### Test the installation 🧪
-- Import mofography to see if it works. There are CIF files in the `mofography/examples` folder, which you can use to test the package. For a full walkthrough of the canonical workflow, see the [Quick Start](./quick_cluster.qmd) tutorial.
+Run the two core calls on a CIF from the repo (the full walkthrough is [Quick start](quick_start.qmd)):
 
 ```{python}
-import mofography as mgr
+import numpy as np
 from ase.io import read
-mat_atoms = read('path_to_mofography/examples/TestCIFs/P1-IRMOF-1.cif')
-figures = mgr.quick_cluster(mat_atoms)
+import mofography as mgr
+
+atoms = read("examples/TestCIFs/P1-IRMOF-1.cif")
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.05, h=0.2,
+    min_distance=1.5, threshold_abs=1.5,
+    watershed_backend="rust_det", compute_connections=True, disable_tqdm=True,
+)
+print(len(seg["maxima_pbc"]), "pockets")
 ```
+
+## Next
+
+- [Quick start](quick_start.qmd): CIF to pore graph and textural properties
+- [CLI quick start](cli_quickstart.qmd): the same from the terminal
+- [Learn](learn.qmd): all tutorials

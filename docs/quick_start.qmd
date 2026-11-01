@@ -1,158 +1,156 @@
 ---
-title: "Quick Start: Full MOF Pore Analysis"
-description: "The canonical mofography workflow — from CIF to pore graph in three function calls"
+title: "Quick start"
+description: "CIF to pore graph, pocket types, windows, and textural properties with two core calls"
 image: tutorial_images/paper_mofography_workflow.png
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 ![The full mofography pipeline: from a MOF crystal (a) through distance grid, watershed, PBC-aware segmentation, and pore graph construction (paper Figure 2)](tutorial_images/paper_mofography_workflow.png)
 
-![Representative examples of the core mofography workflow applied to materials with varying pore shape and connectivity: MIL-47, LTA, ZIF-8, and MarksId-018 (paper Figure 3)](tutorial_images/paper_core_workflow_examples.png){width=100%}
-
 ## Overview
 
-This is the **canonical mofography workflow** — go from a CIF file to a fully analyzed pore graph in three function calls:
+Two functions do the heavy lifting. Everything else reads their output.
 
-1. `dgrid_from_atoms_rust()` — compute the 3D distance grid
-2. `do_periodic_segmentation_rust()` — detect pore regions, handle PBC, compute connections
-3. `show_mof_plotly()` — interactive 3D visualization
+1. `dgrid_from_atoms_rust(atoms, spacing)` computes the distance grid (distance from each voxel to the nearest framework surface).
+2. `do_periodic_segmentation_rust(dgrid, atoms, ...)` finds pockets, handles periodic boundaries, and detects windows. It returns one dictionary (`seg`).
 
-This replaces the old multi-step workflow (7+ manual calls) with a clean, tested pipeline.
+From `seg` you get a pore graph, pocket types, windows, and textural properties (LCD, PLD, surface area, void volume). This page runs all of it on IRMOF-1. Parameter safe ranges live on [Tuning and safe ranges](parameter_tuning.qmd).
 
-## Imports
+## Imports and structure
 
 ```{python}
-import mofography as mgr
-from ase.io import read
 import numpy as np
+import mofography as mgr
+from mofography.cif_io import read_cif_to_ase  # fast Rust CIF reader, returns ase.Atoms (see the Fast Rust CIF reader page)
+
+atoms = read_cif_to_ase("IRMOF-1.cif")   # or examples/TestCIFs/P1-IRMOF-1.cif from the repo root; ase.io.read works too
+print(f"{atoms.get_chemical_formula()}: {len(atoms)} atoms")
+print("Cell (Å):", atoms.cell.cellpar()[:3].round(2))
 ```
 
-## Step 1: Load a Structure
+## 1. Distance grid
 
 ```{python}
-# Load a MOF from CIF — use any CIF/PDB file
-atoms = read("IRMOF-1.cif")
-
-print(f"Atoms: {len(atoms)}")
-print(f"Cell: {atoms.cell.cellpar()[:3].round(2)} Å")
-print(f"Angles: {atoms.cell.cellpar()[3:].round(1)}°")
-print(f"Formula: {atoms.get_chemical_formula()}")
+spacing = 0.5  # Å. Halving it gives 8x more voxels.
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing).astype(np.float32)
+print(f"Grid {dgrid.shape}, largest void radius {dgrid.max():.2f} Å")
 ```
 
-## Step 2: Compute the Distance Grid
+`radii=None` uses Bondi van der Waals radii. For other grid backends see [Distance grid](distance_grid.qmd) and [Distance grid methods](dgrid_methods.qmd).
 
-The distance grid is the foundation. Every downstream step depends on it.
-
-```{python}
-# Default: thread-parallel Rust backend — correct for all cell types
-spacing = 0.5  # Å — most impactful parameter (halve it → 8× more voxels)
-
-dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing)
-print(f"Grid shape: {dgrid.shape} ({dgrid.size:,} voxels)")
-print(f"Void max: {dgrid.max():.1f} Å")
-```
-
-> **Alternative backends:** For large systems, try `dgrid_from_atoms_aabb_rust(spacing=0.5, n_neighbors=10)` (R-tree, less RAM) or `dgrid_from_atoms_aabb_interp_rust(spacing=1.0, coarse_factor=2)` (coarse + interpolation). See the [Distance Grid tutorial](distance_grid.qmd) for details.
-
-## Step 3: Periodic Segmentation (Single Call)
-
-`do_periodic_segmentation_rust` replaces **5-7 old manual steps**: maxima detection, watershed segmentation, PBC-aware watershed, connection detection, and pore graph construction — all in one call.
+## 2. Periodic segmentation
 
 ```{python}
-dgrid_f32 = dgrid.astype(np.float32)
 seg = mgr.do_periodic_segmentation_rust(
-    dgrid_f32, atoms,
-    mask_thickness=0.05,        # void-space threshold (Å)
-    h=0.2,                      # H-maxima persistence
-    min_distance=1.5,           # min separation between distinct maxima (Å)
-    threshold_abs=1.5,          # absolute threshold for maxima (Å)
-    spacing=spacing,
-    compute_connections=True,   # detect windows + build pore graph
+    dgrid, atoms,
+    spacing=spacing,             # always pass it; otherwise it is inferred
+    mask_thickness=0.05,         # Å, voxels closer than this to the framework are background
+    h=0.2,                       # Å, maxima persistence
+    min_distance=1.5,            # Å, minimum separation between maxima
+    threshold_abs=1.5,           # Å, minimum height of a maximum
     watershed_backend="rust_det",
+    compute_connections=True,    # windows + connections
+    return_dgrid=True,           # keep dgrid inside seg for later steps
     disable_tqdm=True,
 )
+print(f"Pockets (PBC-merged): {len(seg['maxima_pbc'])}")
+print(f"Unique regions:       {len(seg['unique_regions'])}")
+print(f"Window connections:   {len(seg['connections'])}")
+print(f"PBC groups:           {len(seg['pbc_groups'])}")
 ```
 
+Those are the defaults (written out for clarity). `seg` also holds `regions_pbc` (labelled grid), `maxima_info`, `all_maxima` and `input_params`. See [Region segmentation](region_segmentation.qmd) and [Applying PBC](applying_pbc.qmd).
+
+::: {.callout-note}
+Messages starting with `[pocket_maxima_check]` mean a pocket's recorded maximum is a bit lower than the true peak of its region (a few tenths of an Å). They are informational. See the [tuning page](parameter_tuning.qmd) if you want to remove them.
+:::
+
+## 3. Pore graph
+
+Pockets become nodes. Windows between pockets become edges.
+
 ```{python}
-# What did we get?
-print(f"Pore pockets (PBC-grouped): {len(seg['maxima_pbc'])}")
-print(f"Total maxima detected:      {len(seg['all_maxima'])}")
-print(f"Unique regions:             {len(seg['unique_regions'])}")
-print(f"Window connections:         {len(seg['connections'])}")
-print(f"PBC equivalence groups:     {len(seg['pbc_groups'])}")
-print(f"Regions shape:              {seg['regions_pbc'].shape}")
+rag = mgr.rag_from_connections(seg["connections"], seg["all_maxima"])
+print(rag)
 ```
 
-## Step 4: Visualize
+It is a `networkx` graph. See [Pore graph](region_adjacency_graph.ipynb).
+
+## 4. Pocket types
 
 ```{python}
-# Full interactive 3D visualization (Plotly)
-fig = mgr.show_mof_plotly(seg, atoms, framework_atoms=atoms, stylize=True)
-fig.show()
-```
-
-> For **interactive ThreeJS** output (rotatable, zoomable, exportable to standalone HTML), use `show_mof_threejs(seg, atoms, output_html="my_mof.html")`.
-
-## Step 5: Downstream Analysis
-
-```{python}
-# Pore Size Distribution (global, uniform sampling)
-psd = mgr.compute_psd_uniform_rust(seg['dgrid'], atoms, num_samples_total=10000)
-
-# Pocket-wise PSD
-psds_pocket = mgr.compute_psds_pocketwise_rust(
-    seg['dgrid'], seg['regions_pbc'], atoms,
-    num_samples_per_region=1000
-)
-
-# Enrich segmentation with PSD data
-enriched = mgr.enrich_segmentation_with_pocket_psds(seg, atoms)
-
-# Detect pocket types (multi-modal fingerprinting)
-typed = mgr.assign_pocket_types(enriched, atoms, method='env_cluster')
-print(f"Found {typed.n_types} pocket types across {typed.n_pockets} pockets")
+seg = mgr.enrich_segmentation_with_pocket_psds(seg, atoms)   # per-pocket PSDs, reused by typing
+typed = mgr.assign_pocket_types(seg, atoms, method="env_cluster")
+print(f"{typed.n_types} types across {typed.n_pockets} pockets")
 for t in typed.type_summary:
-    print(f"  Type {t['type_id']}: {t['n_pockets']} pockets, "
-          f"radius {t['max_r_min_a']:.1f}–{t['max_r_max_a']:.1f} Å")
+    print(f"  type {t['type_id']}: {t['n_pockets']} pockets, "
+          f"max radius {t['max_r_min_a']:.2f}-{t['max_r_max_a']:.2f} Å")
 ```
 
-## Parameter Reference
+More in [Pocket type detection](pockets_detection.qmd).
 
-### Essential parameters (tune these first)
+## 5. Windows
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `spacing` | 0.5 Å | Grid resolution — halve it → 8× more voxels |
-| `mask_thickness` | 0.05 Å | Void-space threshold — increase to merge nearby pockets |
-| `h` | 0.2 Å | H-maxima persistence — higher = fewer, larger maxima |
-| `min_distance` | 1.5 Å | Minimum separation between maxima — higher = fewer pockets |
-| `threshold_abs` | 1.5 Å | Absolute threshold — maxima must be at least this far from framework |
+Each entry of `seg["connections"]` is `[region_pair, flag, "internal"|"periodic", centre, radius]`. Keep those that touch a unique region to avoid counting windows from the padding.
 
-### Advanced parameters
+```{python}
+unique = seg["unique_regions"]
+windows = [c for c in seg["connections"] if np.any(np.isin(c[0], unique))]
+radii = np.array([float(np.ravel(c[4])[0]) for c in windows])
+print(f"{len(windows)} windows in the cell; radii {radii.min():.2f}-{radii.max():.2f} Å")
+```
 
-| Parameter | Default | Effect |
-|-----------|---------|--------|
-| `preserve_threshold` | 3.0 Å | Maxima below this are untouched during smoothing |
-| `smooth_threshold` | 6.0 Å | Maxima above this are always smoothed |
-| `max_smooth_radius` | 2.0 Å | Cap on smoothing radius |
-| `extra_padding` | 5.0 Å | Extra PBC padding beyond standard +5 Å |
-| `watershed_backend` | `"rust_det"` | `rust_det` \| `rust_bucket` \| `rust_det_parallel` \| `skimage` |
-| `vdw_radii_set` | `"bondi"` | VDW radii table: `bondi` \| `crc` \| `alvarez` |
-| `compactness` | 0 | Region compactness filter (0 = disabled) |
-| `min_region_size` | 0.001 | Fraction of padded grid volume — filter tiny regions |
+See [Connections and windows](connections_and_windows.qmd).
 
-## Tips
+## 6. Textural properties
 
-- **Start with defaults.** The defaults (`h=0.2`, `min_distance=1.5`, `threshold_abs=1.5`) work well for most MOFs.
-- **Check `maxima_pbc` count.** This is your pore count — should match your expectation for the MOF's topology.
-- **Tune `h` for over/under-segmentation.** Too many small pockets → increase `h`. Missing pockets → decrease `h`.
-- **For very large systems,** use `dgrid_from_atoms_aabb_rust` (R-tree) or `dgrid_from_atoms_aabb_interp_rust` (coarse + interpolation).
+LCD and PLD come from the winding method, which tests percolation across periodic images. Surface area and void volume are computed on the same `seg`.
 
-## Next Steps
+```{python}
+lcd, pld, dfsd, _ = mgr.get_pore_dia_mgr_winding(atoms, dgrid=dgrid, results=seg)
+print(f"LCD {lcd:.2f} Å | PLD {pld:.2f} Å | DFSD {dfsd:.2f} Å")
 
-- [Periodic Segmentation Deep Dive](periodic_segmentation_quick_start.md) — understand every output key
-- [Pore Size Distributions](pore_size_distributions_gelb_gubbins.md) — PSD theory and interpretation
-- [PLD & Percolation](pore_limiting_diameter_pld_and_percolation.md) — pore limiting diameter and accessibility
-- [Surface Area](monte_carlo_surface_area.md) — Monte Carlo shell method
+probe = 1.2  # Å, helium; use a probe radius below PLD/2 or nothing percolates
+sa = mgr.compute_surface_area_mc_winding(seg, atoms, probe_radius=probe)
+vv = mgr.compute_void_volume_from_results_winding(seg, atoms, probe_radius=probe)
+print(f"Surface area: {sa['accessible_surface_area']:.0f} m²/g "
+      f"(total {sa['total_surface_area']:.0f})")
+print(f"Void volume:  {vv['accessible_void_volume']:.3f} cm³/g "
+      f"(total {vv['total_void_volume']:.3f})")
+```
+
+Details: [Surface area](surface_area.qmd) and [Accessibility](accessibility.qmd).
+
+## 7. Visualize
+
+```{python}
+fig = mgr.show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms, stylize=True)
+fig.write_image("tutorial_images/quick_start_structure.png", width=1100, height=800)  # static preview for the docs
+```
+
+![IRMOF-1: framework, pore surface, pocket types, and windows](tutorial_images/quick_start_structure.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+fig = mgr.show_mof_plotly(seg, atoms, typed_result=typed, framework_atoms=atoms, stylize=True)
+fig.show()   # rotatable Plotly figure in a notebook
+# or a standalone page:
+mgr.show_mof_threejs(seg, atoms, typed_result=typed, output_html="mof.html")
+```
+:::
+
+[Open the interactive version](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
+
+## Notes
+
+- `mgr.quick_cluster(atoms)` is a legacy one-call helper that builds a figure set (and opens a browser renderer). Use the explicit steps above in scripts.
+- Cast `dgrid` to `float32` before segmentation, as above.
+- Defaults are a good start for most MOFs. If pocket counts look wrong, go to [Tuning and safe ranges](parameter_tuning.qmd).
+
+## Next
+
+- [Tuning and safe ranges](parameter_tuning.qmd)
+- [Selective smoothing](selective_smoothing.qmd) and [Watershed backends](watershed_backends.qmd)
+- [PLD and percolation](pld_and_percolation.ipynb)
