@@ -115,8 +115,7 @@ def _tree_path(u: int, v: int, parent: Dict[int, Optional[int]]) -> List[int]:
 def percolation_winding_multidigraph(
     G: nx.MultiDiGraph,
 ) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
-    """
-    Evaluate percolation using winding numbers on a deduplicated MultiDiGraph.
+    """Evaluate percolation with winding numbers on a deduplicated MultiDiGraph.
 
     Returns
     -------
@@ -271,6 +270,7 @@ def _maxima_pbc_data(maxima_info: np.ndarray):
     return maxima_pbc_dict, orig_map, zero_rows
 
 def collect_periodic_edges_canonical(connections, maxima_info):
+    """Build a canonical deduplicated edge map from connections and maxima_info."""
     import numpy as np
 
     label_to_idx = {int(row[0]): idx for idx, row in enumerate(maxima_info)}
@@ -493,6 +493,7 @@ def make_directed_graph_from_segmentation_results(results, dgrid=None):
 
 
 def build_base_region_labels(maxima_info: np.ndarray, region_labels: set, maxima_pbc_dict: Dict[Tuple[int, int, int], int]):
+    """Map each base maxima node to watershed region labels it represents."""
     base_region_labels: Dict[int, set] = {}
     for row in maxima_info:
         label = int(row[0])
@@ -507,6 +508,7 @@ def build_base_region_labels(maxima_info: np.ndarray, region_labels: set, maxima
 
 
 def build_base_region_labels_from_results(results: Dict[str, object]) -> Dict[int, set]:
+    """Build base-node to region-label mapping from segmentation results."""
     maxima_info = np.asarray(results["maxima_info"])
     maxima_pbc_dict, _, _ = _maxima_pbc_data(maxima_info)
     regions = np.asarray(results["regions"])
@@ -538,6 +540,7 @@ def _axes_from_winding(winding: Tuple[int, int, int]) -> List[str]:
 
 
 def annotate_clusters(loop_list: List[Dict[str, object]]) -> Dict[Tuple[frozenset, Tuple[int, int, int]], int]:
+    """Assign cluster IDs to winding loops from node sets and |winding| tuples."""
     cluster_ids: Dict[Tuple[frozenset, Tuple[int, int, int]], int] = {}
     next_id = 1
     for loop in loop_list:
@@ -566,6 +569,7 @@ def percolation_all_axes_winding(
     Dict[int, List[int]],
     Dict[int, Dict[str, object]],
 ]:
+    """Return per-axis winding percolation cluster region groups at a probe threshold."""
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     percolates, loops, acc_offsets, filtered_graph = detect_percolation_with_threshold(
         graph, threshold, node_radius_attr=node_radius_attr, edge_radius_attr=edge_radius_attr
@@ -683,6 +687,7 @@ def check_percolation_winding(
     include_dangling: bool = True,
     expand_components: bool = True,
 ) -> bool:
+    """Return True if winding percolation occurs on any axis at the given threshold."""
     axis_clusters, _, _ = percolation_all_axes_winding(
         results,
         threshold,
@@ -1132,6 +1137,7 @@ def find_pore_limiting_radius_winding(
     include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Optional[float]:
+    """Binary-search the largest probe radius (Å) with winding percolation on any axis."""
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     candidates = _gather_threshold_candidates(graph)
     if not candidates:
@@ -1239,6 +1245,7 @@ def update_results_with_percolation_history_winding(
     include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Dict[str, object]:
+    """Compute winding PLD and percolation history and store them on results."""
     graph, base_region_labels = _prepare_graph_and_labels(results, graph, base_region_labels)
     min_default = _default_mask_thickness(results)
     if min_threshold is None:
@@ -1297,7 +1304,7 @@ def compute_percolation_history_winding(
     expand_components: bool = True,
     **kwargs,
 ) -> Tuple[List[Tuple[float, Dict[str, List[List[int]]]]], np.ndarray, Dict[int, Dict[str, object]]]:
-    """Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata."""
+    """Compute winding percolation history and return clusters plus PLD voxel locations."""
     results = update_results_with_percolation_history_winding(
         results,
         include_dangling=include_dangling,
@@ -1322,6 +1329,7 @@ def get_pore_dia_mgr_winding(
     include_dangling: bool = True,
     expand_components: bool = True,
 ) -> Tuple[float, float, float, np.ndarray]:
+    """Return LCD, PLD, and LIS from winding percolation (segments via rust if needed)."""
     if kwargs is None:
         kwargs = {}
 
@@ -1331,10 +1339,12 @@ def get_pore_dia_mgr_winding(
             if mat_atoms is None:
                 raise ValueError("mat_atoms or results must be provided.")
             dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        # Rust segmentation expects float32; the CPU grid is float64.
+        dgrid = np.asarray(dgrid, dtype=np.float32)
         results = mgr.do_periodic_segmentation_rust(
             dgrid,
             mat_atoms,
-            mask_thickness=kwargs.get("mask_thickness", 1.5),
+            mask_thickness=kwargs.get("mask_thickness", 0.05),
             h=kwargs.get("h", 0.2),
             spacing=spacing,
             return_dgrid=True,
@@ -1502,10 +1512,12 @@ def get_pore_dia_mgr_winding2(
             if mat_atoms is None:
                 raise ValueError("mat_atoms or results must be provided.")
             dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        # Rust segmentation expects float32; the CPU grid is float64.
+        dgrid = np.asarray(dgrid, dtype=np.float32)
         results = mgr.do_periodic_segmentation_rust(
             dgrid,
             mat_atoms,
-            mask_thickness=kwargs.get("mask_thickness", 1.5),
+            mask_thickness=kwargs.get("mask_thickness", 0.05),
             h=kwargs.get("h", 0.2),
             spacing=spacing,
             return_dgrid=True,
@@ -1825,6 +1837,8 @@ def get_pore_dia_mgr_winding3(
             if mat_atoms is None:
                 raise ValueError("mat_atoms or results must be provided.")
             dgrid = mgr.dgrid_from_atoms_cpu(mat_atoms, spacing=spacing, block_size=50000)
+        # Rust segmentation expects float32; the CPU grid is float64.
+        dgrid = np.asarray(dgrid, dtype=np.float32)
         results = mgr.do_periodic_segmentation_rust(
             dgrid,
             mat_atoms,
@@ -1934,9 +1948,7 @@ def make_periodic_graph_from_binary_grid(
     node_radius: float = 1.0,
     edge_radius: float = 1.0,
 ) -> nx.MultiDiGraph:
-    """
-    Convert a binary 2D lattice into the directed periodic graph expected by the
-    winding-number percolation routines.
+    """Convert a binary 2D periodic lattice into a MultiDiGraph for winding percolation.
 
     Parameters
     ----------
@@ -2004,8 +2016,7 @@ def percolation_winding_on_binary_grid(
     allow_diagonals: bool = False,
     verbose: bool = False,
 ) -> Tuple[Dict[str, bool], List[Dict[str, object]], Dict[int, Offset]]:
-    """
-    Apply :func:`percolation_winding_multidigraph` to a binary periodic lattice.
+    """Run winding percolation on a 2D binary periodic lattice (demo / tests).
 
     Parameters
     ----------

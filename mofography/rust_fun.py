@@ -82,7 +82,7 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
 
 
 def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
-    """Deprecated alias for :func:`dgrid_from_atoms_rust`."""
+    """Same as :func:`dgrid_from_atoms_rust`; kept for backward-compatible imports."""
     return dgrid_from_atoms_rust(ase_atoms, spacing, radii=radii)
 
 
@@ -1701,8 +1701,9 @@ def compute_accessible_psd_from_results(
     probe_center_min_radius=None,
     enforce_probe_center_occupiable=False,
 ):
-    """
-    Compute a PoreBlazer-style accessible PSD by:
+    """Compute a volume-weighted accessible PSD from segmentation at a given probe radius.
+
+    Computes a PoreBlazer-style accessible PSD by:
     1) identifying percolating pockets at the given probe_radius via winding-number percolation,
     2) sampling pore sizes pocketwise (fixed samples per region),
     3) weighting each pocket's PDF by its voxel fraction to recover a volume-weighted global PSD.

@@ -164,8 +164,7 @@ import numpy as np
 
 def plot_paths(rag, paths: list, colorscale: str='Pastel', **kwargs) -> list:
     """
-    The function `plot_paths` generates 3D scatter plots with paths represented as markers connected by
-    lines in different colorscales.
+    Return Plotly Scatter3d line traces for paths through RAG nodes at maxima coordinates.
     
     :param rag: The `rag` parameter in the `plot_paths` function seems to represent a networkx graph
     object. It is used to extract node attributes from the graph for plotting paths
@@ -219,8 +218,7 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
                        taubin_smooth=False, taubin_iterations=3, taubin_lambda=0.2175, taubin_nu=-0.2175,
                        **kwargs_mesh):
     """
-    It takes a 3D grid, an isovalue, an ASE atoms object, and a few other optional parameters and
-    returns a plotly mesh3d object that can be plotted using plotly
+    Return a Plotly Mesh3d isosurface trace from a distance grid with optional region coloring.
     
     Args:
       dgrid: the density grid
@@ -344,8 +342,7 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select='a
 
 def plot_cell(ase_atoms, color='purple', name='cell'):
     """
-    It takes an ASE atoms object and returns a plotly scatter3d object that can be used to plot the unit
-    cell of the atoms object
+    Return a Plotly Scatter3d line trace outlining the unit cell of an ASE structure.
     
     Args:
       ase_atoms: the atoms object from ASE
@@ -783,7 +780,7 @@ plot_blocking_spheres_styled = plot_blocking_spheres
 
 
 def get_default_colors():
-    """[summary]
+    """Return normalized ASE Jmol RGB colors for default atom coloring.
     Uses the ASE's jmol colorscheme as the default for plotting the atoms.
     :return: [Normalized rgb values of the jmol colorscheme as included within ASE python module. ]
     :rtype: [(N,3) numpy array of floats all within [0,1]]
@@ -890,7 +887,7 @@ def scatter3d(X, name='trace name', mode='markers', marker_color='blue', marker_
               marker_symbol='circle', marker_line_width=1, line_color='black', line_width=2, hovertext=None, text=None,
               **kwargs):
     """
-    It takes a 3D array of points and returns a Plotly scatter3d object
+    Return a Plotly Scatter3d for an N×3 array of points with configurable markers and lines.
 
     :param X: the data matrix, with each row being a data point and each column being a feature
     :param name: name of the trace, defaults to trace name here (optional)
@@ -917,6 +914,7 @@ def scatter3d(X, name='trace name', mode='markers', marker_color='blue', marker_
 
 # *  Function to plot the region adjacency graph
 def plot_rag(G, plot_with='maxima', **kwargs):
+    """Return one Plotly Scatter3d trace for a region adjacency graph at node coordinates."""
     import numpy as np
     import plotly.graph_objects as go
 
@@ -1071,6 +1069,7 @@ def plot_rag_separate_traces(G, plot_with='maxima', **kwargs):
     return traces
 
 def plot_pore_graph(G):
+    """Return node and edge Scatter3d traces for graphs with node_coords (legacy pgraph format)."""
     import networkx as nx
     import plotly.graph_objects as go
     import numpy as np
@@ -1385,8 +1384,7 @@ def plot_cycle_highlights(sgraph, cycles_to_highlight,
                           kwargs_highlight=dict(color='lightskyblue', opacity=0.3, alphahull=-1,
                                                 name='Aromatic ring highlight')):
     """
-    It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
-    used to plot the aromatic cycles
+    Return Plotly mesh traces highlighting selected aromatic cycles on a structure graph.
     
     :param sgraph: the sgraph object
     :param isomorphic_aromatic_cycles: a list of lists of node indices that are aromatic rings. If you
@@ -1476,7 +1474,7 @@ def plot_cycle_highlights(sgraph, cycles_to_highlight,
 # * Functions for ease
 def trimesh_from_pyvista(pv_mesh):
     """
-    `trimesh_from_pyvista(pv_mesh)` takes a PyVista mesh and returns a Trimesh mesh
+    Convert a PyVista mesh to a trimesh surface mesh.
     
     :param pv_mesh: a pyvista mesh object
     :return: A trimesh object.
@@ -1542,8 +1540,7 @@ def trimesh_from_pyvista(pv_mesh):
 
 def spheres_for_atoms(ase_atoms, radii=None, scale=0.8, colormap=None, theta_resolution=10, phi_resolution=10):
     """
-    It takes an ASE atoms object and returns a list of trimesh objects, each of which is a sphere with
-    radius and center corresponding to the atom's covalent radius and position.
+    Return a list of trimesh spheres at ASE atom sites with scaled covalent radii.
     
     :param ase_atoms: an ase atoms object
     :param radii: the radii of the spheres. If None, the covalent radii from ase.data.covalent_radii are
@@ -1623,8 +1620,7 @@ def spheres_for_positions(positions, radii=None, scale=0.8, color=[[255, 255, 25
                           phi_resolution=20):
 
     """
-    It takes a list of positions and a list of radii and returns a list of trimesh objects that are
-    spheres centered at the positions with the given radii
+    Return trimesh spheres at arbitrary positions with given radii and colors.
     
     :param positions: list of lists of floats, the positions of the atoms
     :param radii: list of floats, default None
@@ -1743,9 +1739,7 @@ def plot_snapshot_raspa_pdb(pdb_file, index, natoms, bonds_in_ref=[], trace_name
 
 def cylinders_for_bonds(bonds, ase_atoms, radius=0.25, bond_rgba_array=[127, 128, 129, 255], cylinder_resolution=15):
     """
-    It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
-    list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
-    height equal to half the bond length
+    Build trimesh cylinder meshes for each bond pair in an ASE structure.
     
     :param bonds: a list of pairs of atom indices
     :param ase_atoms: an ASE atoms object
@@ -2119,8 +2113,7 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
                    kwargs_spheres=dict(scale=0.8, radii=None), kwargs_cylinders=dict(radius=0.25), return_scene=False,
                    use_batched=True, representation="ball_and_stick"):
     """
-    > It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
-    notebook
+    Build a ball-and-stick trimesh (or Scene) from an ASE atoms object and optional bonds.
     
     :param ase_atoms: an ASE atoms object
     :param bonds: a list of bonds, where each bond is a list of two atom indices
@@ -2205,8 +2198,7 @@ def mesh_for_atoms(ase_atoms, bonds=None, colormap=None, bond_rgba_array=[127, 1
 
 def get_isosurface_mesh(data, isoval,ase_atoms, spacing=(1,1,1), stepsize=1 ):
     """
-    The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input
-    data using the marching cubes algorithm.
+    Build a trimesh isosurface from a 3D grid at the given isovalue with periodic cell metadata.
     
     :param data: The `data` parameter in the `get_isosurface_mesh` function is likely a 3D array
     representing the volumetric data from which the isosurface mesh will be generated. This data could
@@ -2459,8 +2451,7 @@ def get_isosurface_submeshes(dgrid, isoval, ase_atoms, region_labels,
 
 def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_frame_mesh=dict(showlegend=True, showscale=False, name='Framework', legendgroup='framework', legendgrouptitle_text='Framework'), kwargs_mesh_for_atoms={}, kwargs_aromatic_rings={}):
     """
-    It takes an ASE atoms object and returns a plotly mesh trace of the framework and optionally a trace
-    of the aromatic rings.
+    Return Plotly Mesh3d traces for the framework and optional aromatic rings.
     
     :param ase_atoms: an ase.Atoms object
     :param show_rings: if True, will plotO the aromatic rings as well, defaults to True (optional)
@@ -2519,6 +2510,7 @@ def plot_framework_as_mesh(ase_atoms, show_rings=True, stylize=False, kwargs_fra
 
 
 def add_hoverdata_to_atoms_traces(atoms_trace, ase_atoms, bond_rgba=[127,128,129,255]):
+    """Attach per-vertex hover text to a framework Mesh3d trace from ASE atom and bond data."""
 # bond_rgba = [127,128,129,255]
 
     bonds = ase_atoms.info['covalent_bonds']
@@ -2565,7 +2557,7 @@ def add_hoverdata_to_atoms_traces(atoms_trace, ase_atoms, bond_rgba=[127,128,129
 
 def plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d):
     """
-    It takes a trimesh object and returns a plotly mesh3d object.
+    Convert a trimesh object (or list) to a Plotly Mesh3d trace with optional stylized lighting.
     
     :param mesh: a list of trimesh objects
     :param stylize: If True, the mesh will be rendered with a nice lighting effect, defaults to False
@@ -2613,7 +2605,7 @@ def plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d):
 
 def plot_everything(everything):
     """
-    It takes in the output of the do_it_all function and returns a plotly figure
+    Build a demo Plotly figure from the legacy do_it_all output tuple (HKUST-1 style).
     
     :param everything: a tuple of the following:
     :return: A plotly figure object.
@@ -2657,8 +2649,7 @@ def plot_everything(everything):
 
 def make_bg_image( type='radial', cmap='plasma_r'):
     """
-    It takes a 2D array and a colormap and returns a plotly image object that can be used as a
-    background image
+    Return a Plotly layout image trace from a synthetic radial or axis-aligned gradient.
     
     :param type: 'radial', 'left_to_right', 'bottom_to_top', defaults to radial (optional)
     :param cmap: The colormap to use, defaults to plasma_r (optional)
@@ -2756,7 +2747,7 @@ def make_bg_image( type='radial', cmap='plasma_r'):
 
 def plot_windows(connections, **kwargs):
     """
-    It takes a list of connections and returns a plotly scatter trace of the windows.
+    Return a Plotly Scatter3d trace of window positions from a raw connections list.
     
     :param connections: a list of lists, output from the connections from regions function
     :return: A plotly scatter 3D trace of the windows
@@ -3154,8 +3145,8 @@ def plot_maxima(
     dgrid, maxima, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs
 ):
     """
-    The function `plot_maxima` generates a 3D scatter plot with markers representing local maxima, and
-    optionally displays spheres around the maxima with interpolated colors. The maxima indices can be outside the box as well. 
+    Return Plotly Scatter3d (and optional sphere mesh) traces for distance-grid local maxima.
+    The maxima indices can be outside the box as well. 
     this function should still work fine. it will find the corresponding coordinates inside the box to get the cage radii.
 
     :param dgrid: The `dgrid` parameter is likely a grid of values representing some property, such as
@@ -3523,7 +3514,7 @@ def plot_psds(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key="cluster")
         rag, pbc_groups, cscale=cscale, no_pbc=no_pbc, cluster_key=cluster_key
     )
 def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='cluster'):
-
+    """Return Plotly bar traces for VdW energy histograms stored on RAG nodes."""
 
     import plotly.graph_objects as go
     import plotly.express as px 
@@ -3561,8 +3552,7 @@ def plot_vdw_hists(rag, pbc_groups, cscale=None, no_pbc=False, cluster_key='clus
 def plot_subset_of_atoms(ase_atoms, subset, **kwargs):
 
     """
-    > This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of
-    the atoms in the list
+    Return a Plotly Mesh3d trace for a subset of atoms selected by index.
     
     :param ase_atoms: an ase atoms object
     :param subset: a list of atom ids that you want to plot
@@ -3603,8 +3593,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
                     bond_data=None, bond_color=None, bond_colorscale='Cividis', bond_opacity=0.9, colorscheme=get_default_colors(),
                     atoms_opacity=0.9, dia_scale=1):
     """
-    It takes an ASE atoms object and returns a list of plotly traces that can be used to plot the
-    framework
+    Return Plotly Scatter3d traces for atoms, bonds, and optional aromatic rings in a framework.
     
     :param ase_atoms: ASE atoms object
     :param bond_orders: A list of bond orders for each bond. If None, then the bond orders are
@@ -3754,7 +3743,7 @@ def draw_framework(ase_atoms, bond_orders=None, show_aromatics=True, show_atom_l
 
 
 def plot_molecule_at_best_optuna_trials(rag, molecule_atoms, molecule_name, **kwargs_plot_mesh):
-    '''This function plots a molecule using the best Optuna trials.
+    '''Plot mesh traces for Optuna-optimized molecule geometries stored on RAG nodes.
     
     Parameters
     ----------
@@ -3789,8 +3778,7 @@ def plot_molecule_at_best_optuna_trials(rag, molecule_atoms, molecule_name, **kw
 
 def make_pore_size_distribution_fig_from_rag(rag):
     """
-    The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore
-    size distribution and cumulative distribution from a given RAG.
+    Return a Plotly figure with PDF and CDF pore size traces stored on the RAG graph.
     
     :param rag: The function `make_pore_size_distribution_fig_from_rag` takes a RAG (Region Adjacency
     Graph) object as input and creates a plotly figure showing the Pore Size Distribution (PDF) and
@@ -3854,8 +3842,7 @@ def make_pore_size_distribution_fig_from_rag(rag):
 # %%
 def plot_pld_locations(dgrid, pld_locations, ase_atoms, show_spheres=False, sphere_opacity=0.5, **kwargs):
     """
-    Generate a 3D scatter plot with markers representing PLD locations, and
-    optionally display spheres around the PLD locations.
+    Return Plotly Scatter3d traces for pore limiting diameter locations on a distance grid.
     
     Parameters:
     -----------
@@ -4360,7 +4347,7 @@ def get_potential_near_atoms(atoms, potential, grid_shape, element='Zn', radius=
     return potentials_near_atoms
 def plot_electrostatic_isosurfaces(potential_V, atoms, isovals=None, num_isosurfaces=10, cscale='viridis', step=1, base_opacity=0.3):
     """
-    Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info.
+    Return a Plotly mesh trace for electrostatic potential isosurfaces with PBC-aware scaling.
     
     :param potential_V: 3D array of potential values in volts
     :param cell: Cell matrix
@@ -4891,6 +4878,7 @@ def plot_connections(connections, maxima, shape, ase_atoms, plot_periodic=True, 
 
 
 def make_fig_orthographic(fig):
+    """Set orthographic projection and default mesh lighting on a Plotly 3D figure."""
     for trace in fig.data:
         if trace.type == "mesh3d":
             trace.update(lighting=default_mesh_lighting)
@@ -4898,6 +4886,7 @@ def make_fig_orthographic(fig):
     fig.update_layout(scene_camera_projection_type="orthographic")
     return fig
 def make_fig_orthographic_all_subplots(fig):
+    """Apply orthographic cameras and mesh lighting to every 3D subplot in a figure."""
     # Update lighting for each mesh
     for subplot in fig.data:
         if subplot.type == "mesh3d":

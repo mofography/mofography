@@ -15,6 +15,7 @@ from typing import Iterable, Dict, List
 
 
 def find_functional_groups(ase_atoms, functional_groups):
+    """Match SMARTS functional-group patterns against a periodic bond graph built from ``ase_atoms``."""
     from rdkit import Chem
     from networkx.algorithms import isomorphism
     import networkx as nx
@@ -180,8 +181,7 @@ def find_functional_groups(ase_atoms, functional_groups):
 
 def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
     """
-    It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of
-    dictionaries that map the nodes of the pattern to the nodes of the molecule
+    Return subgraph-isomorphism maps from a SMILES pattern into a SMILES molecule graph.
     
     :param smiles_molecule: The SMILES string of the molecule you want to search in
     :param smiles_pattern: The SMILES pattern you want to search for
@@ -198,8 +198,7 @@ def detect_smiles_in_mol(smiles_molecule, smiles_pattern):
 
 def find_smiles_in_mofid(mofid, pattern_smiles):
     """
-    It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each
-    SMILES string is found in the MOFid string
+    Search MOFid linker SMILES segments for matches to a SMILES pattern via ``detect_smiles_in_mol``.
     
     :param mofid: the MOFid string
     :param pattern_smiles: a list of SMILES strings that you want to search for in the MOFid
@@ -314,7 +313,7 @@ def find_smiles_in_mofid(mofid, pattern_smiles):
 
 def voronoi_on_atoms(ase_atoms, points=None):
     """
-    It takes an ASE atoms object and returns a freud Voronoi object
+    Build a freud Voronoi neighbor list for ASE atomic positions in the periodic cell.
     
     :param ase_atoms: the atoms object from ASE
     :return: The Voronoi object
@@ -611,6 +610,7 @@ def _update_with_covalent_bonds_python(ase_atoms, nlist_pairs, tol=0.2):
 
 
 def get_bonds_and_orders_without_replication(ase_atoms, nlist=None):
+    """Infer covalent bonds and pymatgen bond orders without replicating periodic images."""
     from pymatgen.core.bonds import CovalentBond
     from pymatgen.io.ase import AseAtomsAdaptor 
     from ase.data import covalent_radii
@@ -635,25 +635,7 @@ def get_bonds_and_orders_without_replication(ase_atoms, nlist=None):
     return bonds, bond_order
 def find_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
     """
-    > The function takes a graph and returns a list of cycles in the graph. 
-    
-    The function is written in Python and uses the [NetworkX](https://networkx.github.io/) library. 
-    
-    The function takes two arguments: 
-    
-    1. `sgraph`: The graph to be analyzed. 
-    2. `default_ring_sizes`: A list of integers that specify the sizes of rings to be considered. 
-    
-    The function returns a list of cycles in the graph. 
-    
-    The function first finds all the cycles in the graph using the `cycle_basis` function from NetworkX.
-    
-    
-    The function then filters the cycles based on the `default_ring_sizes` argument. 
-    
-    The function then finds the bond types of the edges in the cycles. 
-    
-    The function then finds the unique cycles in the graph using the `find_unique_cycles` function
+    List chordless cycles in a bond graph, filtered by size and expanded by subgraph isomorphism.
     
     :param sgraph: The graph that you want to find cycles in
     :param default_ring_sizes: The ring sizes you want to look for
@@ -770,23 +752,7 @@ def find_aromatic_cycles_in_sgraph(sgraph, default_ring_sizes=[5,6,7,8,9]):
 
 def sgraph_from_atoms(ase_atoms,node_props_dict=None, edge_props_dict=None):
     """
-    It takes an ase atoms object and returns a networkx graph object with the nodes and edges
-    corresponding to the atoms and bonds in the atoms object. 
-    
-    The function also takes two optional arguments: 
-    
-    1. node_props_dict: A dictionary of node properties. The keys are the names of the properties and
-    the values are the values of the properties. The values should be a list of the same length as the
-    number of atoms in the atoms object. 
-    
-    2. edge_props_dict: A dictionary of edge properties. The keys are the names of the properties and
-    the values are the values of the properties. The values should be a list of the same length as the
-    number of bonds in the atoms object. 
-    
-    If the node_props_dict or edge_props_dict are not provided, the function will use the default set of
-    properties. 
-    
-    The default set of node properties are:
+    Build a NetworkX bond graph from ``ase_atoms.info['covalent_bonds']`` with optional node/edge props.
     
     :param ase_atoms: ASE atoms object
     :param node_props_dict: A dictionary of node properties. The keys are the property names and the
@@ -1137,8 +1103,7 @@ def find_chemically_unique_cycles(list_of_cycles, graph):
     return sorted(keep)
 def find_rings_in_ase_atoms(mat_atoms, cycle_lengths=[5, 6, 7, 8], make_unique=True):
     """
-    The function `find_rings_in_ase_atoms` takes an ASE atoms object, identifies cycles in the
-    corresponding graph, filters cycles based on length, and optionally returns unique cycles.
+    Find rings in an ASE structure via Voronoi bonds, ``sgraph_from_atoms``, and NetworkX ``cycle_basis``.
     
     :param mat_atoms: The `mat_atoms` parameter is a representation of a material system in the form of
     atoms. It likely contains information about the atomic positions, types of atoms, and possibly other
@@ -1180,8 +1145,7 @@ def find_rings_in_ase_atoms(mat_atoms, cycle_lengths=[5, 6, 7, 8], make_unique=T
         return small_cycles      
 def find_pattern_in_sgraph(sgraph, pattern):
     """
-    It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the
-    pattern graph to the nodes of the original graph
+    Find subgraph isomorphisms of ``pattern`` in ``sgraph`` (element and bond_type node/edge matching).
     
     :param sgraph: the graph we want to search for the pattern in
     :param pattern: The pattern graph to be searched for
@@ -1202,8 +1166,7 @@ def find_pattern_in_sgraph(sgraph, pattern):
 
 def get_subset_atoms(ase_atoms, subset):
     """
-    It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing
-    only the atoms in the list
+    Extract a bonded subgraph of ``ase_atoms`` as a new ASE Atoms object for the given atom indices.
     
     :param ase_atoms: the atoms object of the material
     :param subset: a list of atom ids
@@ -1226,8 +1189,7 @@ def get_subset_atoms(ase_atoms, subset):
 
 def get_atoms_from_smiles(smiles, cell=None):
     """
-    This function takes a SMILES string as input and returns an ASE Atoms object with the atomic
-    positions and information about covalent bonds and bond orders.
+    Build an ASE Atoms object from a SMILES string with RDKit 3D embedding and covalent bond metadata.
     
     :param smiles: A string representing the SMILES notation of a molecule
     :param cell: The cell parameter is an optional argument that specifies the size of the simulation
@@ -1268,6 +1230,7 @@ def get_atoms_from_smiles(smiles, cell=None):
 
 
 def find_unique_sgraphs(sgraphs):
+    """Drop isomorphic duplicates from a list of NetworkX bond graphs (pairwise GraphMatcher)."""
 
     import networkx as nx 
     import networkx.algorithms.isomorphism as isomo

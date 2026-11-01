@@ -38,10 +38,7 @@ def refine_windows_via_morph_opening(
     cell_matrix: Optional[np.ndarray] = None,
     options: WindowRefinementOptions | None = None,
 ) -> List[np.ndarray]:
-    """
-    Refine window centers/radii by searching for the smallest distance-field
-    threshold that disconnects the two regions (local morphological opening).
-    """
+    """Refine window centers and radii via local morphological opening on the distance field."""
 
     opts = options or WindowRefinementOptions()
     ctx = _RefinementContext.from_results(

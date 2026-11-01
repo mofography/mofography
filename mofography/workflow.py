@@ -52,10 +52,8 @@ def quick_cluster(ase_atoms,
     # mat_atoms = iza_atoms[chosen]
     # from ase.io import read
     # mat_atoms = read('../examples/TestCIFs/NU-1000_S1.cif')
-    """ 
-    It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you
-    can specify in the list_return_strings argument.
-    
+    """Run the legacy Python dgrid segmentation and geometry-JS clustering pipeline with optional figures.
+
     :param ase_atoms: ASE atoms object
     :param spacing: the spacing of the distance grid
     :param mask_thickness: The thickness of the mask used to create the distance grid
