@@ -1,5 +1,5 @@
 ---
-title: 'Crosslinked polymer properties'
+title: 'Advanced geometric and topological pore network properties'
 description: LCD, PLD, N2 accessible surface area, percolating pore volume, window-resolved connectivity and fractional free volume from a mofography pore graph
 jupyter: python3
 ---

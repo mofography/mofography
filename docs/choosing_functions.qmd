@@ -1,0 +1,179 @@
+---
+title: "Guide to choosing functions"
+description: "Which mofography function to call for each task: the recommended defaults, the alternates, and what to avoid."
+toc: true
+toc-depth: 2
+code-fold: false
+eval: false
+---
+
+Mofography exposes hundreds of functions, but only a subset is thoroughly tested and recommended for everyday use. This page is a quick-reference handbook: for each task it lists the functions to reach for, and which alternatives are legacy, deprecated, or experimental. Every function name links to its page in the [API reference](reference/index.qmd).
+
+The **Status** column uses the same tags as the reference:
+
+<span class="mg-tag mg-tag-recommended">go-to</span> the recommended default, used throughout the tutorials ·
+<span class="mg-tag mg-tag-alternate">alternate</span> valid, but not the default choice ·
+<span class="mg-tag mg-tag-utility">other</span> helper or building block ·
+<span class="mg-tag mg-tag-experimental">experimental</span> ·
+<span class="mg-tag mg-tag-legacy">legacy</span> kept for comparison or old results ·
+<span class="mg-tag mg-tag-deprecated">deprecated</span> avoid in new code.
+
+::: {.callout-tip}
+## The default path in one line
+`dgrid_from_atoms_rust` → `do_periodic_segmentation_rust` → `get_pore_dia_mgr_winding` (LCD, PLD, LIS) → `compute_surface_area_mc_winding` and `compute_void_volume_from_results_winding` → `rag_from_connections` for the pore graph. The [Quick start](quick_start.qmd) walks through it end to end.
+:::
+
+## Distance grid
+
+The distance grid is the first step of every workflow. It stores the distance from each grid point to the nearest framework atom (minus the atom radius). For the full comparison of backends see [Distance grid methods](dgrid_methods.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`dgrid_from_atoms_rust`](reference/dgrid_from_atoms_rust.qmd#mofography.rust_fun.dgrid_from_atoms_rust) | <span class="mg-tag mg-tag-recommended">go-to</span> | Rust brute-force distance grid with exact minimum-image distances, thread-parallel. | Default for all systems. |
+| [`dgrid_from_atoms_aabb_rust`](reference/dgrid_from_atoms_aabb_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_rust) | <span class="mg-tag mg-tag-alternate">alternate</span> | Rust R-tree (AABB) neighbor-search distance grid. | Large cells or tight memory. |
+| [`dgrid_from_atoms_aabb_interp_rust`](reference/dgrid_from_atoms_aabb_interp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust) | <span class="mg-tag mg-tag-alternate">alternate</span> | Coarse AABB sampling plus trilinear interpolation to the fine grid. | Very large systems where mild smoothing is acceptable. |
+| [`dgrid_from_atoms_cpu`](reference/dgrid_from_atoms_cpu.qmd#mofography.compute.dgrid_from_atoms_cpu) | <span class="mg-tag mg-tag-legacy">legacy</span> | Python distance grid using freud and Dask. | Slower, kept for compatibility and debugging. |
+| [`dgrid_from_atoms`](reference/dgrid_from_atoms.qmd#mofography.compute.dgrid_from_atoms) | <span class="mg-tag mg-tag-legacy">legacy</span> | Older Python/Dask router. | Avoid; use `dgrid_from_atoms_rust`. |
+| [`dgrid_from_atoms_exp_rust`](reference/dgrid_from_atoms_exp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_exp_rust) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Backward-compatible alias of `dgrid_from_atoms_rust`. | Avoid; no separate implementation. |
+| [`egrid_from_atoms_rust`](reference/egrid_from_atoms_rust.qmd#mofography.rust_fun.egrid_from_atoms_rust) | <span class="mg-tag mg-tag-alternate">alternate</span> | Single-channel Rust energy grid (Lennard-Jones). | Energy-interpolation workflows; screening uses the tricubic 8-channel build instead. |
+
+## Periodic segmentation
+
+Segmentation splits the void space into convex pockets around local distance maxima, handling periodic boundaries. See [Region segmentation](region_segmentation.qmd) and [PBC considerations](pbc_considerations.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`do_periodic_segmentation_rust`](reference/do_periodic_segmentation_rust.qmd#mofography.rust_fun.do_periodic_segmentation_rust) | <span class="mg-tag mg-tag-recommended">go-to</span> | Full periodic segmentation: maxima detection, padded watershed, PBC merging, and connections. Returns a results dict (`regions`, `regions_pbc`, `maxima`, `connections`, `dgrid`, ...). | Default and only supported pipeline. |
+| [`do_periodic_segmentation`](reference/do_periodic_segmentation.qmd#mofography.compute.do_periodic_segmentation) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Older Python segmentation pipeline. | Slow and not kept up to date; avoid. |
+| [`do_periodic_segmentation_basic`](reference/do_periodic_segmentation_basic.qmd#mofography.compute.do_periodic_segmentation_basic) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Simplified Python segmentation. | Slow and not kept up to date; avoid. |
+
+## Pore diameters (LCD, PLD, LIS)
+
+Pore diameters come from the distance grid and the percolation results on the pore graph. See [Compute pore diameters](compute_pore_diameters.ipynb) and [PLD and percolation](pld_and_percolation.ipynb).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`get_pore_dia_mgr_winding`](reference/get_pore_dia_mgr_winding.qmd#mofography.winding_percolation.get_pore_dia_mgr_winding) | <span class="mg-tag mg-tag-recommended">go-to</span> | Winding-number LCD, PLD, and LIS in one call from a segmentation. | Default. Set `include_dangling=True` to include isolated pockets. |
+| [`get_pore_dia_mgr_winding2`](reference/get_pore_dia_mgr_winding2.qmd#mofography.winding_percolation.get_pore_dia_mgr_winding2) | <span class="mg-tag mg-tag-alternate">alternate</span> | Same as the default, but re-segments with a thicker mask when watershed spill is detected. | When the default flags spill. |
+| [`get_pore_dia_lattice`](reference/get_pore_dia_lattice.qmd#mofography.compute.get_pore_dia_lattice) | <span class="mg-tag mg-tag-alternate">alternate</span> | Lattice-based LCD, PLD, and DFSD. | Comparison with Zeo++-style results; use `variant="v2"` for periodic-aware labelling. |
+| [`get_pore_dia_mgr`](reference/get_pore_dia_mgr.qmd#mofography.compute.get_pore_dia_mgr) | <span class="mg-tag mg-tag-alternate">alternate</span> | Lattice v1 variant. | Not the default; prefer `get_pore_dia_mgr_winding`. |
+
+## Percolation and accessibility
+
+Percolation decides which void regions connect across the cell for a given probe radius. Two accessibility frameworks exist: **winding** (default; follows the pore graph and handles polymers and flexible frameworks) and **lattice** (Zeo++-style, kept for comparison). See [Accessibility methods](accessibility.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`compute_percolation_history_winding`](reference/compute_percolation_history_winding.qmd#mofography.winding_percolation.compute_percolation_history_winding) | <span class="mg-tag mg-tag-recommended">go-to</span> | Winding percolation history over probe radii on the pore graph. | Default. Integrated into `get_pore_dia_mgr_winding` and the winding surface-area and volume methods. |
+| [`compute_percolation_history_from_results_lattice`](reference/compute_percolation_history_from_results_lattice.qmd#mofography.compute.compute_percolation_history_from_results_lattice) | <span class="mg-tag mg-tag-alternate">alternate</span> | Lattice percolation history (v2) stored as `percolation_history_lattice`. | Lattice comparison; pass `variant="v2"`. |
+| [`compute_percolation_history_from_results2`](reference/compute_percolation_history_from_results2.qmd#mofography.compute.compute_percolation_history_from_results2) | <span class="mg-tag mg-tag-alternate">alternate</span> | Lattice percolation history (v2) from `dgrid`, `regions`, and `maxima`. | Lattice comparison. |
+| [`compute_percolation_history`](reference/compute_percolation_history.qmd#mofography.compute.compute_percolation_history) | <span class="mg-tag mg-tag-alternate">alternate</span> | Lattice percolation history (v1). | Kept for comparison; use the winding or v2 variants. |
+| [`percolation_all_axes_periodic`](reference/percolation_all_axes_periodic.qmd#mofography.compute.percolation_all_axes_periodic) | <span class="mg-tag mg-tag-utility">other</span> | Axis-resolved periodic percolation test on a binary void grid. | Low-level; used internally by lattice methods. |
+
+## Surface area and void volume
+
+Surface areas and void volumes are computed at a probe radius. Two accessibility frameworks (winding and lattice) and two area estimators (Monte Carlo shell and marching-cubes mesh) are available. See [Surface area and void volume](surface_area.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`compute_surface_area_mc_winding`](reference/compute_surface_area_mc_winding.qmd#mofography.compute.compute_surface_area_mc_winding) | <span class="mg-tag mg-tag-recommended">go-to</span> | Monte Carlo shell surface area with winding accessibility. | Default and most reliable. |
+| [`compute_void_volume_from_results_winding`](reference/compute_void_volume_from_results_winding.qmd#mofography.compute.compute_void_volume_from_results_winding) | <span class="mg-tag mg-tag-recommended">go-to</span> | Voxel void volume with winding accessibility. | Default; pairs with `compute_surface_area_mc_winding`. |
+| [`compute_surface_area_mesh_winding`](reference/compute_surface_area_mesh_winding.qmd#mofography.compute.compute_surface_area_mesh_winding) | <span class="mg-tag mg-tag-recommended">go-to</span> | Marching-cubes mesh surface area with winding accessibility. | Deterministic, but drops boundary-crossing triangles; prefer Monte Carlo for quantitative work. |
+| [`compute_surface_area_mc_lattice`](reference/compute_surface_area_mc_lattice.qmd#mofography.compute.compute_surface_area_mc_lattice) | <span class="mg-tag mg-tag-alternate">alternate</span> | Monte Carlo shell area with lattice accessibility. | Zeo++-style comparison. |
+| [`compute_void_volume_from_results_lattice`](reference/compute_void_volume_from_results_lattice.qmd#mofography.compute.compute_void_volume_from_results_lattice) | <span class="mg-tag mg-tag-alternate">alternate</span> | Voxel void volume with lattice accessibility. | Pairs with `compute_surface_area_mc_lattice`. |
+| [`compute_surface_area_mesh_lattice`](reference/compute_surface_area_mesh_lattice.qmd#mofography.compute.compute_surface_area_mesh_lattice) | <span class="mg-tag mg-tag-alternate">alternate</span> | Marching-cubes area with lattice accessibility. | Zeo++-style comparison. |
+| [`compute_surface_area_from_results`](reference/compute_surface_area_from_results.qmd#mofography.compute.compute_surface_area_from_results) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Router to the mesh helpers. | Deprecated; call the mesh functions directly. |
+| [`compute_surface_area_from_results_mc`](reference/compute_surface_area_from_results_mc.qmd#mofography.compute.compute_surface_area_from_results_mc) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Router to the Monte Carlo helpers. | Deprecated; call `compute_surface_area_mc_winding` directly. |
+
+The Monte Carlo shell methods use a shell thickness δ. The default δ = 0.5 Å is adequate for 0.5 Å grids. For lattice accessibility, set `variant="v2"` and `percolation_lattice_variant="v2"` when `results` already stores the lattice percolation history.
+
+## Pore size distributions
+
+PSDs follow the Gelb–Gubbins approach: the largest sphere that includes each sample point. See [Pore size distributions](pore_size_distributions.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`compute_psds_pocketwise_rust`](reference/compute_psds_pocketwise_rust.qmd#mofography.rust_fun.compute_psds_pocketwise_rust) | <span class="mg-tag mg-tag-recommended">go-to</span> | Per-pocket PSDs from a fixed number of samples per region (Rust). | Default for pocket-resolved PSDs and pocket typing. `num_samples_per_region` defaults to 1000. |
+| [`compute_accessible_psd_from_results`](reference/compute_accessible_psd_from_results.qmd#mofography.rust_fun.compute_accessible_psd_from_results) | <span class="mg-tag mg-tag-recommended">go-to</span> | Accessible global PSD from a saved `results` dict, with winding percolation and pocket weighting. | Default for the global accessible PSD. |
+| [`compute_psd_global_accessible`](reference/compute_psd_global_accessible.qmd#mofography.rust_fun.compute_psd_global_accessible) | <span class="mg-tag mg-tag-recommended">go-to</span> | Histogram wrapper around `compute_accessible_psd_from_results`. | When you want binned output directly. |
+| [`compute_psd_uniform_rust`](reference/compute_psd_uniform_rust.qmd#mofography.rust_fun.compute_psd_uniform_rust) | <span class="mg-tag mg-tag-alternate">alternate</span> | Global PSD from uniform random sampling (Rust). | Fast, but not pocket-resolved. |
+| [`compute_pore_sizes_uniform_rust`](reference/compute_pore_sizes_uniform_rust.qmd#mofography.rust_fun.compute_pore_sizes_uniform_rust) | <span class="mg-tag mg-tag-utility">other</span> | Raw, unbinned pore-size samples. | Custom binning. |
+| [`compute_pore_sizes_pocketwise_rust`](reference/compute_pore_sizes_pocketwise_rust.qmd#mofography.rust_fun.compute_pore_sizes_pocketwise_rust) | <span class="mg-tag mg-tag-utility">other</span> | Raw, unbinned pore-size samples per pocket. | Custom binning per pocket. |
+| [`enrich_segmentation_with_pocket_psds`](reference/enrich_segmentation_with_pocket_psds.qmd#mofography.workflow.enrich_segmentation_with_pocket_psds) | <span class="mg-tag mg-tag-recommended">go-to</span> | Cache pocket PSDs on the segmentation dict. | Run before pocket typing or RAG enrichment. |
+
+## Pore graph construction
+
+The pore graph (region adjacency graph, RAG) has pockets as nodes and windows as edges. See [Pore graph (RAG)](region_adjacency_graph.ipynb) and [Connections and windows](connections_and_windows.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`rag_from_connections`](reference/rag_from_connections.qmd#mofography.compute.rag_from_connections) | <span class="mg-tag mg-tag-recommended">go-to</span> | Build the pore graph from connection data and maxima. Returns a `networkx` graph. | Default builder. |
+| [`add_maxima_to_rag`](reference/add_maxima_to_rag.qmd#mofography.compute.add_maxima_to_rag) | <span class="mg-tag mg-tag-utility">other</span> | Add maxima positions and radii as node attributes. | Standard step when building a RAG. |
+| [`add_window_info_to_rag`](reference/add_window_info_to_rag.qmd#mofography.compute.add_window_info_to_rag) | <span class="mg-tag mg-tag-utility">other</span> | Store window metadata (location, diameter) on edges. | After connections are built. |
+| [`add_pbc_to_rag`](reference/add_pbc_to_rag.qmd#mofography.compute.add_pbc_to_rag) | <span class="mg-tag mg-tag-utility">other</span> | Annotate nodes with periodic-image information. | Harmless helper; rarely needed. |
+| [`add_env_cluster_pocket_types_to_rag`](reference/add_env_cluster_pocket_types_to_rag.qmd#mofography.compute.add_env_cluster_pocket_types_to_rag) | <span class="mg-tag mg-tag-recommended">go-to</span> | Run `env_cluster` pocket typing and store the labels on graph nodes. | Default way to type pockets on a RAG. |
+| [`add_csd_to_rag_with_pbc`](reference/add_csd_to_rag_with_pbc.qmd#mofography.compute.add_csd_to_rag_with_pbc) | <span class="mg-tag mg-tag-legacy">legacy</span> | Add per-pocket cavity size distributions to nodes. | Legacy; `env_cluster` typing supersedes it. |
+| [`clustering_grid_from_regions`](reference/clustering_grid_from_regions.qmd#mofography.compute.clustering_grid_from_regions) | <span class="mg-tag mg-tag-utility">other</span> | Map per-node cluster labels back to a 3D label grid. | Visualizing pocket types. |
+
+## Pocket typing
+
+Pocket typing groups pockets into structurally distinct types using geometric and chemical fingerprints. See [Pocket type detection](pockets_detection.qmd).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`assign_pocket_types`](reference/assign_pocket_types.qmd#mofography.workflow.assign_pocket_types) | <span class="mg-tag mg-tag-recommended">go-to</span> | High-level pocket typing on a segmentation; the default method is `env_cluster`. | Default entry point. |
+| [`assign_pocket_types_env_cluster`](reference/assign_pocket_types_env_cluster.qmd#mofography.pocket_typing.assign_pocket_types_env_cluster) | <span class="mg-tag mg-tag-recommended">go-to</span> | The `env_cluster` method itself: multimodal fingerprints from Gelb–Gubbins PSD, SOAP framework environment, and connectivity. | When you need the method directly. |
+| [`pocket_regions_cluster`](reference/pocket_regions_cluster.qmd#mofography.workflow.pocket_regions_cluster) | <span class="mg-tag mg-tag-recommended">go-to</span> | Accessor for the typed region label grid. | Colouring surfaces by pocket type. |
+
+## Plotly visualization
+
+Plotly gives interactive 2D and 3D figures in Jupyter. See [Basic structure visualization using Plotly](quick_structure_visualization.ipynb) and [Advanced structure visualization](framework_visualization_example.ipynb).
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`plot_surface_dgrid`](reference/plot_surface_dgrid.qmd#mofography.threejs_viz.plot_surface_dgrid) | <span class="mg-tag mg-tag-recommended">go-to</span> | Distance-grid isosurface at a probe radius, with region colouring and PBC options. | Default pore-surface plot. |
+| [`plot_cell`](reference/plot_cell.qmd#mofography.threejs_viz.plot_cell) | <span class="mg-tag mg-tag-recommended">go-to</span> | Unit-cell edges. | Always useful. |
+| [`draw_framework`](reference/draw_framework.qmd#mofography.threejs_viz.draw_framework) | <span class="mg-tag mg-tag-recommended">go-to</span> | Framework atoms and bonds as 3D scatter traces. |  |
+| [`plot_maxima`](reference/plot_maxima.qmd#mofography.threejs_viz.plot_maxima) | <span class="mg-tag mg-tag-recommended">go-to</span> | Watershed maxima with cage radii. |  |
+| [`plot_percolated_cluster_meshes`](reference/plot_percolated_cluster_meshes.qmd#mofography.threejs_viz.plot_percolated_cluster_meshes) | <span class="mg-tag mg-tag-recommended">go-to</span> | Isosurfaces of percolating void clusters. |  |
+| [`plot_rag`](reference/plot_rag.qmd#mofography.visualize.plot_rag) | <span class="mg-tag mg-tag-alternate">alternate</span> | Pore graph with nodes at pocket centers. | Alternate RAG plot. |
+| [`plot_windows`](reference/plot_windows.qmd#mofography.threejs_viz.plot_windows) | <span class="mg-tag mg-tag-recommended">go-to</span> | Windows from a raw connections list. | Legacy; see the status tag for the replacement. |
+| [`plot_connections`](reference/plot_connections.qmd#mofography.threejs_viz.plot_connections) | <span class="mg-tag mg-tag-recommended">go-to</span> | Inter-pocket connections. | Legacy; see the status tag for the replacement. |
+| [`plot_csds`](reference/plot_csds.qmd#mofography.visualize.plot_csds) | <span class="mg-tag mg-tag-recommended">go-to</span> | Cavity-size distributions stored on RAG nodes. |  |
+| [`plot_psds`](reference/plot_psds.qmd#mofography.visualize.plot_psds) | <span class="mg-tag mg-tag-deprecated">deprecated</span> | Renamed to `plot_csds`. | Deprecated. |
+| [`make_fig_orthographic`](reference/make_fig_orthographic.qmd#mofography.visualize.make_fig_orthographic) | <span class="mg-tag mg-tag-utility">other</span> | Switch a Plotly 3D scene to orthographic projection. | Publication-style views. |
+
+## Three.js visualization
+
+Three.js produces standalone HTML scenes with full camera and GUI control. See [Three.js plotting](threejs_plotting.qmd). The `_3js` functions are Plotly-parity aliases, so the arguments match their Plotly counterparts.
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`Figure3D`](reference/Figure3D.qmd#mofography.threejs_viz.Figure3D) | <span class="mg-tag mg-tag-recommended">go-to</span> | Standalone Three.js scene with camera controls and a GUI panel. | Build custom scenes. |
+| [`MovieFigure`](reference/MovieFigure.qmd#mofography.threejs_viz.MovieFigure) | <span class="mg-tag mg-tag-recommended">go-to</span> | Keyframe-animated Three.js viewer. | Movies and rotations. |
+| [`build_padded_threejs_scene`](reference/build_padded_threejs_scene.qmd#mofography.workflow.build_padded_threejs_scene) | <span class="mg-tag mg-tag-alternate">alternate</span> | Padded, transparent segmentation scene export. | Script wrapper for a complete scene. |
+| [`plot_surface_dgrid_3js`](reference/plot_surface_dgrid_3js.qmd#mofography.threejs_viz.plot_surface_dgrid_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Distance-grid isosurface in a Three.js scene. |  |
+| [`draw_framework_3js`](reference/draw_framework_3js.qmd#mofography.threejs_viz.draw_framework_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Framework atoms and bonds. |  |
+| [`plot_maxima_3js`](reference/plot_maxima_3js.qmd#mofography.threejs_viz.plot_maxima_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Local maxima. |  |
+| [`plot_windows_3js`](reference/plot_windows_3js.qmd#mofography.threejs_viz.plot_windows_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Window locations. |  |
+| [`plot_percolated_cluster_meshes_3js`](reference/plot_percolated_cluster_meshes_3js.qmd#mofography.threejs_viz.plot_percolated_cluster_meshes_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Percolating cluster isosurfaces. |  |
+| [`plot_connections_3js`](reference/plot_connections_3js.qmd#mofography.threejs_viz.plot_connections_3js) | <span class="mg-tag mg-tag-alternate">alternate</span> | Inter-pocket connection lines. |  |
+
+## High-level workflows
+
+Convenience functions that combine several steps.
+
+| Function | Status | What it does | When to use it |
+|---|---|---|---|
+| [`show_mof_plotly`](reference/show_mof_plotly.qmd#mofography.workflow.show_mof_plotly) | <span class="mg-tag mg-tag-recommended">go-to</span> | Multi-layer Plotly scene: framework, regions, graph, windows. | Default quick look in a notebook. |
+| [`show_mof_threejs`](reference/show_mof_threejs.qmd#mofography.workflow.show_mof_threejs) | <span class="mg-tag mg-tag-recommended">go-to</span> | Standalone Three.js scene with the same layers. | Saves HTML to share. |
+| [`show_percolation_threejs`](reference/show_percolation_threejs.qmd#mofography.threejs_plotting.show_percolation_threejs) | <span class="mg-tag mg-tag-recommended">go-to</span> | Three.js scene with percolating clusters and windows. | PLD and percolation visuals. |
+| [`quick_cluster`](reference/quick_cluster.qmd#mofography.workflow.quick_cluster) | <span class="mg-tag mg-tag-legacy">legacy</span> | One-call dgrid, segmentation, and clustering. | Legacy; the explicit Rust steps in the [Quick start](quick_start.qmd) are preferred. |
+
+## Notes on function stability
+
+- **go-to** functions are the recommended defaults and are the ones the tutorials use. They are validated against Zeo++ and PoreBlazer on CoRE MOFs (see the paper).
+- **alternate** and **other** functions are stable but have narrower use cases.
+- Functions that appear only in the [API reference](reference/index.qmd) and not on this page should be treated as experimental: they may have incomplete documentation, untested edge cases, or performance limits.
+- **legacy** and **deprecated** functions stay for backward compatibility with existing scripts and saved `results` dictionaries. New analyses should use the go-to alternatives.
+- For when to prefer winding over lattice accessibility, see [Accessibility methods](accessibility.qmd) and [Face merging vs winding](face_merging_vs_winding.qmd).
