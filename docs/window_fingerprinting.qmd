@@ -17,8 +17,6 @@ This tutorial covers:
 2. **Window fingerprint expansion** — a BFS that *rescues* watershed regions behind slightly sub-probe windows when the local framework shell looks like the rest of the open mouth.
 3. **Effect on textural properties** — how the bridging changes accessible surface area and void volume on IRMOF-1, and when you should (and should not) turn it on.
 4. **Mechanism A / B / C / D failure modes** — what each one is, what fingerprinting does (and does not) fix, and where to look when you suspect each.
-5. **Refinement** — pointer to the [Window Refinement prototype](window_refinement.md) for morphological re-estimation of window centres and radii.
-
 If you have not done so, please complete the [Connections and Windows](connections_and_windows.qmd) tutorial first — it explains the basic `seg['connections']` 5-tuple and the difference between internal and periodic windows. This page assumes that knowledge.
 
 ## Why fingerprints exist
@@ -30,7 +28,7 @@ A single PLD number tells you how wide a window is. It does not tell you what is
 
 For **percolation at a near-PLD probe radius**, this distinction matters more than the absolute size. If a candidate sub-probe window is at a position whose *framework shell* looks the same as an already-open mouth, the probability that it is the same physical aperture — undercounted by the grid — is high. If the framework shell looks completely different, the throat probably is different too, and the user's probe should still gate access.
 
-That idea is the entire basis of the BFS expansion in [`_expand_percolating_labels_with_window_fingerprint`](https://github.com/arung-northwestern/mofography/blob/main/mofography/winding_percolation.py).
+That idea is the entire basis of the BFS expansion in [`_expand_percolating_labels_with_window_fingerprint`](https://github.com/mofography/mofography/blob/master/mofography/winding_percolation.py).
 
 ## Imports
 
@@ -440,9 +438,9 @@ print(f"probe {probe_above_pld} Å: strict={len(strict)} regions, +FP={len(fp)} 
 | **A material with very different window chemistries (e.g. mixed-linker MOF)** | Consider raising `window_fp_sim_thresh` (e.g. 0.95) to require tighter matches. |
 | **A material with very small framework atoms (zeolites)** | Default `shell_radius=3.5 Å` is calibrated for organic / metal-organic frameworks. On pure siliceous zeolites the shell often contains only Si/O; cosine between two windows of the same ring is essentially 1 and the gate barely fires. |
 
-## Step 12: Pointer to refinement
+## Step 12: What fingerprinting does not change
 
-`annotate_graph_edges_with_window_fingerprints` does not change *where* the windows are or *how wide* they are — it only adds metadata. If the window centre and radius themselves are wrong (because watershed boundaries are noisy on this material), the morphological-opening pass in `mofography/window_refinement.py` re-estimates both. See [Window Refinement](window_refinement.md) for the full procedure and a worked NU-1000 example.
+`annotate_graph_edges_with_window_fingerprints` does not change *where* the windows are or *how wide* they are. It only adds metadata.
 
 ## Summary
 
@@ -462,6 +460,5 @@ print(f"probe {probe_above_pld} Å: strict={len(strict)} regions, +FP={len(fp)} 
 - [Connections and Windows](connections_and_windows.qmd) — the basic `seg['connections']` walkthrough that this page builds on.
 - [Region Segmentation](region_segmentation.qmd) — the segmentation that produces the regions and the maxima.
 - [Pore Graph (RAG)](pore_graph.md) — the region adjacency graph that the windows live on.
-- [Window Refinement](window_refinement.md) — morphological re-estimation of window centres and radii.
-- [`mofography/winding_percolation.py`](https://github.com/arung-northwestern/mofography/blob/main/mofography/winding_percolation.py) — implementation: `_window_shell_fingerprint`, `_collect_window_fp_reference_edges`, `_expand_percolating_labels_with_window_fingerprint`.
-- [`mofography/compute.py`](https://github.com/arung-northwestern/mofography/blob/main/mofography/compute.py) — public entry points: `compute_void_volume_from_results`, `compute_surface_area_mc`, `compute_surface_area_mesh`.
+- [`mofography/winding_percolation.py`](https://github.com/mofography/mofography/blob/master/mofography/winding_percolation.py) — implementation: `_window_shell_fingerprint`, `_collect_window_fp_reference_edges`, `_expand_percolating_labels_with_window_fingerprint`.
+- [`mofography/compute.py`](https://github.com/mofography/mofography/blob/master/mofography/compute.py) — public entry points: `compute_void_volume_from_results`, `compute_surface_area_mc`, `compute_surface_area_mesh`.

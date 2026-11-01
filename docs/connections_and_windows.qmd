@@ -1,15 +1,15 @@
 ---
 title: "Connections and Pore Windows"
 description: "Extract, analyze, and visualize pore windows and inter-region connections from a periodic segmentation result."
-image: tutorial_images/paper_window_detection_methods.png
+image: tutorial_images/paper_window_detection_methods.webp
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
-![Window detection algorithm: the window is the voxel with the largest non-overlapping sphere in the shared boundary of two adjacent regions; works for on-axis and off-axis windows and handles non-convex cavities (paper Figure 6)](tutorial_images/paper_window_detection_methods.png){width=100%}
+![Window detection algorithm: the window is the voxel with the largest non-overlapping sphere in the shared boundary of two adjacent regions; works for on-axis and off-axis windows and handles non-convex cavities (paper Figure 6)](tutorial_images/paper_window_detection_methods.webp){width=100%}
 
-![Window detection results on representative MOFs (paper Figure 7)](tutorial_images/paper_window_detection_results.png){width=100%}
+![Window detection results on representative MOFs (paper Figure 7)](tutorial_images/paper_window_detection_results.webp){width=100%}
 
 ## Overview
 
@@ -23,7 +23,7 @@ In this tutorial we will:
 4. Compute window-size statistics, including the **Pore Limiting Diameter (PLD)**.
 5. Visualize everything interactively with `show_mof_plotly(seg, atoms, ...)`, which already includes window markers.
 
-If you have not done so, please complete the [Quick Start: Full MOF Pore Analysis](quick_cluster.qmd) tutorial first — the rest of the page assumes you have run a segmentation and have a `seg` dict in hand.
+If you have not done so, please complete the [Quick Start: Full MOF Pore Analysis](quick_start.qmd) tutorial first — the rest of the page assumes you have run a segmentation and have a `seg` dict in hand.
 
 ## Why windows matter
 
@@ -70,7 +70,7 @@ print(f"Void max:   {dgrid.max():.1f} Å")
 Set `compute_connections=True` (default) so that the same call returns both the segmentation grid **and** the window list. The relevant tuning knobs for window detection are:
 
 - `minimum_window_separation` (Å) — distance threshold that splits boundary points into distinct windows. Default is `None`, which the function resolves internally; pass an explicit value to control window multiplicity.
-- `wall_thickness` (Å) — minimum wall thickness in the void mask.
+- `wall_thickness` — near-boundary band, as a fraction of the longest perpendicular cell length (not Å), used to filter maxima.
 - `extra_padding` (Å) — extra padding around the unit cell so that periodic windows are not clipped.
 
 ```{python}
@@ -175,8 +175,19 @@ fig = mgr.show_mof_plotly(
     stylize=True,
 )
 fig.update_layout(title=dict(text="IRMOF-1: Pore Windows", x=0.5))
-fig.show()
+fig.write_image("tutorial_images/connections_and_windows_windows.png", width=1100, height=800)  # static preview for the docs
 ```
+
+![IRMOF-1 pore windows](tutorial_images/connections_and_windows_windows.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+fig = mgr.show_mof_plotly(seg, atoms, framework_atoms=atoms, stylize=True)
+fig.show()   # rotate, zoom, hover over windows
+```
+:::
+
+[Open the interactive version](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
 
 You should see:
 
@@ -185,7 +196,7 @@ You should see:
 - **markers at the windows** between regions, and
 - a translucent framework mesh.
 
-Because the figure is a Plotly `Figure`, you can rotate, zoom, and hover over each window to read its region labels, contact type, and diameter directly from the metadata baked into the trace.
+Because the figure is a Plotly `Figure` (in the interactive version), you can rotate, zoom, and hover over each window to read its region labels, contact type, and diameter directly from the metadata baked into the trace.
 
 ## Step 8: Histogram of window diameters
 
@@ -233,7 +244,7 @@ If the windows appear in the wrong positions, or two clearly distinct windows ar
 
 ## Where to go next
 
-- [Quick Start: Full MOF Pore Analysis](quick_cluster.qmd) — the canonical 3-function workflow this tutorial builds on.
+- [Quick Start: Full MOF Pore Analysis](quick_start.qmd) — the canonical 3-function workflow this tutorial builds on.
 - [Pore Graph (RAG)](pore_graph.md) — once you have windows, you can build the Region Adjacency Graph.
 - [Pockets detection](pockets_detection.qmd) — classify each pore as a cage, channel, or dead-end pocket.
 
@@ -241,5 +252,4 @@ If the windows appear in the wrong positions, or two clearly distinct windows ar
 
 These notes document experimental refinements on top of the basic `connections` list:
 
-- [Window fingerprinting](window_fingerprinting.org) — direction-invariant element-weighted fingerprints of the framework shell around each window. Used for **accessible** surface-area and void-volume curation, the `Mechanism A` / `Mechanism B` PLD distinction, optional DFSD signals, and prototype window-type detection.
-- [Window refinement prototype](window_refinement.md) — distance-field-driven re-estimation of window centres and radii without relying solely on watershed boundaries.
+- [Window fingerprinting](window_fingerprinting.qmd) — direction-invariant element-weighted fingerprints of the framework shell around each window. Used for **accessible** surface-area and void-volume curation, the `Mechanism A` / `Mechanism B` PLD distinction, optional DFSD signals, and prototype window-type detection.
