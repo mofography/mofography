@@ -6344,34 +6344,56 @@ def pad_periodic(arr):
     return np.pad(arr, 1, mode='wrap')
 
 def check_percolation_periodic(distance_grid, threshold):
-    """Return True if void voxels above threshold percolate through padded periodic faces."""
+    """Return True if void voxels above threshold form a periodically infinite (winding) network.
+
+    Components are labelled inside the cell (no halo), then stitched across opposite faces
+    while tracking the cell-image offset of each component. A component that returns to
+    itself at a different image offset winds around the torus. This is independent of where
+    the cell origin sits, unlike matching one label on opposite faces of a halo-padded grid
+    (the halo copies are not tied to the real boundary voxels, so a channel cut by the
+    cell origin was missed).
+    """
     import numpy as np
+    from collections import deque
     from scipy.ndimage import label, generate_binary_structure
-    # Create a binary grid where True represents void space
+
     binary_grid = distance_grid > threshold
-    
-    # Pad the binary grid with periodic boundaries
-    padded_grid = pad_periodic(binary_grid)
-    
-    # Create a structure for 3D connectivity
-    structure = generate_binary_structure(3, 1)
-    
-    # Label connected components
-    labeled, _ = label(padded_grid, structure=structure)
-    
-    # Remove padding
-    labeled = labeled[1:-1, 1:-1, 1:-1]
-    
-    # Check percolation in all three directions
+    labeled, n_labels = label(binary_grid, structure=generate_binary_structure(3, 1))
+    if n_labels == 0:
+        return False
+
+    # adjacency over components: (neighbor, axis, sign) meaning image offset += sign * e_axis
+    adj = {}
     for axis in range(3):
-        # Get unique labels on opposite faces
-        face1 = set(np.unique(labeled.take(0, axis=axis)))
-        face2 = set(np.unique(labeled.take(-1, axis=axis)))
-        
-        # Check if any label (except 0) appears on both faces
-        if len(face1.intersection(face2) - {0}) > 0:
-            return True
-    
+        last = labeled.take(-1, axis=axis).ravel()
+        first = labeled.take(0, axis=axis).ravel()
+        both = (last > 0) & (first > 0)
+        if not both.any():
+            continue
+        pairs = np.unique(np.stack([last[both], first[both]], axis=1), axis=0)
+        for u, v in pairs.tolist():
+            if u == v:
+                return True  # component touches itself across the boundary
+            adj.setdefault(u, []).append((v, axis, 1))
+            adj.setdefault(v, []).append((u, axis, -1))
+
+    offset = {}
+    for root in adj:
+        if root in offset:
+            continue
+        offset[root] = (0, 0, 0)
+        queue = deque([root])
+        while queue:
+            u = queue.popleft()
+            for v, axis, sign in adj[u]:
+                new = list(offset[u])
+                new[axis] += sign
+                new = tuple(new)
+                if v not in offset:
+                    offset[v] = new
+                    queue.append(v)
+                elif offset[v] != new:
+                    return True  # closed loop with nonzero net image shift
     return False
 
 def find_pore_limiting_radius(distance_grid):
