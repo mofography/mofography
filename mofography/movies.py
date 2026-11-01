@@ -296,6 +296,23 @@ def _serialize_trimesh(mesh: trimesh.Trimesh) -> dict[str, Any]:
 _BINARY_PACK_KEYS = frozenset({"positions", "indices", "colors", "radii", "sizes"})
 
 
+def _bg_spec_json(background) -> str:
+    """Normalise ``to_html(background=...)`` to a JSON ``{type, colors}`` (or ``"null"``)."""
+    if background is None:
+        return "null"
+    from matplotlib.colors import to_hex
+
+    if isinstance(background, dict):
+        kind, cols = background.get("type", "solid"), list(background["colors"])
+    elif isinstance(background, (tuple, list)) and background and background[0] in ("linear", "radial", "solid"):
+        kind, cols = background[0], list(background[1:])
+    else:
+        kind, cols = "solid", [background]
+    if kind not in ("solid", "linear", "radial") or not cols:
+        raise ValueError(f"bad background spec: {background!r}")
+    return json.dumps({"type": kind, "colors": [to_hex(c) for c in cols]})
+
+
 def _pack_frame_data(frame: dict[str, Any]) -> dict[str, Any]:
     """Pack numerical arrays in frame trace data as base64-encoded binary blobs.
 
@@ -1479,6 +1496,7 @@ def make_framework_trace(
     trace_id: str = "framework",
     representation: str = "ball_and_stick",
 ) -> dict[str, Any]:
+    """Build a Three.js mesh trace for framework atoms and covalent bonds."""
     def _ase_covalent_bonds(a: Atoms, mult: float = 1.05) -> list[list[int]]:
         cutoffs = np.asarray(natural_cutoffs(a, mult=mult), dtype=float)
         i_idx, j_idx = neighbor_list("ij", a, cutoffs, self_interaction=False)
@@ -1534,6 +1552,7 @@ def make_surface_trace(
     taubin_lambda: float = 0.5,
     taubin_nu: float = -0.53,
 ) -> dict[str, Any]:
+    """Build a Three.js colored isosurface mesh trace from dgrid and region labels."""
     seg = {"dgrid": dgrid, "regions": regions}
     payload = _serialize_segmentation_surface_mesh(
         atoms=atoms,
@@ -2039,6 +2058,7 @@ def make_maxima_trace(
     trace_id: str = "maxima",
     cscale: list[list[float]] | None = None,
 ) -> dict[str, Any]:
+    """Build internal, periodic, and PBC maxima point traces from a segmentation dict."""
     payload = _serialize_maxima_trace(seg, atoms, cscale=cscale)
     # Some systems classify all maxima as periodic; keep a visible local-maxima
     # scatter by mirroring periodic points into the internal trace as fallback.
@@ -2104,6 +2124,7 @@ def make_windows_trace(
     spacing: float | None = None,
     reclassify_far_outside: bool = True,
 ) -> dict[str, Any]:
+    """Build internal and periodic window marker traces from connections in seg."""
     payload = _serialize_windows_trace(seg, atoms=atoms, spacing=spacing, reclassify_far_outside=reclassify_far_outside)
     win_style = style if style else "internal_windows"
     internal = _make_trace(
@@ -2142,6 +2163,7 @@ def make_connections_trace(
     name: str = "Connections",
     trace_id: str = "connections",
 ) -> dict[str, Any]:
+    """Build connection line segments and node markers from a segmentation dict."""
     payload = _serialize_connection_traces(seg, atoms)
     internal_lines = _make_trace(
         trace_id=f"{trace_id}_internal",
@@ -2212,6 +2234,7 @@ def make_guest_trace(
     name: str = "Adsorbates",
     trace_id: str = "guests",
 ) -> dict[str, Any]:
+    """Build an instanced-sphere trace for adsorbate or guest atoms."""
     atomic_numbers = atoms.get_atomic_numbers()
     from ase.data.colors import cpk_colors
 
@@ -2368,6 +2391,7 @@ def make_cell_trace(
     name: str = "Unit cell",
     trace_id: str = "cell",
 ) -> dict[str, Any]:
+    """Build a Three.js unit-cell wireframe line trace for the structure cell."""
     payload = _serialize_cell_lines(atoms)
     return _make_trace(
         trace_id=trace_id,
@@ -2915,10 +2939,25 @@ class MovieFigure:
         sidecar: bool = False,
         fps: float = 20.0,
         point_size: float = 0.16,
+        pack_binary: bool = False,
+        background: "str | tuple | dict | None" = None,
     ) -> Path:
+        """Write the scene to a standalone HTML file.
+
+        ``background`` (opt-in; default ``None`` keeps the current look) sets the initial
+        viewer background: a solid colour ``"#0b1d3a"``, ``("linear", c1, c2[, ...])``
+        (left-to-right), ``("radial", centre, edge)`` or ``{"type": ..., "colors": [...]}``.
+        The Bg picker / gradient buttons still work (they override it) and Export PNG
+        captures it (it is drawn in the WebGL scene).
+
+        ``pack_binary=True`` (opt-in) stores large numeric arrays (positions, indices,
+        colors, radii, sizes) as base64 float32/uint16/uint32 blobs instead of JSON
+        number lists; the viewer decodes them on load. Typically ~3-4x smaller files.
+        """
         out = Path(path).expanduser().resolve()
         out.parent.mkdir(parents=True, exist_ok=True)
         scene = self.to_dict()
+        bg_spec_json = _bg_spec_json(background)
 
         if sidecar:
             frames_data = scene.pop("frames")
@@ -2939,7 +2978,10 @@ class MovieFigure:
                 json.dump(offsets, fh)
             scene["sidecar_idx"] = str(idx_path.name)
 
-        payload_json = json.dumps(scene)
+        if pack_binary and not sidecar:
+            scene["frames"] = [_pack_frame_data(fr) for fr in scene.get("frames", [])]
+            scene["static"] = _pack_frame_data(scene["static"])
+        payload_json = json.dumps(scene, separators=(",", ":")) if pack_binary else json.dumps(scene)
 
         # Default camera
         cam = scene.get("layout", {}).get("scene", {}).get("camera", {})
@@ -2978,6 +3020,7 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
+            bg_spec_json=bg_spec_json,
         )
         out.write_text(html, encoding="utf-8")
         return out
@@ -2990,6 +3033,7 @@ class MovieFigure:
         """Render scene to HTML string (no file write)."""
         import json as _json
         scene = self.to_dict()
+        bg_spec_json = "null"
         payload_json = _json.dumps(scene)
         cam = scene.get("layout", {}).get("scene", {}).get("camera", {})
         eye = tuple(cam.get("eye", [2.0, 0.0, 1.35]))
@@ -3028,52 +3072,63 @@ class MovieFigure:
             title=title,
             text_color=text_color,
             panel_bg=panel_bg,
+            bg_spec_json=bg_spec_json,
+        )
+
+    def _iframe_html(self, height: int | str = 600, width: int | str = "100%") -> str:
+        """Full interactive scene in an ``<iframe srcdoc>`` (no server needed).
+
+        Works in Jupyter classic/Lab, VS Code and static nbconvert/Quarto output.
+        Three.js is loaded from jsdelivr CDN by the scene HTML (internet needed).
+        """
+        import html
+        import uuid
+        h = f"{height}px" if isinstance(height, (int, float)) else str(height)
+        w = f"{width}px" if isinstance(width, (int, float)) else str(width)
+        return (
+            f'<iframe id="mofo3js-{uuid.uuid4().hex[:8]}" '
+            f'style="width:{w};height:{h};border:0" allowfullscreen '
+            f'srcdoc="{html.escape(self._render_html_string())}"></iframe>'
         )
 
     def _repr_html_(self) -> str:
-        """Jupyter notebook integration — display via IFrame (avoids CSP issues).
+        return self._iframe_html()
 
-        Jupyter auto-calls this method when the figure is the last expression
-        in a cell.  Uses the ``srcdoc`` IFrame pattern (same approach as pydeck
-        and Plotly's notebook renderer) to isolate Three.js/WebGL content from
-        the notebook's Content Security Policy.
-        """
-        import html
-        html_str = self._render_html_string()
-        escaped = html.escape(html_str)
-        return (
-            f'<iframe width="100%" height="600" frameborder="0" '
-            f'srcdoc="{escaped}"></iframe>'
-        )
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return {"text/html": self._iframe_html()}
 
-    def show(self, renderer: str = "notebook", *, port: int | None = None) -> str | None:
+    def save_html(self, path: str | Path, **kwargs) -> Path:
+        """Write standalone HTML (alias of :meth:`to_html`)."""
+        return self.to_html(path, **kwargs)
+
+    def show(
+        self,
+        renderer: str | None = None,
+        *,
+        height: int | str = 600,
+        width: int | str = "100%",
+        port: int | None = None,
+    ) -> str | None:
         """Display the figure.
 
-        Parameters
-        ----------
-        renderer
-            ``"notebook"`` — display inline in Jupyter output cell (default).
-            ``"browser"`` — serve HTML on ``127.0.0.1`` (random free port) and
-            open in the system browser (Plotly-style). Also writes a temp HTML
-            backup and prints its path.
-        port
-            Optional fixed port for ``renderer="browser"`` (default: auto).
-
-        Returns
-        -------
-        str or None
-            Viewer URL when ``renderer="browser"``, else None.
+        ``renderer="notebook"`` shows inline (iframe srcdoc); ``"browser"``
+        serves on ``127.0.0.1`` and opens the system browser. Default: inline
+        inside a Jupyter kernel, browser otherwise.
         """
+        if renderer is None:
+            try:
+                from IPython import get_ipython
+                ip = get_ipython()
+                renderer = "notebook" if ip is not None and hasattr(ip, "kernel") else "browser"
+            except ImportError:
+                renderer = "browser"
         if renderer == "browser":
             return _open_threejs_in_browser(self, port=port)
         try:
             from IPython.display import HTML, display
-            display(HTML(self._repr_html_()))
-        except ImportError:
-            raise RuntimeError(
-                "IPython is required for notebook rendering. "
-                "Use renderer='browser' to open in a web browser instead."
-            )
+        except ImportError as exc:
+            raise RuntimeError("IPython required; use renderer='browser'.") from exc
+        display(HTML(self._iframe_html(height, width)))
         return None
 
     def export_png(
@@ -3598,6 +3653,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     const DATA = {{payload_json}};
     const MOV = DATA.static && DATA.static.traces ? DATA.static.traces : [];
     const FRAMES = DATA.frames || [];
+    if (DATA.static) _unpackBinaryArrays(DATA.static);  // no-op unless to_html(pack_binary=True)
+    if (!DATA.sidecar) FRAMES.forEach(_unpackBinaryArrays);
 
     // ---- Sidecar streaming (per-frame Range fetch, only 2-3 parsed frames in RAM) ----
     let frameOffsets = [];
@@ -5225,7 +5282,11 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       label.style.cssText = "display:block;font-size:10px;margin-left:8px;";
       const cb = document.createElement("input");
       cb.type = "checkbox";
-      const startOff = !!entry.defaultOff;
+      // Start unchecked when the entry is defaultOff or every trace was exported with visible=False.
+      const startOff = !!entry.defaultOff || (traceIds.length > 0 && traceIds.every(function(tid) {
+        const t = findTraceById(tid);
+        return !!t && t.visible === false;
+      }));
       cb.checked = !startOff;
       traceIds.forEach(function(tid) {
         legendEnabledByTrace[tid] = !startOff;
@@ -5278,7 +5339,9 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
         updateFrameworkCellVisibility();
       });
       label.appendChild(cb);
-      label.appendChild(document.createTextNode(" " + entry.label));
+      // A trace may carry ``legend_label`` to override the generic schema label.
+      const _lt = findTraceById(traceIds[0]);
+      label.appendChild(document.createTextNode(" " + ((_lt && _lt.legend_label) || entry.label)));
       const isoBtn = document.createElement("button");
       isoBtn.type = "button";
       isoBtn.textContent = "⊕";
@@ -6105,7 +6168,24 @@ function readWindowMinThreshold() {
         _app.style.backgroundImage = "";
       }
     }
+    // Opt-in default background (MovieFigure.to_html(background=...)): {type, colors}; null = unchanged.
+    var _bgSpec = {{bg_spec_json}};
+    function applyBgSpec() {
+      var cols = _bgSpec.colors;
+      if (_bgSpec.type === "solid") { scene.background = new THREE.Color(cols[0]); return; }
+      var canvas = document.createElement("canvas");
+      canvas.width = 512; canvas.height = 512;
+      var ctx = canvas.getContext("2d");
+      var grad = _bgSpec.type === "radial"
+        ? ctx.createRadialGradient(256, 256, 0, 256, 256, 362)
+        : ctx.createLinearGradient(0, 0, canvas.width, 0);
+      cols.forEach(function(c, i) { grad.addColorStop(cols.length > 1 ? i / (cols.length - 1) : 0, c); });
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      scene.background = new THREE.CanvasTexture(canvas);
+    }
     function updateSceneBackground() {
+      if (_bgSpec && _bgSpec.active) { applyBgSpec(); return; }
       var color = new THREE.Color(bgPicker.value);
       if (_bgGradientMode === "transparent") {
         scene.background = null;
@@ -6144,11 +6224,14 @@ function readWindowMinThreshold() {
       var tex = new THREE.CanvasTexture(canvas);
       scene.background = tex;
     }
-    document.getElementById("bgGradientNone").addEventListener("click", () => { _bgGradientMode = "none"; updateSceneBackground(); });
-    document.getElementById("bgGradientLR").addEventListener("click", () => { _bgGradientMode = "lr"; updateSceneBackground(); });
-    document.getElementById("bgGradientTB").addEventListener("click", () => { _bgGradientMode = "tb"; updateSceneBackground(); });
-    document.getElementById("bgGradientRadial").addEventListener("click", () => { _bgGradientMode = "radial"; updateSceneBackground(); });
-    document.getElementById("bgGradientTransparent").addEventListener("click", () => { _bgGradientMode = "transparent"; updateSceneBackground(); });
+    function _bgUser(mode) { if (_bgSpec) _bgSpec.active = false; _bgGradientMode = mode; updateSceneBackground(); }
+    bgPicker.addEventListener("input", () => { if (_bgSpec) _bgSpec.active = false; }, true);
+    document.getElementById("bgGradientNone").addEventListener("click", () => _bgUser("none"));
+    document.getElementById("bgGradientLR").addEventListener("click", () => _bgUser("lr"));
+    document.getElementById("bgGradientTB").addEventListener("click", () => _bgUser("tb"));
+    document.getElementById("bgGradientRadial").addEventListener("click", () => _bgUser("radial"));
+    document.getElementById("bgGradientTransparent").addEventListener("click", () => _bgUser("transparent"));
+    if (_bgSpec) { _bgSpec.active = true; bgPicker.value = _bgSpec.colors[0]; applyBgSpec(); }
 
     // Measurement tool
     let measuring = false;

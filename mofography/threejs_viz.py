@@ -36,6 +36,7 @@ __all__ = [
 ]
 
 def qualitative_colorscale(name: str = "Pastel") -> list[list[float]]:
+    """Return Plotly qualitative palette colors as 0–1 RGB triples for Three.js traces."""
     import plotly.express as px
     raw = getattr(px.colors.qualitative, name, None)
     if raw is None:
@@ -56,6 +57,7 @@ def qualitative_colorscale(name: str = "Pastel") -> list[list[float]]:
     return out
 
 def prepare_seg_threejs(seg: dict[str, Any], *, dgrid: np.ndarray | None = None) -> dict[str, Any]:
+    """Validate and normalize a segmentation dict for Three.js plot helpers."""
     out = dict(seg)
     if dgrid is not None:
         out["dgrid"] = np.asarray(dgrid)
@@ -67,6 +69,7 @@ def prepare_seg_threejs(seg: dict[str, Any], *, dgrid: np.ndarray | None = None)
     return out
 
 def seg_from_connections(connections, maxima, grid_shape, *, dgrid: np.ndarray | None = None) -> dict[str, Any]:
+    """Build a minimal segmentation dict from connections, maxima, and grid shape."""
     shape = tuple(int(x) for x in grid_shape)
     if dgrid is None:
         dgrid = np.zeros(shape, dtype=np.float32)
@@ -99,6 +102,7 @@ def _style_from_plotly_kwargs(*, opacity=1.0, color=None, stylize=False, name="t
     return style
 
 def add_trace(fig: Figure3D, trace: dict[str, Any]) -> Figure3D:
+    """Add one Three.js trace dict to a Figure3D and return the figure."""
     from .viz_backend import ensure_threejs_figure, ensure_threejs_trace
 
     ensure_threejs_figure(fig, context="add_trace")
@@ -124,6 +128,7 @@ def _register_trace_bundle_legend(fig: Figure3D, bundle: dict[str, Any]) -> None
 
 
 def add_traces(fig: Figure3D, traces: Any) -> Figure3D:
+    """Add Three.js trace dicts or bundles to a Figure3D and return the figure."""
     from .viz_backend import ensure_threejs_figure, validate_threejs_traces
 
     ensure_threejs_figure(fig, context="add_traces")
@@ -151,6 +156,7 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select="a
                        cscale=None, color="blue", stepsize=1, stylize=False, random_seed=0,
                        hover_label="Region :", taubin_smooth=False, taubin_iterations=3,
                        taubin_lambda=0.2175, taubin_nu=-0.2175, **kwargs_mesh):
+    """Build a Three.js isosurface mesh trace from a distance grid and region labels."""
     del select, color, random_seed
     name = kwargs_mesh.pop("name", f"{isovalue} A isosurface")
     trace_id = kwargs_mesh.pop("trace_id", name.lower().replace(" ", "_"))
@@ -162,10 +168,12 @@ def plot_surface_dgrid(dgrid, isovalue, ase_atoms, region_labels=None, select="a
         taubin_iterations=int(taubin_iterations), taubin_lambda=float(taubin_lambda), taubin_nu=float(taubin_nu))
 
 def plot_cell(ase_atoms, color="purple", name="cell", **kwargs):
+    """Build a Three.js unit-cell wireframe trace for the given structure."""
     return make_cell_trace(ase_atoms, style=_style_from_plotly_kwargs(color=color, name=name, **kwargs), name=name)
 
 def draw_framework(ase_atoms, bonds="auto", representation="scatter", atom_scale=0.65,
                    bond_color=None, bond_linewidth=8.0, name="Framework", **kwargs):
+    """Build Three.js framework trace(s) as scatter points or ball-and-stick mesh."""
     del kwargs
     if representation in ("scatter", "points"):
         return make_framework_scatter_trace(ase_atoms, bonds=bonds, name=name, atom_scale=atom_scale,
@@ -175,6 +183,7 @@ def draw_framework(ase_atoms, bonds="auto", representation="scatter", atom_scale
 
 def plot_maxima(seg_or_dgrid, atoms_or_maxima=None, ase_atoms=None, *, seg=None, hide_periodic=False,
                 name="Maxima", cscale=None, trace_id=None, **kwargs):
+    """Build Three.js maxima point traces from a seg dict or raw grid arrays."""
     del kwargs
     if trace_id is None:
         trace_id = _trace_id_from_name(name, "maxima")
@@ -205,6 +214,7 @@ def plot_maxima_from_grid(
     connections=None,
     **kwargs,
 ):
+    """Build Three.js maxima traces from dgrid, maxima arrays, and optional regions."""
     del kwargs
     if trace_id is None:
         trace_id = _trace_id_from_name(name, "maxima")
@@ -229,6 +239,7 @@ def plot_maxima_from_grid(
     )
 
 def plot_connections(seg, atoms, hide_periodic=True, **kwargs):
+    """Build Three.js pore-graph connection line and node traces from a seg dict."""
     del kwargs
     bundle = make_connections_trace(prepare_seg_threejs(seg), atoms)
     if hide_periodic:
@@ -237,6 +248,7 @@ def plot_connections(seg, atoms, hide_periodic=True, **kwargs):
     return bundle
 
 def plot_connections_as_it_is(connections, maxima, shape, ase_atoms, plot_periodic=True, plot_disconnected=False, unique_regions=None, **kwargs):
+    """Build Three.js connection traces from raw connections, maxima, and grid shape."""
     del plot_disconnected
     if unique_regions is not None:
         from mofography.helper import trim_connections_to_unique_regions
@@ -1026,12 +1038,16 @@ class Figure3js:
             return html
         return self._fig.to_html(path, **kwargs)
 
-    def show(self, renderer: str = "browser", *, port: int | None = None) -> str | None:
-        """Display figure in a browser tab or Jupyter notebook.
+    def show(self, renderer: str | None = None, *, height: int | str = 600,
+             width: int | str = "100%", port: int | None = None) -> str | None:
+        """Display inline in Jupyter (iframe srcdoc) or, outside a kernel, in a browser tab.
 
-        ``renderer="browser"`` serves on ``127.0.0.1`` (random port) and prints the URL.
+        See ``MovieFigure.show``. Three.js loads from CDN (internet required).
         """
-        return self._fig.show(renderer=renderer, port=port)
+        return self._fig.show(renderer=renderer, height=height, width=width, port=port)
+
+    def save_html(self, path: "str | Path", **kwargs: Any) -> "Path":
+        return self._fig.to_html(path, **kwargs)
 
     def export_png(
         self,
@@ -1053,6 +1069,9 @@ class Figure3js:
 
     def _repr_html_(self) -> str:  # Jupyter integration
         return self._fig._repr_html_()
+
+    def _repr_mimebundle_(self, include=None, exclude=None):
+        return self._fig._repr_mimebundle_(include, exclude)
 
     # ------------------------------------------------------------------
     # Properties

@@ -22,11 +22,13 @@ _NATIVE_THREEJS_TRACE_TYPES = frozenset(
 
 
 def tag_threejs_trace(trace: dict[str, Any]) -> dict[str, Any]:
+    """Mark a trace dict with the mofography Three.js backend tag and return it."""
     trace[MOFOGRAPHY_BACKEND_KEY] = THREEJS_BACKEND
     return trace
 
 
 def is_threejs_trace(obj: Any) -> bool:
+    """Return whether ``obj`` is a native or tagged mofography Three.js trace dict."""
     if not isinstance(obj, dict):
         return False
     if obj.get(MOFOGRAPHY_BACKEND_KEY) == THREEJS_BACKEND:
@@ -40,6 +42,7 @@ def is_threejs_trace(obj: Any) -> bool:
 
 
 def is_plotly_trace(obj: Any) -> bool:
+    """Return whether ``obj`` is a Plotly trace (and not a Three.js dict)."""
     try:
         from plotly.basedatatypes import BaseTraceType
 
@@ -49,6 +52,7 @@ def is_plotly_trace(obj: Any) -> bool:
 
 
 def is_threejs_figure(fig: Any) -> bool:
+    """Return whether ``fig`` is a Figure3JS, Figure3D, or MovieFigure Three.js figure."""
     from .movies import MovieFigure
 
     fig_cls = type(fig)
@@ -58,6 +62,7 @@ def is_threejs_figure(fig: Any) -> bool:
 
 
 def is_plotly_figure(fig: Any) -> bool:
+    """Return whether ``fig`` is a ``plotly.graph_objects.Figure`` instance."""
     try:
         import plotly.graph_objects as go
 
@@ -67,6 +72,7 @@ def is_plotly_figure(fig: Any) -> bool:
 
 
 def iter_leaf_traces(traces: Any) -> Iterator[Any]:
+    """Yield individual trace objects from nested lists or trace-bundle dicts."""
     if traces is None:
         return
     if isinstance(traces, dict):
@@ -86,6 +92,7 @@ def iter_leaf_traces(traces: Any) -> Iterator[Any]:
 
 
 def ensure_threejs_trace(obj: Any, *, context: str = "add_trace") -> None:
+    """Raise ``TypeError`` if ``obj`` is not a mofography Three.js trace dict."""
     if is_threejs_trace(obj):
         return
     if is_plotly_trace(obj):
@@ -100,6 +107,7 @@ def ensure_threejs_trace(obj: Any, *, context: str = "add_trace") -> None:
 
 
 def ensure_plotly_trace(obj: Any, *, context: str = "add_trace") -> None:
+    """Raise ``TypeError`` if ``obj`` is not a Plotly trace."""
     if is_plotly_trace(obj):
         return
     if is_threejs_trace(obj):
@@ -114,6 +122,7 @@ def ensure_plotly_trace(obj: Any, *, context: str = "add_trace") -> None:
 
 
 def ensure_threejs_figure(fig: Any, *, context: str = "add_traces") -> None:
+    """Raise ``TypeError`` if ``fig`` is not a Three.js figure used by mofography."""
     if is_threejs_figure(fig):
         return
     if is_plotly_figure(fig):
@@ -127,6 +136,7 @@ def ensure_threejs_figure(fig: Any, *, context: str = "add_traces") -> None:
 
 
 def ensure_plotly_figure(fig: Any, *, context: str = "add_traces") -> None:
+    """Raise ``TypeError`` if ``fig`` is not a ``plotly.graph_objects.Figure``."""
     if is_plotly_figure(fig):
         return
     if is_threejs_figure(fig):
@@ -140,10 +150,12 @@ def ensure_plotly_figure(fig: Any, *, context: str = "add_traces") -> None:
 
 
 def validate_threejs_traces(traces: Any, *, context: str = "add_traces") -> None:
+    """Ensure every leaf in nested ``traces`` is a mofography Three.js trace dict."""
     for leaf in iter_leaf_traces(traces):
         ensure_threejs_trace(leaf, context=context)
 
 
 def validate_plotly_traces(traces: Any, *, context: str = "add_traces") -> None:
+    """Ensure every leaf in nested ``traces`` is a Plotly trace."""
     for leaf in iter_leaf_traces(traces):
         ensure_plotly_trace(leaf, context=context)
