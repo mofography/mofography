@@ -1394,6 +1394,31 @@ def compute_pore_sizes_uniform_rust(
     return sample_points, pore_sizes
 
 
+def psd_gelb_gubbins(counts, binsize=0.25):
+    """Convert a diameter histogram to the Gelb-Gubbins PSD, -dV/dD (PoreBlazer-style).
+
+    Builds the cumulative volume V(>=D) from the histogram, normalises it to 1 at D=0, and takes
+    the central difference -dV/dD. This is the curve plotted (peak-normalised) in the paper.
+
+    :param counts: histogram of pore diameters on uniform bins of width ``binsize`` starting at 0
+        (for example ``compute_psd_uniform_rust(..., bins=np.arange(0, 20 + binsize, binsize),
+        density=False)``). Bins above the last one should already be folded into it.
+    :param binsize: bin width (A); PoreBlazer default is 0.25
+    :return: ``(x, y)`` with ``x`` the diameters (A) and ``y`` = -dV/dD (1/A) for the interior bins
+    """
+    import numpy as np
+
+    counts = np.asarray(counts, dtype=float)
+    n = counts.size
+    cum = np.cumsum(counts[::-1])[::-1]  # cum[k] = number of samples with D >= k * binsize
+    if n < 3 or cum[0] == 0:
+        return binsize * np.arange(1, max(n - 1, 1)) - binsize / 2.0, np.zeros(max(n - 2, 0))
+    cum = cum / cum[0]
+    y = -(cum[2:] - cum[:-2]) / (2.0 * binsize)
+    x = binsize * np.arange(1, n - 1) - binsize / 2.0  # same labelling as PoreBlazer Total_psd.txt
+    return x, y
+
+
 def compute_psd_uniform_rust(
     dgrid,
     ase_atoms,
