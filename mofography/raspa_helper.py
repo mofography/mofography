@@ -1,4 +1,5 @@
 def make_raspa_input_for_cif(folder_path, raspa_settings_dict, other_files_to_copy, templates_dir, template_name):
+    """Render simulation.input from a Jinja template and copy files into a run folder."""
     
     
     import jinja2 as jj 
@@ -13,10 +14,8 @@ def make_raspa_input_for_cif(folder_path, raspa_settings_dict, other_files_to_co
         shutil.copy(os.path.abspath(f), os.path.abspath(folder_path))
 
 def get_isotherm_df_for_raspa_folder(path_to_folder):
-    """
-    It takes a list of paths to folders containing raspa output files and returns a dictionary with the
-    isotherm data
-    
+    """Parse RASPA output *.data files in a folder into a sorted isotherm DataFrame.
+
     :param path_to_folder: the path to the folder containing the raspa output files
     :return: A dictionary with the isotherm data
     """
@@ -59,11 +58,10 @@ def get_isotherm_df_for_raspa_folder(path_to_folder):
     os.chdir(current_path)
     return df
 def get_isotherms_dict_for_multiple_raspa_folders(list_of_folder_paths):
-    '''
-    This function takes a list of paths to folders containing raspa output files and returns a dictionary with the isotherm data
+    """Build a dict of isotherm DataFrames keyed by folder basename for each run folder.
     :param list_of_folder_paths: list of paths to the folders containing the raspa output files
     :return: a dictionary with the isotherm data
-    '''
+    """
     import numpy as np
     from tqdm import tqdm
     isotherms_dict = {}
@@ -81,7 +79,7 @@ def get_isotherms_dict_for_multiple_raspa_folders(list_of_folder_paths):
 # TODO: make a function to do the isotherm decomposition for a given output folder that wraps around all the above
 
 def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
-    """* Description
+    """Fit Legendre polynomials to RASPA energies and return isosteric heat vs loading.
     :type path_to_folder: string
     :param path_to_folder: Path to the RASPA folder with all the output_*.data files
     :type T: float
@@ -91,8 +89,6 @@ def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
     :raises:
     :rtype: Number in box array, RASPA P.E array [K], Fitted P.E array[K], number in mol/kg, Isosteric heat (J/mol)
     """
-    """
-        """
     #* ###  #####  #######  #####  ####### ####### ######  ###  #####     #     # #######    #    #######
     #*  #  #     # #     # #     #    #    #       #     #  #  #     #    #     # #         # #      #
     #*  #  #       #     # #          #    #       #     #  #  #          #     # #        #   #     #
@@ -100,8 +96,6 @@ def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
     #*  #        # #     #       #    #    #       #   #    #  #          #     # #       #######    #
     #*  #  #     # #     # #     #    #    #       #    #   #  #     #    #     # #       #     #    #
     #* ###  #####  #######  #####     #    ####### #     # ###  #####     #     # ####### #     #    #
-    """
-        """
     # * Python code to read the RASPA output and calulate the isosteric heat of adsorption
     # * by regressing <U> vs <N>
     # * This code uses Legendre polynomials to do the same
@@ -162,9 +156,7 @@ def get_isos_fit_for_raspa_folder(path_to_folder, T, order):
     return df
 
 def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
-    """
-    It takes a list of folder paths, and a temperature, and returns a dictionary of the
-    isosteric heat fits for each folder
+    """Run get_isos_fit_for_raspa_folder on each folder and return a path-keyed dict.
     
     :param list_of_folder_paths: a list of strings, each string being the path to a folder
     containing RASPA output files
@@ -210,8 +202,7 @@ def get_isos_fit_for_multiple_raspa_folders(list_of_folder_paths, T, order):
 #         atoms_list.append(atoms)
 #     return atoms_list
 def get_atoms_list_for_pdb(pdb_file, index_list=None, symbol_map=None):
-    """
-    It reads a RASPA pdb file and returns a list of ASE atoms objects
+    """Read selected frames from a RASPA trajectory PDB into a list of ASE Atoms.
     
     :param pdb_file: the name of the pdb file
     :param index_list: a list of indices of the configurations you want to extract from the pdb file. If
@@ -260,8 +251,7 @@ def get_atoms_list_for_pdb(pdb_file, index_list=None, symbol_map=None):
     return atoms_list
 def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, natoms_per_molecule=1, index_list=None, symbol_map=None):
 
-    """
-    Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell.
+    """Count adsorbates per region after wrapping PDB coordinates into one unit cell.
 
     :param pdb_file: the pdb file you want to analyze
     :param regions_cluster: the region map for a single unit cell
@@ -328,7 +318,7 @@ def apply_region_map_to_raspa_pdb_wrapped(pdb_file, regions_cluster, unit_cell, 
 # TODO: Implement for natoms > 1
 def apply_region_map_to_raspa_pdb(pdb_file, regions_cluster_super, natoms_per_molecule=1, index_list=None):
     """
-    It takes a pdb file and a region map and returns a dictionary of the number of atoms in each region
+    Count adsorbates per segmentation region using a supercell region map on PDB frames.
     
     :param pdb_file: the pdb file you want to analyze
     :param regions_cluster_super: the supercell regions map
@@ -370,8 +360,7 @@ def apply_region_map_to_raspa_pdb(pdb_file, regions_cluster_super, natoms_per_mo
 
 def block_pockets_at_random_and_write(file_path, rag, ase_atoms, random_seed=123):
     """
-    > This function takes a graph, ase atoms object, and a file path, and writes a file with the
-    fractional coordinates of the centroids of the pockets in the graph, and the radius of the pockets
+    Write RASPA blocking spheres for a random fraction of each RAG pocket type.
     
     :param file_path: the path to the file you want to write the blocking information to
     :param rag: the networkx graph object
@@ -409,8 +398,7 @@ def block_pockets_at_random_and_write(file_path, rag, ase_atoms, random_seed=123
 
 
 def block_specific_pockets_and_write(file_path, rag, ase_atoms, pocket_ids_to_block):
-    """
-    Takes specific pocket IDs and writes their blocking information to a file.
+    """Write RASPA blocking spheres for selected RAG pocket node IDs.
     
     :param file_path: the path to the file you want to write the blocking information to
     :param rag: the networkx graph object
