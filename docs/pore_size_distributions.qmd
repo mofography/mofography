@@ -115,14 +115,18 @@ print(f"PBC pockets: {len(seg['maxima_pbc'])} | PBC groups: {n_pbc_groups}")
 
 We sweep probe radii and count **PBC-complete pocket groups** that still percolate (via `compute_accessible_psd_from_results`, same winding logic as `compute_psd_global_accessible`).
 
+Probe radii are taken from the **Bondi van der Waals table** (the same CRC/Bondi table mofography uses for atoms, `mofography.vdw_radii.CRC_VDW_RADII_PM`), by **element name**: H 1.20, He 1.40, N 1.55, Ar 1.88 Å. Any of these can be the probe (nitrogen is the usual choice for textural properties, helium and hydrogen are common too), as long as the radius matches the name you report and you use it consistently across properties. For this tutorial the choice only matters for contrast: in Cu-BTC, H, He and N all reach every pocket, while Ar is large enough to be blocked from the small cages.
+
 ```{python}
 regions = seg["regions"]
 void_voxels = int((regions != 0).sum())
-probe_candidates = [1.2, 2.0, 2.5, 3.0, 3.5]
+from mofography.vdw_radii import CRC_VDW_RADII_PM
+probe_names = ["H", "He", "N", "Ar"]
+probe_candidates = [float(CRC_VDW_RADII_PM[n]) / 100.0 for n in probe_names]  # Å, Bondi table
 
-print(f"{'probe (Å)':>10}  {'PBC groups acc':>16}  {'void frac acc':>14}")
+print(f"{'probe':>6} {'r (Å)':>6}  {'PBC groups acc':>16}  {'void frac acc':>14}")
 accessible_rows = []
-for pr in probe_candidates:
+for name, pr in zip(probe_names, probe_candidates):
     out = mgr.compute_accessible_psd_from_results(
         seg, atoms, pr, bin_edges=bins,
         samples_per_region=num_samples_per_region, accessible_only=True,
@@ -135,19 +139,20 @@ for pr in probe_candidates:
     acc_vox = int(np.isin(regions, list(acc_fragments)).sum())
     void_frac = acc_vox / void_voxels
     accessible_rows.append((pr, acc_groups, void_frac))
-    print(f"{pr:10.1f}  {acc_groups:5d} / {n_pbc_groups:5d}      {void_frac:14.4f}")
+    print(f"{name:>6} {pr:6.2f}  {acc_groups:5d} / {n_pbc_groups:5d}      {void_frac:14.4f}")
 
-# 2.0 Å: small tetrahedral pockets (windows ~2 Å) drop out; large/medium cages remain.
-probe_radius = 2.0
+# Ar (Bondi 1.88 Å): small tetrahedral pockets drop out; large/medium cages remain.
+probe_name = "Ar"
+probe_radius = float(CRC_VDW_RADII_PM[probe_name]) / 100.0
 acc_groups, void_frac = next(r[1:] for r in accessible_rows if r[0] == probe_radius)
 print(
-    f"\nUsing probe_radius = {probe_radius} Å: "
+    f"\nUsing {probe_name} probe, radius = {probe_radius:.2f} Å: "
     f"{acc_groups}/{n_pbc_groups} PBC pocket groups accessible, "
-    f"accessible void fraction {void_frac:.4f} (vs 1.0000 at 1.2 Å He)."
+    f"accessible void fraction {void_frac:.4f} (vs 1.0000 for a small probe)."
 )
 ```
 
-At **3.5 Å** nothing percolates (void fraction 0); at **1.2 Å** everything does. **2.0 Å** removes the eight small-cage PBC groups while keeping the medium and large cages—clear contrast for accessible PSDs.
+H, He and N reach every pocket (void fraction 1). **Ar (1.88 Å)** removes the eight small-cage PBC groups while keeping the medium and large cages—clear contrast for accessible PSDs.
 
 ## Step 3: Global PSD — all void vs accessible (peak-normalized)
 
@@ -180,7 +185,7 @@ fig_global.add_trace(go.Scatter(
 ))
 fig_global.add_trace(go.Scatter(
     x=x_gg, y=y_acc, mode="lines",
-    name=f"Global — accessible (probe {probe_radius} Å)",
+    name=f"Global — accessible ({probe_name}, {probe_radius:.2f} Å)",
     line=dict(width=2.5, dash="dash"),
 ))
 for xpk, label in [(pk_all, f"{pk_all:.1f} Å"), (pk_acc, f"{pk_acc:.1f} Å")]:
@@ -198,12 +203,12 @@ fig_global.update_layout(
 )
 fig_global.write_image("tutorial_images/psd_global_cubtc.png", width=900, height=480)
 print(f"Global peak (all void): {pk_all:.2f} Å — dominated by large cages")
-print(f"Global peak (accessible @ {probe_radius} Å): {pk_acc:.2f} Å")
+print(f"Global peak (accessible @ {probe_name} {probe_radius:.2f} Å): {pk_acc:.2f} Å")
 ```
 
 ![Cu-BTC global PSD: all void vs probe-accessible](tutorial_images/psd_global_cubtc.png)
 
-The global all-void curve peaks near **12.6 Å**; the **~5.6 Å small-cage mode is absent** because those pockets contribute little volume. Accessible global PSD at 2.0 Å peaks among the remaining large cages (small pockets already non-percolating).
+The global all-void curve peaks near **12.6 Å**; the **~5.6 Å small-cage mode is absent** because those pockets contribute little volume. Accessible global PSD with the Ar probe peaks among the remaining large cages (small pockets already non-percolating).
 
 ## Step 4: Pocket-wise PSD — three cage families
 
@@ -286,7 +291,7 @@ pocket_psds_acc = mgr.compute_psds_pocketwise_accessible(
     probe_radius=probe_radius,
     num_samples_per_region=num_samples_per_region,
     bins=bins,
-    material=f"Cu-BTC — accessible @ {probe_radius} Å",
+    material=f"Cu-BTC — accessible @ {probe_name} {probe_radius:.2f} Å",
 )
 # Keys are fragment region ids in seg["regions"], not regions_pbc labels.
 print(f"Accessible fragment regions with PSDs: {len(pocket_psds_acc)}")
@@ -314,7 +319,7 @@ for fam in sorted(acc_family_hist.keys()):
     )
 
 fig_acc.update_layout(
-    title=f"Cu-BTC: accessible pocket-wise PSD (probe {probe_radius} Å, peak-normalized)",
+    title=f"Cu-BTC: accessible pocket-wise PSD ({probe_name} probe {probe_radius:.2f} Å, peak-normalized)",
     xaxis_title="Pore diameter (Å)",
     yaxis_title="-dV/dD, peak-normalized (a.u.)",
     template="plotly_white",
@@ -326,7 +331,7 @@ fig_acc.write_image("tutorial_images/psd_pocketwise_accessible_cubtc.png", width
 
 ![Cu-BTC accessible pocket-wise PSD](tutorial_images/psd_pocketwise_accessible_cubtc.png)
 
-All **small-cage** pockets are gone at 2.0 Å; only medium and large percolating groups remain (`compute_psds_pocketwise_accessible` drops non-percolating regions before sampling).
+All **small-cage** pockets are gone with the Ar probe; only medium and large percolating groups remain (`compute_psds_pocketwise_accessible` drops non-percolating regions before sampling).
 
 For pocket typing, run `enrich_segmentation_with_pocket_psds(seg, atoms)` to cache these pocket-wise histograms on `seg` before `assign_pocket_types` ([Pocket detection](pockets_detection.qmd)).
 
