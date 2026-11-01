@@ -1,6 +1,9 @@
 # get_psd_on_rag { #mofography.compute.get_psd_on_rag }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> RAG path-inflation PSD; Rust pocketwise PSD helpers are usually faster.
+
 ```python
 compute.get_psd_on_rag(rag, bins=None)
 ```
 
+Compute pocketwise pore size distributions on a RAG using path-based sphere inflation.

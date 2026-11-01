@@ -1,5 +1,7 @@
 # make_aromatic_rings_trace { #mofography.movies.make_aromatic_rings_trace }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Aromatic ring highlights for framework mesh scenes.
+
 ```python
 movies.make_aromatic_rings_trace(
     atoms,
@@ -9,7 +11,7 @@ movies.make_aromatic_rings_trace(
     n_circle_points=72,
     *,
     use_instanced=None,
-    n_template_segments=16,
+    n_template_segments=24,
 )
 ```
 

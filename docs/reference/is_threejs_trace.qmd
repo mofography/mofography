@@ -4,3 +4,4 @@
 viz_backend.is_threejs_trace(obj)
 ```
 
+Return whether ``obj`` is a native or tagged mofography Three.js trace dict.

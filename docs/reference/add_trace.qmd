@@ -4,3 +4,4 @@
 threejs_viz.add_trace(fig, trace)
 ```
 
+Add one Three.js trace dict to a Figure3D and return the figure.

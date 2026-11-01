@@ -4,3 +4,4 @@
 helper.compute_wall_cells(ase_atoms, spacing, wall_thickness=0.05)
 ```
 
+Return voxel counts per axis for a wall band of thickness ``wall_thickness`` times cell height.

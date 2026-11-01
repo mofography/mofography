@@ -1,5 +1,7 @@
 # plot_molecule_at_best_optuna_trials { #mofography.visualize.plot_molecule_at_best_optuna_trials }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Plot Optuna-optimized adsorbate geometries stored on RAG nodes; niche screening viz.
+
 ```python
 visualize.plot_molecule_at_best_optuna_trials(
     rag,
@@ -9,7 +11,7 @@ visualize.plot_molecule_at_best_optuna_trials(
 )
 ```
 
-This function plots a molecule using the best Optuna trials.
+Plot mesh traces for Optuna-optimized molecule geometries stored on RAG nodes.
 
 
 

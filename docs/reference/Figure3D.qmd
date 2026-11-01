@@ -1,4 +1,6 @@
 # Figure3D { #mofography.threejs_viz.Figure3D }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Alias for MovieFigure; primary Three.js figure type in tutorials and notebooks.
+
 `threejs_viz.Figure3D`
 

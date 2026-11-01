@@ -4,8 +4,7 @@
 helper.zoom_grid(grid, zoom_factor)
 ```
 
-It takes a 2D array and a zoom factor, and returns a 2D array that is the original array zoomed by
-the zoom factor
+Resample a grid with periodic wrap (``grid-wrap``) via scipy zoom, wrapped as a Dask array.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

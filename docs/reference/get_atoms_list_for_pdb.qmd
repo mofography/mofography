@@ -4,7 +4,7 @@
 raspa_helper.get_atoms_list_for_pdb(pdb_file, index_list=None, symbol_map=None)
 ```
 
-It reads a RASPA pdb file and returns a list of ASE atoms objects
+Read selected frames from a RASPA trajectory PDB into a list of ASE Atoms.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

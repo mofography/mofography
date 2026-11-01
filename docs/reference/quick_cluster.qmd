@@ -1,5 +1,7 @@
 # quick_cluster { #mofography.workflow.quick_cluster }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> One-call Python dgrid + geometry-JS clustering; docs steer to explicit Rust steps. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 workflow.quick_cluster(
     ase_atoms,
@@ -27,8 +29,7 @@ workflow.quick_cluster(
 )
 ```
 
-It takes in a material (in the form of an ASE atoms object), and returns a list of objects that you
-can specify in the list_return_strings argument.
+Run the legacy Python dgrid segmentation and geometry-JS clustering pipeline with optional figures.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

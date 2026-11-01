@@ -4,3 +4,4 @@
 helper.check_wall_per_dim(maxima, ase_atoms, spacing, wall_thickness=0.075)
 ```
 
+Like ``check_wall`` but return per-axis wall flags (shape N×3) instead of a single boolean.

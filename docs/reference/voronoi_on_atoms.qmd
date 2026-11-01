@@ -4,7 +4,7 @@
 analyze.voronoi_on_atoms(ase_atoms, points=None)
 ```
 
-It takes an ASE atoms object and returns a freud Voronoi object
+Build a freud Voronoi neighbor list for ASE atomic positions in the periodic cell.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

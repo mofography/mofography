@@ -1,5 +1,7 @@
 # embedded_movie_dict_from_snapshots { #mofography.movies.embedded_movie_dict_from_snapshots }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Compact legacy devtools viewer format (positions and radii only). Use `build_fixed_framework_movie` instead.
+
 ```python
 movies.embedded_movie_dict_from_snapshots(
     snapshots,

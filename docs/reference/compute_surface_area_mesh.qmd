@@ -1,5 +1,7 @@
 # compute_surface_area_mesh { #mofography.compute.compute_surface_area_mesh }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Mesh surface entry on a raw dgrid; usually call mesh_winding on results instead. Use `compute_surface_area_mesh_winding` instead.
+
 ```python
 compute.compute_surface_area_mesh(
     results_dict,

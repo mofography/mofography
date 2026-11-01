@@ -10,3 +10,4 @@ movies.make_connections_trace(
 )
 ```
 
+Build connection line segments and node markers from a segmentation dict.

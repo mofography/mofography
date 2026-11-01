@@ -1,26 +1,12 @@
 # sgraph_from_atoms { #mofography.analyze.sgraph_from_atoms }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Standard NetworkX bond graph from covalent_bonds on ASE Atoms.
+
 ```python
 analyze.sgraph_from_atoms(ase_atoms, node_props_dict=None, edge_props_dict=None)
 ```
 
-It takes an ase atoms object and returns a networkx graph object with the nodes and edges
-corresponding to the atoms and bonds in the atoms object. 
-
-The function also takes two optional arguments: 
-
-1. node_props_dict: A dictionary of node properties. The keys are the names of the properties and
-the values are the values of the properties. The values should be a list of the same length as the
-number of atoms in the atoms object. 
-
-2. edge_props_dict: A dictionary of edge properties. The keys are the names of the properties and
-the values are the values of the properties. The values should be a list of the same length as the
-number of bonds in the atoms object. 
-
-If the node_props_dict or edge_props_dict are not provided, the function will use the default set of
-properties. 
-
-The default set of node properties are:
+Build a NetworkX bond graph from ``ase_atoms.info['covalent_bonds']`` with optional node/edge props.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

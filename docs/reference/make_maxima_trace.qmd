@@ -11,3 +11,4 @@ movies.make_maxima_trace(
 )
 ```
 
+Build internal, periodic, and PBC maxima point traces from a segmentation dict.

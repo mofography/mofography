@@ -14,8 +14,7 @@ visualize.mesh_for_atoms(
 )
 ```
 
-> It takes an ASE atoms object and returns a trimesh object that can be rendered in a Jupyter
-notebook
+Build a ball-and-stick trimesh (or Scene) from an ASE atoms object and optional bonds.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

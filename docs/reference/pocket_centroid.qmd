@@ -4,3 +4,4 @@
 pocket_framework_env.pocket_centroid(void_cart)
 ```
 
+Return the Cartesian centroid (mean position) of void sample points.

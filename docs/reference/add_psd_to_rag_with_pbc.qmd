@@ -1,5 +1,7 @@
 # add_psd_to_rag_with_pbc { #mofography.compute.add_psd_to_rag_with_pbc }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Split into add_csd_to_rag_with_pbc and add_pocket_psd_to_rag_with_pbc. Use `add_csd_to_rag_with_pbc` instead.
+
 ```python
 compute.add_psd_to_rag_with_pbc(
     rag,
@@ -12,4 +14,4 @@ compute.add_psd_to_rag_with_pbc(
 )
 ```
 
-Deprecated: calls add_csd_to_rag_with_pbc and optionally add_pocket_psd_to_rag_with_pbc.
+Attach PBC CSD and optional pocket PSDs to RAG nodes via legacy combined entry point.

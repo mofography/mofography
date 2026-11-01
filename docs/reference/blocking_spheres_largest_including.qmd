@@ -1,5 +1,7 @@
 # blocking_spheres_largest_including { #mofography.raspa_helper.blocking_spheres_largest_including }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> PBC-consistent Gelb-Gubbins including spheres for inaccessible pockets.
+
 ```python
 raspa_helper.blocking_spheres_largest_including(
     results,

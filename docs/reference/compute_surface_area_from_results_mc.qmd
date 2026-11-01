@@ -1,5 +1,7 @@
 # compute_surface_area_from_results_mc { #mofography.compute.compute_surface_area_from_results_mc }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Compatibility router to MC winding/lattice surface helpers. Use `compute_surface_area_mc_winding` instead.
+
 ```python
 compute.compute_surface_area_from_results_mc(
     results_dict,
@@ -15,4 +17,4 @@ compute.compute_surface_area_from_results_mc(
 )
 ```
 
-Deprecated: use :func:`compute_surface_area_mc_winding` or ``_mc_lattice``.
+Route Monte Carlo shell surface area from a segmentation results dict.

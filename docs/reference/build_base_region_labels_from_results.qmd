@@ -4,3 +4,4 @@
 winding_percolation.build_base_region_labels_from_results(results)
 ```
 
+Build base-node to region-label mapping from segmentation results.

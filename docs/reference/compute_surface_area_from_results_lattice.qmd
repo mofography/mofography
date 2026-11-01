@@ -1,5 +1,7 @@
 # compute_surface_area_from_results_lattice { #mofography.compute.compute_surface_area_from_results_lattice }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Thin wrapper kept for old notebooks referencing lattice mesh area. Use `compute_surface_area_mesh_lattice` instead.
+
 ```python
 compute.compute_surface_area_from_results_lattice(
     results_dict,
@@ -10,4 +12,4 @@ compute.compute_surface_area_from_results_lattice(
 )
 ```
 
-Deprecated alias for :func:`compute_surface_area_mesh_lattice`.
+Forward to :func:`compute_surface_area_mesh_lattice` for lattice-accessible mesh area.

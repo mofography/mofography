@@ -1,5 +1,7 @@
 # read_cif_to_ase { #mofography.cif_io.read_cif_to_ase }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Fast Rust CIF reader with optional Wyckoff dedupe; preferred file CIF I/O.
+
 ```python
 cif_io.read_cif_to_ase(path, *, on_large_cif_slow_ase_warning=None)
 ```

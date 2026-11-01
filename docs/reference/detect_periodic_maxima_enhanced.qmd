@@ -1,5 +1,7 @@
 # detect_periodic_maxima_enhanced { #mofography.compute.detect_periodic_maxima_enhanced }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Heavier maxima pipeline with extra merging; direct variant is default in segmentation. Use `detect_periodic_maxima_direct` instead.
+
 ```python
 compute.detect_periodic_maxima_enhanced(
     distance_grid,

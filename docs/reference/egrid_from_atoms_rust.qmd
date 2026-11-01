@@ -1,5 +1,7 @@
 # egrid_from_atoms_rust { #mofography.rust_fun.egrid_from_atoms_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Single-channel Rust energy grid; superseded for screening by tricubic 8-channel build.
+
 ```python
 rust_fun.egrid_from_atoms_rust(
     ase_atoms,

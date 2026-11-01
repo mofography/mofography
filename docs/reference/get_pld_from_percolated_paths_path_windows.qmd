@@ -1,6 +1,9 @@
 # get_pld_from_percolated_paths_path_windows { #mofography.compute.get_pld_from_percolated_paths_path_windows }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Old RAG-path PLD helper; use the winding PLD instead. Use `find_pore_limiting_radius_winding` instead.
+
 ```python
 compute.get_pld_from_percolated_paths_path_windows(paths, path_windows)
 ```
 
+Return PLD as twice the smallest path-limiting window radius across the given paths.

@@ -1,5 +1,7 @@
 # do_periodic_segmentation { #mofography.compute.do_periodic_segmentation }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Slow Python segmentation; not kept up to date. Use `do_periodic_segmentation_rust` instead.
+
 ```python
 compute.do_periodic_segmentation(
     dgrid,
@@ -19,3 +21,4 @@ compute.do_periodic_segmentation(
 )
 ```
 
+Full periodic watershed segmentation pipeline in pure Python/Dask.

@@ -4,7 +4,7 @@
 compute.get_region_props_for_regions(regions)
 ```
 
-It takes a list of regions and returns a list of region properties
+Return skimage regionprops for a labeled 3D region array.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

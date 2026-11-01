@@ -1,5 +1,7 @@
 # setup_poisson_spectral_gpu { #mofography.compute.setup_poisson_spectral_gpu }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> GPU variant of spectral Poisson setup; CPU setup is the usual path.
+
 ```python
 compute.setup_poisson_spectral_gpu(atoms, grid_shape)
 ```

@@ -1,5 +1,7 @@
 # egrid_from_atoms2 { #mofography.compute.egrid_from_atoms2 }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Dask vdW energy grid for clustering; Rust tricubic grid is more accurate for screening. Use `egrid_tricubic_from_atoms_rust` instead.
+
 ```python
 compute.egrid_from_atoms2(
     ase_atoms,
@@ -13,7 +15,7 @@ compute.egrid_from_atoms2(
 )
 ```
 
-> It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid.
+Sample vdW interaction energies on a grid (Dask); prefer Rust tricubic for production accuracy.
 
 The function is a bit long, but it's not too complicated.
 

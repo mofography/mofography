@@ -1,6 +1,9 @@
 # find_pore_limiting_radius2 { #mofography.compute.find_pore_limiting_radius2 }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Lattice method, not recommended. Use `find_pore_limiting_radius_winding` instead.
+
 ```python
 compute.find_pore_limiting_radius2(distance_grid)
 ```
 
+Like :func:`find_pore_limiting_radius` but uses ``check_percolation_periodic2`` percolation tests.

@@ -11,3 +11,4 @@ winding_percolation.check_percolation_winding(
 )
 ```
 
+Return True if winding percolation occurs on any axis at the given threshold.

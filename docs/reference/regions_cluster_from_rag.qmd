@@ -1,5 +1,7 @@
 # regions_cluster_from_rag { #mofography.pocket_typing.regions_cluster_from_rag }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Paint types via RAG node labels[0]; older clustering layout. Use `regions_cluster_from_rep_types` instead.
+
 ```python
 pocket_typing.regions_cluster_from_rag(regions, rag, label_to_type)
 ```

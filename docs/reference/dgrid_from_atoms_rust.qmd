@@ -1,5 +1,7 @@
 # dgrid_from_atoms_rust { #mofography.rust_fun.dgrid_from_atoms_rust }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default Rust distance grid; first step of the main segmentation workflow.
+
 ```python
 rust_fun.dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)
 ```

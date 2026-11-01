@@ -1,4 +1,6 @@
 # plot_maxima_3js { #mofography.threejs_viz.plot_maxima_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_maxima for Plotly-parity naming. Use `plot_maxima` instead.
+
 `threejs_viz.plot_maxima_3js`
 

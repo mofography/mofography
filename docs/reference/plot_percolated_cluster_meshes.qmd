@@ -1,5 +1,7 @@
 # plot_percolated_cluster_meshes { #mofography.threejs_viz.plot_percolated_cluster_meshes }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Percolation cluster isosurface meshes at a probe radius.
+
 ```python
 threejs_viz.plot_percolated_cluster_meshes(
     percolation_history,

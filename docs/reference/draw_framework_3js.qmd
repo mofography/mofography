@@ -1,4 +1,6 @@
 # draw_framework_3js { #mofography.threejs_viz.draw_framework_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of draw_framework for Plotly-parity naming. Use `draw_framework` instead.
+
 `threejs_viz.draw_framework_3js`
 

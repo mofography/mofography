@@ -1,5 +1,7 @@
 # export_staged_figure_to_mp4 { #mofography.export_mp4.export_staged_figure_to_mp4 }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Primary Kaleido plus ffmpeg MP4 export via staged trace visibility.
+
 ```python
 export_mp4.export_staged_figure_to_mp4(
     fig,

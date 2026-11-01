@@ -1,5 +1,7 @@
 # find_rings_in_ase_atoms { #mofography.analyze.find_rings_in_ase_atoms }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Simple cycle_basis rings from Voronoi bonds; less aromatic-aware than compute_aromatic_cycles. Use `compute_aromatic_cycles` instead.
+
 ```python
 analyze.find_rings_in_ase_atoms(
     mat_atoms,
@@ -8,8 +10,7 @@ analyze.find_rings_in_ase_atoms(
 )
 ```
 
-The function `find_rings_in_ase_atoms` takes an ASE atoms object, identifies cycles in the
-corresponding graph, filters cycles based on length, and optionally returns unique cycles.
+Find rings in an ASE structure via Voronoi bonds, ``sgraph_from_atoms``, and NetworkX ``cycle_basis``.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -1,5 +1,7 @@
 # MovieFigure { #mofography.threejs_viz.MovieFigure }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Low-level Three.js scene and movie builder; same object as Figure3D.
+
 ```python
 threejs_viz.MovieFigure(
     data=None,
@@ -25,8 +27,10 @@ Plotly-like API for building Three.js movie scenes.
 | [add_surface](#mofography.threejs_viz.MovieFigure.add_surface) | Add segmentation isosurface mesh (static). |
 | [add_windows](#mofography.threejs_viz.MovieFigure.add_windows) | Add window points between connected pores (internal + optional periodic). |
 | [export_png](#mofography.threejs_viz.MovieFigure.export_png) | Export the current static scene to PNG. |
+| [save_html](#mofography.threejs_viz.MovieFigure.save_html) | Write standalone HTML (alias of :meth:`to_html`). |
 | [set_lights](#mofography.threejs_viz.MovieFigure.set_lights) | Set Three.js scene lighting (embedded in exported HTML). |
 | [show](#mofography.threejs_viz.MovieFigure.show) | Display the figure. |
+| [to_html](#mofography.threejs_viz.MovieFigure.to_html) | Write the scene to a standalone HTML file. |
 
 ### add_cell { #mofography.threejs_viz.MovieFigure.add_cell }
 
@@ -147,6 +151,14 @@ width, height
 wait_ms
     Milliseconds to wait for WebGL scene load before capture.
 
+### save_html { #mofography.threejs_viz.MovieFigure.save_html }
+
+```python
+threejs_viz.MovieFigure.save_html(path, **kwargs)
+```
+
+Write standalone HTML (alias of :meth:`to_html`).
+
 ### set_lights { #mofography.threejs_viz.MovieFigure.set_lights }
 
 ```python
@@ -189,26 +201,43 @@ explicit
 ### show { #mofography.threejs_viz.MovieFigure.show }
 
 ```python
-threejs_viz.MovieFigure.show(renderer='notebook', *, port=None)
+threejs_viz.MovieFigure.show(
+    renderer=None,
+    *,
+    height=600,
+    width='100%',
+    port=None,
+)
 ```
 
 Display the figure.
 
+``renderer="notebook"`` shows inline (iframe srcdoc); ``"browser"``
+serves on ``127.0.0.1`` and opens the system browser. Default: inline
+inside a Jupyter kernel, browser otherwise.
 
+### to_html { #mofography.threejs_viz.MovieFigure.to_html }
 
-#### Parameters {.doc-section .doc-section-parameters}
+```python
+threejs_viz.MovieFigure.to_html(
+    path,
+    template='threejs_default',
+    sidecar=False,
+    fps=20.0,
+    point_size=0.16,
+    pack_binary=False,
+    background=None,
+)
+```
 
-renderer
-    ``"notebook"`` — display inline in Jupyter output cell (default).
-    ``"browser"`` — serve HTML on ``127.0.0.1`` (random free port) and
-    open in the system browser (Plotly-style). Also writes a temp HTML
-    backup and prints its path.
-port
-    Optional fixed port for ``renderer="browser"`` (default: auto).
+Write the scene to a standalone HTML file.
 
+``background`` (opt-in; default ``None`` keeps the current look) sets the initial
+viewer background: a solid colour ``"#0b1d3a"``, ``("linear", c1, c2[, ...])``
+(left-to-right), ``("radial", centre, edge)`` or ``{"type": ..., "colors": [...]}``.
+The Bg picker / gradient buttons still work (they override it) and Export PNG
+captures it (it is drawn in the WebGL scene).
 
-
-#### Returns {.doc-section .doc-section-returns}
-
-str or None
-    Viewer URL when ``renderer="browser"``, else None.
+``pack_binary=True`` (opt-in) stores large numeric arrays (positions, indices,
+colors, radii, sizes) as base64 float32/uint16/uint32 blobs instead of JSON
+number lists; the viewer decodes them on load. Typically ~3-4x smaller files.

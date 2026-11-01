@@ -1,5 +1,7 @@
 # plot_snapshot_raspa_pdb { #mofography.visualize.plot_snapshot_raspa_pdb }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Quick Plotly snapshot of framework plus guest atoms from a RASPA-style PDB frame.
+
 ```python
 visualize.plot_snapshot_raspa_pdb(
     pdb_file,

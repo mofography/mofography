@@ -1,5 +1,7 @@
 # make_periodic_graph_from_binary_grid { #mofography.winding_percolation.make_periodic_graph_from_binary_grid }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> 2D toy lattice helper for winding demos and tests, not MOF segmentation graphs.
+
 ```python
 winding_percolation.make_periodic_graph_from_binary_grid(
     grid,
@@ -9,8 +11,7 @@ winding_percolation.make_periodic_graph_from_binary_grid(
 )
 ```
 
-Convert a binary 2D lattice into the directed periodic graph expected by the
-winding-number percolation routines.
+Convert a binary 2D periodic lattice into a MultiDiGraph for winding percolation.
 
 
 

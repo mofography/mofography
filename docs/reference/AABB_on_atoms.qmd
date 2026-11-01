@@ -4,7 +4,7 @@
 compute.AABB_on_atoms(ase_atoms, points=None)
 ```
 
-> This function takes an ASE atoms object and returns a freud AABBQuery object
+Build a freud AABBQuery neighbor tree for an ASE structure and optional query points.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

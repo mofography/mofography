@@ -1,5 +1,7 @@
 # block_pockets_at_random_and_write { #mofography.raspa_helper.block_pockets_at_random_and_write }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Old RAG-centroid blocking file writer; superseded by segmentation-based spheres. Use `blocking_spheres_for_probe_radius` instead.
+
 ```python
 raspa_helper.block_pockets_at_random_and_write(
     file_path,
@@ -9,8 +11,7 @@ raspa_helper.block_pockets_at_random_and_write(
 )
 ```
 
-> This function takes a graph, ase atoms object, and a file path, and writes a file with the
-fractional coordinates of the centroids of the pockets in the graph, and the radius of the pockets
+Write RASPA blocking spheres for a random fraction of each RAG pocket type.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -7,6 +7,7 @@ rust_fun.compute_pore_sizes_pocketwise_rust(
     ase_atoms,
     samples_per_region=1000,
     probe_center_min_radius=None,
+    lis_regions=None,
 )
 ```
 

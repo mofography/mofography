@@ -4,3 +4,4 @@
 viz_backend.ensure_plotly_figure(fig, *, context='add_traces')
 ```
 
+Raise ``TypeError`` if ``fig`` is not a ``plotly.graph_objects.Figure``.

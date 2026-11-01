@@ -1,11 +1,12 @@
 # regions_cluster_from_rep_types { #mofography.pocket_typing.regions_cluster_from_rep_types }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Paint fragment voxel labels from rep→type map (env_cluster output path).
+
 ```python
 pocket_typing.regions_cluster_from_rep_types(regions, rep_to_type, pbc_groups)
 ```
 
-Paint the fragment ``regions`` grid from PBC group → rep → type.
+Paint a fragment label grid from PBC group → rep → type.
 
-Follows the same idea as ``mgr.compute.clustering_grid_from_regions``:
-each fragment label in a PBC group is assigned the type of that group's
-representative, not only the representative voxel label.
+Pass ``regions_pbc`` (when present) so surface colouring matches PBC-aware
+pocket footprints and ``max_r`` banding. Falls back to central-cell ``regions``.

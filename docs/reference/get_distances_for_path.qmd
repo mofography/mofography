@@ -10,8 +10,7 @@ compute.get_distances_for_path(
 )
 ```
 
-> For each grid point, find the nearest neighbors, and return the minimum distance to the nearest
-neighbor minus the covalent radius of the neighbor
+Minimum framework surface distance at each path voxel (neighbor query minus covalent radii).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

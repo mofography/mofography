@@ -4,6 +4,8 @@
 compute.add_window_info_to_rag(rag, connections)
 ```
 
+Add window radii and positions from the connection list to the RAG edges.
+
 It takes a RAG and a list of connections and adds the window information to the RAG as edge
 attributes
 

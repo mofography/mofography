@@ -4,8 +4,7 @@
 analyze.get_subset_atoms(ase_atoms, subset)
 ```
 
-It takes an ASE atoms object and a list of atom ids, and returns a new ASE atoms object containing
-only the atoms in the list
+Extract a bonded subgraph of ``ase_atoms`` as a new ASE Atoms object for the given atom indices.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

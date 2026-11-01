@@ -1,5 +1,7 @@
 # export_plotly_frames_to_mp4 { #mofography.export_mp4.export_plotly_frames_to_mp4 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> MP4 from Plotly frames API; use when fig.frames is populated. Use `export_staged_figure_to_mp4` instead.
+
 ```python
 export_mp4.export_plotly_frames_to_mp4(
     fig,

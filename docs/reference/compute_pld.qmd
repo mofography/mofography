@@ -1,5 +1,7 @@
 # compute_pld { #mofography.compute.compute_pld }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> One-shot PLD from CIF via Python dgrid and find_pore_limiting_radius. Use `find_pore_limiting_radius_winding` instead.
+
 ```python
 compute.compute_pld(path_to_cif, dgrid=None, kwargs={})
 ```

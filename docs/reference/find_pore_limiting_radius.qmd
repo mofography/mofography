@@ -1,6 +1,9 @@
 # find_pore_limiting_radius { #mofography.compute.find_pore_limiting_radius }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Lattice method, not recommended. Use `find_pore_limiting_radius_winding` instead.
+
 ```python
 compute.find_pore_limiting_radius(distance_grid)
 ```
 
+Binary-search the largest probe radius that still percolates (uses ``check_percolation_periodic``).

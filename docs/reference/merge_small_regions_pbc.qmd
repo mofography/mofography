@@ -1,5 +1,7 @@
 # merge_small_regions_pbc { #mofography.helper.merge_small_regions_pbc }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> PBC-aware small-region merging on full periodic label grids. Use `merge_small_regions` instead.
+
 ```python
 helper.merge_small_regions_pbc(labels, min_size)
 ```

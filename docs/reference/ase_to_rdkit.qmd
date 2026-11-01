@@ -1,5 +1,7 @@
 # ase_to_rdkit { #mofography.analyze.ase_to_rdkit }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Export ASE structures to RDKit mols when SMARTS or RDKit ring code is needed.
+
 ```python
 analyze.ase_to_rdkit(atoms)
 ```

@@ -4,8 +4,7 @@
 compute.add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape)
 ```
 
-> For each group of nodes that are connected by periodic boundary conditions, find the centroid of
-the group and add it to the graph as a node attribute.
+Add PBC-aware ``centroid_pbc`` coordinates to RAG nodes for each periodic image group.
 
 The function takes in a graph, a list of properties, a list of groups of nodes that are connected by
 periodic boundary conditions, an ASE atoms object, and the shape of the image.

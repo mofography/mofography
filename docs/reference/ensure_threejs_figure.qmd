@@ -4,3 +4,4 @@
 viz_backend.ensure_threejs_figure(fig, *, context='add_traces')
 ```
 
+Raise ``TypeError`` if ``fig`` is not a Three.js figure used by mofography.

@@ -1,5 +1,7 @@
 # compute_psds_pocketwise_rust { #mofography.rust_fun.compute_psds_pocketwise_rust }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Core Rust pocket-wise PSD sampler; used by segmentation helper and tutorials.
+
 ```python
 rust_fun.compute_psds_pocketwise_rust(
     dgrid,

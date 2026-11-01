@@ -1,5 +1,7 @@
 # estimate_h_from_percolation_history { #mofography.helper.estimate_h_from_percolation_history }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Heuristic h from percolation history; used in parameter-tuning notes. Use `select_percolation_threshold` instead.
+
 ```python
 helper.estimate_h_from_percolation_history(distance_grid)
 ```

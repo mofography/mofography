@@ -1,6 +1,9 @@
 # find_isomorphic_path_groups { #mofography.compute.find_isomorphic_path_groups }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Experimental path grouping.
+
 ```python
 compute.find_isomorphic_path_groups(list_of_paths, rag, cluster=True)
 ```
 
+Group channel paths whose RAG subgraphs are isomorphic (optional pre-clustering).

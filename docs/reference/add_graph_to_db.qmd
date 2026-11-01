@@ -4,8 +4,7 @@
 data.add_graph_to_db(db_path, graph)
 ```
 
-The function `add_graph_to_db` connects to a SQLite database and stores a compressed and pickled
-graph in it.
+Insert one gzip-pickled NetworkX (or similar) graph into a SQLite graphs table.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

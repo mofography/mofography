@@ -1,5 +1,7 @@
 # draw_framework { #mofography.threejs_viz.draw_framework }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Functional API for framework scatter or mesh traces (Three.js backend).
+
 ```python
 threejs_viz.draw_framework(
     ase_atoms,
@@ -13,3 +15,4 @@ threejs_viz.draw_framework(
 )
 ```
 
+Build Three.js framework trace(s) as scatter points or ball-and-stick mesh.

@@ -4,3 +4,4 @@
 viz_backend.tag_threejs_trace(trace)
 ```
 
+Mark a trace dict with the mofography Three.js backend tag and return it.

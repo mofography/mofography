@@ -4,8 +4,7 @@
 analyze.detect_smiles_in_mol(smiles_molecule, smiles_pattern)
 ```
 
-It takes a SMILES string for a molecule and a SMILES string for a pattern, and returns a list of
-dictionaries that map the nodes of the pattern to the nodes of the molecule
+Return subgraph-isomorphism maps from a SMILES pattern into a SMILES molecule graph.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

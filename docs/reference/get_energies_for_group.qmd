@@ -1,5 +1,7 @@
 # get_energies_for_group { #mofography.compute.get_energies_for_group }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older LJ voxel sampling for energy-based pocket typing; env_cluster is default now. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.get_energies_for_group(
     group,
@@ -14,3 +16,4 @@ compute.get_energies_for_group(
 )
 ```
 
+Sample Lennard-Jones energies at voxels in a PBC pocket group (legacy energy-based pocket typing).

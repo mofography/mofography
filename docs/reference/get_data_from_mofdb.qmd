@@ -1,5 +1,7 @@
 # get_data_from_mofdb { #mofography.data.get_data_from_mofdb }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Async MOFdb search download into a pandas DataFrame (main MOFdb entry point).
+
 ```python
 data.get_data_from_mofdb(
     url='https://mof.tech.northwestern.edu/mofs.json',
@@ -10,3 +12,4 @@ data.get_data_from_mofdb(
 )
 ```
 
+Download MOFdb search pages in parallel and return a combined results DataFrame.

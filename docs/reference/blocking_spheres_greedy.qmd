@@ -1,5 +1,7 @@
 # blocking_spheres_greedy { #mofography.raspa_helper.blocking_spheres_greedy }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Greedy cover without PBC distances; examples compare to largest_including.
+
 ```python
 raspa_helper.blocking_spheres_greedy(
     results,

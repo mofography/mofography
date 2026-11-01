@@ -1,11 +1,12 @@
 # get_rag_from_regions_and_grid { #mofography.compute.get_rag_from_regions_and_grid }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> skimage mean-color RAG builder; main flow builds RAGs from connections instead. Use `rag_from_connections` instead.
+
 ```python
 compute.get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None)
 ```
 
-> It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each
-region as a node property
+Build a skimage mean-color RAG from regions with centroid and optional maxima node properties.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

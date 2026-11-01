@@ -1,5 +1,7 @@
 # dgrid_from_atoms_gpu { #mofography.compute.dgrid_from_atoms_gpu }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> GPU distance grid experiment; Rust CPU path is the maintained default. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 compute.dgrid_from_atoms_gpu(
     ase_atoms,
@@ -8,6 +10,8 @@ compute.dgrid_from_atoms_gpu(
     block_size=10000,
 )
 ```
+
+Compute the distance grid on the GPU (alternative to the Rust `dgrid_from_atoms_rust`).
 
 The function `dgrid_from_atoms_gpu` calculates a distance grid based on atomic positions using GPU
 acceleration.

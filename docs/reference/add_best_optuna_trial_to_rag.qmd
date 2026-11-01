@@ -1,5 +1,7 @@
 # add_best_optuna_trial_to_rag { #mofography.compute.add_best_optuna_trial_to_rag }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Dask-parallel Optuna guest placement on RAG pockets; use serial variant when outer parallelization exists. Use `add_best_optuna_trial_to_rag_serial` instead.
+
 ```python
 compute.add_best_optuna_trial_to_rag(
     rag,
@@ -14,3 +16,4 @@ compute.add_best_optuna_trial_to_rag(
 )
 ```
 
+Run Optuna guest placement per pocket (Dask-parallel) and store best trials on RAG nodes.

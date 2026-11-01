@@ -1,5 +1,7 @@
 # update_results_with_percolation_history_winding { #mofography.winding_percolation.update_results_with_percolation_history_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Writes percolation_history_winding and pld_locations via percolation_results store.
+
 ```python
 winding_percolation.update_results_with_percolation_history_winding(
     results,
@@ -14,3 +16,4 @@ winding_percolation.update_results_with_percolation_history_winding(
 )
 ```
 
+Compute winding PLD and percolation history and store them on results.

@@ -1,11 +1,12 @@
 # make_pore_size_distribution_fig_from_rag { #mofography.visualize.make_pore_size_distribution_fig_from_rag }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Assemble a two-panel PSD figure from RAG graph attributes after get_psd_on_rag.
+
 ```python
 visualize.make_pore_size_distribution_fig_from_rag(rag)
 ```
 
-The function `make_pore_size_distribution_fig_from_rag` generates a plotly figure displaying pore
-size distribution and cumulative distribution from a given RAG.
+Return a Plotly figure with PDF and CDF pore size traces stored on the RAG graph.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

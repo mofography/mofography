@@ -4,6 +4,8 @@
 compute.compare_two_paths(p1, p2, rag)
 ```
 
+Compare two paths on a RAG.
+
 It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
 contains a node in the first path and a node in the second path
 

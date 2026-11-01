@@ -1,5 +1,7 @@
 # plot_aromatic_rings { #mofography.visualize.plot_aromatic_rings }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Plotly traces for aromatic ring outlines and fills; paired with compute_aromatic_cycles.
+
 ```python
 visualize.plot_aromatic_rings(
     ase_atoms,
@@ -9,23 +11,20 @@ visualize.plot_aromatic_rings(
 )
 ```
 
-It takes in a graph and a list of aromatic cycles, and returns a tuple of plotly traces that can be
-used to plot the aromatic cycles
+Plotly traces for aromatic ring outlines and semi-transparent fills.
 
-When ``isomorphic_aromatic_cycles`` is ``None``, cycles are computed via
-:func:`~mofography.analyze.compute_aromatic_cycles` (same detector as Three.js;
-see [bond-length tolerances](../aromatic_ring_detection.qmd)).
+When ``isomorphic_aromatic_cycles`` is ``None``, calls
+:func:`~mofography.analyze.compute_aromatic_cycles` (same path as Three.js;
+cached on ``ase_atoms.info["aromatic_cycles"]``).
 
 ## Parameters {.doc-section .doc-section-parameters}
 
-| Name                       | Type   | Description                                                                                                                                          | Default    |
-|----------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| sgraph                     |        | the sgraph object                                                                                                                                    | _required_ |
-| isomorphic_aromatic_cycles |        | a list of lists of node indices that are aromatic rings. If you don't have this, you can set it to None and the function will try to find it for you | `None`     |
-| highlight_color            |        | The color of the highlighted aromatic rings, defaults to lightskyblue (optional)                                                                     | _required_ |
+| Name                       | Type   | Description                                  | Default   |
+|----------------------------|--------|----------------------------------------------|-----------|
+| isomorphic_aromatic_cycles |        | atom-index rings, or ``None`` to auto-detect | `None`    |
 
 ## Returns {.doc-section .doc-section-returns}
 
-| Name   | Type   | Description                                          |
-|--------|--------|------------------------------------------------------|
-|        |        | A tuple of the data_circle and ring_highlight_traces |
+| Name   | Type   | Description                                |
+|--------|--------|--------------------------------------------|
+|        |        | tuple of outline + highlight Plotly traces |

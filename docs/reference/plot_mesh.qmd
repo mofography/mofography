@@ -4,7 +4,7 @@
 visualize.plot_mesh(mesh, stylize=False, **kwargs_plotly_mesh3d)
 ```
 
-It takes a trimesh object and returns a plotly mesh3d object.
+Convert a trimesh object (or list) to a Plotly Mesh3d trace with optional stylized lighting.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -4,6 +4,8 @@
 compute.apply_periodic_map(input_array, periodic_map)
 ```
 
+Relabel an integer array using a label-to-label map.
+
 It takes an array of integers and a dictionary that maps integers to integers, and returns an array
 of integers that is the result of applying the dictionary to the input array
 

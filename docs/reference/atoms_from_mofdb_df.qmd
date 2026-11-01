@@ -1,11 +1,12 @@
 # atoms_from_mofdb_df { #mofography.data.atoms_from_mofdb_df }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Parse MOFdb DataFrame CIF strings into ASE Atoms (MOFdb tutorials).
+
 ```python
 data.atoms_from_mofdb_df(mofdb_df)
 ```
 
-This function takes a MOFDB dataframe from get_data_from_mofdb routine, which has a column called 'cif' that contains CIF data as strings, and
-returns a list of ASE atoms objects
+Parse each MOFdb DataFrame ``cif`` column to ASE Atoms and attach ``info['name']`` from ``name``.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

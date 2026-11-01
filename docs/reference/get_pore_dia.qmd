@@ -1,6 +1,9 @@
 # get_pore_dia { #mofography.percolation_results.get_pore_dia }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Read stored pore_dia_winding or pore_dia_lattice payload from results.
+
 ```python
 percolation_results.get_pore_dia(results, method='winding')
 ```
 
+Return stored LCD/PLD/dfsd dict for winding or lattice, or None if absent.

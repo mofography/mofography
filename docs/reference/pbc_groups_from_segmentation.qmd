@@ -1,5 +1,7 @@
 # pbc_groups_from_segmentation { #mofography.compute.pbc_groups_from_segmentation }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Standard pocket PBC grouping extracted from periodic segmentation outputs.
+
 ```python
 compute.pbc_groups_from_segmentation(segmentation)
 ```

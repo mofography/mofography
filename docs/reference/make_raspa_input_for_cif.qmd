@@ -10,3 +10,4 @@ raspa_helper.make_raspa_input_for_cif(
 )
 ```
 
+Render simulation.input from a Jinja template and copy files into a run folder.
