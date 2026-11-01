@@ -1,76 +1,292 @@
 ---
 title: "Gallery"
-format: html
 toc: true
-image: tutorial_images/paper_mofography_workflow.png
+image: tutorial_images/gallery/cubtc_default.webp
 ---
 
-## Interactive 3D Scenes
+Interactive scenes you can rotate, slice, toggle layer by layer, and export. Each scene is a standalone HTML file made with mofography's Three.js backend (it loads Three.js from a CDN, so you need an internet connection). Click a picture to open the interactive version in a new tab.
 
-Explore pore structures with interactive visualizations. For the full Three.js experience, download and open locally.
+Every image below is a canvas-only capture of the same scene with different viewer settings: projection, exploded view, visible layers, framework style, and background. Open "Show code" next to a figure for the exact settings. Each one has the **viewer steps** (click through them in the interactive scene) and the one-line command that produced the image with [`scripts/dev/gallery_screenshot.py`](add_to_gallery.qmd#screenshots) (`--zoom` is the camera distance multiplier; the sidebar is hidden in all images).
 
-### IRMOF-1 — The Canonical MOF
+## Interactive scenes
 
-```{python}
-#| echo: false
-from ase.io import read
-from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
-from mofography.workflow import show_mof_plotly, enrich_segmentation_with_pocket_psds, assign_pocket_types
+### Cu-BTC (HKUST-1): everything in one scene
+
+[![Cu-BTC: framework and pore surface (distance-grid isosurface at 1.0 Å), default scene](tutorial_images/gallery/cubtc_default.webp)](interactive/cubtc_all_in_one_threejs.html){target="_blank"}
+
+[Open the interactive scene](interactive/cubtc_all_in_one_threejs.html){target="_blank"}. Toggle in the side panel: unit cell, framework atoms with bonds and aromatic rings, the **Pore surface (distance grid, isovalue 1.0 Å)** (the blue translucent layer: an isosurface of the distance grid, not a segmentation), **Regions (no PBC)** and **Regions (PBC-merged)** (the segmented, region-labelled surfaces), pocket types (`env_cluster`), local maxima, windows, the pore graph with internal and periodic nodes, and a percolated cluster. Companion Plotly charts: [surface area vs probe radius](interactive/cubtc_surface_area_plotly.html){target="_blank"} and [void volume vs probe radius](interactive/cubtc_void_volume_plotly.html){target="_blank"}.
+
+::: {.gallery-grid}
+
+::: {.gallery-item}
+![Orthographic projection, same view (+1 +1 +1) as the hero above.](tutorial_images/gallery/cubtc_ortho.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: click **Ortho**, set view direction to `1 1 1` and press **Set**. Ortho switches the viewer's lighting and shows a lighter blue than the perspective background.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/cubtc_all_in_one_threejs.html \
+  out.png --ortho --view 1 1 1 --zoom 1.15 --bg radial:#1d3b73:#040a1c
+```
+Perspective hero: same command without `--ortho`/`--bg`, `--view 1 1 1 --zoom 1.15`.
+:::
+:::
+
+::: {.gallery-item}
+![Exploded 0.6, orthographic: **Regions (PBC-merged)** pulled apart with the framework.](tutorial_images/gallery/cubtc_exploded_ortho.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: untick the pore surface, tick **Regions (PBC-merged)**, click **Ortho**, drag **Exploded** to 0.6, view direction `1 1 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/cubtc_all_in_one_threejs.html \
+  out.png --ortho --explode 0.6 --only Framework "Regions (PBC" \
+  --view 1 1 1 --zoom 1.2
+```
+:::
+:::
+
+::: {.gallery-item}
+![Framework only, space-filling (van der Waals spheres), white background.](tutorial_images/gallery/cubtc_spacefill_white.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: untick every layer except **Framework**, choose **Representation → Space-filling**, set **Bg** to `#ffffff` and press the solid (■) button.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/cubtc_all_in_one_threejs.html \
+  out.png --only Framework --repr space_filling --bg "#ffffff" \
+  --view 1 1 1 --zoom 1.15
+```
+:::
+:::
+
+::: {.gallery-item}
+![**Regions (PBC-merged)** only, transparent background (works on light and dark pages).](tutorial_images/gallery/cubtc_regions_pbc_transp.png)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: untick all layers except **Regions (PBC-merged)**, click the ⊡ (transparent) background button, then **Export PNG** (use PNG 2x for print).
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/cubtc_all_in_one_threejs.html \
+  out.png --only "Regions (PBC" --bg transparent --zoom 1.25
+```
+:::
+:::
+
+::: {.gallery-item}
+![**Pocket types (env_cluster)** surface with framework sticks, default dark navy background.](tutorial_images/gallery/cubtc_pockets.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: untick the pore surface, tick **Pocket types (env_cluster)**, choose **Representation → Stick**.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/cubtc_all_in_one_threejs.html \
+  out.png --only Framework "Pocket types" --repr stick --zoom 1.3
+```
+:::
+:::
+
+:::
+
+### NU-1000
+
+[![NU-1000: pocket types, windows and framework, orthographic down the pore axis](tutorial_images/gallery/nu1000_default.webp)](interactive/nu1000_pockets_windows_threejs.html){target="_blank"}
+
+[Pockets and windows](interactive/nu1000_pockets_windows_threejs.html){target="_blank"} (hexagonal mesopore, triangular micropores) and [percolation history](interactive/nu1000_percolation_history_threejs.html){target="_blank"}: the percolating cluster for probe radii of 1 to 4 Å, one toggle per probe. The hero shows pocket types, framework and internal windows (red dots), seen down the c axis.
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code (hero)
+Viewer: untick everything except **Framework**, **Pocket types (env_cluster)** and **Internal windows**, click **Ortho**, view direction `0 0 1` and **Set**.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html \
+  out.png --ortho --only Framework "Pocket types" "Internal windows" \
+  --view 0 0 1 --zoom 0.85
+```
+:::
+
+::: {.gallery-grid}
+
+::: {.gallery-item}
+![Exploded 0.6, orthographic: framework and pocket types spread apart.](tutorial_images/gallery/nu1000_exploded_ortho.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: tick only **Framework** and **Pocket types (env_cluster)**, click **Ortho**, **Exploded** slider to 0.6, view direction `0 0 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html \
+  out.png --ortho --explode 0.6 --only Framework "Pocket types" \
+  --view 0 0 1 --zoom 0.95
+```
+:::
+:::
+
+::: {.gallery-item}
+![Framework only, space-filling, white background.](tutorial_images/gallery/nu1000_spacefill_white.png)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: untick all layers except **Framework**, **Representation → Space-filling**, **Bg** `#ffffff` (■), view direction `0 0 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html \
+  out.png --only Framework --repr space_filling --bg "#ffffff" \
+  --view 0 0 1 --zoom 1.05
+```
+:::
+:::
+
+::: {.gallery-item}
+![Pore graph (internal nodes and connections) over framework sticks, orthographic.](tutorial_images/gallery/nu1000_graph.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: tick **Framework**, **Internal nodes**, **Internal connections** only; **Representation → Stick**; click **Ortho**; view `0 0 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html \
+  out.png --ortho --only Framework "Internal nodes" "Internal connections" \
+  --repr stick --view 0 0 1 --zoom 0.85
+```
+:::
+:::
+
+::: {.gallery-item}
+![Percolating cluster for probe r = 3 Å (percolation history scene), orthographic, default white background.](tutorial_images/gallery/nu1000_percolation.png)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer (percolation scene): untick **Percolation windows**, keep the r = 3 Å cluster, click **Ortho**, view `0 0 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/nu1000_percolation_history_threejs.html \
+  out.png --ortho --off "Percolation windows" --view 0 0 1 --zoom 0.85
+```
+:::
+:::
+
+:::
+
+### More materials
+
+#### LTA
+
+[![LTA: regions around the sodalite and supercage pockets, orthographic sticks](tutorial_images/gallery/lta_ortho_regions.webp)](interactive/lta_pockets_windows_threejs.html){target="_blank"}
+
+[Interactive LTA scene](interactive/lta_pockets_windows_threejs.html){target="_blank"}: sodalite and supercage pockets. Shown: **Regions (PBC-merged)**, framework sticks, orthographic along (1 1 1), dark slate default background.
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: tick only **Framework** and **Regions (PBC-merged)**, **Representation → Stick**, **Ortho**, view `1 1 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/lta_pockets_windows_threejs.html \
+  out.png --ortho --only Framework "Regions (PBC" --view 1 1 1 --repr stick --zoom 1.15
+```
+:::
+
+#### ZIF-8
+
+[![ZIF-8: pocket types and framework, default scene](tutorial_images/gallery/zif8_default.webp)](interactive/zif8_pockets_windows_threejs.html){target="_blank"}
+
+[Interactive ZIF-8 scene](interactive/zif8_pockets_windows_threejs.html){target="_blank"}: two pockets per cell. Light gradient default background.
+
+::: {.gallery-grid}
+
+::: {.gallery-item}
+![Orthographic, transparent background.](tutorial_images/gallery/zif8_ortho_transp.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: tick only **Framework** and **Pocket types (env_cluster)**, **Ortho**, ⊡ (transparent), view `1 1 1`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/zif8_pockets_windows_threejs.html \
+  out.png --ortho --only "Pocket types" Framework --bg transparent \
+  --view 1 1 1 --zoom 1.2
+```
+Hero: `out.png --zoom 1.35` (default layers).
+:::
+:::
+
+:::
+
+#### IRMOF-1
+
+[![IRMOF-1: pocket types, framework and cell, default scene](tutorial_images/gallery/irmof1_default.png)](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
+
+[Interactive IRMOF-1 scene](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}: two cage populations from linker orientation. White default background.
+
+::: {.gallery-grid}
+
+::: {.gallery-item}
+![**Regions (PBC-merged)** with framework sticks on a dark gradient background.](tutorial_images/gallery/irmof1_regions_dark.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: tick only **Framework** and **Regions (PBC-merged)**, **Representation → Stick**, **Bg** `#3a4a5e` with the ⬌ gradient button (approximate: the viewer shades the colour towards dark at the edges; for the exact two-colour gradient use `to_html(background=("linear", "#1b2430", "#3a4a5e"))`).
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/irmof1_pockets_windows_threejs.html \
+  out.png --only Framework "Regions (PBC" --repr stick \
+  --bg linear:#1b2430:#3a4a5e --zoom 1.25
+```
+Hero: `out.png --zoom 1.35`.
+:::
+:::
+
+::: {.gallery-item}
+![Space-filling framework, orthographic, off-axis view.](tutorial_images/gallery/irmof1_ortho_spacefill.webp)
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: only **Framework**, **Representation → Space-filling**, **Ortho**, view direction `1 0.6 0.4`.
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/irmof1_pockets_windows_threejs.html \
+  out.png --ortho --only Framework --repr space_filling \
+  --view 1 0.6 0.4 --zoom 1.1
+```
+:::
+:::
+
+:::
+
+### Make your own
+
+Every scene above is produced by one script. The core of the Cu-BTC scene is:
+
+::: {.callout-note collapse="true"}
+## Show code
+
+```python
 import numpy as np
+import mofography as mgr
+from mofography.cif_io import read_cif_to_ase
 
-atoms = read("IRMOF-1.cif")
-dgrid = dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
-seg = do_periodic_segmentation_rust(dgrid, atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, spacing=0.5, compute_connections=True, watershed_backend='rust_det', disable_tqdm=True)
-enriched = enrich_segmentation_with_pocket_psds(seg, atoms)
-typed = assign_pocket_types(enriched, atoms, method='env_cluster')
-fig = show_mof_plotly(seg, atoms, typed, framework_atoms=atoms, stylize=True)
-fig.update_layout(title="IRMOF-1 — 8 pockets, 300 connections")
-fig.show()
+atoms = read_cif_to_ase("P1-Cu-BTC.cif")
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=0.5, mask_thickness=0.05, compute_connections=True,
+    watershed_backend="rust_det",
+)
+# Layers, colours and the exact calls for every scene:
+#   scripts/dev/gen_gallery_assets.py  (python scripts/dev/gen_gallery_assets.py --material cubtc)
 ```
+:::
 
-[Download Three.js Scene](interactive/irmof1_threejs.html){target="_blank"} (76 MB — full interactive 3D)
+See [Three.js plotting](threejs_plotting.qmd) for the full set of layers and the notebook display, and [Adding to the gallery](add_to_gallery.qmd) for how to contribute a scene.
 
-### Cu-BTC (HKUST-1) — Multi-Pocket Architecture
+## Images from the publication
 
-```{python}
-#| echo: false
-atoms = read("P1-Cu-BTC.cif")
-dgrid = dgrid_from_atoms_rust(atoms, spacing=0.5).astype(np.float32)
-seg = do_periodic_segmentation_rust(dgrid, atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, spacing=0.5, compute_connections=True, watershed_backend='rust_det', disable_tqdm=True)
-enriched = enrich_segmentation_with_pocket_psds(seg, atoms)
-typed = assign_pocket_types(enriched, atoms, method='env_cluster')
-fig = show_mof_plotly(seg, atoms, typed, framework_atoms=atoms, stylize=True)
-fig.update_layout(title="Cu-BTC — 16 pockets, 3 distinct types")
-fig.show()
-```
-
-[Download Three.js Scene](interactive/cubtc_threejs.html){target="_blank"} (116 MB — full interactive 3D)
-![Pocket Types Results](tutorial_images/paper_pocket_types_results.png)
-
-Pocket type detection results across NU-1000, LTF, IRMOF-1, UiO-66, and DUT-75.
-
-### Window Detection
-
-![Window Detection Methods](tutorial_images/paper_window_detection_methods.png)
-
-Window detection algorithm schematic with special cases: tortuous pores, multi-window boundaries, and PBC windows.
-
-![Window Detection Results](tutorial_images/paper_window_detection_results.png)
-
-Window locations in ZIF-8, LTF, and HKUST-1, plus combined IZA window-size histogram.
-
-### Global Textural Properties
-
-![Global Textural Properties](tutorial_images/paper_global_textural_properties.png)
-
-Validation of LCD, PLD, directional free sphere, probe-centre void volume, accessible void volume, probe-centre SA, and accessible SA against Zeo++ on 2000 CoRE MOFs.
-
-### Pocket-Wise Properties
-
-![Pocket-Wise Textural Properties](tutorial_images/paper_pocketwise_textural_properties.png)
-
-Global PSD, maxima-centric segmentation, and DUT-75/UMCM-1 pocket PSDs.
+{{< include _paper_figures.qmd >}}
 
 ---
 
-*Want your visualization featured here? Reach out to us on [GitHub](https://github.com/arung-northwestern/mofography).*
+*Want your visualization featured here? See [Adding to the gallery](add_to_gallery.qmd), or reach out to us on [GitHub](https://github.com/mofography/mofography).*
