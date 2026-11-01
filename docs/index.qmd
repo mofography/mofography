@@ -70,6 +70,7 @@ Pick your path by **role**. Three tools, one shared science core:
 - **③ Web demo** — [Hugging Face Space](https://arung-northwestern-mofography-web-demo.hf.space/) (hosted)
 
 ```{mermaid}
+%%| eval: true
 %%{init: {'themeVariables': {'fontSize': '16px'}, 'flowchart': {'htmlLabels': true, 'curve': 'basis', 'nodeSpacing': 28, 'rankSpacing': 40, 'padding': 16}}}%%
 flowchart TB
   V("<b>Just curious?</b>")
