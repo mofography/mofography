@@ -37,7 +37,7 @@ website:
       file: install.qmd
     - text: Learn
       file: learn.qmd
-    - text: Reference
+    - text: Functions
       file: reference/index.qmd
     - text: Gallery
       file: gallery.qmd

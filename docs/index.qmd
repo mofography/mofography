@@ -18,10 +18,9 @@ eval: false
   <p class="mg-jumps">
     <a href="#features">Features</a> ·
     <a href="#who">Who is it for?</a> ·
-    <a href="#install">Install</a> ·
-    <a href="#quick-test">Quick test</a> ·
-    <a href="#tutorials">Tutorials</a> ·
-    <a href="#cite">Cite</a>
+    <a href="#cite">Cite</a> ·
+    <a href="#contributing">Contributing</a> ·
+    <a href="#acknowledgments">Acknowledgments</a>
   </p>
   <div class="mg-media">
     <video autoplay muted loop playsinline preload="metadata" poster="assets/mofography_overview_poster.png" aria-label="Framework, pore segmentation, pore graph, and unfolded views">
@@ -36,7 +35,7 @@ eval: false
 
 Core numerics run in a **Rust** backend (`mgr_rust`) behind a **Python** API.
 
-The path from a CIF file to that graph is the [Quick start](quick_start.qmd).
+The path from a CIF file to that graph is the [Quick start](quick_start.qmd). To install, see the [install page](install.qmd); all tutorials are in [Learn](learn.qmd) and every function is in [Functions](reference/index.qmd).
 
 > **Canonical code:** [mofography/mofography](https://github.com/mofography/mofography) · **Latest release:** [`2026.10.09.1`](https://github.com/mofography/mofography/releases/tag/2026.10.09.1) · branch `master`
 
@@ -100,7 +99,7 @@ flowchart TB
 | | **① Library** (this repo) | **② CLI + web app** (`mgr_cli_py`) | **③ Web demo** (HF) |
 |---|---|---|---|
 | **Best for** | Papers, notebooks, HTS, custom analysis | A few structures, interactive UI, automation without a full env | Try before you install |
-| **Install** | Clone + build `mgr_rust` ([below](#install)) | Separate repo; `pip install -e .` + Rust ([README](https://github.com/arung-northwestern/mgr_cli_py)) | None — [open demo](https://arung-northwestern-mofography-web-demo.hf.space/) |
+| **Install** | Clone + build `mgr_rust` ([install page](install.qmd)) | Separate repo; `pip install -e .` + Rust ([README](https://github.com/arung-northwestern/mgr_cli_py)) | None — [open demo](https://arung-northwestern-mofography-web-demo.hf.space/) |
 | **Performance** | **Fastest** on your hardware (`--release`, tuned to your CPU) | Fast locally; extra caching vs library | Shared **queue**, **~2 vCPUs** — often slower than local; **16 GB RAM** helps large cells |
 | **Maintainer** | [`mofography`](https://github.com/mofography/mofography) org | Personal repo [`arung-northwestern/mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py) (will go public; PRs via maintainer) | Hosted demo only |
 | **AI / agents** | `import mofography` in code | **`mgrcli`** subprocess — no notebook context | Not for batch/agent pipelines |
@@ -120,111 +119,14 @@ import mofography as m
 print(m.__version__, m.__git_revision__)
 ```
 
-## Install the library {#install}
+## Contributing and contributors {#contributing}
 
-This repository is the **full Python package**. There is no PyPI wheel yet: you install dependencies, compile **`mgr_rust`** with [maturin](https://www.maturin.rs/) in **release** mode (important for speed on your CPU), then `pip install -e .`.
+Bug reports, questions, and pull requests are welcome: open an [issue](https://github.com/mofography/mofography/issues) or a pull request on [mofography/mofography](https://github.com/mofography/mofography). If you add a function or a tutorial, mark its status (go-to, alternate, legacy, ...) so the [reference](reference/index.qmd) and the [guide to choosing functions](choosing_functions.qmd) stay accurate. Using an AI coding agent? See the [agent skill](https://github.com/mofography/mofography/blob/master/skills/mofography/SKILL.md).
 
-**Python:** 3.10–3.12 (3.11 recommended) · **Rust:** [rustup](https://rustup.rs/) · **OS:** Linux, macOS, Windows
+**Contributors:** Arun Gopalan (lead developer), Chao Zheng, Kaihang Shi, Joe Manning. The method paper adds Behnam Azdapour and Lev Sarkisov as authors (see [Cite this code](#cite)).
 
-**Pin a paper/release checkout (optional):**
+## Acknowledgments {#acknowledgments}
 
-```bash
-git clone https://github.com/mofography/mofography.git && cd mofography
-git checkout 2026.10.09.1
-```
+This material is based upon work supported by the ACS Petroleum Research Fund under Doctoral New Investigator Grant 68604-DNI6 and NSF CAREER Award No. 2543449.
 
-### One command (Linux / macOS)
-
-**A. Fresh sandbox with [uv](https://github.com/astral-sh/uv)** (creates `.venv` in the clone):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox
-```
-
-**B. Active conda / venv** (installs into the Python you already activated):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode pip-existing
-```
-
-Pin a release in the one-liner:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/mofography/mofography/master/scripts/install_mofography.sh | bash -s -- --mode uv-sandbox --ref 2026.10.09.1
-```
-
-From an existing clone: `./scripts/install_mofography.sh --mode uv-sandbox` or `--mode pip-existing --repo-dir .`
-
-### Windows (PowerShell)
-
-```powershell
-git clone https://github.com/mofography/mofography.git
-cd mofography
-git checkout 2026.10.09.1 # optional
-.\scripts\install_mofography.ps1
-```
-
-Manual conda steps, the Rust rebuild, and the verify command are on the [install page](install.qmd). More on the backend: [Rust backend](rust_backend_documentation.md).
-
-We do **not** ship prebuilt `mgr_rust` wheels per OS. Local `--release` builds match your machine best.
-
-## Quick test {#quick-test}
-
-```python
-import mofography as mgr
-from ase.io import read
-
-atoms = read("examples/TestCIFs/P1-IRMOF-1.cif")
-figures = mgr.quick_cluster(atoms)
-```
-
-Interactive **Three.js HTML** is not stored in this repo; export from the **web demo** or [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), or regenerate with `examples/gen_*_threejs.py`.
-
-## Tutorials {#tutorials}
-
-Tutorials are Jupyter notebooks and Quarto pages in this site. [Learn](learn.qmd) is the longer index. [API reference](reference/index.qmd) lists every function.
-
-### Basic tutorials (recommended order)
-
-**Basic**
-
-1. [Quick start](quick_start.qmd) — end-to-end workflow with `dgrid_from_atoms_rust` and `do_periodic_segmentation_rust` **(new)**
-2. [Basic structure analysis](basic_structure_io.ipynb)
-3. [Basic structure visualization](quick_structure_visualization.ipynb)
-4. [Distance grid](distance_grid.qmd)
-5. [Region segmentation](region_segmentation.qmd)
-6. [PBC considerations](pbc_considerations.qmd)
-7. [Connections and windows](connections_and_windows.qmd)
-8. [Pore graph (region adjacency graph, RAG)](region_adjacency_graph.ipynb)
-9. [Compute pore diameters](compute_pore_diameters.ipynb)
-10. [Surface area and void volume](surface_area.qmd)
-11. [PLD and percolation (winding method)](pld_and_percolation.ipynb)
-12. [Pore size distributions](pore_size_distributions.qmd)
-13. [Pocket type detection](pockets_detection.qmd) **(new)**
-14. [Three.js plotting](threejs_plotting.qmd) **(new)**
-
-**Advanced**
-
-- [MOFDB example](mofdb_example.ipynb)
-- [High-throughput characterization](hts_using_mofography.ipynb)
-- [Graph neural network model on pore graphs (PoroNet)](PoroNet.qmd) **(new)**
-- [Crosslinked polymer properties](property_calculation.qmd)
-- [Functional group detection](detect_functional_groups_in_dataset.ipynb)
-- [Advanced structure visualization](framework_visualization_example.ipynb)
-- [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb)
-
-**Deeper knowledge** (inner workings, tuning, older approaches)
-
-- [Tuning and safe ranges](parameter_tuning.qmd)
-- [Distance grid methods](dgrid_methods.qmd)
-- [Selective smoothing](selective_smoothing.qmd)
-- [Watershed backends](watershed_backends.qmd) **(new)**
-- [VDW radii and segmentation](vdw_radii.qmd)
-- [Accessibility methods](accessibility.qmd)
-- [Window fingerprinting](window_fingerprinting.qmd)
-- [Pathfinding on the pore graph](percolated_paths_tutorial.ipynb)
-- [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)**
-- [Aromatic ring detection](aromatic_ring_detection.qmd)
-- [Periodic segmentation Rust vs Python (HTS)](hts_periodic_seg_benchmark.ipynb)
-
-Also: [install](install.qmd), [CLI quick start](cli_quickstart.qmd), [gallery](gallery.qmd).
+Scaffolding from the [MolSSI Python Cookiecutter](https://github.com/molssi/cookiecutter-cms).
