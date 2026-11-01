@@ -423,7 +423,7 @@ def _segmentation_input_params_vdw(
     )
 
 
-def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_det", watershed_connectivity=2, skip_endchannel_pairs=True, vdw_radii_set=None, vdw_radii_angstrom=None):
+def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5, preserve_threshold=3.0, smooth_threshold=6.0, max_smooth_radius=2.0, return_padded_regions=False, spacing=None, minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0, min_region_size=0.001, disable_tqdm=False, compute_connections=True, return_dgrid=False, watershed_backend="rust_det", watershed_connectivity=2, skip_endchannel_pairs=True, vdw_radii_set=None, vdw_radii_angstrom=None, check_plr=True):
     """Perform periodic segmentation on a distance grid to identify pore regions.
 
     This function implements a comprehensive pore segmentation algorithm that:
@@ -439,6 +439,10 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     :type mat_atoms: ase.Atoms
     :param mask_thickness: Threshold for void space identification
     :type mask_thickness: float
+    :param check_plr: Run the legacy lattice pore-limiting-radius sanity check on ``dgrid``
+        (warns if ``mask_thickness`` exceeds it; never alters ``mask_thickness``). Set False
+        to skip the check, e.g. for large porous carbons where it is slow.
+    :type check_plr: bool
     :param h: Persistence parameter for maxima detection
     :type h: float
     :param min_distance: Minimum distance of separationg required between distinct local maxima
@@ -542,18 +546,24 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
         minimum_window_separation = spacing * 3
 
     logger.info(f"h is {h}")
-    plr = find_pore_limiting_radius(dgrid)
-
-    logger.info(
-        "time(s): %.2f pore limiting radius is %.2f\n"
-        % (np.round(time() - start_time, decimals=2), np.round(plr, decimals=2))
-    )
-    if (plr - 0.25) < mask_thickness:
-        logger.warning(
-            "warning: mask thickness is too high, resetting to pore limiting radius - 0.25\n"
-        )
-
-    mask_thickness = np.min([plr - 0.25, mask_thickness])
+    if check_plr:
+        plr = find_pore_limiting_radius(dgrid)
+        if plr is None:
+            logger.warning(
+                "legacy PLR check found no percolating void on this grid; continuing. "
+                "Pass check_plr=False to skip this check."
+            )
+        else:
+            logger.info(
+                "time(s): %.2f pore limiting radius is %.2f\n"
+                % (np.round(time() - start_time, decimals=2), np.round(plr, decimals=2))
+            )
+            if (plr - 0.25) < mask_thickness:
+                logger.warning(
+                    "mask_thickness %.3f exceeds legacy PLR - 0.25 = %.3f; using mask_thickness "
+                    "as given (the legacy PLR check can be inexact).\n"
+                    % (mask_thickness, plr - 0.25)
+                )
     # min_distance = 1.1
     #     threshold_abs = 1
     # # merged_maxima, all_maxima = detect_periodic_maxima_dgrid(dgrid, ase_atoms=mat_atoms, spacing=spacing, h=h, threshold_abs=threshold_abs, min_distance=min_distance, sigma_smooth=1.0, cell=cell)
