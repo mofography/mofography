@@ -44,11 +44,11 @@ Everything below is available from the Python module. Global properties and pock
 |---|---|---|
 | **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](docs/compute_pore_diameters.ipynb), [PLD and percolation](docs/pld_and_percolation.ipynb) |
 | **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](docs/surface_area.qmd), [Accessibility](docs/accessibility.qmd) |
-| **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Compute pore diameters](docs/compute_pore_diameters.ipynb) |
+| **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Pore size distributions](docs/pore_size_distributions.qmd) |
 | **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](docs/region_segmentation.qmd), [Applying PBC](docs/applying_pbc.qmd) |
 | **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](docs/pockets_detection.qmd) |
 | **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](docs/connections_and_windows.qmd), [Window fingerprinting](docs/window_fingerprinting.qmd) |
-| **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](docs/region_adjacency_graph.ipynb), [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.ipynb) |
+| **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](docs/region_adjacency_graph.ipynb), [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) |
 | **Percolation** | Percolation thresholds for a given probe, and 3D plots of the accessible, percolating clusters of pockets | [PLD and percolation](docs/pld_and_percolation.ipynb) |
 | **Visualization** | Interactive 3D views of the framework, pore surfaces, pockets, and pore graphs | [Visualization](docs/framework_visualization_example.ipynb) |
 | **High throughput** | Parallel characterization of whole databases with a Rust core | [High-throughput characterization](docs/hts_using_mofography.ipynb) |
@@ -228,7 +228,7 @@ open _site/index.html # macOS; or use a local static server
 
 ### Basic tutorials (recommended order)
 
-1. [Quick cluster](docs/quick_cluster.qmd) — end-to-end workflow
+1. [Quick start](docs/quick_start.qmd) — end-to-end workflow **(new)**
 2. [Basic structure analysis](docs/basic_structure_io.ipynb)
 3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
 4. [Distance grid](docs/distance_grid.qmd)
@@ -236,10 +236,13 @@ open _site/index.html # macOS; or use a local static server
 6. [Applying periodic boundary conditions](docs/applying_pbc.qmd)
 7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
 8. [Connections and windows](docs/connections_and_windows.qmd)
-9. [Pocket type detection](docs/pockets_detection.qmd)
+9. [Pocket type detection](docs/pockets_detection.qmd) (environment-cluster method) **(new)**
 
 ### Advanced tutorials
 
+- [Three.js plotting](docs/threejs_plotting.qmd) **(new)**
+- [Watershed backends](docs/watershed_backends.qmd) **(new)**
+- [Fast Rust CIF reader](docs/fast_cif_reader.qmd) **(new)**
 - [Advanced structure visualization](docs/framework_visualization_example.ipynb)
 - [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb)
 - [PLD and percolation history](docs/pld_and_percolation.ipynb)
@@ -248,7 +251,7 @@ open _site/index.html # macOS; or use a local static server
 - [High-throughput characterization](docs/hts_using_mofography.ipynb)
 - [Periodic segmentation Rust vs Python (HTS)](docs/hts_periodic_seg_benchmark.ipynb)
 - [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
-- [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.ipynb)
+- [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) **(new)**
 
 Quarto guides (not only `.ipynb`): [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [learn hub](docs/learn.qmd), [API reference](docs/reference/index.qmd).
 
