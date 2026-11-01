@@ -1,0 +1,64 @@
+---
+title: "Fast Rust CIF reader"
+description: "read_cif_to_ase: a Rust CIF parser that returns ase.Atoms, much faster than ase.io.read for large structures and high-throughput runs"
+toc: true
+jupyter: python3
+execute:
+  freeze: true
+---
+
+mofography ships a Rust CIF parser (`mgr_rust.read_cif`) with a thin Python wrapper, `read_cif_to_ase`. It returns a normal `ase.Atoms`, so everything else in mofography (`dgrid_from_atoms_rust`, `do_periodic_segmentation_rust`, ...) works unchanged. It is the reader behind the mofography web app.
+
+You do not have to use it. `ase.io.read` works everywhere in mofography and stays the reference reader. The Rust reader is an option that is in many ways better:
+
+- **Speed.** Parsing is 2 to 100+ times faster, and the gap grows with the number of atoms and symmetry operations.
+- **Memory.** Lower peak memory, which matters for structures with O(10k) atoms and for many workers in a high-throughput run.
+- **No ASE CIF warnings** for unusual space-group settings.
+
+For typical single MOFs (a few hundred atoms) on a laptop, both readers take a fraction of a second, so the choice makes little practical difference. It is not yet the default in the library functions because it has been tested less than ASE on unusual CIFs. If it fails on a file, `read_cif_to_ase` logs a warning and falls back to `ase.io.read`.
+
+## Usage
+
+```{python}
+import time
+from ase.io import read
+from mofography.cif_io import read_cif_to_ase
+
+path = "P1-Cu-BTC.cif"   # or examples/TestCIFs/P1-Cu-BTC.cif from the repo root
+
+t = time.perf_counter(); atoms = read_cif_to_ase(path); t_rust = time.perf_counter() - t
+t = time.perf_counter(); ref = read(path);              t_ase = time.perf_counter() - t
+
+print(f"{atoms.get_chemical_formula()}: {len(atoms)} atoms")
+print(f"Rust {t_rust*1e3:.1f} ms | ASE {t_ase*1e3:.1f} ms")
+```
+
+## What to expect
+
+Timings on a laptop for CIFs from `examples/TestCIFs` (the first read includes a short one-off import cost):
+
+| CIF | Atoms | Rust | ASE |
+|---|---|---|---|
+| `ABAVIJ_clean.cif` | 108 | 16 ms | 41 ms |
+| `Case2.cif` | 192 | 9 ms | 106 ms |
+| `Case2-combined-revised.cif` | 840 | 29 ms | 1.8 s |
+| `ADARAA_clean.cif` | 2112 | 79 ms | 11.3 s |
+
+## High-throughput use
+
+Use it whenever you read many CIFs in a loop, for example before `do_periodic_segmentation_rust` over a database:
+
+```python
+from pathlib import Path
+from mofography.cif_io import read_cif_to_ase
+
+all_atoms = {p.stem: read_cif_to_ase(p) for p in Path("cifs").glob("*.cif")}
+```
+
+The [high-throughput tutorial](hts_using_mofography.ipynb) reads its structures this way.
+
+## Options and caveats
+
+- Set the environment variable `MGR_FAST_CIF=0` to make `read_cif_to_ase` use `ase.io.read` only.
+- A few unusual CIFs (for example disordered sites or odd numeric formats) can parse differently or fail in the Rust reader. Check `len(atoms)` against a one-off ASE read when you start working with a new source of structures. For example, in `COD_2100028.cif` the two readers return different atom counts (49 vs 98).
+- For CIFs in P1 symmetry (as most computation-ready MOF databases provide) the two readers should agree.
