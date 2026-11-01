@@ -86,8 +86,8 @@ def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
     return dgrid_from_atoms_rust(ase_atoms, spacing, radii=radii)
 
 
-def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
-    """Compute a distance grid using the Rust AABB/PBC neighbor search backend.
+def dgrid_from_atoms_rtree_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
+    """Compute a distance grid using the Rust R-tree (AABB) periodic neighbor-search backend.
 
     :param ase_atoms: ASE Atoms object containing the atomic structure
     :type ase_atoms: ase.Atoms
@@ -98,7 +98,7 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
         (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`).
         Pass ``mendeleev_vdw_radii_angstrom(atoms)`` for the legacy Mendeleev-only table.
     :type radii: numpy.ndarray or None
-    :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
+    :param n_neighbors: Number of nearest neighbors to query from the R-tree, defaults to 10
     :type n_neighbors: int
     :return: 3D distance grid where values represent distances to atom surfaces
     :rtype: numpy.ndarray
@@ -113,22 +113,22 @@ def dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10):
     fpoints = ase_atoms.get_scaled_positions() - 0.5
     cell = _cell_matrix_for_rust(ase_atoms)
     nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
-    return mgr_rust.dgrid_from_atoms_aabb(
+    return mgr_rust.dgrid_from_atoms_rtree(
         fpoints, cell, int(nx), int(ny), int(nz), radii, int(n_neighbors)
     )
 
 
-def dgrid_from_atoms_aabb_interp_rust(
+def dgrid_from_atoms_rtree_interp_rust(
     ase_atoms, spacing, coarse_factor=2, radii=None, n_neighbors=10
 ):
-    """Compute a smoothed distance grid using coarse AABB sampling + trilinear interpolation.
+    """Compute a smoothed distance grid using coarse R-tree sampling + trilinear interpolation.
 
     :param ase_atoms: ASE Atoms object containing the atomic structure
     :param spacing: Grid spacing in Angstroms (fine grid)
     :param coarse_factor: Coarsening factor (>1) for the AABB sampling grid; 2 is a mild smoothing
     :param radii: Van der Waals radii for each atom. If None, uses Bondi (1964)
         handbook radii with Mendeleev fill (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`)
-    :param n_neighbors: Number of nearest neighbors to query from the AABB tree, defaults to 10
+    :param n_neighbors: Number of nearest neighbors to query from the R-tree, defaults to 10
     :return: 3D distance grid (float32) with mild smoothing from interpolation
     """
     import mgr_rust
@@ -142,7 +142,7 @@ def dgrid_from_atoms_aabb_interp_rust(
     cell = _cell_matrix_for_rust(ase_atoms)
     nx, ny, nz = (ase_atoms.cell.cellpar()[:3] / spacing).astype(int) + 1
 
-    return mgr_rust.dgrid_from_atoms_aabb_interp(
+    return mgr_rust.dgrid_from_atoms_rtree_interp(
         fpoints,
         cell,
         int(nx),
@@ -152,6 +152,30 @@ def dgrid_from_atoms_aabb_interp_rust(
         radii,
         int(n_neighbors),
     )
+
+
+def dgrid_from_atoms_aabb_rust(*args, **kwargs):
+    """Deprecated alias of :func:`dgrid_from_atoms_rtree_rust`."""
+    import warnings
+
+    warnings.warn(
+        "dgrid_from_atoms_aabb_rust is deprecated; use dgrid_from_atoms_rtree_rust.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return dgrid_from_atoms_rtree_rust(*args, **kwargs)
+
+
+def dgrid_from_atoms_aabb_interp_rust(*args, **kwargs):
+    """Deprecated alias of :func:`dgrid_from_atoms_rtree_interp_rust`."""
+    import warnings
+
+    warnings.warn(
+        "dgrid_from_atoms_aabb_interp_rust is deprecated; use dgrid_from_atoms_rtree_interp_rust.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return dgrid_from_atoms_rtree_interp_rust(*args, **kwargs)
 
 
 def _unit_cell_grid_geometry(ase_atoms, mat_atoms_repeat, spacing, cutoff):

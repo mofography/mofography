@@ -18,8 +18,7 @@ These tutorials are still being updated, and new and better functions and module
 | Tutorial | What it covers |
 |---|---|
 | [Quick start](quick_start.qmd) **(new)** | CIF to pore graph, pocket types, windows, and textural properties |
-| [Basic structure analysis](basic_structure_io.ipynb) | Read structures and inspect them |
-| [Basic structure visualization](quick_structure_visualization.ipynb) | First 3D views |
+| [Guide to choosing functions](choosing_functions.qmd) **(new)** | Quick-reference handbook: the go-to function for each task, and what to avoid |
 | [Distance grid](distance_grid.qmd) | Distance grid calculation and visualization |
 | [Region segmentation](region_segmentation.qmd) | Splitting void space into pockets |
 | [PBC considerations](pbc_considerations.qmd) | How pockets are merged across periodic boundaries |
@@ -31,6 +30,7 @@ These tutorials are still being updated, and new and better functions and module
 | [Pore size distributions](pore_size_distributions.qmd) | Gelb–Gubbins global and pocket-wise PSDs, total vs accessible void |
 | [Pocket type detection](pockets_detection.qmd) **(new)** | Detecting the types of pockets |
 | [Three.js plotting](threejs_plotting.qmd) **(new)** | Interactive Three.js scenes in notebooks and as standalone HTML |
+| [Basic structure visualization using Plotly](quick_structure_visualization.ipynb) | First 3D views of atoms and bonds |
 
 ## CLI
 
@@ -45,7 +45,9 @@ These tutorials are still being updated, and new and better functions and module
 | [MOFDB example](mofdb_example.ipynb) | Large DataFrame from MOFDB |
 | [High-throughput characterization](hts_using_mofography.ipynb) | Pore graphs for the IZA dataset with Dask |
 | [PoroNet](PoroNet.qmd) **(new)** | Train a graph neural network on pore graphs |
-| [Crosslinked polymer properties](property_calculation.qmd) | LCD, PLD, ASA, percolating volume, and FFV of a crosslinked polymer |
+| [Advanced geometric and topological pore network properties](property_calculation.qmd) | LCD, PLD, ASA, percolating volume, window connectivity, and FFV, worked on a hyper-crosslinked polymer |
+| [Structure analysis](basic_structure_io.ipynb) | Read structures, bond graphs, and pattern matching |
+| [Aromatic ring detection](aromatic_ring_detection.qmd) | Ring highlights and bond-length tolerances for Plotly and Three.js |
 | [Functional groups](detect_functional_groups_in_dataset.ipynb) | Detect moieties in a dataset such as CoREMOF |
 | [Advanced structure visualization](framework_visualization_example.ipynb) | Plotly and Three.js: framework, connections, customization |
 | [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb) | Only a subset of atoms and bonds |
@@ -65,4 +67,3 @@ How the methods work inside, what the knobs do, and older or niche approaches.
 | [Window fingerprinting](window_fingerprinting.qmd) | Element-weighted shell fingerprints and accessible-region search |
 | [Pathfinding on the pore graph](percolated_paths_tutorial.ipynb) | Dijkstra-style path finding; an example only, use the winding method for PLD and percolation |
 | [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)** | `read_cif_to_ase`: much faster CIF parsing for large structures |
-| [Aromatic ring detection](aromatic_ring_detection.qmd) | Ring highlights and bond-length tolerances for Plotly and Three.js |

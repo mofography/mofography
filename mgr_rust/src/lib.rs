@@ -194,7 +194,7 @@ fn dgrid_from_atoms(
 #[pyfunction]
 #[pyo3(signature = (fpoints, cell, nx, ny, nz, radii=None, n_neighbors=10))]
 #[pyo3(text_signature = "(fpoints, cell, nx, ny, nz, radii=None, n_neighbors=10)")]
-fn dgrid_from_atoms_aabb(
+fn dgrid_from_atoms_rtree(
     py: Python<'_>,
     fpoints: PyReadonlyArray2<'_, f64>,
     cell: PyReadonlyArray2<'_, f64>,
@@ -306,7 +306,7 @@ fn dgrid_from_atoms_aabb(
 #[pyfunction]
 #[pyo3(signature = (fpoints, cell, nx, ny, nz, coarse_factor=2, radii=None, n_neighbors=10))]
 #[pyo3(text_signature = "(fpoints, cell, nx, ny, nz, coarse_factor=2, radii=None, n_neighbors=10)")]
-fn dgrid_from_atoms_aabb_interp(
+fn dgrid_from_atoms_rtree_interp(
     py: Python<'_>,
     fpoints: PyReadonlyArray2<'_, f64>,
     cell: PyReadonlyArray2<'_, f64>,
@@ -6182,8 +6182,8 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_function(wrap_pyfunction!(dgrid_exp::dgrid_from_atoms, m)?)?;
-    m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb, m)?)?;
-    m.add_function(wrap_pyfunction!(dgrid_from_atoms_aabb_interp, m)?)?;
+    m.add_function(wrap_pyfunction!(dgrid_from_atoms_rtree, m)?)?;
+    m.add_function(wrap_pyfunction!(dgrid_from_atoms_rtree_interp, m)?)?;
     m.add_function(wrap_pyfunction!(egrid_from_atoms, m)?)?;
     m.add_function(wrap_pyfunction!(window_connections, m)?)?;
     m.add_function(wrap_pyfunction!(periodic_gaussian_filter, m)?)?;

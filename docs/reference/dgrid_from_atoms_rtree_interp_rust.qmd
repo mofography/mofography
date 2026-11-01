@@ -1,0 +1,31 @@
+# dgrid_from_atoms_rtree_interp_rust { #mofography.rust_fun.dgrid_from_atoms_rtree_interp_rust }
+
+<span class="mg-tag mg-tag-alternate">alternate</span> Coarse R-tree sample plus trilinear upsample; mild smoothing for very large cells.
+
+```python
+rust_fun.dgrid_from_atoms_rtree_interp_rust(
+    ase_atoms,
+    spacing,
+    coarse_factor=2,
+    radii=None,
+    n_neighbors=10,
+)
+```
+
+Compute a smoothed distance grid using coarse R-tree sampling + trilinear interpolation.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name          | Type   | Description                                                                                                                                                 | Default    |
+|---------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| ase_atoms     |        | ASE Atoms object containing the atomic structure                                                                                                            | _required_ |
+| spacing       |        | Grid spacing in Angstroms (fine grid)                                                                                                                       | _required_ |
+| coarse_factor |        | Coarsening factor (>1) for the AABB sampling grid; 2 is a mild smoothing                                                                                    | `2`        |
+| radii         |        | Van der Waals radii for each atom. If None, uses Bondi (1964) handbook radii with Mendeleev fill (:func:`~mofography.vdw_radii.default_vdw_radii_angstrom`) | `None`     |
+| n_neighbors   |        | Number of nearest neighbors to query from the R-tree, defaults to 10                                                                                        | `10`       |
+
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type   | Description                                                       |
+|--------|--------|-------------------------------------------------------------------|
+|        |        | 3D distance grid (float32) with mild smoothing from interpolation |

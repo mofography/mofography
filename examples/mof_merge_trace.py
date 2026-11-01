@@ -49,8 +49,8 @@ CIFS = {
 def run_seg(cif: Path, dgrid_backend: str = "mic"):
     atoms = read(cif)
     mgr.update_with_covalent_bonds(atoms)
-    if dgrid_backend == "aabb":
-        dgrid = mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=DEFAULT_SPACING_A).astype(np.float32)
+    if dgrid_backend == "rtree":
+        dgrid = mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=DEFAULT_SPACING_A).astype(np.float32)
     else:
         dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=DEFAULT_SPACING_A).astype(np.float32)
     results = mgr.do_periodic_segmentation_rust(dgrid, atoms, spacing=DEFAULT_SPACING_A, **SEG_KW)
@@ -182,7 +182,7 @@ def trace(name: str, cif: Path, dgrid_backend: str = "mic"):
 
 def main():
     slug = sys.argv[1] if len(sys.argv) > 1 else "cubtc"
-    backend = "aabb" if slug == "zif20" else "mic"
+    backend = "rtree" if slug == "zif20" else "mic"
     trace(slug.upper(), CIFS[slug], backend)
 
 
