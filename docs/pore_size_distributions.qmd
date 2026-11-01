@@ -30,6 +30,23 @@ You need a `seg` dict from [`do_periodic_segmentation_rust`](reference/do_period
 - **`max_diameter`** should exceed the largest void radius in the structure (check `dgrid.max()` × 2). Cu-BTC cages stay below ~15 Å; we use 20 Å (PoreBlazer's default).
 - **`binsize`** sets the PSD resolution. We use 0.25 Å, PoreBlazer's default, so curves compare directly with PoreBlazer; finer bins sharpen peaks but make the \(-\mathrm{d}V/\mathrm{d}D\) derivative noisier and need more samples.
 
+## How the curve is calculated
+
+The sampling gives a list of pore diameters \(D_s\) (one per sample point). The plotted curve is the Gelb–Gubbins PSD, computed exactly like [PoreBlazer](https://github.com/SarkisovGroup/PoreBlazer) so results compare one-to-one:
+
+1. **Cumulative pore volume.** With bins of width \(\Delta\) (0.25 Å), the fraction of the void whose largest-including sphere has diameter at least \(D_k = k\Delta\) is
+\[
+V(\ge D_k) = \frac{\#\{s : D_s \ge D_k\}}{\#\{s : D_s \ge 0\}}, \qquad V(\ge 0)=1 .
+\]
+2. **Derivative.** The PSD is the negative derivative of this cumulative curve, by a central difference,
+\[
+\mathrm{PSD}(D_i) = -\frac{\mathrm{d}V}{\mathrm{d}D}\bigg|_{D_i} \approx -\frac{V(\ge D_{i+1}) - V(\ge D_{i-1})}{2\Delta},
+\]
+reported at the bin centre \(D_i = i\Delta - \Delta/2\) (PoreBlazer's convention).
+3. **Peak normalisation.** Each curve is divided by its own maximum, \(\mathrm{PSD}/\max\mathrm{PSD}\), so the y axis is in arbitrary units and curves from different samplers or materials share a scale.
+
+`mgr.psd_gelb_gubbins(counts, binsize)` implements steps 1 and 2 and is unit-tested against a direct port of PoreBlazer's `pore_distribution`. The pocket-wise PSD applies the same transformation to the diameters sampled inside each pocket.
+
 ## Imports and settings
 
 ```{python}
