@@ -26,7 +26,7 @@ PBC information is exposed through these output keys:
 | `seg['close_or_inside_regions']` | 1-based region labels of boundary-touching regions |
 
 This tutorial is the *PBC deep dive*. For the canonical 3-call workflow, see
-the [Quick Start tutorial](quick_cluster.qmd).
+the [Quick Start tutorial](quick_start.qmd).
 
 ## Imports
 
@@ -299,9 +299,9 @@ print(f"Total unmerged region labels: "
 print(f"Fraction on boundary:   "
       f"{100*len(boundary_reg)/max(1, int(seg['regions'].max())):.1f}%")
 
-## Step 8: Validate with the Quick Cluster
+## Step 8: Validate with the Quick start
 
-If you want a sanity check, run the [Quick Start tutorial](quick_cluster.qmd)
+If you want a sanity check, run the [Quick Start tutorial](quick_start.qmd)
 on the same CIF. `maxima_pbc` count should match `len(seg['pbc_groups'])`,
 and the plotly visualization should show the same 8 colors per cavity.
 
@@ -324,7 +324,7 @@ and the plotly visualization should show the same 8 colors per cavity.
 
 ## Next Steps
 
-- [Quick Start tutorial](quick_cluster.qmd) — full pore-graph in 3 calls
+- [Quick Start tutorial](quick_start.qmd) — full pore-graph in 3 calls
 - [Distance Grid tutorial](distance_grid.qmd) — how the input grid is built
 - [Connections and Windows](connections_and_windows.qmd) — windows between PBC groups
 - [Pore Graph tutorial](pore_graph.md) — convert segments + connections into a NetworkX graph

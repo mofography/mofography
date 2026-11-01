@@ -4,14 +4,14 @@ description: "How the three selective-smoothing parameters (preserve_threshold, 
 image: tutorial_images/segmentation_cross_section.png
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
 ## Overview
 
 `do_periodic_segmentation_rust` runs h-maxima detection on a **spatially-varying smoothed** version of the distance grid, not on the raw grid. The idea is simple: small pores are real and should be kept; the surfaces of large channels are noisy and should be smoothed away. Between those regimes, smoothing is interpolated linearly.
 
-This tutorial explains the three knobs that control this behavior and shows how to tune them in practice. The companion [Region Segmentation tutorial](region_segmentation.qmd) gives the broader picture; [Quick Start](quick_cluster.qmd) walks the full pipeline. Read those first if you have not.
+This tutorial explains the three knobs that control this behavior and shows how to tune them in practice. The companion [Region Segmentation tutorial](region_segmentation.qmd) gives the broader picture; [Quick Start](quick_start.qmd) walks the full pipeline. Read those first if you have not.
 
 The three parameters — all passed directly to `do_periodic_segmentation_rust` — are:
 
@@ -66,7 +66,7 @@ sigma
 ## Prerequisites
 
 - A working `mofography` install (see [Install](install.qmd)).
-- Familiarity with `do_periodic_segmentation_rust` — see [Quick Start](quick_cluster.qmd) and [Region Segmentation](region_segmentation.qmd).
+- Familiarity with `do_periodic_segmentation_rust` — see [Quick Start](quick_start.qmd) and [Region Segmentation](region_segmentation.qmd).
 - A MOF CIF; we use `IRMOF-1.cif` here.
 
 ## Imports
@@ -217,7 +217,20 @@ fig.update_layout(
     ),
     paper_bgcolor="black",
 )
+fig.write_image("tutorial_images/selective_smoothing_compare.png", width=1100, height=800)  # static preview for the docs
 ```
+
+![IRMOF-1: defaults vs very-aggressive smoothing](tutorial_images/selective_smoothing_compare.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+# build `fig` as above, then:
+fig.show()   # rotatable Plotly figure
+fig.write_html("smoothing_compare.html")
+```
+:::
+
+[Open the interactive version](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
 
 You should see two sets of sphere markers — one at the 8 PBC-grouped pockets produced by the defaults, and a smaller set at the 5 collapsed pockets produced by the very-aggressive config.
 
@@ -270,7 +283,7 @@ For IRMOF-1, the final pore count plateaus at 8 from `smooth_threshold=3.0` to `
 
 ## Next Steps
 
-- [Quick Start](quick_cluster.qmd) — the canonical three-call pipeline; this tutorial assumes you have read it.
+- [Quick Start](quick_start.qmd) — the canonical three-call pipeline; this tutorial assumes you have read it.
 - [Region Segmentation](region_segmentation.qmd) — the conceptual overview of h-maxima, watershed, and PBC; explains *why* selective smoothing exists in the first place.
 - [Distance Grid](distance_grid.qmd) — how the dgrid itself is built; smoothing operates on the dgrid, so the quality of the dgrid bounds the quality of the segmentation.
 - [Connections and Windows](connections_and_windows.qmd) — the next step in the pipeline once you have well-segmented regions.
