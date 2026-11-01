@@ -1,15 +1,15 @@
 ---
 title: "Pocket Type Detection"
 description: "Classify pore pockets into chemically meaningful types with env_cluster multi-modal fingerprinting"
-image: tutorial_images/paper_pocket_detection_methods.png
+image: tutorial_images/paper_pocket_detection_methods.webp
 jupyter: python3
 execute:
-  freeze: true
+  freeze: auto
 ---
 
-![Pocket type detection for Cu-BTC (HKUST-1): (a) unit cell with 1.0 Å distance isosurface coloured by pocket type, (b) overlaid pocket probe-occupiable PSDs for the three types, (c) framework and connectivity spherical-harmonics power spectra, (d) pairwise fingerprint cosine similarity matrix (paper Figure 4)](tutorial_images/paper_pocket_detection_methods.png){width=100%}
+![Pocket type detection for Cu-BTC (HKUST-1): (a) unit cell with 1.0 Å distance isosurface coloured by pocket type, (b) overlaid pocket probe-occupiable PSDs for the three types, (c) framework and connectivity spherical-harmonics power spectra, (d) pairwise fingerprint cosine similarity matrix (paper Figure 4)](tutorial_images/paper_pocket_detection_methods.webp){width=100%}
 
-![Pocket type results across representative MOFs (paper Figure 5)](tutorial_images/paper_pocket_types_results.png){width=100%}
+![Pocket type results across representative MOFs (paper Figure 5)](tutorial_images/paper_pocket_types_results.webp){width=100%}
 
 ## Overview
 
@@ -21,18 +21,21 @@ This is more than a clustering exercise. Chemically distinct adsorption sites (e
 - **Physically interpretable** — a "type" should correspond to a real cavity family.
 - **Robust to over-segmentation** — watershed often splits one cage into multiple fragments; these must collapse into one type.
 
-The new `env_cluster` flow replaces the old kmeans-on-PSD approach with **multi-modal fingerprinting**: it seeds bands from the peak probe radius, then merges or splits them using a rotation-invariant environment fingerprint (pocket PSD + framework spherical harmonics + connectivity SH).
+`env_cluster` is the default (and recommended) pocket-typing method. It uses **multi-modal fingerprinting**: it seeds bands from the peak probe radius $r_{max}$ and then merges adjacent bands whose rotation-invariant fingerprints agree. The fingerprint has three channels: size (pocket PSD), a SOAP-like framework environment, and pore connectivity.
 
-```
-CIF  →  dgrid  →  periodic segmentation  →  pocket PSDs  →  env_cluster typing
-                                                                       ↓
-                                                          typed.n_types, .type_summary
+```{mermaid}
+flowchart LR
+    A[CIF] --> B[dgrid]
+    B --> C[periodic segmentation]
+    C --> D[pocket PSDs]
+    D --> E[env_cluster typing]
+    E --> F["typed.n_types, typed.type_summary"]
 ```
 
 ## Prerequisites
 
 - A working `mofography` install (`uv pip install -e .`).
-- The [Quick Cluster tutorial](quick_cluster.qmd) — read it first for the segmentation basics.
+- The [Quick Start tutorial](quick_start.qmd) — read it first for the segmentation basics.
 
 ## Imports
 
@@ -105,10 +108,8 @@ This step also computes **per-pocket** quantities that the fingerprint needs (pe
 This is the heart of the tutorial. The default `method='env_cluster'` runs:
 
 1. **Initial bands** — sort pockets by peak probe radius (`max_r`); start a new band whenever the gap to the previous pocket exceeds 0.15 Å (one third of a grid spacing — a sensible grid-noise floor).
-2. **Merge adjacent bands** whose full environment fingerprints (pocket PSD + framework SH + connectivity SH) agree:
-   - Tight merge: cosine ≥ 0.90 for small `max_r` gaps (≤ 0.20 Å).
-   - Large-gap merge: cosine ≥ 0.90 for larger gaps (≤ 0.50 Å, = 1 grid spacing).
-3. **Optional singleton merge** — 1-pocket bands whose `max_r` is within 0.40 Å of a neighbour are folded in (e.g. ZIF-8 corner vs center cages, grid-offset artefacts).
+2. **Merge adjacent bands** repeatedly when their mean `max_r` differ by at most 0.50 Å (one grid spacing) *and* the mean fingerprint cosine over all cross-band pocket pairs is ≥ 0.90. Bands farther apart in `max_r` are never merged. (Internally a tighter/looser cosine tier exists for gaps ≤/> 0.20 Å; both default to 0.90.)
+3. **Singleton merge** (on by default) — 1-pocket bands whose `max_r` is within 0.40 Å of a neighbour are folded in (e.g. ZIF-8 corner vs centre cages, grid-offset artefacts).
 
 Each surviving band is one **pocket type**.
 
@@ -165,52 +166,86 @@ The simplest path is `show_mof_plotly`, which automatically renders the typed re
 
 ```{python}
 fig = mgr.show_mof_plotly(seg, atoms, typed_result=typed, stylize=True)
+fig.write_image("tutorial_images/pockets_detection_types.png", width=1100, height=800)  # static preview for the docs
+```
+
+![IRMOF-1 pore surface coloured by pocket type](tutorial_images/pockets_detection_types.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+fig = mgr.show_mof_plotly(seg, atoms, typed_result=typed, stylize=True)
 fig.show()
 ```
+:::
+
+[Open the interactive version](interactive/irmof1_pockets_windows_threejs.html){target="_blank"}
 
 Expected behaviour:
 
 - One isosurface layer per pocket type, coloured by `type_id`.
-- Toggle layers in the legend to compare.
+- In the interactive version, toggle layers in the legend to compare.
 - IRMOF-1 should show two distinct cage families (small and large).
 
 ## How `env_cluster` Sees a Pocket
 
-For each pocket, `assign_pocket_types` builds a `PocketFingerprint` that combines three orthogonal signals:
+For each pocket, `assign_pocket_types` builds a `PocketFingerprint` that combines three orthogonal channels (paper Section 3.3):
 
 | Channel | What it measures | Why it helps |
 |---------|------------------|--------------|
-| **Pocket PSD** | Histogram of probe-occupiable sizes inside the pocket | Captures local *size* and *shape* of void |
-| **Framework SH** | Spherical-harmonic power spectrum of framework atoms inside an adaptive shell around the pocket centroid | Captures the *chemical + geometric* environment of the cage wall |
-| **Connectivity SH** | Spherical harmonics of unit vectors to trusted periodic neighbours | Captures the pocket's *network role* (e.g. channel segment vs isolated cage) |
+| **Pocket PSD** | Normalized pocket-wise probe-occupiable PSD | Local *size* of the void |
+| **Framework environment** | SOAP-like spherical-harmonic power spectrum ($\ell = 0..6$) of wall atoms: void voxels within 1.5 Å of the vdW surface define a shell, atoms within 3.5 Å of those voxels are included. Computed for all wall atoms (shape), per element (chemistry), plus per-element radial histograms | Wall *shape and chemistry*, independent of crystal orientation |
+| **Connectivity** | Same power spectrum on minimum-image unit vectors to pore-graph neighbours | Pocket's *network role* (how many windows, where they point) |
 
-The cosine similarity between two `PocketFingerprint`s is what the merge step thresholds on. This means pockets with similar `max_r` but different framework chemistry or different connectivity are kept as **separate** types — and pockets with the same environment at slightly different sizes are **merged**.
+**The SOAP-like power spectrum.** Void voxels within 1.5 Å of the framework van der Waals surface form a wall-proximity shell around the pocket, and the framework atoms within 3.5 Å of those voxels are the atoms that shape it. Unit vectors $\hat{u}_k$ from the pore centre (the distance-grid maximum) to each wall atom $k$ are expanded in spherical harmonics $Y_{\ell m}$. The rotation-invariant power spectrum is
 
-For the full algorithm + parameter list, see `mofography/pocket_typing.py::assign_pocket_types_env_cluster`. For an honest discussion of when `env_cluster` is *not* robust (specifically: VDW table choice, NU-1000 micropore case), see the [Pocket Typing VDW Sensitivity Problem](pocket-typing-radii-sensitivity-problem.md) deep dive.
+$$
+P_\ell = \sum_{m=-\ell}^{\ell} \left| \sum_k Y_{\ell m}(\hat{u}_k) \right|^2 , \qquad \ell = 0,\ldots,6 ,
+$$
+
+where the sum over $k$ runs over the wall atoms with equal weight. It is computed for all wall atoms together (wall shape) and for each element separately (chemistry), and per-element radial histograms add distance information. Because $P_\ell$ does not change when the structure is rotated, equivalent pockets match regardless of crystal orientation.
+
+**The connectivity channel.** For each neighbour of the pocket in the pore graph, take the unit vector to the neighbour centre with the minimum-image convention. The same $P_\ell$ construction on those directions encodes how many windows the pocket has and where they point.
+
+**Comparing pockets.** Fingerprints are compared by cosine similarity. The fingerprint cosine is the mean over active channels. The connectivity channel is weighted fivefold when both pockets have at least 3 windows, and is omitted for pockets with fewer than 3 connections, so topologically distinct cages with similar walls stay separable (e.g. UiO-66). Pockets of the same type have cosines near 1, and distinct types in the benchmark set fall below the merge threshold of 0.90.
+
+**Assigning types** takes two steps:
+
+1. Sort pockets by $r_\mathrm{max}$, the peak distance-field value in the pocket (peak probe radius), and start a new band wherever consecutive values differ by more than 0.15 Å (three times the 0.5 Å grid step, a noise floor).
+2. Repeatedly merge adjacent bands when their mean $r_\mathrm{max}$ differ by at most 0.5 Å and the mean fingerprint cosine over all pocket pairs across the two bands is at least 0.90. Bands further apart in $r_\mathrm{max}$ are never merged.
+
+So pockets with similar $r_\mathrm{max}$ but different framework chemistry or connectivity stay **separate** types, and pockets with the same environment at slightly different sizes are **merged**.
+
+For the full algorithm + parameter list, see `mofography/pocket_typing.py::assign_pocket_types_env_cluster`. 
+
+::: {.callout-caution}
+## Caution: radii and grid spacing
+Pocket types are calibrated with Bondi radii on a 0.5 Å grid. By default the peak probe radius used for typing comes from a separate Bondi-radii grid, so changing the VDW table for the analysis does not change type counts. Passing your own radii as `typing_radii` can split or merge types in some structures (for example the micropores of NU-1000). Check the type count and `typed.rep_to_type` after changing radii or spacing.
+:::
 
 ## Parameter Reference
 
-`assign_pocket_types` exposes the major env_cluster thresholds as keyword arguments; sensible defaults are pre-set for the canonical `spacing=0.5` Å Bondi/CRC workflow.
+`mgr.assign_pocket_types(seg, atoms, method='env_cluster', **kwargs)` forwards kwargs to `assign_pocket_types_from_segmentation`. For `env_cluster` the tunable ones are:
 
 | Parameter | Default | Effect |
 |-----------|---------|--------|
-| `method` | `'env_cluster'` | `'env_cluster'` (default), `'shape_refined'` (legacy d₁-first), or `'max_probe_radius'` (bands-only, no fingerprint) |
-| `band_gap_a` | 0.04 Å | Initial `max_r` band split (legacy default — env_cluster uses 0.15) |
-| `merge_singleton_bands` | `True` | Fold 1-pocket bands into a neighbour within `singleton_band_gap_a` |
-| `singleton_band_gap_a` | 0.40 Å | Singleton fold tolerance |
-| `env_cluster_initial_band_gap_a` | 0.15 Å | `env_cluster` band split (override; grid-noise floor) |
-| `typing_radii` | `'bondi_crc_fallback'` | VDW table for `max_r` typing bands; pass `'segmentation'` to use the analysis `dgrid` directly |
+| `method` | `'env_cluster'` | Recommended. Legacy alternatives (`'shape_refined'`, `'max_probe_radius'`) are kept for reproducing old results only. |
+| `env_cluster_initial_band_gap_a` | 0.15 Å | Initial `max_r` band split (grid-noise floor; 3× the 0.5 Å grid step). |
+| `merge_singleton_bands` | `True` | Fold 1-pocket bands into a neighbour. |
+| `singleton_band_gap_a` | 0.40 Å | Singleton fold tolerance. |
+| `typing_radii` | `'bondi_crc_fallback'` | VDW table for `max_r` typing; `'segmentation'` reuses the analysis `dgrid`; or a per-atom radii array. |
+| `probe_radius_psd` | 1.2 Å | Probe-centre radius for the pocket PSD (set it in `enrich_segmentation_with_pocket_psds`). |
+
+The merge thresholds (0.50 Å `max_r` gap, 0.90 cosine) are module constants in `mofography.pocket_typing` (`ENV_CLUSTER_*`), not call arguments. `band_gap_a`, `subsplit_gap_a`, `adjacent_merge_max_r_gap_a` and `merge_cosine` only affect the legacy `shape_refined` method.
 
 ## Tips
 
 - **Trust the defaults.** The defaults are calibrated for the canonical workflow (`spacing=0.5` Å, Bondi/CRC VDW, 0.15 Å band gap) and validated against NU-1000, ZIF-20, UiO-66, IRMOF-1, and Cu-BTC.
 - **Always run `enrich_segmentation_with_pocket_psds` first.** The pocket PSD is sampled in Rust and reused by both the typing and any downstream RAG feature code — running it once keeps the pipeline fast.
 - **Inspect `typed.rep_to_type` first** if results look wrong. If a known single cage has been split into two `type_id`s, the bands are too aggressive; if two chemically different cages are merged, the fingerprint merge is too lenient.
-- **For radii sensitivity questions**, read the [deep dive](pocket-typing-radii-sensitivity-problem.md) before changing parameters — type counts are intentionally calibrated to a specific Bondi+0.5 Å regime.
+- **After changing radii**, re-check the type count and `typed.rep_to_type`: type counts are calibrated to the Bondi, 0.5 Å regime (see the caution above).
 
 ## Next Steps
 
-- [Quick Cluster tutorial](quick_cluster.qmd) — the segmentation basics this builds on.
-- [Pocket Typing VDW Sensitivity Problem](pocket-typing-radii-sensitivity-problem.md) — the open problem of VDW-stable typing, with NU-1000 as the canonical failure case.
+- [Quick Start tutorial](quick_start.qmd) — the segmentation basics this builds on.
 - [Distance Grid tutorial](distance_grid.qmd) — alternative dgrid backends for very large systems.
 - [Pore Graph](pore_graph.md) — what to do with the typed pockets (build a typed RAG).
