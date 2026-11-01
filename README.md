@@ -257,6 +257,12 @@ Quarto guides (not only `.ipynb`): [install](docs/install.qmd), [CLI quick start
 
 ---
 
+## Building the docs
+
+To build the website locally, or publish it on GitHub Pages, see [BUILDING_DOCS.md](BUILDING_DOCS.md).
+
+---
+
 ## Releases & metadata
 
 Calendar-version tags and collaborator citations: [docs/releases-and-citing.md](docs/releases-and-citing.md). Maintainer TODOs (arXiv, Zenodo, `mgr_cli_py` links): [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md).
