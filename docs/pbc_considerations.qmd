@@ -1,5 +1,5 @@
 ---
-title: "Applying Periodic Boundary Conditions"
+title: "PBC considerations"
 description: "How do_periodic_segmentation_rust detects PBC equivalence groups — what extra_padding does, and how to inspect boundary maxima"
 image: tutorial_images/pbc_groups_concept.png
 jupyter: python3
@@ -14,8 +14,9 @@ MOF into a *truly infinite* material. mofography's job is to recognize that
 several distinct maxima/regions you see *inside the unit cell* are in fact
 **one cavity** wrapping through the periodic boundary.
 
-The new merged `do_periodic_segmentation_rust()` does this in one call. The
-PBC information is exposed through these output keys:
+`do_periodic_segmentation_rust()` handles periodicity as part of the core
+workflow: there is nothing to apply afterwards (the old legacy workflow did this
+as a separate post-processing step, now `apply_pbc`). The PBC information is exposed through these output keys:
 
 | Key | What it is |
 |-----|------------|

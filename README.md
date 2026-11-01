@@ -45,7 +45,7 @@ Everything below is available from the Python module. Global properties and pock
 | **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](docs/compute_pore_diameters.ipynb), [PLD and percolation](docs/pld_and_percolation.ipynb) |
 | **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](docs/surface_area.qmd), [Accessibility](docs/accessibility.qmd) |
 | **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Pore size distributions](docs/pore_size_distributions.qmd) |
-| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](docs/region_segmentation.qmd), [Applying PBC](docs/applying_pbc.qmd) |
+| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](docs/region_segmentation.qmd), [PBC considerations](docs/pbc_considerations.qmd) |
 | **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](docs/pockets_detection.qmd) |
 | **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](docs/connections_and_windows.qmd), [Window fingerprinting](docs/window_fingerprinting.qmd) |
 | **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](docs/region_adjacency_graph.ipynb), [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) |
@@ -233,7 +233,7 @@ open _site/index.html # macOS; or use a local static server
 3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
 4. [Distance grid](docs/distance_grid.qmd)
 5. [Region segmentation](docs/region_segmentation.qmd)
-6. [Applying periodic boundary conditions](docs/applying_pbc.qmd)
+6. [PBC considerations](docs/pbc_considerations.qmd)
 7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
 8. [Connections and windows](docs/connections_and_windows.qmd)
 9. [Pocket type detection](docs/pockets_detection.qmd) (environment-cluster method) **(new)**

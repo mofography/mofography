@@ -61,7 +61,7 @@ print(f"Window connections:   {len(seg['connections'])}")
 print(f"PBC groups:           {len(seg['pbc_groups'])}")
 ```
 
-Those are the defaults (written out for clarity). `seg` also holds `regions_pbc` (labelled grid), `maxima_info`, `all_maxima` and `input_params`. See [Region segmentation](region_segmentation.qmd) and [Applying PBC](applying_pbc.qmd).
+Those are the defaults (written out for clarity). `seg` also holds `regions_pbc` (labelled grid), `maxima_info`, `all_maxima` and `input_params`. See [Region segmentation](region_segmentation.qmd) and [PBC considerations](pbc_considerations.qmd).
 
 ::: {.callout-note}
 Messages starting with `[pocket_maxima_check]` mean a pocket's recorded maximum is a bit lower than the true peak of its region (a few tenths of an Å). They are informational. See the [tuning page](parameter_tuning.qmd) if you want to remove them.

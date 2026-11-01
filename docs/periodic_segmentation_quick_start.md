@@ -96,7 +96,7 @@ Before we dive into the new workflow, it's worth mentioning the **legacy approac
 - ✅ Returns all outputs with consistent indexing
 
 📜 **Legacy tutorials** (for reference/educational purposes):
-- [Applying PBC](applying_pbc.qmd) - How the old manual merging worked
+- [PBC considerations](pbc_considerations.qmd) - How the old manual merging worked
 - [Region Segmentation](region_segmentation.qmd) - Segmentation methods
 - [Region Adjacency Graph](region_adjacency_graph.ipynb) - Working with pore graphs
 - [Connections and Windows](connections_and_windows.qmd) - Window detection
