@@ -1,5 +1,7 @@
 # plot_pocket_psds_from_grid { #mofography.visualize.plot_pocket_psds_from_grid }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Compute and plot Rust pocketwise probe PSDs directly from a padded distance grid.
+
 ```python
 visualize.plot_pocket_psds_from_grid(
     dgrid,

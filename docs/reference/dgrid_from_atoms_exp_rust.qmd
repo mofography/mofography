@@ -1,7 +1,9 @@
 # dgrid_from_atoms_exp_rust { #mofography.rust_fun.dgrid_from_atoms_exp_rust }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Backward-compatible alias only; no separate implementation. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 rust_fun.dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None)
 ```
 
-Deprecated alias for :func:`dgrid_from_atoms_rust`.
+Same as :func:`dgrid_from_atoms_rust`; kept for backward-compatible imports.

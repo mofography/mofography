@@ -1,0 +1,146 @@
+---
+title: "Adding to the gallery"
+toc: true
+---
+
+How to add a new interactive scene (or a new picture of an existing one) to the [gallery](gallery.qmd). Commands run from the repository root with the `mgr_env` Python (`/Users/arungopalan/miniforge3/envs/mgr_env/bin/python`, called `$PY` below).
+
+## Where files live
+
+| What | Where | In the main git repo? |
+|:--|:--|:--|
+| Interactive scenes (standalone HTML) | `docs/interactive/` | No, `docs/interactive/*.html` is git-ignored |
+| Gallery pictures (PNG or WebP) | `docs/tutorial_images/gallery/<material>_<variant>.png` | Yes |
+| Backup / source of truth for the HTML | private repo `mofography/mofography-gallery-assets` (one folder per material), which mirrors both of the above | Separate repo |
+
+So the HTML files travel through the assets repo: generate or export, copy into `docs/interactive/` for the site build, and push the same files to the assets repo (see the [checklist](#checklist)).
+
+## Size rules
+
+- Keep each HTML under about 15 MB (the current scenes are 1.5 to 8.5 MB). Hard limit 50 MB. GitHub rejects files over 100 MB.
+- Use a coarse distance-grid spacing: `mgr.dgrid_from_atoms_rust(atoms, spacing=0.5)`.
+- Save with `fig.to_html(path, pack_binary=True)`: arrays become base64 blobs, about 3 to 4 times smaller.
+- Turn per-vertex hover text off on surfaces: `fig.plot_surface(..., hover_label="")`.
+- Raise `step_size` on surfaces (marching cubes stride, `step_size=2` or `3`) if a mesh is still too big. The generator exposes it as `--step-size`.
+- Use instanced atoms (`plot_framework_instanced_3js`) instead of per-atom meshes.
+- Check the result: `ls -lh docs/interactive/*.html`.
+
+## Making a scene with the generator
+
+`scripts/dev/gen_gallery_assets.py` builds every curated scene. It writes to `/tmp/mofography-gallery-assets/<material>/` by default (override with `--out`).
+
+```bash
+$PY scripts/dev/gen_gallery_assets.py --material cubtc            # one of cubtc nu1000 lta zif8 irmof1
+$PY scripts/dev/gen_gallery_assets.py --material nu1000 --out /tmp/x --step-size 2
+$PY scripts/dev/gen_gallery_assets.py --material --perc            # only the NU-1000 percolation-history scene
+$PY scripts/dev/gen_gallery_assets.py --material --sa-vv           # only the Cu-BTC Plotly charts
+```
+
+To add a material:
+
+1. Put the CIF in `examples/TestCIFs/` and add `"key": ("Display name", CIFS / "file.cif")` to `MATERIALS`.
+2. Add a background to `BACKGROUNDS` (see below).
+3. `build_simple(key, out)` already builds pockets, windows, extra region colourings and the pore graph for any material, so `--material key` just works. Copy `build_cubtc` if you want a custom layer set.
+
+Backgrounds: `BACKGROUNDS[key]` is passed to `to_html(background=...)`: a hex string (`"#ffffff"`), `("linear", c1, c2)` (left to right), or `("radial", centre, edge)`. The viewer's Bg picker and gradient buttons still override it, and PNG export captures it.
+
+Name the layers clearly: set `name=` on every trace, and use `legend_label` (see `set_legend_label` in the script) when the generic legend text would be misleading. For example the Cu-BTC blue translucent layer is a distance-grid isosurface, so it is labelled "Pore surface (distance grid, isovalue 1.0 A)", not a segmentation; region-labelled surfaces are "Regions (no PBC)" and "Regions (PBC-merged)".
+
+## Exporting from the web app
+
+The Streamlit app in the `mgr_cli_py` repo (`mgrcli interactive`) can also produce a scene:
+
+1. Run `mgrcli interactive`, load your CIF and run the analysis.
+2. Set the visualisation backend to **Three.js** (the Plotly backend gives a different HTML without the gallery viewer).
+3. Click **Download interactive HTML**.
+4. Copy the file to `docs/interactive/<material>_<what>_threejs.html` and check its size against the rules above. Check the size: if the export is over about 15 MB, regenerate the scene with the generator instead.
+
+## Screenshots
+
+`scripts/dev/gallery_screenshot.py` drives the scene through its own DOM (hides the sidebar, sets layers, framework style, Ortho, Exploded slider, view direction, background) and saves only the WebGL canvas, 1600 x 1000 by default. It needs Playwright with Chromium and internet (the HTML loads Three.js from a CDN).
+
+```bash
+export PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright
+
+# 1. list the legend entries to use with --only / --on / --off
+$PY scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html --list
+
+# 2. take a picture
+$PY scripts/dev/gallery_screenshot.py docs/interactive/nu1000_pockets_windows_threejs.html \
+    docs/tutorial_images/gallery/nu1000_exploded_ortho.png \
+    --ortho --explode 0.6 --only Framework "Pocket types" --view 0 0 1 --zoom 0.95
+```
+
+Options (all optional; legend names match as case-insensitive substrings):
+
+| Option | Meaning |
+|:--|:--|
+| `--only A B` | show only legend entries matching A, B, and hide the rest |
+| `--on A` / `--off A` | additionally turn matching entries on / off |
+| `--repr` | `ball_and_stick`, `stick` or `space_filling` (Representation dropdown) |
+| `--ortho` | switch to orthographic projection |
+| `--explode 0.6` | Exploded slider value |
+| `--view X Y Z` | view direction (same as the view-dir boxes) |
+| `--zoom 1.2` | camera distance multiplier; the default framing is cropped at 16:10, so use 1.1 to 1.4 to zoom out, below 1 to zoom in |
+| `--bg` | `"#ffffff"`, `radial:#centre:#edge`, `linear:#c1:#c2`, or `transparent` |
+| `--width/--height` | window size, default 1600 x 1000 |
+| `--jpeg Q` | write a JPEG at quality Q (opaque backgrounds only) |
+| `--eval JS` | extra JavaScript to run before the shot |
+
+Tips:
+
+- Keep each picture under about 700 KB. Raw PNGs of these scenes are 0.5 to 1.7 MB; convert large ones to WebP, which is 5 to 10 times smaller and keeps transparency:
+  `$PY -c "from PIL import Image; Image.open('a.png').save('a.webp', 'WEBP', quality=88, method=6)"`
+- Look at every picture before keeping it: discard clipped, cluttered, tiny or dark-on-dark ones.
+- Clicking **Ortho** in the viewer switches the lighting and lightens the default background, so the orthographic captures of dark-background scenes look lighter than their perspective twins. (This is a viewer quirk: an explicit `--bg` did not change it either.)
+- Transparent images should still read on both the light and dark site themes.
+
+## Adding the figure to the gallery page
+
+In `docs/gallery.qmd`, add an item inside the material's `gallery-grid`: the image, a one-line caption, and a folded code block with the viewer steps and the exact command.
+
+````markdown
+::: {.gallery-item}
+![What it shows](tutorial_images/gallery/<material>_<variant>.png)
+
+One-line caption (what is shown: orthographic, exploded 0.6, ...).
+
+::: {.callout-note collapse="true" appearance="minimal"}
+## Show code
+Viewer: click **Ortho**, set **Exploded** to 0.6, ...
+
+```bash
+python scripts/dev/gallery_screenshot.py docs/interactive/<file>.html out.png --ortho --explode 0.6
+```
+:::
+:::
+````
+
+A hero picture links to the scene: `[![alt](tutorial_images/gallery/x.png)](interactive/y.html){target="_blank"}`.
+
+## Checklist {#checklist}
+
+- [ ] No private data in the scene (no unpublished structures or file paths in names or metadata).
+- [ ] HTML under about 15 MB and well under 50 MB. The page needs internet to load Three.js from the CDN; say so if you describe it.
+- [ ] Pictures look right on both the light and dark site themes (toggle the theme switch) and on a phone width.
+- [ ] Layer and legend names are accurate (see the naming note above).
+- [ ] Render the page from `docs/`: `cd docs && quarto render gallery.qmd`, then open `_site/gallery.html`. Render one page at a time.
+- [ ] Copy the HTML into your clone of the assets repo and push:
+
+```bash
+cd /tmp/mofography-gallery-assets      # or: git clone https://github.com/mofography/mofography-gallery-assets.git
+git pull
+cp /path/to/docs/interactive/<file>.html <material>/
+cp /path/to/docs/tutorial_images/gallery/<material>_*.{png,webp} <material>/   # optional mirror of the pictures
+git add <material>
+git commit -m "Add <material> scene"
+git push
+```
+
+Add a row for new files to `MANIFEST.md` in that repo (layers on by default, size, regenerate command).
+
+## What not to commit
+
+- Scratch or full-detail HTML over 50 MB, in either repo (GitHub rejects files over 100 MB, and they bloat history forever). If one slipped into a commit that has not been pushed, `git reset --soft HEAD~1` and recommit without it.
+- Anything in `examples/viz_outputs/` and other generated HTML in the main repo.
+- `docs/interactive/*.html` in the main repo: it is git-ignored on purpose, the files come from the assets repo.

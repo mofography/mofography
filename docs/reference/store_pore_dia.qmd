@@ -1,5 +1,7 @@
 # store_pore_dia { #mofography.percolation_results.store_pore_dia }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Persists LCD/PLD/dfsd under method-specific keys on results dicts.
+
 ```python
 percolation_results.store_pore_dia(
     results,

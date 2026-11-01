@@ -1,6 +1,9 @@
 # find_functional_groups { #mofography.analyze.find_functional_groups }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> SMARTS subgraph search on a covalent bond graph (functional-group tutorials).
+
 ```python
 analyze.find_functional_groups(ase_atoms, functional_groups)
 ```
 
+Match SMARTS functional-group patterns against a periodic bond graph built from ``ase_atoms``.

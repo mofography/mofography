@@ -9,7 +9,7 @@ raspa_helper.apply_region_map_to_raspa_pdb(
 )
 ```
 
-It takes a pdb file and a region map and returns a dictionary of the number of atoms in each region
+Count adsorbates per segmentation region using a supercell region map on PDB frames.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

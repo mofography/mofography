@@ -4,8 +4,7 @@
 data.get_num_graphs(db_path)
 ```
 
-The function `get_num_graphs` retrieves the number of graphs stored in a SQLite database specified
-by the `db_path`.
+Return the number of rows in the SQLite ``graphs`` table at ``db_path``.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

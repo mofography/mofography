@@ -1,5 +1,7 @@
 # enrich_segmentation_with_pocket_psds { #mofography.workflow.enrich_segmentation_with_pocket_psds }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Caches pocket PSDs on the segmentation dict before typing or RAG enrichment.
+
 ```python
 workflow.enrich_segmentation_with_pocket_psds(
     segmentation,

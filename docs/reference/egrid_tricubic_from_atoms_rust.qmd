@@ -1,5 +1,7 @@
 # egrid_tricubic_from_atoms_rust { #mofography.rust_fun.egrid_tricubic_from_atoms_rust }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> 8-channel tricubic energy grid used with configurational-integral workflows.
+
 ```python
 rust_fun.egrid_tricubic_from_atoms_rust(
     ase_atoms,

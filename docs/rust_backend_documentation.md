@@ -426,7 +426,7 @@ sample_points, pore_sizes, sample_point_labels = mgr.compute_pore_sizes_pocketwi
 )
 ```
 
-> **Note**: For more comprehensive example of pore size distribution calculations, see [`test_psd_rust.py`](./test_psd_rust.py).
+> **Note**: For more comprehensive example of pore size distribution calculations, see the [Pore size distributions](pore_size_distributions.qmd) tutorial.
 
 ## Performance Benefits 📈
 

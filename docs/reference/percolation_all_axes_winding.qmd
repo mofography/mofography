@@ -1,5 +1,7 @@
 # percolation_all_axes_winding { #mofography.winding_percolation.percolation_all_axes_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Core winding percolation at a threshold; feeds history, PLD, and RASPA blocking.
+
 ```python
 winding_percolation.percolation_all_axes_winding(
     results,
@@ -13,3 +15,4 @@ winding_percolation.percolation_all_axes_winding(
 )
 ```
 
+Return per-axis winding percolation cluster region groups at a probe threshold.

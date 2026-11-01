@@ -1,5 +1,7 @@
 # do_periodic_segmentation_basic { #mofography.compute.do_periodic_segmentation_basic }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Slow Python variant, not kept up to date. Use `do_periodic_segmentation_rust` instead.
+
 ```python
 compute.do_periodic_segmentation_basic(
     dgrid,
@@ -21,3 +23,4 @@ compute.do_periodic_segmentation_basic(
 )
 ```
 
+Like :func:`do_periodic_segmentation` with optional connections and dgrid return flags.

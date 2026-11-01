@@ -1,4 +1,6 @@
 # plot_cell_3js { #mofography.threejs_viz.plot_cell_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_cell for Plotly-parity naming. Use `plot_cell` instead.
+
 `threejs_viz.plot_cell_3js`
 

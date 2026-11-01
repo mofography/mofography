@@ -1,0 +1,92 @@
+---
+title: "Tuning and safe ranges"
+description: "Defaults, safe ranges, and symptoms for dgrid_from_atoms_rust and do_periodic_segmentation_rust"
+toc: true
+---
+
+Defaults work for most MOFs. Change one parameter at a time and look at the pocket count (`len(seg["maxima_pbc"])`) and a picture. All distances are in Å, and "height" means distance to the framework surface. Ranges follow the paper's SI; defaults are checked against the function signatures in `mofography/rust_fun.py`.
+
+## Distance grid: `dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)`
+
+| Parameter | Default | Safe range | Notes |
+|---|---|---|---|
+| `spacing` | none (required) | 0.25 to 0.75 | Voxel size. Halving it costs 8x memory and time. 0.5 is the usual choice; 0.25 works for fine detail. |
+| `radii` | `None` (Bondi, Mendeleev fill) | per-atom array | Pass the same radii you want in every downstream number. See [vdW radii](vdw_radii.qmd). |
+
+- Too coarse (above about 0.7): narrow windows are blurred, PLD is underestimated, small pockets vanish.
+- Too fine (below about 0.3): slow, large, and no real gain. Noise can create extra maxima.
+- Pass the same `spacing` to `do_periodic_segmentation_rust`. If you omit it, it is inferred from the grid and is less accurate, which hurts padding, maxima and window positions.
+- Cast to `float32` before segmentation: `dgrid.astype(np.float32)`.
+- Large or amorphous systems: see [Distance grid methods](dgrid_methods.qmd).
+
+## Segmentation: `do_periodic_segmentation_rust(dgrid, mat_atoms, ...)`
+
+### Maxima detection (tune these first)
+
+| Parameter | Default | Safe range | What it does |
+|---|---|---|---|
+| `mask_thickness` | 0.05 | 0.05 to 1.5 | Voxels closer than this to the framework are background and not segmented. 0.05 is the default and recommended; values up to 1.5 have worked without issues, but larger values erode more pore volume and can disconnect narrow windows. When plotting isosurfaces, keep the isovalue (about 1.0 to 1.5) well above it. |
+| `h` | 0.2 | 0.1 to 0.5 | Minimum height drop between a maximum and its highest saddle (window) for it to count as its own pocket. |
+| `min_distance` | 1.5 | 1.0 to 2.0 | Maxima closer than this are merged. |
+| `threshold_abs` | 1.5 | 1.0 to 2.0 | Minimum height of a maximum. Lower it for ultramicroporous pockets. |
+
+### Selective smoothing
+
+Smoothing suppresses noise maxima in wide pores. Details in [Selective smoothing](selective_smoothing.qmd).
+
+| Parameter | Default | Safe range | What it does |
+|---|---|---|---|
+| `preserve_threshold` | 3.0 | about 3 to 4 | Maxima below this height are left alone. |
+| `smooth_threshold` | 6.0 | about 5 to 7 | Maxima above this height are always smoothed. Between the two, smoothing scales up. |
+| `max_smooth_radius` | 2.0 | about 1 to 3 | Cap on the smoothing radius. |
+
+### Padding, walls, windows
+
+| Parameter | Default | Safe range | What it does |
+|---|---|---|---|
+| `extra_padding` | 5 | 0 to 10 | Periodic padding added beyond the internal `dgrid.max() + 5` Å. Raise it for very large pores or windows that look clipped. |
+| `wall_thickness` | 0.05 | 0.05 to 0.10 | Near-boundary band (fraction of the longest perpendicular cell length) used when filtering maxima. |
+| `minimum_window_separation` | `None` (3 x `spacing`) | 1 to 3 | Min separation between windows of the same pocket pair. Lower splits one window into several. Higher merges neighbours. |
+| `min_region_size` | 0.001 | 0.0001 to 0.01 | Regions smaller than this fraction of the padded grid are dropped and re-segmented. |
+| `compactness` | 0 | 0 | Watershed compactness. Leave at 0 unless you know you need it. |
+| `skip_endchannel_pairs` | `True` | | Leave `True`. `False` only for cosmetic clean-up of end-channel slivers. |
+
+The paper's SI lists `extra_padding` 2 and `wall_thickness` 0.08 as typical values; the shipped signature defaults are 5 and 0.05, which are what the tutorials use.
+
+### Watershed backend
+
+| `watershed_backend` | Deterministic | Use when |
+|---|---|---|
+| `"rust_det"` (default) | yes | Default. Single-thread heap. |
+| `"rust_det_parallel"` | yes | Large grids, memory-limited. Same result, often faster. |
+| `"rust_bucket"` | no | Max throughput. Boundaries can differ slightly, mostly in tortuous amorphous pores. |
+| `"skimage"` | yes | Reference check. Uses `watershed_connectivity` (2 = 18 neighbours, 3 = 26). |
+
+See [Watershed backends](watershed_backends.qmd).
+
+### Switches
+
+`compute_connections` (default `True`) turns window detection on or off. `return_padded_regions` (`False`) returns the padded labels for debugging, and the winding tutorials need it. `return_dgrid` (`False`) puts `dgrid` into `seg`, which is handy when later steps need it.
+
+## Symptoms and fixes
+
+| You see | Likely cause | Try |
+|---|---|---|
+| Many tiny pockets inside one obvious cage or channel (over-segmentation) | `h` too low, `min_distance` too small, noisy grid | Raise `h` (0.2 to 0.3 to 0.4), raise `min_distance`, finer `spacing`, or lower `smooth_threshold` |
+| Two real cages merged into one pocket (under-segmentation) | `h` too high, `min_distance` too large | Lower `h` (to 0.1), lower `min_distance` |
+| Small pockets missing | `threshold_abs` too high, smoothing too strong | Lower `threshold_abs` to 1.0, raise `preserve_threshold` |
+| Wall fragments or thin slivers labelled as pockets | `mask_thickness` too low | Raise `mask_thickness`, raise `min_region_size` |
+| One window reported many times | `minimum_window_separation` too small | Raise it |
+| Windows missing or clipped at cell faces | Padding too small, `spacing` too coarse | Raise `extra_padding`, pass `spacing`, refine the grid |
+| Pocket count changes between runs | `rust_bucket` backend | Use `rust_det` or `rust_det_parallel` |
+| `[pocket_maxima_check]` messages | A pocket's maximum sits a few tenths of Å below the region peak | Informational. Lower `h` or `min_distance` slightly if you need exact maxima |
+| Out of memory | Grid too large | Coarser `spacing`, another dgrid backend, `rust_det_parallel` |
+
+## Sanity checks
+
+- Pocket count should match the topology you expect (IRMOF-1 with defaults gives 8 PBC-merged pockets).
+- Stability: change `h` by +/-0.1. A good setting gives the same pockets.
+- Change `spacing` by about 20%. LCD and PLD should barely move.
+- Per-pocket checks: [Pocket type detection](pockets_detection.qmd) and [Connections and windows](connections_and_windows.qmd).
+
+Back to [Quick start](quick_start.qmd).

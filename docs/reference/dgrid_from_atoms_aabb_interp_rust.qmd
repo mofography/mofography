@@ -1,5 +1,7 @@
 # dgrid_from_atoms_aabb_interp_rust { #mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Coarse AABB sample plus trilinear upsample; mild smoothing for tests.
+
 ```python
 rust_fun.dgrid_from_atoms_aabb_interp_rust(
     ase_atoms,

@@ -1,5 +1,7 @@
 # make_framework_scatter_trace { #mofography.movies.make_framework_scatter_trace }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Fast scatter-plus-lines framework; lower quality than instanced mesh. Use `make_framework_instanced_trace` instead.
+
 ```python
 movies.make_framework_scatter_trace(
     atoms,

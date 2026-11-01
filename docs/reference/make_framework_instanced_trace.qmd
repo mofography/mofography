@@ -1,5 +1,7 @@
 # make_framework_instanced_trace { #mofography.movies.make_framework_instanced_trace }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default instanced ball-and-stick framework for interactive Three.js.
+
 ```python
 movies.make_framework_instanced_trace(
     atoms,
@@ -16,4 +18,4 @@ movies.make_framework_instanced_trace(
 Framework as InstancedMesh spheres + cylinder mesh bonds.
 
 Sends compact atom data for instanced spheres; browser builds sphere geometry.
-representation: "ball_and_stick" (default) or "stick" (two-tone CPK bonds).
+representation: "ball_and_stick" (default), "stick", or "space_filling".

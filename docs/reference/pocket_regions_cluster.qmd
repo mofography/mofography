@@ -1,5 +1,7 @@
 # pocket_regions_cluster { #mofography.workflow.pocket_regions_cluster }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Safe accessor for typed region label grid used in surface colouring.
+
 ```python
 workflow.pocket_regions_cluster(typed_result, seg)
 ```

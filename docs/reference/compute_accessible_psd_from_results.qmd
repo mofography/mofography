@@ -1,5 +1,7 @@
 # compute_accessible_psd_from_results { #mofography.rust_fun.compute_accessible_psd_from_results }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Full accessible global PSD dict with winding percolation and pocket weighting.
+
 ```python
 rust_fun.compute_accessible_psd_from_results(
     results,
@@ -14,7 +16,9 @@ rust_fun.compute_accessible_psd_from_results(
 )
 ```
 
-Compute a PoreBlazer-style accessible PSD by:
+Compute a volume-weighted accessible PSD from segmentation at a given probe radius.
+
+Computes a PoreBlazer-style accessible PSD by:
 1) identifying percolating pockets at the given probe_radius via winding-number percolation,
 2) sampling pore sizes pocketwise (fixed samples per region),
 3) weighting each pocket's PDF by its voxel fraction to recover a volume-weighted global PSD.

@@ -1,5 +1,7 @@
 # get_pore_dia_mgr_winding3 { #mofography.winding_percolation.get_pore_dia_mgr_winding3 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Prunes spill artifact edges on the graph instead of re-segmenting; dev-focused. Use `get_pore_dia_mgr_winding` instead.
+
 ```python
 winding_percolation.get_pore_dia_mgr_winding3(
     mat_atoms=None,

@@ -1,5 +1,7 @@
 # get_atoms_from_mofdb_df_parallel { #mofography.data.get_atoms_from_mofdb_df_parallel }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Dask-parallel CIF parsing for large MOFdb frames; same output as atoms_from_mofdb_df. Use `atoms_from_mofdb_df` instead.
+
 ```python
 data.get_atoms_from_mofdb_df_parallel(mofdb_df, scheduler='threads')
 ```

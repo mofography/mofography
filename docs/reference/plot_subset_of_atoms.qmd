@@ -4,8 +4,7 @@
 visualize.plot_subset_of_atoms(ase_atoms, subset, **kwargs)
 ```
 
-> This function takes an ASE atoms object and a list of atom ids and returns a plotly mesh trace of
-the atoms in the list
+Return a Plotly Mesh3d trace for a subset of atoms selected by index.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

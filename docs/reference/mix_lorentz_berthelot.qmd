@@ -8,7 +8,7 @@ data.mix_lorentz_berthelot(
 )
 ```
 
-It takes an ASE atoms object and a forcefield dictionary and returns a mixed forcefield dictionary
+Mix framework and probe UFF parameters with Lorentz-Berthelot rules for each framework atom.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -1,5 +1,7 @@
 # get_pore_dia_mgr2 { #mofography.compute.get_pore_dia_mgr2 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Lattice variant, not the default. Use `get_pore_dia_mgr_winding` instead.
+
 ```python
 compute.get_pore_dia_mgr2(mat_atoms, dgrid=None, kwargs=None)
 ```

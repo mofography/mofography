@@ -4,3 +4,4 @@
 pocket_framework_env.radial_histogram_normalized(r, r_shell, n_bins)
 ```
 
+Build an L1-normalized radial histogram of r/R_shell in ``n_bins`` bins.

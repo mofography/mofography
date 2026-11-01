@@ -1,5 +1,5 @@
 ---
-title: 'Property calculation: pore-structure descriptors of a hyper-crosslinked polymer'
+title: 'Crosslinked polymer properties'
 description: LCD, PLD, N2 accessible surface area, percolating pore volume, window-resolved connectivity and fractional free volume from a mofography pore graph
 jupyter: python3
 ---
@@ -19,6 +19,19 @@ Requirements
 - ase==3.22.1
 - networkx==3.2.1
 
+The workflow has six steps:
+
+1. Set the per-atom radii and the segmentation parameters.
+2. Define small helpers that attach volume and connectivity data to the pore graph.
+3. Read the structure and compute the distance grid.
+4. Segment the pore space into pockets and windows.
+5. Build the window-resolved pore graph.
+6. Compute each property from the grid, the graph, or the percolating sub-graphs, and collect them in one table.
+
+## Imports
+
+Limit Rust to eight threads (change this to match your machine), then import the libraries.
+
 ```{python}
 import os
 os.environ["RAYON_NUM_THREADS"] = "8"
@@ -28,6 +41,10 @@ import mofography as mgr
 from ase.io import read
 import numpy as np
 ```
+
+## 1. Atom radii and parameters
+
+This polymer is modelled with united-atom sites, so the default Bondi radii do not apply. Instead each atom type gets half its TraPPE Lennard-Jones sigma as its radius.
 
 ```{python}
 # TraPPE sigma (Å) of the united-atom sites in 75X_0DVB_4.cif
@@ -40,6 +57,10 @@ trappe_dia = pd.Series(
          'C7': 3.95}
         )
 ```
+
+Next, the distance grid and segmentation parameters. The spacing is the voxel size of the distance grid. `h`, `threshold_abs`, `min_distance` and `min_region_size` control which local maxima become pockets. `preserve_threshold`, `smooth_threshold` and `max_smooth_radius` control selective smoothing. `extra_padding` sets the padding around the cell for periodic segmentation, and `minimum_window_separation` the minimum distance between windows. See [Tuning and safe ranges](parameter_tuning.qmd) for what each one does.
+
+The two probe radii are the methane probe (half the TraPPE sigma of CH₄), used for percolation, and the N₂ probe, used for the accessible surface area.
 
 ```{python}
 spacing = 0.5
@@ -58,6 +79,12 @@ minimum_window_separation = 1.5
 probe_radius = 1.865      # CH4 (TraPPE sigma / 2), for percolation analysis
 n2_probe_radius = 1.82    # N2, for accessible surface area
 ```
+
+## 2. Helper functions
+
+The pore graph does not carry volumes or per-pore connectivity by default, so three helpers add them as node attributes.
+
+`add_volume_to_graph` stores the cell volume (in litres) on every node. `add_pixel_ratio_to_graph` counts the voxels of each pocket and stores the fraction of the whole grid that pocket occupies. That fraction is later summed to get pore volumes.
 
 ```{python}
 def add_volume_to_graph(graph, mat_atoms):
@@ -78,6 +105,8 @@ def add_pixel_ratio_to_graph(graph, regions_pbc):
         graph.nodes[i]['pixel_ratio']=pixel_counts/n
     return graph
 ```
+
+`add_connectivities_to_nodes` looks at all windows (edges) touching each pore. For each pore it records the number of windows (the connectivity), the average and minimum window radius, the average window-to-pore radius ratio, and the clearance of the windows relative to the probe (window radius minus probe radius). It also stores each of these multiplied by the connectivity, which the weighted averages below use.
 
 ```{python}
 def add_connectivities_to_nodes(
@@ -130,12 +159,20 @@ def add_connectivities_to_nodes(
     return graph
 ```
 
+## 3. Structure and distance grid
+
+Read the CIF with `store_tags=True` so the atom site labels (`C1`, `C2`, ...) are kept. Look up each atom's radius from its label and compute the distance grid with these radii. The grid stores, for every voxel, the distance to the nearest framework surface.
+
 ```{python}
 mat_atoms = read('../mofography/examples/TestCIFs/75X_0DVB_4.cif',store_tags=True)
 site_labels = mat_atoms.info['_atom_site_label']
 radii = trappe_dia[site_labels].values/ 2.0
 dgrid = mgr.dgrid_from_atoms_rust(mat_atoms, spacing=spacing, radii=radii)
 ```
+
+## 4. Periodic segmentation
+
+Run the watershed segmentation with periodic boundary conditions. It splits the pore space into pockets, merges the pieces that touch across cell boundaries, and finds the windows between neighbouring pockets (`compute_connections=True`). The result is one dictionary.
 
 ```{python}
 results = mgr.do_periodic_segmentation_rust(
@@ -157,8 +194,11 @@ results = mgr.do_periodic_segmentation_rust(
                 minimum_window_separation=minimum_window_separation,
                 watershed_backend="rust_det",
             )
+```
 
+Pull out the pieces used below: the label grid for the unit cell (`regions`), the periodic label grid (`regions_pbc`), the list of windows (`connections`), and the maxima. Voxels labelled 0 are framework atoms, which is used later for the free volume.
 
+```{python}
 regions = results["regions"]
 maxima_info = results["maxima_info"]
 connections = results["connections"]
@@ -166,7 +206,9 @@ regions_pbc = results["regions_pbc"]
 regions_1d = regions.flatten()
 ```
 
-**Pore graph.** Each node is a pore in the unit cell, and each edge is
+## 5. Pore graph
+
+Each node is a pore in the unit cell, and each edge is
 one window between two pores. Only windows between pores that own part
 of the original unit cell are kept, so every window is counted once.
 Windows that cross the cell boundary are kept as edges with a non-zero
@@ -183,16 +225,30 @@ graph = add_pixel_ratio_to_graph(graph,regions_pbc)
 base_labels = (mgr.build_base_region_labels_from_results(results))
 ```
 
+## 6. Properties
+
+### Largest cavity diameter
+
+The largest cavity diameter is twice the largest value in the distance grid, whether or not that cavity is reachable from outside.
+
 ```{python}
 # Largest cavity diameter (Å): diameter of the largest sphere that fits in the pore space, regardless of percolation
 lcd = dgrid.max() * 2
 ```
+
+### Pore limiting diameter
+
+The pore limiting radius is the largest probe radius that can still travel through the periodic network (winding-number percolation). The diameter is twice that.
 
 ```{python}
 # Pore limiting diameter (Å): diameter of the largest spherical probe that can pass through the periodic percolating pore network
 plr = mgr.find_pore_limiting_radius_winding(results,graph=graph,base_region_labels=base_labels,include_dangling=True)
 pld = plr * 2
 ```
+
+### N₂-accessible surface area
+
+Surface area is estimated by Monte Carlo sampling on a shell around the framework (50,000 samples). Only sample points that the N₂ probe can reach through the percolating network count as accessible. The seed makes the number reproducible.
 
 ```{python}
 # N2-accessible surface area (m²/g): surface area accessible to an N2-sized probe in the percolating pore network
@@ -210,6 +266,15 @@ n2_asa = (mgr.compute_surface_area_mc_winding(
             )
 ```
 
+### Methane-accessible percolating network
+
+Keep only the pores and windows that a methane-sized probe can use to cross the cell. Two versions are extracted:
+
+- Before pruning, the whole percolating network, including self-loops and dangling branches.
+- After pruning, only the shortest percolating pathways (the backbone).
+
+Connectivity data is added to each version.
+
 ```{python}
 # Methane-accessible percolating pore network
 # before pruning: the whole percolating network, including self-loops and dangling branches
@@ -221,6 +286,10 @@ percolation_pore_graph_after_pruning = (mgr.extract_percolating_pore_graph(graph
 percolation_pore_graph_after_pruning = (add_connectivities_to_nodes(percolation_pore_graph_after_pruning,probe_radius=probe_radius))
 ```
 
+### Percolating pore volume
+
+The pore volume fraction is the sum of the voxel fractions of the pores in the percolating network. Dividing by the framework bulk density turns it into a gravimetric pore volume in cm³/g.
+
 ```{python}
 # Percolating pore volume fraction: fraction of the cell volume occupied by the methane-accessible percolating pore network
 percolating_pore_volume_fraction=sum(percolation_pore_graph_before_pruning.nodes[node]["pixel_ratio"]for node in percolation_pore_graph_before_pruning.nodes())
@@ -231,6 +300,10 @@ percolating_pore_volume_fraction=sum(percolation_pore_graph_before_pruning.nodes
 rho=0.82 # bulk density (g/cm³): framework mass / cell volume, from 10.1021/acs.jctc.2c00798
 percolating_gravimetric_pore_volume=percolating_pore_volume_fraction/rho
 ```
+
+### Pore and window sizes
+
+Average the pore radius, the mean window radius per pore, and the window-to-pore radius ratio over the pores in the percolating network.
 
 ```{python}
 # Average percolating pore radius (Å): mean radius of the pores in the percolating network
@@ -244,6 +317,10 @@ average_accessible_window_radius = np.mean([percolation_pore_graph_before_prunin
 w_to_p = np.mean([percolation_pore_graph_before_pruning.nodes[n]["avg_window_radius"] / percolation_pore_graph_before_pruning.nodes[n]["pocket_radius"] for n in percolation_pore_graph_before_pruning.nodes()])
 ```
 
+### Connectivity
+
+The plain average connectivity counts windows per pore. The window-size-weighted version gives more weight to pores with wide windows.
+
 ```{python}
 # Average pore connectivity: average number of accessible windows connected to each pore
 average_connectivity = np.mean([percolation_pore_graph_before_pruning.nodes[n]["connectivity"]for n in percolation_pore_graph_before_pruning.nodes()])
@@ -253,6 +330,10 @@ average_connectivity = np.mean([percolation_pore_graph_before_pruning.nodes[n]["
 average_window_size_weighted_connectivity = (sum(percolation_pore_graph_before_pruning.nodes[n]["avg_radius_times_connectivity"]for n in percolation_pore_graph_before_pruning.nodes())/sum(percolation_pore_graph_before_pruning.nodes[n]["avg_window_radius"]for n in percolation_pore_graph_before_pruning.nodes()))
 ```
 
+### Backbone fraction
+
+The backbone fraction compares the pore volume of the shortest percolating pathways to that of the whole percolating network. A low value means most of the percolating volume sits in side branches and dead ends.
+
 ```{python}
 # Percolating backbone fraction = n_b / n_p: grid points in the shortest percolating backbone
 # divided by grid points in the whole percolating network
@@ -260,12 +341,20 @@ percolating_pore_volume_fraction_backbone=sum(percolation_pore_graph_after_pruni
 fB=percolating_pore_volume_fraction_backbone/percolating_pore_volume_fraction
 ```
 
+### Fractional free volume
+
+Voxels labelled 0 belong to the framework. The fractional free volume uses their share of the grid together with the 1.3 factor from the cited definition.
+
 ```{python}
 # Fractional free volume = 1 - 1.3 * V_vdW / V_sp: fraction of the material volume not occupied by the framework
 Vvdw=np.sum(regions_1d==0)
 Vsp=len(regions_1d)
 ffv=1-1.3*(Vvdw/Vsp)
 ```
+
+## Summary
+
+All properties in one table.
 
 ```{python}
 summary = pd.DataFrame(

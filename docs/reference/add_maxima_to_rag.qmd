@@ -4,18 +4,7 @@
 compute.add_maxima_to_rag(G, maxima, maxima_radii, shape, ase_atoms)
 ```
 
-> This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms
-object and adds the maxima and maxima radii to the graph.
-
-Let's look at the function in more detail.
-
-The first thing we do is import the `find_coord_from_indices` function from the `helper` module.
-
-Next, we check to make sure that the number of nodes in the graph is equal to the number of maxima.
-If not, we raise a `ValueError`.
-
-If the number of nodes in the graph is equal to the number of maxima, we loop through the nodes and
-maxima and add the maxima indices, cartesian coordinates and maxima radii to the graph.
+Attach watershed maxima indices, coordinates, and radii to each RAG node.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

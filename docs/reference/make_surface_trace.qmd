@@ -19,3 +19,4 @@ movies.make_surface_trace(
 )
 ```
 
+Build a Three.js colored isosurface mesh trace from dgrid and region labels.

@@ -1,5 +1,7 @@
 # plot_rag_separate_traces { #mofography.visualize.plot_rag_separate_traces }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Same RAG geometry as plot_rag with separate colored node and edge traces and legend groups.
+
 ```python
 visualize.plot_rag_separate_traces(G, plot_with='maxima', **kwargs)
 ```

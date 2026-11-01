@@ -1,5 +1,7 @@
 # plot_csds { #mofography.visualize.plot_csds }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Plot centroid-distance cavity histograms (CSD) stored on RAG nodes after add_csd_to_rag_with_pbc.
+
 ```python
 visualize.plot_csds(
     rag,

@@ -1,5 +1,7 @@
 # find_pore_limiting_radius_winding { #mofography.winding_percolation.find_pore_limiting_radius_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Binary-search PLD probe radius; core of winding pore-diameter workflow.
+
 ```python
 winding_percolation.find_pore_limiting_radius_winding(
     results,
@@ -12,3 +14,4 @@ winding_percolation.find_pore_limiting_radius_winding(
 )
 ```
 
+Binary-search the largest probe radius (Å) with winding percolation on any axis.

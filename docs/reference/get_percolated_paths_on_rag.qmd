@@ -1,5 +1,7 @@
 # get_percolated_paths_on_rag { #mofography.compute.get_percolated_paths_on_rag }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Core percolated-path and window analysis on a RAG with segmentation metadata.
+
 ```python
 compute.get_percolated_paths_on_rag(
     rag,
@@ -9,3 +11,4 @@ compute.get_percolated_paths_on_rag(
 )
 ```
 
+Find percolated paths and limiting windows between RAG pockets (requires regions on rag.graph).

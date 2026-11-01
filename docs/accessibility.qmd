@@ -1,6 +1,6 @@
 ---
 title: "Accessibility: Winding vs Lattice Percolation"
-description: "How to compute LCD, PLD, and DFSD with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius."
+description: "How to compute LCD, PLD, and LIS with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius."
 image: tutorial_images/segmentation_cross_section.png
 jupyter: python3
 execute:
@@ -16,7 +16,7 @@ This tutorial covers the **winding** accessibility method — `mofography`'s def
 You will:
 
 1. Run `do_periodic_segmentation_rust` to get a pore graph.
-2. Compute PLD / LCD / DFSD with `get_pore_dia_mgr_winding`.
+2. Compute PLD / LCD / LIS with `get_pore_dia_mgr_winding`.
 3. Step the probe radius and watch the percolating cluster grow / shrink with `compute_percolation_history_winding`.
 4. Run the equivalent **lattice v2** sweep and compare.
 5. Render an interactive Three.js scene with `show_percolation_threejs` for any chosen probe radius.
@@ -76,7 +76,7 @@ print(f"dgrid: {dgrid.shape}, void max = {dgrid.max():.2f} Å")
 ```{python}
 results = mgr.do_periodic_segmentation_rust(
     dgrid, atoms,
-    mask_thickness=1.5, h=0.2, min_distance=1.5, threshold_abs=1.5,
+    mask_thickness=0.05, h=0.2, min_distance=1.5, threshold_abs=1.5,
     spacing=spacing, return_dgrid=True,
     return_padded_regions=True, extra_padding=2,
 )
@@ -88,22 +88,22 @@ print(f"connections: {len(results['connections'])} inter-region windows")
 
 The result is a richly populated dictionary. The two keys the percolation routines need are `regions` (the labeled volume) and `maxima_info` (one row per local maximum, including the PBC image it belongs to). The `connections` list carries `(region_a, region_b, di, dj, dk, window_radius)` tuples — these become the edges of the pore graph.
 
-## Step 3: Compute PLD, LCD, DFSD via the winding algorithm
+## Step 3: Compute PLD, LCD, LIS via the winding algorithm
 
 `get_pore_dia_mgr_winding` is the one-shot entry point. Pass the segmentation `results` and the framework `atoms`; it builds the directed pore graph and returns the three classical textural properties:
 
 - **LCD** (Largest Cavity Diameter): $2 \times \max(\texttt{dgrid})$. The diameter of the single largest sphere that fits anywhere in the void — no connectivity requirement.
 - **PLD** (Pore Limiting Diameter): $2 \times r_{\max}$ where $r_{\max}$ is the largest probe radius at which the void percolates. The diameter of the largest sphere that can traverse the material end-to-end.
-- **DFSD** (Directional Free Sphere Diameter): $2 \times \max(\texttt{dgrid}[\text{percolating labels}])$. The largest sphere that fits inside a *percolating* region. Always $\text{DFSD} \le \text{LCD}$ by construction.
+- **LIS** (Directional Free Sphere Diameter): $2 \times \max(\texttt{dgrid}[\text{percolating labels}])$. The largest sphere that fits inside a *percolating* region. Always $\text{LIS} \le \text{LCD}$ by construction.
 
 ```{python}
 lcd, pld, dfsd, _ = mgr.get_pore_dia_mgr_winding(atoms, dgrid=dgrid, results=results)
 print(f"LCD = {lcd:.3f} Å    (largest cavity anywhere)")
 print(f"PLD = {pld:.3f} Å    (largest traversing probe)")
-print(f"DFSD = {dfsd:.3f} Å   (largest cavity in a percolating region)")
+print(f"LIS = {dfsd:.3f} Å   (largest cavity in a percolating region)")
 ```
 
-The inequality $\text{PLD} \le \text{DFSD} \le \text{LCD}$ should hold — the PLD is bounded by the smallest window along the percolating route, the DFSD by the largest cavity along that same route, and the LCD by the largest cavity *anywhere* (which may be a dead-end pocket that the probe can never reach).
+The inequality $\text{PLD} \le \text{LIS} \le \text{LCD}$ should hold — the PLD is bounded by the smallest window along the percolating route, the LIS by the largest cavity along that same route, and the LCD by the largest cavity *anywhere* (which may be a dead-end pocket that the probe can never reach).
 
 ## Step 4: Percolation history — probe by probe
 
@@ -268,9 +268,9 @@ The two HTML files are visually similar on IRMOF-1, as expected. The differences
 A few invariants that should always hold on the result of `compute_percolation_history_winding` + `get_pore_dia_mgr_winding`:
 
 ```{python}
-# 1. PLD ≤ DFSD ≤ LCD
-assert pld <= dfsd <= lcd, f"PLD≤DFSD≤LCD violated: {pld=} {dfsd=} {lcd=}"
-print(f"  PLD ≤ DFSD ≤ LCD  ✓  ({pld:.3f} ≤ {dfsd:.3f} ≤ {lcd:.3f})")
+# 1. PLD ≤ LIS ≤ LCD
+assert pld <= dfsd <= lcd, f"PLD≤LIS≤LCD violated: {pld=} {dfsd=} {lcd=}"
+print(f"  PLD ≤ LIS ≤ LCD  ✓  ({pld:.3f} ≤ {dfsd:.3f} ≤ {lcd:.3f})")
 
 # 2. At the reported PLD, the winding history still shows at least one percolating axis
 last_t, last_axes = hist_w[-1]
@@ -291,7 +291,7 @@ print(f"  winding vs lattice PLD agree within {spacing} Å  ✓")
 
 ## What to read next
 
-- [`pore_limiting_diameter_pld_and_percolation.md`](pore_limiting_diameter_pld_and_percolation.md) — longer narrative tutorial on PLD, LCD, DFSD with the winding algorithm and a NU-1000 example.
+- [`pore_limiting_diameter_pld_and_percolation.md`](pore_limiting_diameter_pld_and_percolation.md) — longer narrative tutorial on PLD, LCD, LIS with the winding algorithm and a NU-1000 example.
 - [`face_merging_vs_winding.qmd`](face_merging_vs_winding.qmd) — the two-algorithm comparison in slide form, including the line-by-line walkthrough of `percolation_all_axes_periodic` (lattice) and `percolation_winding_multidigraph` (winding).
 - [`cli_quickstart.qmd`](cli_quickstart.qmd) — how to run the same analysis from the command line with `--accessibility-method` and `--lattice-variant`.
 - [`selective_smoothing.qmd`](selective_smoothing.qmd) — the upstream knobs (`preserve_threshold`, `smooth_threshold`, `max_smooth_radius`) that control the segmentation, hence the pore graph, hence the PLD.

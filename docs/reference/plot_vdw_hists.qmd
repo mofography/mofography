@@ -1,5 +1,7 @@
 # plot_vdw_hists { #mofography.visualize.plot_vdw_hists }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Bar traces for legacy VdW energy histograms on RAG nodes; tricubic screening is preferred for energy.
+
 ```python
 visualize.plot_vdw_hists(
     rag,
@@ -10,3 +12,4 @@ visualize.plot_vdw_hists(
 )
 ```
 
+Return Plotly bar traces for VdW energy histograms stored on RAG nodes.

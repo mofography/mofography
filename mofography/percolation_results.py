@@ -50,6 +50,7 @@ def get_percolation_history(
 
 
 def has_percolation_history(results: Dict[str, object], method: str) -> bool:
+    """Return whether percolation history for method is stored on results (incl. legacy key)."""
     method = method.lower()
     key = (
         PERCOLATION_HISTORY_WINDING
@@ -125,6 +126,7 @@ def get_pore_dia(
     results: Dict[str, object],
     method: str = "winding",
 ) -> Optional[Dict[str, Any]]:
+    """Return stored LCD/PLD/dfsd dict for winding or lattice, or None if absent."""
     method = method.lower()
     key = PORE_DIA_WINDING if method == "winding" else PORE_DIA_LATTICE
     val = results.get(key)

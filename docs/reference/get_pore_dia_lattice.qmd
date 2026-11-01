@@ -1,5 +1,7 @@
 # get_pore_dia_lattice { #mofography.compute.get_pore_dia_lattice }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Lattice-method LCD/PLD/DFSD for comparison; stores results under pore_dia_lattice. Use `get_pore_dia_mgr_winding` instead.
+
 ```python
 compute.get_pore_dia_lattice(
     mat_atoms,

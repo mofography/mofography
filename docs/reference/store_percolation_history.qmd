@@ -1,5 +1,7 @@
 # store_percolation_history { #mofography.percolation_results.store_percolation_history }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Writes winding or lattice history without clobbering the other method.
+
 ```python
 percolation_results.store_percolation_history(
     results,

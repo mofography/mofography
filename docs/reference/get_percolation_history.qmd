@@ -1,5 +1,7 @@
 # get_percolation_history { #mofography.percolation_results.get_percolation_history }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Read method-specific history with legacy key fallback; used throughout compute.
+
 ```python
 percolation_results.get_percolation_history(
     results,

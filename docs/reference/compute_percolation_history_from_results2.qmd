@@ -1,6 +1,9 @@
 # compute_percolation_history_from_results2 { #mofography.compute.compute_percolation_history_from_results2 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Lattice method, kept for comparison; winding is the default. Use `compute_percolation_history_winding` instead.
+
 ```python
 compute.compute_percolation_history_from_results2(results)
 ```
 
+Attach lattice v2 percolation history from segmentation results (``compute_percolation_history2``).

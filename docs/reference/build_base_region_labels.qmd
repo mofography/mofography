@@ -8,3 +8,4 @@ winding_percolation.build_base_region_labels(
 )
 ```
 
+Map each base maxima node to watershed region labels it represents.

@@ -1,5 +1,7 @@
 # regions_from_dgrid { #mofography.compute.regions_from_dgrid }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Watershed region labeling from a distance grid; core segmentation step.
+
 ```python
 compute.regions_from_dgrid(
     dgrid,
@@ -10,8 +12,7 @@ compute.regions_from_dgrid(
 )
 ```
 
-The function `regions_from_dgrid` takes a density grid as input and identifies regions based on
-local maxima, with options for adjusting parameters like mask thickness and compactness.
+Label pore regions and maxima from a distance grid using watershed segmentation.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

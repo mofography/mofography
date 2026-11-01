@@ -1,5 +1,7 @@
 # apply_widest_path_fix_to_pair { #mofography.widest_path_resegment.apply_widest_path_fix_to_pair }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> End-to-end PBC wrap repair on segmentation labels; not wired into main flow.
+
 ```python
 widest_path_resegment.apply_widest_path_fix_to_pair(
     labels,

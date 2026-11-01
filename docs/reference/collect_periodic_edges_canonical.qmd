@@ -1,6 +1,9 @@
 # collect_periodic_edges_canonical { #mofography.winding_percolation.collect_periodic_edges_canonical }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Builds deduplicated PBC edge map used by make_directed_graph_from_segmentation_results.
+
 ```python
 winding_percolation.collect_periodic_edges_canonical(connections, maxima_info)
 ```
 
+Build a canonical deduplicated edge map from connections and maxima_info.

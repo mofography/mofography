@@ -1,5 +1,7 @@
 # assign_pocket_types_shape_refined { #mofography.pocket_typing.assign_pocket_types_shape_refined }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Optional method: d1 coarse bands plus max_r refinement for large cages.
+
 ```python
 pocket_typing.assign_pocket_types_shape_refined(
     pockets,

@@ -1,5 +1,7 @@
 # connections_from_regions_and_dgrid { #mofography.compute.connections_from_regions_and_dgrid }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Builds periodic window connections used with rag_from_connections in the main workflow.
+
 ```python
 compute.connections_from_regions_and_dgrid(
     region_labels,
@@ -11,6 +13,8 @@ compute.connections_from_regions_and_dgrid(
     wall_thickness=2,
 )
 ```
+
+Build region connections and window sites from labelled regions and the distance grid.
 
 It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
 threshold, and returns a list of connections between regions, and the centers of the windows between

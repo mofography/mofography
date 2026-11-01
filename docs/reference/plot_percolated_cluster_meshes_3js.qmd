@@ -1,4 +1,6 @@
 # plot_percolated_cluster_meshes_3js { #mofography.threejs_viz.plot_percolated_cluster_meshes_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_percolated_cluster_meshes for Plotly-parity naming. Use `plot_percolated_cluster_meshes` instead.
+
 `threejs_viz.plot_percolated_cluster_meshes_3js`
 

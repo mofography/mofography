@@ -4,7 +4,7 @@
 raspa_helper.get_isos_fit_for_raspa_folder(path_to_folder, T, order)
 ```
 
-* Description
+Fit Legendre polynomials to RASPA energies and return isosteric heat vs loading.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

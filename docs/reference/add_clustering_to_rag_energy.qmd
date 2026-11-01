@@ -1,5 +1,7 @@
 # add_clustering_to_rag_energy { #mofography.compute.add_clustering_to_rag_energy }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older energy-based clustering; env_cluster typing is the default. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_clustering_to_rag_energy(
     rag,
@@ -14,3 +16,4 @@ compute.add_clustering_to_rag_energy(
 )
 ```
 
+Cluster RAG pockets by comparing PBC-aware vdW energy samples (KS distance).

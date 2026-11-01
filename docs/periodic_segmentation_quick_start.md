@@ -96,7 +96,7 @@ Before we dive into the new workflow, it's worth mentioning the **legacy approac
 - ✅ Returns all outputs with consistent indexing
 
 📜 **Legacy tutorials** (for reference/educational purposes):
-- [Applying PBC](applying_pbc.qmd) - How the old manual merging worked
+- [PBC considerations](pbc_considerations.qmd) - How the old manual merging worked
 - [Region Segmentation](region_segmentation.qmd) - Segmentation methods
 - [Region Adjacency Graph](region_adjacency_graph.ipynb) - Working with pore graphs
 - [Connections and Windows](connections_and_windows.qmd) - Window detection
@@ -197,7 +197,7 @@ print(f"  Unit cell: {mat_atoms.cell.cellpar()[:3]} Angstroms")
 spacing = 0.5  # Grid spacing in Angstroms
 
 # Segmentation parameters
-mask_thickness = 1.0  # Void space threshold (Angstroms)
+mask_thickness = 0.05  # Void space threshold (Angstroms)
 h = 0.2  # h-maxima persistence (suppress noise)
 threshold_abs = 1.5  # Absolute threshold (ignore small maxima)
 
@@ -212,7 +212,7 @@ extra_padding = 10  # Extra padding (Angstroms)
 | Parameter | What it does | Typical range |
 |-----------|--------------|---------------|
 | `spacing` | Grid resolution (lower = more detailed) | 0.3 - 1.0 Å |
-| `mask_thickness` | Minimum pore size to consider | 0.8 - 1.5 Å |
+| `mask_thickness` | Voxels closer to the framework than this are wall (default and recommended: 0.05) | 0.05 - 0.15 Å |
 | `h` | Suppress noise in maxima detection | 0.1 - 0.5 |
 | `threshold_abs` | Ignore small maxima | 1.0 - 2.0 Å |
 | `wall_thickness` | PBC boundary detection sensitivity | 0.05 - 0.15 |

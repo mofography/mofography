@@ -10,9 +10,7 @@ visualize.cylinders_for_bonds(
 )
 ```
 
-It takes a list of bonds (each bond is a list of two indices) and an ASE atoms object, and returns a
-list of trimesh objects, each of which is a cylinder centered on the bond with radius 0.25 and
-height equal to half the bond length
+Build trimesh cylinder meshes for each bond pair in an ASE structure.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -82,7 +82,7 @@ def dgrid_from_atoms_rust(ase_atoms, spacing, radii=None):
 
 
 def dgrid_from_atoms_exp_rust(ase_atoms, spacing, radii=None):
-    """Deprecated alias for :func:`dgrid_from_atoms_rust`."""
+    """Same as :func:`dgrid_from_atoms_rust`; kept for backward-compatible imports."""
     return dgrid_from_atoms_rust(ase_atoms, spacing, radii=radii)
 
 
@@ -1394,6 +1394,31 @@ def compute_pore_sizes_uniform_rust(
     return sample_points, pore_sizes
 
 
+def psd_gelb_gubbins(counts, binsize=0.25):
+    """Convert a diameter histogram to the Gelb-Gubbins PSD, -dV/dD (PoreBlazer-style).
+
+    Builds the cumulative volume V(>=D) from the histogram, normalises it to 1 at D=0, and takes
+    the central difference -dV/dD. This is the curve plotted (peak-normalised) in the paper.
+
+    :param counts: histogram of pore diameters on uniform bins of width ``binsize`` starting at 0
+        (for example ``compute_psd_uniform_rust(..., bins=np.arange(0, 20 + binsize, binsize),
+        density=False)``). Bins above the last one should already be folded into it.
+    :param binsize: bin width (A); PoreBlazer default is 0.25
+    :return: ``(x, y)`` with ``x`` the diameters (A) and ``y`` = -dV/dD (1/A) for the interior bins
+    """
+    import numpy as np
+
+    counts = np.asarray(counts, dtype=float)
+    n = counts.size
+    cum = np.cumsum(counts[::-1])[::-1]  # cum[k] = number of samples with D >= k * binsize
+    if n < 3 or cum[0] == 0:
+        return binsize * np.arange(1, max(n - 1, 1)) - binsize / 2.0, np.zeros(max(n - 2, 0))
+    cum = cum / cum[0]
+    y = -(cum[2:] - cum[:-2]) / (2.0 * binsize)
+    x = binsize * np.arange(1, n - 1) - binsize / 2.0  # same labelling as PoreBlazer Total_psd.txt
+    return x, y
+
+
 def compute_psd_uniform_rust(
     dgrid,
     ase_atoms,
@@ -1701,8 +1726,9 @@ def compute_accessible_psd_from_results(
     probe_center_min_radius=None,
     enforce_probe_center_occupiable=False,
 ):
-    """
-    Compute a PoreBlazer-style accessible PSD by:
+    """Compute a volume-weighted accessible PSD from segmentation at a given probe radius.
+
+    Computes a PoreBlazer-style accessible PSD by:
     1) identifying percolating pockets at the given probe_radius via winding-number percolation,
     2) sampling pore sizes pocketwise (fixed samples per region),
     3) weighting each pocket's PDF by its voxel fraction to recover a volume-weighted global PSD.

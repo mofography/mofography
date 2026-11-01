@@ -1,5 +1,7 @@
 # make_directed_graph_from_segmentation_results { #mofography.winding_percolation.make_directed_graph_from_segmentation_results }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Standard MultiDiGraph builder from connections and dgrid pocket radii.
+
 ```python
 winding_percolation.make_directed_graph_from_segmentation_results(
     results,

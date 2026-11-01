@@ -1,5 +1,7 @@
 # compute_pocket_psds_for_segmentation { #mofography.rust_fun.compute_pocket_psds_for_segmentation }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Segmentation-dict entry point for pocket-wise PSDs (typing and enrich workflow).
+
 ```python
 rust_fun.compute_pocket_psds_for_segmentation(
     segmentation,

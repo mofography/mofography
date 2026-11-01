@@ -12,3 +12,4 @@ compute.mark_points_with_largest_including_dia(
 )
 ```
 
+Inflate spheres along paths to windows and record the largest inclusive diameter per voxel.

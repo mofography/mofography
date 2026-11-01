@@ -1,11 +1,12 @@
 # rag_from_connections { #mofography.compute.rag_from_connections }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Go-to RAG builder.
+
 ```python
 compute.rag_from_connections(connections, maxima, only_use_internal=True)
 ```
 
-This Python function creates a graph representation of regions of interest based on connections and
-maximum values, with an option to include only internal connections.
+Build a NetworkX region adjacency graph from connection tuples and maxima.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

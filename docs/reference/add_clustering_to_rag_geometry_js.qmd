@@ -1,5 +1,7 @@
 # add_clustering_to_rag_geometry_js { #mofography.compute.add_clustering_to_rag_geometry_js }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Older geometry+JS clustering, less accurate than env_cluster. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_clustering_to_rag_geometry_js(
     rag,

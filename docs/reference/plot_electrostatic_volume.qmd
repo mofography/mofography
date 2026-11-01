@@ -1,5 +1,7 @@
 # plot_electrostatic_volume { #mofography.visualize.plot_electrostatic_volume }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Plotly Volume trace for electrostatic grids with configurable isosurface levels.
+
 ```python
 visualize.plot_electrostatic_volume(potential_V, cell, atoms)
 ```

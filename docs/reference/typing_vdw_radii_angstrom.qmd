@@ -1,5 +1,7 @@
 # typing_vdw_radii_angstrom { #mofography.vdw_radii.typing_vdw_radii_angstrom }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Stable radii for env_cluster pocket typing (Bondi/CRC plus Mendeleev fallback).
+
 ```python
 vdw_radii.typing_vdw_radii_angstrom(ase_atoms)
 ```

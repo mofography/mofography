@@ -1,5 +1,7 @@
 # plot_electrostatic_isosurfaces { #mofography.visualize.plot_electrostatic_isosurfaces }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Single Plotly mesh trace for electrostatic potential isosurfaces with PBC-aware scaling.
+
 ```python
 visualize.plot_electrostatic_isosurfaces(
     potential_V,
@@ -12,7 +14,7 @@ visualize.plot_electrostatic_isosurfaces(
 )
 ```
 
-Create a single Plotly mesh trace for the electrostatic potential isosurfaces with correct scaling and hover info.
+Return a Plotly mesh trace for electrostatic potential isosurfaces with PBC-aware scaling.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

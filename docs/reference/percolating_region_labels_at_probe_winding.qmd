@@ -1,5 +1,7 @@
 # percolating_region_labels_at_probe_winding { #mofography.winding_percolation.percolating_region_labels_at_probe_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Accessible region labels at a probe; used by compute accessibility APIs.
+
 ```python
 winding_percolation.percolating_region_labels_at_probe_winding(
     results,

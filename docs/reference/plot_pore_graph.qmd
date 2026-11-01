@@ -1,6 +1,9 @@
 # plot_pore_graph { #mofography.visualize.plot_pore_graph }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Old pore-graph plot for node_coords graphs. Use `plot_connections_as_it_is` instead.
+
 ```python
 visualize.plot_pore_graph(G)
 ```
 
+Return node and edge Scatter3d traces for graphs with node_coords (legacy pgraph format).

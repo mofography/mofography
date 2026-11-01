@@ -1,5 +1,7 @@
 # plot_maxima { #mofography.threejs_viz.plot_maxima }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Maxima markers from seg dict or grid inputs (Three.js).
+
 ```python
 threejs_viz.plot_maxima(
     seg_or_dgrid,
@@ -15,3 +17,4 @@ threejs_viz.plot_maxima(
 )
 ```
 
+Build Three.js maxima point traces from a seg dict or raw grid arrays.

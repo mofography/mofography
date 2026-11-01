@@ -1,5 +1,7 @@
 # show_percolation_threejs { #mofography.threejs_plotting.show_percolation_threejs }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> One-shot PLD/percolation Three.js HTML matching app tab layout.
+
 ```python
 threejs_plotting.show_percolation_threejs(
     analysis,

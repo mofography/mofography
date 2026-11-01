@@ -1,5 +1,7 @@
 # plot_windows_from_results { #mofography.threejs_viz.plot_windows_from_results }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Window markers with optional far-outside to periodic reclassification.
+
 ```python
 threejs_viz.plot_windows_from_results(
     connections_or_seg,

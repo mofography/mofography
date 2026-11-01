@@ -1,5 +1,7 @@
 # embedded_movie_dict_from_path { #mofography.movies.embedded_movie_dict_from_path }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Legacy JSON movie block for md_pdb_threejs viewer; prefer MovieFigure HTML.
+
 ```python
 movies.embedded_movie_dict_from_path(
     path,

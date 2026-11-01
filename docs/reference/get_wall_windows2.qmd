@@ -4,3 +4,4 @@
 compute.get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2)
 ```
 
+Detect unit-cell face wall windows by pairing opposite boundary region labels.

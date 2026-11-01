@@ -4,9 +4,7 @@
 compute.gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff)
 ```
 
-The function `gpe_aabb2` calculates Lennard-Jones energy contributions for grid points based on
-neighboring particles within a specified cutoff distance using positions instead of neighborlist passed as 
-argument as in `gpe_aabb' subroutine.
+Sum Lennard-Jones grid energies via Freud ball query on positions (gpe_aabb uses a prebuilt AABB).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

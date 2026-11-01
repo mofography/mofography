@@ -1,5 +1,7 @@
 # compute_psd_uniform_rust { #mofography.rust_fun.compute_psd_uniform_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Uniform random sampling PSD; not pocket-resolved like pocket-wise Rust PSDs.
+
 ```python
 rust_fun.compute_psd_uniform_rust(
     dgrid,

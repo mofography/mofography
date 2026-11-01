@@ -1,6 +1,5 @@
 ---
 title: "Publications"
-format: html
 eval: False
 toc: true
 ---
@@ -22,4 +21,10 @@ This is the original MOFography paper(s), please cite it if you use MOFography i
 
 ## Related Publications
 
-These are some of the publications that have used MOFography. 
+Built on mofography pore graphs:
+
+- C. Zheng, A. Gopalan, K. Shi. *PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal-Organic Frameworks.* J. Chem. Theory Comput. 2026, 22 (11), 5716-5730. [doi:10.1021/acs.jctc.6c00100](https://doi.org/10.1021/acs.jctc.6c00100)
+
+More publications that used mofography will be listed here.
+
+Figures from the mofography paper, interactive scenes, and static images are on the [Gallery](gallery.qmd).

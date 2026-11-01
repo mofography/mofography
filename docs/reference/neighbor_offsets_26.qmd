@@ -4,3 +4,4 @@
 widest_path_resegment.neighbor_offsets_26()
 ```
 
+Return the 26 face/edge/corner neighbor offsets for a 3D voxel grid.

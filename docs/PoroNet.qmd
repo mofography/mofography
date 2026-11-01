@@ -2,29 +2,29 @@
 title: 'PoroNet: H2 adsorption on pore graphs'
 description: Graph neural network on mofography pore graphs, predicting H2 uptake at 160 K and 5 bar
 jupyter: python3
+execute:
+  eval: false
 ---
 
 
-### This Jupyter notebook demonstrates PoroNet, a graph neural network built on pore graphs generated using Mofography. The example model predicts H₂ adsorption at 160 K and 5 bar. PoroNet predicts gas adsorption and reveals the contributions of individual pores, providing interpretable insights into adsorption behavior.
+PoroNet is a graph neural network built on mofography pore graphs. This example predicts H₂ adsorption at 160 K and 5 bar. Because the prediction is a sum over pores, it also gives the contribution of each individual pore, which makes the model interpretable.
 
-For more details, see https://pubs.acs.org/jctcce/article/22/11/5716/5185417/PoroNet-An-Intrinsically-Interpretable-Pore-Graph
+For details, see [PoroNet: An Intrinsically Interpretable Pore Graph Neural Network](https://pubs.acs.org/jctcce/article/22/11/5716/5185417/PoroNet-An-Intrinsically-Interpretable-Pore-Graph) (*J. Chem. Theory Comput.* 2026, 22, 5716). The pore graphs come from the [pore graph tutorial](region_adjacency_graph.ipynb) workflow.
 
-Requirements
+::: {.callout-note}
+This page shows code only; nothing runs when the docs are built, because training needs the PoroNet data files and several minutes of compute. The numbers and the figure below are saved results from a full run. Run the cells yourself in a notebook to reproduce them.
+:::
 
-- python==3.11.9
-- torch==2.2.1
-- dgl==2.4.0
-- numpy==1.23.5
-- pandas==2.2.2
-- scipy==1.13.1
-- networkx==3.2.1
-- scikit-learn==1.5.1
-- scikit-image==0.24.0
-- optuna==3.6.1
-- openpyxl==3.1.5
-- plotly==5.19.0
+## Requirements
 
-Import Packages
+These are the package versions the tutorial was developed and tested with.
+
+- python 3.11, torch 2.2, dgl 2.4, numpy 1.23, pandas 2.2, scipy 1.13
+- networkx 3.2, scikit-learn 1.5, scikit-image 0.24, optuna 3.6, openpyxl 3.1, plotly 5.19
+
+## Imports
+
+Load the numerical, graph, deep-learning and plotting libraries used in the rest of the tutorial.
 
 ```{python}
 import numpy as np 
@@ -52,22 +52,36 @@ from scipy.stats import gaussian_kde
 torch.set_num_threads(8)
 ```
 
-Set Random Seeds
+## Random seeds
+
+Fix the random seeds so data splits and weight initialisation are reproducible.
 
 ```{python}
 torch.manual_seed(1)
 np.random.seed(1) 
 ```
 
-Import Pore Graphs
+## Load the pore graphs
+
+Download (once) and load the precomputed pore graphs, one region adjacency graph per MOF, with pockets as nodes and windows as edges.
 
 ```{python}
-import os, pickle, urllib.request
-PKL = "Pore_Graph_for_H2.pkl"
-URL = "https://github.com/mofography/mofography/releases/download/poronet-data-v1/Pore_Graph_for_H2.pkl"
-if not os.path.exists(PKL):
-    urllib.request.urlretrieve(URL, PKL)
-RAG_2D = pickle.load(open(PKL, "rb"))
+import urllib.request
+from pathlib import Path
+
+# Data files are cached in DATA_DIR (set PORONET_DATA to change it) and downloaded once.
+RELEASE = "https://github.com/mofography/mofography/releases/download/poronet-data-v1"
+DATA_DIR = Path(os.environ.get("PORONET_DATA", "poronet_data"))
+DATA_DIR.mkdir(exist_ok=True)
+
+def fetch(name):
+    path = DATA_DIR / name
+    if not path.exists():
+        urllib.request.urlretrieve(f"{RELEASE}/{name}", path)
+    return path
+
+with open(fetch("Pore_Graph_for_H2.pkl"), "rb") as fh:
+    RAG_2D = pickle.load(fh)
 ```
 
 ```{python}
@@ -84,7 +98,9 @@ print([len(RAG_Training),len(RAG_Validation),len(RAG_Testing)])
 RAG_Training[0].nodes[1]
 ```
 
-Process Graphs and Extract Features
+## Features
+
+Convert each pore graph into a DGL graph whose node features are the local pocket properties, then batch all graphs into one large graph for training.
 
 ```{python}
 # Convert graphs to DGL graphs and set node features
@@ -119,7 +135,9 @@ Features_Validation = Batched_Graph_Validation.ndata['feat'].float()
 Features_Testing = Batched_Graph_Testing.ndata['feat'].float()
 ```
 
-Grab Cell Volumes, Pore Volume, and Pore Pixel Ratio
+## Cell volume, pore volume, and pore pixel ratio
+
+Collect per-MOF cell and pore volumes, which are needed to convert per-pore predictions into MOF-level quantities.
 
 ```{python}
 def Grab_Cell_Volume(RAGs):
@@ -163,10 +181,12 @@ Pixel_Ratio_List_Validation=torch.tensor(Extract_Pixel_Ratio(RAG_Validation)).fl
 Pixel_Ratio_List_Testing=torch.tensor(Extract_Pixel_Ratio(RAG_Testing)).float().view(-1,1)
 ```
 
-Import MOF-level Labels
+## MOF-level labels
+
+Read the target adsorption capacity of each MOF; the model is trained on these MOF-level values only, with no per-pore labels.
 
 ```{python}
-Data_all=pd.read_excel('160K_5bar-mof-gL.xlsx').to_numpy()[:,1].reshape(-1,1)
+Data_all=pd.read_excel(fetch('160K_5bar-mof-gL.xlsx')).to_numpy()[:,1].reshape(-1,1)
 
 Labels_Training_mof=Data_all[0:900]
 Labels_Validation_mof=Data_all[900:990]
@@ -181,7 +201,9 @@ Labels_Validation_mof=torch.tensor(Labels_Validation_mof)
 Labels_Testing_mof=torch.tensor(Labels_Testing_mof)
 ```
 
-Define PoroNet
+## The PoroNet model
+
+PoroNet predicts a value for every pore from its features and sums the contributions, so the MOF-level prediction can be interpreted pore by pore.
 
 ```{python}
 class PoroNet(nn.Module):
@@ -209,7 +231,9 @@ class PoroNet(nn.Module):
         return x
 ```
 
-Determine the Hyperparameters
+## Hyperparameters
+
+Set the cross-validation folds, the learning schedule and the network size used for training.
 
 ```{python}
 #5 fold
@@ -226,10 +250,10 @@ def objective(trial):
     num_layers=trial.suggest_int('num_layers', 1, 3)
     hidden_sizes = [trial.suggest_int(f'hidden_size{i}', 16, 128) for i in range(num_layers)]
     hidden_activations=[trial.suggest_categorical(f'hidden_activation{i}',['relu','none'])for i in range(num_layers)]
-    dropout = trial.suggest_uniform('dropout', 0.2, 0.4)
-    initial_lr = trial.suggest_loguniform('lr', 1e-5, 1e-1)
-    weight_decay = trial.suggest_loguniform('weight_decay', 1e-9, 1e-3)
-    factor=trial.suggest_uniform('factor',0.1, 0.9)
+    dropout = trial.suggest_float('dropout', 0.2, 0.4)
+    initial_lr = trial.suggest_float('lr', 1e-5, 1e-1, log=True)
+    weight_decay = trial.suggest_float('weight_decay', 1e-9, 1e-3, log=True)
+    factor=trial.suggest_float('factor', 0.1, 0.9)
     
 
     # K-Fold CV
@@ -266,7 +290,7 @@ def objective(trial):
      # Initialize the model and optimizer
      model = PoroNet(Features_training.size(1),hidden_sizes,hidden_activations,dropout)
      optimizer = torch.optim.Adam(model.parameters(), lr=initial_lr, weight_decay=weight_decay)
-     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=factor, patience=0.9* num_patience, verbose=True)
+     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=factor, patience=int(0.9 * num_patience))
         
      # Initialize early stopping parameters
      best_val_loss = float('inf') 
@@ -326,7 +350,6 @@ def objective(trial):
 ```
 
 ```{python}
-#| eval: false
 sampler = optuna.samplers.TPESampler(seed=1)
 study = optuna.create_study(sampler=sampler,direction='minimize', pruner=optuna.pruners.HyperbandPruner())
 study.optimize(objective, n_trials=100)
@@ -341,13 +364,15 @@ for key, value in trial.params.items():
 print('  Fold MAEs: ', trial.user_attrs['mae_list'])
 ```
 
-Train the Model
+## Training
+
+Train the model with early stopping on the validation loss and keep the best weights.
 
 ```{python}
 num_patience=486
 model = PoroNet(Features_Testing.size(1),hidden_sizes=[114],hidden_activations=['relu'],dropout=0.2132217405513009)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0019286667936327432, weight_decay=1.6685073137586203e-09)
-scheduler = ReduceLROnPlateau(optimizer, mode='min', factor= 0.10056880106742247, patience=0.9*num_patience, verbose=True)
+scheduler = ReduceLROnPlateau(optimizer, mode='min', factor= 0.10056880106742247, patience=int(0.9 * num_patience))
 ```
 
 ```{python}
@@ -393,7 +418,9 @@ for epoch in range(num_epoch):
             break
 ```
 
-Test the model at the MOF level
+## Testing at the MOF level
+
+Evaluate the trained model on held-out MOFs and compare predicted and reference values in a parity plot with R².
 
 ```{python}
 model.eval()  
@@ -415,6 +442,8 @@ r2_mof = r2_score(Labels_Testing_mof, Predictions_Testing_mof)
 Loss_Testing_mof = F.l1_loss(Predictions_Testing_mof, Labels_Testing_mof)
 r2_mof, Loss_Testing_mof
 ```
+
+Saved result on the 1000 test MOFs: R² = 0.984 and MAE = 0.043 g/L.
 
 ```{python}
 #Parity plot
@@ -480,10 +509,9 @@ parity_line = go.Scatter(
 layout = go.Layout(
 
     xaxis=dict(
-    title='GCMC Result (g/L)',
+    title=dict(text='GCMC Result (g/L)', font=dict(color='black', size=40)),
     range=[0, 10],
     tickfont=dict(color='black', size=40),
-    titlefont=dict(color='black', size=40),
     linecolor='black',
     showline=True,
     linewidth=4,
@@ -498,10 +526,9 @@ layout = go.Layout(
     ),
 
     yaxis=dict(
-    title='PoroNet-Base Result (g/L)',
+    title=dict(text='PoroNet-Base Result (g/L)', font=dict(color='black', size=40)),
     range=[0, 10],
     tickfont=dict(color='black', size=40),
-    titlefont=dict(color='black', size=40),
     linecolor='black',
     showline=True,
     linewidth=4,
@@ -551,9 +578,10 @@ layout = go.Layout(
 # Create a Figure and add the scatter plot and parity line
 fig = go.Figure(data=[scatter, parity_line], layout=layout)
 
-# Static PNG so the plot also shows on GitHub and in the docs
-fig.show(renderer="png", width=830, height=800)
+fig.show()
 ```
+
+![Parity plot of PoroNet-Base against GCMC for H₂ uptake at 160 K and 5 bar on the 1000 test MOFs (saved result).](tutorial_images/poronet_parity.png){width=60%}
 
 ```{python}
 #Pore-level adsorption capacity can appear as an emergent property (g/L),first 10 testing pores

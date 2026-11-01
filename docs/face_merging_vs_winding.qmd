@@ -15,8 +15,8 @@ format:
 # Introduction
 
 - **Goal:** Compare two algorithms for periodic percolation detection in porous materials:
-  - Face-merging (voxel-based)
-  - Winding-number (graph-based)
+  - Winding-number (graph-based): the mofography **standard**
+  - Face-merging (voxel-based): the older method, closer to PoreBlazer's; **less accurate**, kept as a comparison point
 - **Example:** NU-1000
 
 ---
@@ -24,8 +24,8 @@ format:
 # Motivation
 
 - Percolation analysis is crucial for understanding connectivity in porous materials.
-- Traditional face-merging works well for crystalline pores but struggles with complex, winding channels.
-- Winding-number detection guarantees true periodic connectivity, even in contorted systems.
+- Winding-number detection is the standard in mofography: it guarantees true periodic connectivity, even in contorted systems (`get_pore_dia_mgr_winding`).
+- Traditional face-merging works for simple pores but is less accurate on complex, winding channels; it is shown here only for comparison.
 
 ---
 
@@ -486,7 +486,7 @@ print('Unit cell is: ', mat_atoms.cell.cellpar())
 # Grid and segmentation parameters
 spacing = 0.25
 h = 0.2
-mask_thickness = 0.5
+mask_thickness = 0.05
 threshold_abs = 1.0
 extra_padding = 2
 min_distance = 1.5
@@ -553,25 +553,41 @@ with open("winding_percolation.json", "w") as f:
 ```
 ---
 
-## NU-1000: Load and Display Plotly Figures
+## NU-1000: Face-merging vs winding clusters
+
+The two figures were built in the previous chunk (saved as Plotly JSON because the run is slow). Static renders:
 
 ```{python}
 import plotly.io as pio
 import json
-# Load and display face-merging figure
-with open("face_merging_percolation.json") as f:
+with open("../internal_docs/face_merging_percolation.json") as f:
     fig_face = pio.from_json(json.load(f))
-fig_face.show()
+fig_face.write_image("tutorial_images/face_merging_vs_winding_face.png", width=1000, height=750)
 
-# Load and display winding-number figure
-with open("winding_percolation.json") as f:
+with open("../internal_docs/winding_percolation.json") as f:
     fig_winding = pio.from_json(json.load(f))
+fig_winding.write_image("tutorial_images/face_merging_vs_winding_winding.png", width=1000, height=750)
+```
+
+![NU-1000 percolated cluster, face merging](tutorial_images/face_merging_vs_winding_face.png)
+
+![NU-1000 percolated cluster, winding number](tutorial_images/face_merging_vs_winding_winding.png)
+
+::: {.callout-note collapse="true" title="Interactive version"}
+```python
+fig_face = pio.from_json(json.load(open("face_merging_percolation.json")))
+fig_face.show()
+fig_winding = pio.from_json(json.load(open("winding_percolation.json")))
 fig_winding.show()
 ```
+:::
+
+[Open the interactive version](interactive/nu1000_percolation_history_threejs.html){target="_blank"}
 
 
 ---
-# What makes the winding algorithm possible? 
+
+# What makes the winding algorithm possible?
 - Having a perfectly periodic pore graph
  - We enforce PBC through maxima merging by distance
  - All local maxima are images of representative maxima_pbc
@@ -603,7 +619,6 @@ fig_winding.show()
 # References
 
 - Source: `mofography/compute.py`, `mofography/winding_percolation.py`
-- See [winding_percolation_4Dec2025.md](../mofography_manuscript/resources/mgr_org/mgr_org_scripts/winding_percolation_4Dec2025.md) for detailed notes.
 
 ---
 

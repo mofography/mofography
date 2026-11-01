@@ -8,3 +8,4 @@ visualize.add_hoverdata_to_atoms_traces(
 )
 ```
 
+Attach per-vertex hover text to a framework Mesh3d trace from ASE atom and bond data.

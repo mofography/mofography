@@ -57,6 +57,7 @@ DEFAULT_D1_BIN_A = 0.25
 
 
 def bond_type_from_order(order: float) -> str:
+    """Classify a bond as single, aromatic, or double from its bond order."""
     if order >= 1.75:
         return "double"
     if order >= 1.25:
@@ -145,6 +146,7 @@ def adaptive_shell_radius(
 
 
 def pocket_centroid(void_cart: np.ndarray) -> np.ndarray:
+    """Return the Cartesian centroid (mean position) of void sample points."""
     if void_cart.size == 0:
         return np.zeros(3)
     return np.mean(void_cart, axis=0)
@@ -255,6 +257,7 @@ def radial_histogram_normalized(
     r_shell: float,
     n_bins: int,
 ) -> np.ndarray:
+    """Build an L1-normalized radial histogram of r/R_shell in ``n_bins`` bins."""
     hist = np.zeros(n_bins, dtype=float)
     if len(r) == 0 or r_shell <= 0:
         return hist

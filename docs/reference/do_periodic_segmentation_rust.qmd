@@ -1,5 +1,7 @@
 # do_periodic_segmentation_rust { #mofography.rust_fun.do_periodic_segmentation_rust }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Primary periodic segmentation pipeline after Rust dgrid.
+
 ```python
 rust_fun.do_periodic_segmentation_rust(
     dgrid,

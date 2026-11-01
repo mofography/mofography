@@ -9,3 +9,4 @@ movies.make_guest_trace(
 )
 ```
 
+Build an instanced-sphere trace for adsorbate or guest atoms.

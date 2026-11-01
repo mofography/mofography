@@ -1,5 +1,7 @@
 # show_mof_threejs { #mofography.workflow.show_mof_threejs }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default standalone Three.js MOF scene matching show_mof_plotly layers.
+
 ```python
 workflow.show_mof_threejs(
     seg,

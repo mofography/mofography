@@ -1,5 +1,7 @@
 # Figure3js { #mofography.threejs_viz.Figure3js }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Plotly-style chained builder for Three.js scenes; use .show() or .save_html().
+
 ```python
 threejs_viz.Figure3js(layout='dark', stylize=True)
 ```
@@ -67,7 +69,7 @@ stylize : bool
 | [set_appearance](#mofography.threejs_viz.Figure3js.set_appearance) | Set scene appearance (background colour, theme, …). |
 | [set_camera](#mofography.threejs_viz.Figure3js.set_camera) | Set camera position and projection type. |
 | [set_lights](#mofography.threejs_viz.Figure3js.set_lights) | Set scene lighting (see ``MovieFigure.set_lights``). |
-| [show](#mofography.threejs_viz.Figure3js.show) | Display figure in a browser tab or Jupyter notebook. |
+| [show](#mofography.threejs_viz.Figure3js.show) | Display inline in Jupyter (iframe srcdoc) or, outside a kernel, in a browser tab. |
 | [to_html](#mofography.threejs_viz.Figure3js.to_html) | Export to standalone HTML. |
 | [update_traces](#mofography.threejs_viz.Figure3js.update_traces) | Apply a style patch to matching traces (opacity, color, visible, …). |
 
@@ -398,12 +400,18 @@ Set scene lighting (see ``MovieFigure.set_lights``).
 ### show { #mofography.threejs_viz.Figure3js.show }
 
 ```python
-threejs_viz.Figure3js.show(renderer='browser', *, port=None)
+threejs_viz.Figure3js.show(
+    renderer=None,
+    *,
+    height=600,
+    width='100%',
+    port=None,
+)
 ```
 
-Display figure in a browser tab or Jupyter notebook.
+Display inline in Jupyter (iframe srcdoc) or, outside a kernel, in a browser tab.
 
-``renderer="browser"`` serves on ``127.0.0.1`` (random port) and prints the URL.
+See ``MovieFigure.show``. Three.js loads from CDN (internet required).
 
 ### to_html { #mofography.threejs_viz.Figure3js.to_html }
 

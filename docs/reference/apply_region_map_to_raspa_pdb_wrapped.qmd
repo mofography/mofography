@@ -11,7 +11,7 @@ raspa_helper.apply_region_map_to_raspa_pdb_wrapped(
 )
 ```
 
-Applies a region map to a RASPA PDB file, wrapping coordinates to a single unit cell.
+Count adsorbates per region after wrapping PDB coordinates into one unit cell.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

@@ -4,3 +4,4 @@
 viz_backend.is_plotly_figure(fig)
 ```
 
+Return whether ``fig`` is a ``plotly.graph_objects.Figure`` instance.

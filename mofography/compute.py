@@ -23,8 +23,7 @@ from types import CellType
 logger = logging.getLogger(__name__)
 
 def gpd_aabb(grid_points, ase_atoms, radii, n_neighbors=10, probe_radius=0.0):
-    """This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
-    Bounding Box method  as implemented by the Glotzer group from Univ. of Michigan.
+    """Compute shortest probe distance from each grid point to the framework surface via Freud AABB search.
 
     :param grid_points: (N,3) array of the cartesian coordinates of the grid points
     :type grid_points: numpy array of floats
@@ -108,9 +107,7 @@ def dask_grid_over_atoms(ase_atoms, spacing=0.1, chunksize=50000):
 
 def dgrid_from_atoms_cpu_no_aabb(ase_atoms, radii=None, spacing=0.2, block_size=20000):
     """
-    The function `dgrid_from_atoms_no_aabb` calculates a distance grid based on the cpu but without using 
-    an AABB cell list to accelerate the calculation. Although substantially slower, this function might provide
-    better smoothness of the distance grid, especially matrials with small pores. 
+    Build a CPU distance grid without AABB acceleration (slower, sometimes smoother in tight pores).
 
     :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms_no_aabb` function is expected to be
     an ASE Atoms object, which represents a collection of atoms and their properties. This object
@@ -175,8 +172,7 @@ spacing=0.25,
     probe_radius=0,
 ):
     """
-    The function `dgrid_from_atoms` generates a distance grid over atoms using Dask arrays and computes
-    the grid based on atomic radii and specified parameters.
+    Build a Dask distance grid over atoms (dispatches to CPU implementation).
 
     :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms` function is expected to be an
     ASE Atoms object, which represents a collection of atoms and their properties. This object typically
@@ -372,8 +368,7 @@ def dgrid_from_atoms_cpu(
     precompute=True,
 ):
     """
-    This function generates a distance grid over atoms using Dask arrays and pandas, with an option to
-    precompute the grid.
+    Build a distance grid on CPU with Dask, using freud AABB neighbor queries when precompute=True.
 
     :param ase_atoms: The `ase_atoms` parameter in the `dgrid_from_atoms_cpu` function is expected to be
     an ASE Atoms object, which represents a collection of atoms and their positions in space. This
@@ -566,7 +561,8 @@ def dgrid_from_atoms_cpu(
 
 #
 def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
-    """
+    """Compute the distance grid on the GPU (alternative to the Rust `dgrid_from_atoms_rust`).
+
     The function `dgrid_from_atoms_gpu` calculates a distance grid based on atomic positions using GPU
     acceleration.
 
@@ -715,8 +711,7 @@ def dgrid_from_atoms_gpu(ase_atoms, radii=None, spacing=0.2, block_size=10000):
 #     return reg_labels, new_max_indices.T
 def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=0, threshold_abs=0.5):
     """
-    The function `regions_from_dgrid` takes a density grid as input and identifies regions based on
-    local maxima, with options for adjusting parameters like mask thickness and compactness.
+    Label pore regions and maxima from a distance grid using watershed segmentation.
 
     :param dgrid: The `dgrid` parameter is a 2D array representing the input data grid. It is used in
     the function to perform calculations and identify regions based on the data values in the grid
@@ -981,7 +976,7 @@ def regions_from_dgrid(dgrid, mask_thickness=1, h=0.2, compactness=0, threshold_
 
 def get_region_props_for_regions(regions):
     """
-    It takes a list of regions and returns a list of region properties
+    Return skimage regionprops for a labeled 3D region array.
 
     :param regions: The labeled image
     """
@@ -991,7 +986,8 @@ def get_region_props_for_regions(regions):
 
 
 def add_window_info_to_rag(rag, connections):
-    """
+    """Add window radii and positions from the connection list to the RAG edges.
+
     It takes a RAG and a list of connections and adds the window information to the RAG as edge
     attributes
 
@@ -1018,20 +1014,7 @@ def add_window_info_to_rag(rag, connections):
 
 def add_maxima_to_rag(G, maxima, maxima_radii, shape, ase_atoms):
     """
-    > This function takes a graph, a list of maxima, a list of maxima radii, a shape, and an ase_atoms
-    object and adds the maxima and maxima radii to the graph.
-
-    Let's look at the function in more detail.
-
-    The first thing we do is import the `find_coord_from_indices` function from the `helper` module.
-
-    Next, we check to make sure that the number of nodes in the graph is equal to the number of maxima.
-    If not, we raise a `ValueError`.
-
-    If the number of nodes in the graph is equal to the number of maxima, we loop through the nodes and
-    maxima and add the maxima indices, cartesian coordinates and maxima radii to the graph.
-
-
+    Attach watershed maxima indices, coordinates, and radii to each RAG node.
 
     :param G: the graph
     :param maxima: the indices of the maxima (2nd output of regions_from_grid routine)
@@ -1121,7 +1104,7 @@ def add_csd_to_rag(G, region_props, bins, ase_atoms, shape):
 
 
 def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
-    """Deprecated alias for :func:`add_csd_to_rag`."""
+    """Attach CSD histograms to RAG nodes; forwards to :func:`add_csd_to_rag`."""
     import warnings
 
     warnings.warn(
@@ -1134,8 +1117,7 @@ def add_psd_to_rag(G, region_props, bins, ase_atoms, shape):
 
 def rag_from_connections(connections, maxima, only_use_internal=True):
     """
-    This Python function creates a graph representation of regions of interest based on connections and
-    maximum values, with an option to include only internal connections.
+    Build a NetworkX region adjacency graph from connection tuples and maxima.
 
     :param connections: Connections is a list of tuples where each tuple contains information about a
     connection. Each tuple has the following format: (node_id, is_connected, connection_type)
@@ -1176,8 +1158,7 @@ def rag_from_connections(connections, maxima, only_use_internal=True):
 
 def get_rag_from_regions_and_grid(regions, dgrid, ase_atoms, maxima=None):
     """
-    > It takes a grid of regions and a grid of distances and returns a region adjacency graph with the centroid of each
-    region as a node property
+    Build a skimage mean-color RAG from regions with centroid and optional maxima node properties.
 
     :param regions: the regions that we computed from the distance grid
     :param dgrid: the distance grid
@@ -1230,8 +1211,7 @@ def get_periodic_map(
     regions, maxima, maxima_radii, ase_atoms, return_conn=False, **kwargs
 ):
     """
-    It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary
-    that maps each region to the nearest maximum.
+    Map each region label to its periodic representative (optional connectivity groups).
 
     :param regions: a 3D array of integers, where each integer is a region index, obtained from regions_from_dgrid function
     :param maxima: the 3D indices of the maxima, obtained from regions_from_dgrid function
@@ -1267,7 +1247,8 @@ def get_periodic_map(
 
 
 def apply_periodic_map(input_array, periodic_map):
-    """
+    """Relabel an integer array using a label-to-label map.
+
     It takes an array of integers and a dictionary that maps integers to integers, and returns an array
     of integers that is the result of applying the dictionary to the input array
 
@@ -1312,7 +1293,8 @@ def apply_periodic_map(input_array, periodic_map):
 def add_props_to_graph(
     G, node_props=None, node_prop_names=None, edge_props=None, edge_prop_names=None
 ):
-    """
+    """Add node and edge property dicts to a graph.
+
     The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and
     edge attributes.
 
@@ -1343,7 +1325,7 @@ def add_props_to_graph(
 
 def AABB_on_atoms(ase_atoms, points=None):
     """
-    > This function takes an ASE atoms object and returns a freud AABBQuery object
+    Build a freud AABBQuery neighbor tree for an ASE structure and optional query points.
 
     :param ase_atoms: ASE atoms object
     :param points: the positions of the atoms
@@ -1366,8 +1348,7 @@ def AABB_on_atoms(ase_atoms, points=None):
 
     return ab
 def get_wall_windows3(regions, maxima, dgrid, ase_atoms, wall_thickness):
-    """
-    This function calculates the wall windows based on the provided regions, maxima, dgrid, and other parameters.
+    """Incomplete wall-window stub; use get_wall_windows2 for face-pair wall window detection.
     
     :param regions: The labeled regions from the segmentation.
     :param maxima: The maxima points in the dgrid.
@@ -1400,6 +1381,7 @@ def get_wall_windows3(regions, maxima, dgrid, ase_atoms, wall_thickness):
 
     return wall_windows
 def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
+    """Detect unit-cell face wall windows by pairing opposite boundary region labels."""
     import numpy as np
     from icecream import ic
     from .helper import find_coord_from_indices, interpolate_labels
@@ -1584,6 +1566,7 @@ def get_wall_windows2(regions, maxima, dgrid, ase_atoms, wall_thickness=2):
 
 
 def add_props_to_rag(rag, props):
+    """Copy skimage region ``props`` dicts onto matching RAG nodes as ``props``."""
     for node in rag.nodes:
         node_index = [p["label"] == node for p in props].index(True)
         rag.nodes[node]["props"] = props[node_index]
@@ -1612,7 +1595,7 @@ def add_props_to_rag(rag, props):
 
 def interpolate_dgrid(dgrid):
     """
-    The function `interpolate_dgrid` interpolates a 3D grid using linear interpolation.
+    Build a scipy RegularGridInterpolator on a unit-cube mesh for a 3D distance grid.
 
     :param dgrid: The `interpolate_dgrid` function you provided seems to be interpolating a 3D grid
     using linear interpolation. To use this function, you need to pass a 3D grid (`dgrid`) as a
@@ -1635,6 +1618,7 @@ def interpolate_dgrid(dgrid):
 def get_percolated_paths_on_rag(
     rag, minimum_overlap_fraction=0.5, wall_cells=6, path_jump_cutoff=None
 ):
+    """Find percolated paths and limiting windows between RAG pockets (requires regions on rag.graph)."""
     import networkx as nx
 
     # import mofography as mgr
@@ -2546,7 +2530,8 @@ def get_percolated_paths_on_rag(
 
 
 def filter_percolated_paths(paths, path_windows, path_lengths, probe_size):
-    """
+    """Keep only percolated paths whose limiting window meets a size threshold.
+
     The function filters paths based on whether their corresponding path windows meet a certain size
     threshold.
 
@@ -2582,6 +2567,7 @@ def filter_percolated_paths(paths, path_windows, path_lengths, probe_size):
 
 
 def get_pld_from_percolated_paths_path_windows(paths, path_windows):
+    """Return PLD as twice the smallest path-limiting window radius across the given paths."""
     import numpy as np
 
     key_window_size_list = [np.min(pw) if len(pw) > 0 else 1e-4 for pw in path_windows]
@@ -2594,6 +2580,7 @@ def get_pld_from_percolated_paths_path_windows(paths, path_windows):
 
 
 def get_pld_for_rag(rag, return_pld_path_info=False, **kwargs):
+    """Estimate PLD from a RAG via supercell tiling, re-segmentation, and percolated-path analysis."""
     import numpy as np
     from ase.build import make_supercell
 
@@ -2802,7 +2789,8 @@ def connections_from_regions_and_dgrid(
     distance_threshold=1.0,
     wall_thickness=2,
 ):
-    """
+    """Build region connections and window sites from labelled regions and the distance grid.
+
     It takes a 3D array of region labels, a list of maxima, an ASE atoms object, and a distance
     threshold, and returns a list of connections between regions, and the centers of the windows between
     them
@@ -2991,8 +2979,7 @@ def connections_from_regions_and_dgrid(
 
 def add_centroids_to_rag_with_pbc(rag, props, pbc_groups, ase_atoms, shape):
     """
-    > For each group of nodes that are connected by periodic boundary conditions, find the centroid of
-    the group and add it to the graph as a node attribute.
+    Add PBC-aware ``centroid_pbc`` coordinates to RAG nodes for each periodic image group.
 
     The function takes in a graph, a list of properties, a list of groups of nodes that are connected by
     periodic boundary conditions, an ASE atoms object, and the shape of the image.
@@ -3203,7 +3190,7 @@ def add_pocket_psd_to_rag_with_pbc(rag, props, pbc_groups, pocket_psds):
 
 
 def add_psd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape, pocket_psds=None):
-    """Deprecated: calls add_csd_to_rag_with_pbc and optionally add_pocket_psd_to_rag_with_pbc."""
+    """Attach PBC CSD and optional pocket PSDs to RAG nodes via legacy combined entry point."""
     import warnings
 
     warnings.warn(
@@ -3454,8 +3441,7 @@ def add_clustering_to_rag_geometry_js(
 
 def add_clustering_to_rag(rag2, return_cluster_obj=False, no_pbc=False, **kwargs):
     """
-    The function `add_clustering_to_rag` performs agglomerative clustering on data attributes of a graph
-    and adds clustering information to the graph nodes.
+    Agglomeratively cluster RAG node feature vectors and write cluster labels on nodes.
 
     :param rag2: The `rag2` parameter in the `add_clustering_to_rag` function is expected to be a
     NetworkX graph object representing a region adjacency graph (RAG) with nodes and attributes. This
@@ -3544,7 +3530,8 @@ def add_clustering_to_rag_pca(
     kwargs_cluster={},
     kwargs_pca={},
 ):
-    """
+    """Cluster RAG nodes using PCA of their features (deprecated).
+
     The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the
     clustering information to the graph nodes.
 
@@ -3721,6 +3708,7 @@ def add_clustering_to_rag_energy(
     cutoff=12.8,
     sample_fraction=1,
 ):
+    """Cluster RAG pockets by comparing PBC-aware vdW energy samples (KS distance)."""
     import networkx as nx
     import itertools
     from scipy.stats import ks_2samp
@@ -3855,7 +3843,8 @@ def add_clustering_to_rag_energy(
 #     return rag
 # %%
 def compare_two_paths(p1, p2, rag):
-    """
+    """Compare two paths on a RAG.
+
     It takes two paths and a region adjacency graph, and returns a list of tuples, where each tuple
     contains a node in the first path and a node in the second path
 
@@ -3872,6 +3861,7 @@ def compare_two_paths(p1, p2, rag):
 
 
 def find_isomorphic_path_groups(list_of_paths, rag, cluster=True):
+    """Group channel paths whose RAG subgraphs are isomorphic (optional pre-clustering)."""
     import itertools
     import networkx as nx
 
@@ -3931,6 +3921,7 @@ def calc_path_components(rag, path: list):
 
 
 def find_paths(regions, rag2):
+    """Enumerate Bellman–Ford paths in the RAG that connect opposing periodic faces."""
     import numpy as np
 
     # * Now we are going to go face by face, and find all the paths
@@ -4305,6 +4296,7 @@ def get_connections_for_rag(
 
 
 def get_diametrically_opposite_points(region_indices, ase_atoms, shape, num_points=8):
+    """Pick evenly spaced convex-hull vertices around a region for path-sampling seed points."""
     from scipy.spatial import ConvexHull
     import numpy as np
 
@@ -4345,7 +4337,7 @@ def get_sampling_paths_for_region(
     region_index, connections, dgrid, regions, maxima, shape, ase_atoms
 ):
     """
-    > It finds the paths from the maxima of a region to the windows of that region
+    Find Dijkstra paths from a region maximum to its connection window sites.
 
     :param region_index: the index of the region you want to find the paths for
     :param connections: a list of tuples, each tuple contains the indices of the connected regions and
@@ -4409,6 +4401,7 @@ def get_sampling_paths_for_region(
 def mark_points_with_largest_including_dia(
     region_index, regions, connections, dgrid, maxima, ase_atoms, maxima_radii
 ):
+    """Inflate spheres along paths to windows and record the largest inclusive diameter per voxel."""
     import ase
     import numpy as np
 
@@ -4446,6 +4439,7 @@ def mark_points_with_largest_including_dia(
 
 
 def get_psd_on_rag(rag, bins=None):
+    """Compute pocketwise pore size distributions on a RAG using path-based sphere inflation."""
     for key in ["regions", "connections", "dgrid", "maxima", "ase_atoms"]:
         if key not in rag.graph:
             raise ValueError(
@@ -4539,8 +4533,7 @@ def get_psd_on_rag(rag, bins=None):
 
 def sample_path(path_indices, points_per_path=100):
     """
-    It takes a list of points and returns a list of points that are evenly spaced along the path defined
-    by the input points using spline interpolation
+    Resample a voxel path to evenly spaced points using spline interpolation.
 
     :param path_indices: a numpy array of shape (n,3) where n is the number of points in the path
     :param points_per_path: The number of points to sample along the path, defaults to 100 (optional)
@@ -4558,8 +4551,7 @@ def sample_path(path_indices, points_per_path=100):
 
 def get_distances_for_path(path_indices, shape, ase_atoms, n_neighbors=10, radii=None):
     """
-    > For each grid point, find the nearest neighbors, and return the minimum distance to the nearest
-    neighbor minus the covalent radius of the neighbor
+    Minimum framework surface distance at each path voxel (neighbor query minus covalent radii).
 
     :param path_indices: the indices of the path
     :param shape: the shape of the grid
@@ -4663,7 +4655,8 @@ def apply_pbc(
     return_conn=False,
     minimum_overlap_fraction=0.5,
 ):
-    """
+    """Pad a region-label array with periodic boundary images.
+
     It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions
     applied
 
@@ -4869,7 +4862,8 @@ def apply_pbc(
 
 
 def add_pbc_to_rag(rag, pbc_groups):
-    """
+    """Add a `pbc_group` attribute to each RAG node from the PBC groups.
+
     It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG
 
     :param rag: the region adjacency graph
@@ -4887,6 +4881,7 @@ def add_pbc_to_rag(rag, pbc_groups):
 
 
 def clustering_grid_from_regions(regions, rag2, cluster_key="cluster"):
+    """Paint region labels with RAG cluster ids for a given ``cluster_key`` attribute."""
     import numpy as np
 
     regions_cluster = np.zeros(regions.shape)
@@ -4982,8 +4977,7 @@ def add_env_cluster_pocket_types_to_rag(
 
 def get_repetitions_to_meet_cutoff(ase_atoms, cutoff=12.5):
     """
-    It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each
-    direction that are needed to ensure that the cutoff distance is satisfied
+    Return supercell repeat counts along each axis so pairwise interactions meet the cutoff.
 
     :param ase_atoms: ASE atoms object
     :param cutoff: the cutoff distance for the pairwise interactions
@@ -5021,8 +5015,7 @@ def get_repetitions_to_meet_cutoff(ase_atoms, cutoff=12.5):
 
 def repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5):
     """
-    It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new
-    forcefield that are repeated in such a way that the vdw cutoff is met
+    Tile the structure and forcefield until the Lennard-Jones cutoff is satisfied in all directions.
 
     :param ase_atoms: the atoms object from ASE
     :param forcefield_mixed: the forcefield parameters for the mixed system
@@ -5053,9 +5046,7 @@ def repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5):
 
 def gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff):
     """
-    The function `gpe_aabb2` calculates Lennard-Jones energy contributions for grid points based on
-    neighboring particles within a specified cutoff distance using positions instead of neighborlist passed as 
-    argument as in `gpe_aabb' subroutine.
+    Sum Lennard-Jones grid energies via Freud ball query on positions (gpe_aabb uses a prebuilt AABB).
     
     :param grid_points: The function `gpe_aabb2` seems to be calculating the Lennard-Jones potential
     energy for a set of grid points based on the positions of particles, a cell, a mixed force field,
@@ -5161,8 +5152,7 @@ def gpe_aabb2(grid_points, positions, cell, forcefield_mixed, cutoff):
 #     return v
 def gpe_aabb(grid_points, aabb_object, forcefield_mixed, cutoff):
     """
-    The function `gpe_aabb` calculates Lennard-Jones potentials for grid points based on their distances
-    to neighboring points within a specified cutoff distance.
+    Sum Lennard-Jones energies at grid points via Freud ball query on a prebuilt AABB neighbor search.
     
     :param grid_points: The `grid_points` parameter in the `gpe_aabb` function represents the
     coordinates of points in a grid. These points are used for calculations involving a AABB
@@ -5303,7 +5293,7 @@ def egrid_from_atoms2(
     precompute_aabb=True,
 ):
     """
-    > It takes an ASE atoms object, and returns a dask array of the vdw energy on a grid.
+    Sample vdW interaction energies on a grid (Dask); prefer Rust tricubic for production accuracy.
 
     The function is a bit long, but it's not too complicated.
 
@@ -5422,6 +5412,7 @@ def get_energies_for_group(
     block_size=20000,
     sample_fraction=1,
 ):
+    """Sample Lennard-Jones energies at voxels in a PBC pocket group (legacy energy-based pocket typing)."""
     from .helper import find_coord_from_indices
     import numpy as np
     import dask.array as da
@@ -5643,8 +5634,7 @@ def get_energies_for_group2(
     group, regions, energy_interpolator=None, return_scaled_coords=False, max_sample_limit=10000, **kwargs_egrid
 ):  # ase_atoms, forcefield_mixed, shape, cutoff=12.5, return_coords=False, block_size=20000, sample_fraction=1):
     """
-    This function calculates the energies for a group of regions using an energy interpolator and
-    returns the energies and scaled coordinates if specified.
+    Sample grid energies for a region group using an energy interpolator (legacy pocket typing).
 
     :param group: A list of labels for the regions in the group
     :param regions: A 3D array representing a segmentation of a larger 3D volume into regions or
@@ -5715,8 +5705,7 @@ def get_energy_interpolator(
     egrid, neighborhood_size=4, extent_x=1.0, extent_y=1.0, extent_z=1.0,
 ):
     """
-    Creates a 3D regular grid interpolator for energy values, handling NaN values by replacing them
-    with a value higher than their local neighborhood maximum.
+    Build a scipy RegularGridInterpolator for a 3D energy grid, filling NaNs from local neighborhoods.
 
     :param egrid: a 3D numpy array representing a grid of energy values with shape (n_x, n_y, n_z)
     :param neighborhood_size: size of neighborhood to check in each direction (default: 4)
@@ -5962,6 +5951,7 @@ def add_clustering_to_rag_energy_js(
     js_threshold=0.05,
     **kwargs_egrid,
 ):
+    """Cluster RAG pockets using Jensen–Shannon distance between energy histograms."""
     import networkx as nx
     import itertools
     from scipy.stats import ks_2samp
@@ -6097,6 +6087,7 @@ def add_vdw_hist_to_rag(
     density=False,
     **kwargs_egrid,
 ):
+    """Attach vdW energy histograms (and bin centers) to RAG nodes for clustering or plotting."""
     import numpy as np
     import networkx as nx
 
@@ -6182,6 +6173,7 @@ def optimize_molecule_at_node(
     random_seed=42,
     **kwargs_egrid,
 ):
+    """Optimize guest pose at a RAG node with Optuna using a grid energy interpolator."""
     import optuna
     import numpy as np
     from .helper import get_fractional_coordinates
@@ -6242,6 +6234,7 @@ def add_best_optuna_trial_to_rag(
     n_jobs=-1,
     random_seed = 42
 ):
+    """Run Optuna guest placement per pocket (Dask-parallel) and store best trials on RAG nodes."""
     import dask.bag as db
     import networkx as nx
     import numpy as np
@@ -6346,11 +6339,12 @@ def add_best_optuna_trial_to_rag_serial(
             rag.nodes[node][f"best_trial_{molecule_name}"] = trial
     return rag
 def pad_periodic(arr):
+    """Wrap-pad a 3D array by one voxel on each face for periodic neighbor lookups."""
     import numpy as np
-    """Pad array with periodic boundaries."""
     return np.pad(arr, 1, mode='wrap')
 
 def check_percolation_periodic(distance_grid, threshold):
+    """Return True if void voxels above threshold percolate through padded periodic faces."""
     import numpy as np
     from scipy.ndimage import label, generate_binary_structure
     # Create a binary grid where True represents void space
@@ -6381,6 +6375,7 @@ def check_percolation_periodic(distance_grid, threshold):
     return False
 
 def find_pore_limiting_radius(distance_grid):
+    """Binary-search the largest probe radius that still percolates (uses ``check_percolation_periodic``)."""
     import numpy as np
     # Sort unique values in the distance grid
     unique_radii = np.sort(np.unique(distance_grid))
@@ -7530,6 +7525,7 @@ def detect_periodic_maxima_direct(
 
 
 def do_periodic_segmentation(dgrid, mat_atoms, mask_thickness=0.5, h=0.11, min_distance=1.1, threshold_abs=1.0, return_padded_regions=False, spacing=None,minimum_window_separation=None, wall_thickness=0.05, extra_padding=5, compactness=0,min_region_size=100, disable_tqdm=False):
+    """Full periodic watershed segmentation pipeline in pure Python/Dask."""
     import numpy as np
     from skimage.segmentation import watershed
     import copy
@@ -8089,6 +8085,7 @@ def do_periodic_segmentation_basic(
     disable_tqdm=False, compute_connections=True,
     return_dgrid = False, 
 ):
+    """Like :func:`do_periodic_segmentation` with optional connections and dgrid return flags."""
     import numpy as np
     from skimage.segmentation import watershed
     import copy
@@ -9986,7 +9983,7 @@ def compute_surface_area_from_results_winding(
     window_fp=True,
     winding_kwargs=None,
 ):
-    """Deprecated alias for :func:`compute_surface_area_mesh_winding`."""
+    """Forward to :func:`compute_surface_area_mesh_winding` for winding-accessible mesh area."""
     return compute_surface_area_mesh_winding(
         results_dict,
         mat_atoms,
@@ -10004,7 +10001,7 @@ def compute_surface_area_from_results_lattice(
     return_details=False,
     variant="v2",
 ):
-    """Deprecated alias for :func:`compute_surface_area_mesh_lattice`."""
+    """Forward to :func:`compute_surface_area_mesh_lattice` for lattice-accessible mesh area."""
     return compute_surface_area_mesh_lattice(
         results_dict,
         mat_atoms,
@@ -10024,7 +10021,7 @@ def compute_surface_area_from_results_mc_winding(
     window_fp=True,
     winding_kwargs=None,
 ):
-    """Deprecated alias for :func:`compute_surface_area_mc_winding`."""
+    """Forward to :func:`compute_surface_area_mc_winding` for winding-accessible MC area."""
     return compute_surface_area_mc_winding(
         results_dict,
         mat_atoms,
@@ -10046,7 +10043,7 @@ def compute_surface_area_from_results_mc_lattice(
     return_details=False,
     variant="v2",
 ):
-    """Deprecated alias for :func:`compute_surface_area_mc_lattice`."""
+    """Forward to :func:`compute_surface_area_mc_lattice` for lattice-accessible MC area."""
     return compute_surface_area_mc_lattice(
         results_dict,
         mat_atoms,
@@ -10068,7 +10065,7 @@ def compute_surface_area_from_results(
     accessibility_method="winding",
     lattice_variant="v2",
 ):
-    """Deprecated: use :func:`compute_surface_area_mesh_winding` or ``_mesh_lattice``."""
+    """Route mesh-based surface area from a segmentation results dict (winding or lattice backend)."""
     if str(accessibility_method).lower() == "lattice":
         return compute_surface_area_mesh_lattice(
             results_dict,
@@ -10099,7 +10096,7 @@ def compute_surface_area_from_results_mc(
     accessibility_method="winding",
     lattice_variant="v2",
 ):
-    """Deprecated: use :func:`compute_surface_area_mc_winding` or ``_mc_lattice``."""
+    """Route Monte Carlo shell surface area from a segmentation results dict."""
     if str(accessibility_method).lower() == "lattice":
         return compute_surface_area_mc_lattice(
             results_dict,
@@ -10276,10 +10273,12 @@ def percolation_all_axes_periodic(binary):
 
     return results, unioned_labels_dict
 def check_percolation_periodic2(dgrid, threshold):
+    """Return True if void voxels percolate along any axis (``percolation_all_axes_periodic``)."""
     binary = dgrid > threshold
     results, _ = percolation_all_axes_periodic(binary)
     return any(len(v) > 0 for v in results.values())
 def find_pore_limiting_radius2(distance_grid):
+    """Like :func:`find_pore_limiting_radius` but uses ``check_percolation_periodic2`` percolation tests."""
     import numpy as np
     # Sort unique values in the distance grid
     unique_radii = np.sort(np.unique(distance_grid))
@@ -10426,6 +10425,7 @@ def get_pore_dia_mgr2(mat_atoms, dgrid=None, kwargs=None):
     return lcd, pld, dfsd, distance_grid
 #* compute the percolation history from results dict using the new percolation algorithm
 def compute_percolation_history_from_results2(results):
+    """Attach lattice v2 percolation history from segmentation results (``compute_percolation_history2``)."""
     from mofography.percolation_results import store_percolation_history
 
     dgrid = results['dgrid']

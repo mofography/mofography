@@ -1,5 +1,7 @@
 # compute_surface_area_from_results { #mofography.compute.compute_surface_area_from_results }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Compatibility router to mesh winding/lattice helpers; call mesh functions directly. Use `compute_surface_area_mesh_winding` instead.
+
 ```python
 compute.compute_surface_area_from_results(
     results_dict,
@@ -13,4 +15,4 @@ compute.compute_surface_area_from_results(
 )
 ```
 
-Deprecated: use :func:`compute_surface_area_mesh_winding` or ``_mesh_lattice``.
+Route mesh-based surface area from a segmentation results dict (winding or lattice backend).
