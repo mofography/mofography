@@ -23,3 +23,17 @@ def test_disconnected_void_does_not_percolate():
     grid[3:6, 3:6, 3:6] = 1.0
     assert not check_percolation_periodic(grid, 0.5)
     assert find_pore_limiting_radius(grid) is None
+
+
+def test_segmentation_raises_clear_error_when_threshold_exceeds_grid():
+    import pytest
+    from ase.build import bulk
+
+    from mofography.rust_fun import dgrid_from_atoms_rust, do_periodic_segmentation_rust
+
+    atoms = bulk("Cu", cubic=True, a=6.0)
+    dgrid = dgrid_from_atoms_rust(atoms, spacing=0.5)
+    with pytest.raises(ValueError, match="threshold_abs"):
+        do_periodic_segmentation_rust(
+            dgrid, atoms, spacing=0.5, threshold_abs=float(dgrid.max()) + 1.0, disable_tqdm=True
+        )

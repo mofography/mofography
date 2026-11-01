@@ -578,6 +578,14 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     #     maxima_mask=mask_thickness,
     # )
 
+    dgrid_max = float(np.max(dgrid))
+    if dgrid_max < threshold_abs:
+        raise ValueError(
+            f"No maxima can be detected: largest distance-grid value is {dgrid_max:.3f} A, "
+            f"below threshold_abs={threshold_abs}. Lower threshold_abs (and min_distance) "
+            "for narrow-pore materials such as porous carbons."
+        )
+
     cell = cellpar_to_cell(mat_atoms.cell.cellpar()).T
     voxel_lengths = _voxel_lengths_for_smoothing(
         mat_atoms, spacing, grid_shape=dgrid.shape
@@ -596,6 +604,13 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
             voxel_lengths=voxel_lengths,
         )
     )
+
+    if len(merged_maxima) == 0:
+        raise ValueError(
+            f"No maxima detected (dgrid max={dgrid_max:.3f} A, h={h}, "
+            f"threshold_abs={threshold_abs}, min_distance={min_distance}). "
+            "Lower h, threshold_abs or min_distance."
+        )
 
     # Merged (PBC) and unmerged floods share the same backend for parity checks.
     merged_watershed_backend = watershed_backend
@@ -642,9 +657,14 @@ def do_periodic_segmentation_rust( dgrid, mat_atoms, mask_thickness=0.05, h=0.2,
     optimized_positions = np.asarray(optimized_positions)
 
     all_removals = set(wall_maxima_to_remove)
-    merged_maxima = np.vstack(
-        [m for i, m in enumerate(merged_maxima) if i not in all_removals]
-    )
+    kept_maxima = [m for i, m in enumerate(merged_maxima) if i not in all_removals]
+    if not kept_maxima:
+        raise ValueError(
+            f"All {len(merged_maxima)} detected maxima were removed as wall maxima "
+            f"(mask_thickness={mask_thickness}, wall_thickness={wall_thickness}). "
+            "Lower mask_thickness/wall_thickness or check the grid spacing."
+        )
+    merged_maxima = np.vstack(kept_maxima)
     merged_maxima = _stable_sort_merged_maxima(merged_maxima)
 
     logger.info(
