@@ -49,7 +49,7 @@ Everything below is available from the Python module. Global properties and pock
 | **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](compute_pore_diameters.ipynb), [PLD and percolation](pld_and_percolation.ipynb) |
 | **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](surface_area.qmd), [Property calculation](property_calculation.qmd) |
 | **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Pore size distributions](pore_size_distributions.qmd) |
-| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](region_segmentation.qmd), [Applying PBC](applying_pbc.qmd) |
+| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](region_segmentation.qmd), [PBC considerations](pbc_considerations.qmd) |
 | **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](pockets_detection.qmd) |
 | **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](connections_and_windows.qmd), [Window fingerprinting](window_fingerprinting.qmd) |
 | **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](region_adjacency_graph.ipynb), [PoroNet](PoroNet.qmd) |
@@ -185,30 +185,45 @@ Tutorials are Jupyter notebooks and Quarto pages in this site. [Learn](learn.qmd
 
 ### Basic tutorials (recommended order)
 
+**Basic**
+
 1. [Quick start](quick_start.qmd) — end-to-end workflow with `dgrid_from_atoms_rust` and `do_periodic_segmentation_rust` **(new)**
 2. [Basic structure analysis](basic_structure_io.ipynb)
 3. [Basic structure visualization](quick_structure_visualization.ipynb)
 4. [Distance grid](distance_grid.qmd)
 5. [Region segmentation](region_segmentation.qmd)
-6. [Applying periodic boundary conditions](applying_pbc.qmd)
-7. [Pore graph (region adjacency graph, RAG)](region_adjacency_graph.ipynb)
-8. [Connections and windows](connections_and_windows.qmd)
-9. [Pocket type detection](pockets_detection.qmd) (environment-cluster method) **(new)**
+6. [PBC considerations](pbc_considerations.qmd)
+7. [Connections and windows](connections_and_windows.qmd)
+8. [Pore graph (region adjacency graph, RAG)](region_adjacency_graph.ipynb)
+9. [Compute pore diameters](compute_pore_diameters.ipynb)
+10. [Surface area and void volume](surface_area.qmd)
+11. [PLD and percolation (winding method)](pld_and_percolation.ipynb)
+12. [Pore size distributions](pore_size_distributions.qmd)
+13. [Pocket type detection](pockets_detection.qmd) **(new)**
+14. [Three.js plotting](threejs_plotting.qmd) **(new)**
 
-### Advanced tutorials
+**Advanced**
 
-- [Tuning and safe ranges](parameter_tuning.qmd)
-- [Advanced structure visualization](framework_visualization_example.ipynb)
-- [Three.js plotting](threejs_plotting.qmd) **(new)**
-- [Watershed backends](watershed_backends.qmd) **(new)**
-- [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)**
-- [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb)
-- [PLD and percolation (winding method)](pld_and_percolation.ipynb)
-- [Compute pore diameters (winding method)](compute_pore_diameters.ipynb)
 - [MOFDB example](mofdb_example.ipynb)
 - [High-throughput characterization](hts_using_mofography.ipynb)
-- [Periodic segmentation Rust vs Python (HTS)](hts_periodic_seg_benchmark.ipynb)
-- [Functional group detection](detect_functional_groups_in_dataset.ipynb)
 - [Graph neural network model on pore graphs (PoroNet)](PoroNet.qmd) **(new)**
+- [Crosslinked polymer properties](property_calculation.qmd)
+- [Functional group detection](detect_functional_groups_in_dataset.ipynb)
+- [Advanced structure visualization](framework_visualization_example.ipynb)
+- [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb)
+
+**Deeper knowledge** (inner workings, tuning, older approaches)
+
+- [Tuning and safe ranges](parameter_tuning.qmd)
+- [Distance grid methods](dgrid_methods.qmd)
+- [Selective smoothing](selective_smoothing.qmd)
+- [Watershed backends](watershed_backends.qmd) **(new)**
+- [VDW radii and segmentation](vdw_radii.qmd)
+- [Accessibility methods](accessibility.qmd)
+- [Window fingerprinting](window_fingerprinting.qmd)
+- [Pathfinding on the pore graph](percolated_paths_tutorial.ipynb)
+- [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)**
+- [Aromatic ring detection](aromatic_ring_detection.qmd)
+- [Periodic segmentation Rust vs Python (HTS)](hts_periodic_seg_benchmark.ipynb)
 
 Also: [install](install.qmd), [CLI quick start](cli_quickstart.qmd), [gallery](gallery.qmd).

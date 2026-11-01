@@ -6,7 +6,7 @@ code-fold: false
 eval: false
 ---
 
-Start with the **Basic** tutorials: together they are a crash course. Move to **Advanced** for tuning, percolation, visualization, and high-throughput work. Missing something? Open an [issue](https://github.com/mofography/mofography/issues). Every function is listed in the [API reference](reference/index.qmd).
+Start with the **Basic** tutorials: together they are a crash course. Move to **Advanced** for datasets, high throughput, and specialised analyses, and to **Deeper knowledge** for how the methods work inside and how to tune them. Missing something? Open an [issue](https://github.com/mofography/mofography/issues). Every function is listed in the [API reference](reference/index.qmd).
 
 ::: {.callout-note}
 ## Work in progress
@@ -22,11 +22,15 @@ These tutorials are still being updated, and new and better functions and module
 | [Basic structure visualization](quick_structure_visualization.ipynb) | First 3D views |
 | [Distance grid](distance_grid.qmd) | Distance grid calculation and visualization |
 | [Region segmentation](region_segmentation.qmd) | Splitting void space into pockets |
-| [Applying PBC](applying_pbc.qmd) | Merging pockets across periodic boundaries |
-| [VDW radii and segmentation](vdw_radii.qmd) | How Bondi, CRC, and Alvarez radii change the grid and pore analysis |
-| [Pore graph (RAG)](region_adjacency_graph.ipynb) | Region adjacency graph |
+| [PBC considerations](pbc_considerations.qmd) | How pockets are merged across periodic boundaries |
 | [Connections and windows](connections_and_windows.qmd) | Detecting the windows in a material |
+| [Pore graph (RAG)](region_adjacency_graph.ipynb) | Region adjacency graph |
+| [Compute pore diameters](compute_pore_diameters.ipynb) | LCD, PLD, and LIS |
+| [Surface area and void volume](surface_area.qmd) | MC shell surface area, void volume, per-pocket breakdowns |
+| [PLD and percolation](pld_and_percolation.ipynb) | Winding-number method |
+| [Pore size distributions](pore_size_distributions.qmd) | Gelb–Gubbins global and pocket-wise PSDs, total vs accessible void |
 | [Pocket type detection](pockets_detection.qmd) **(new)** | Detecting the types of pockets |
+| [Three.js plotting](threejs_plotting.qmd) **(new)** | Interactive Three.js scenes in notebooks and as standalone HTML |
 
 ## CLI
 
@@ -38,24 +42,27 @@ These tutorials are still being updated, and new and better functions and module
 
 | Tutorial | What it covers |
 |---|---|
-| [Tuning and safe ranges](parameter_tuning.qmd) | Defaults, safe ranges, and symptoms for `dgrid_from_atoms_rust` and `do_periodic_segmentation_rust` |
-| [Advanced structure visualization](framework_visualization_example.ipynb) | Plotly and Three.js: framework, connections, customization |
-| [Three.js plotting](threejs_plotting.qmd) **(new)** | Interactive Three.js scenes in notebooks and as standalone HTML: framework, pockets, windows, percolation, pore graph |
-| [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb) | Only a subset of atoms and bonds |
-| [Aromatic ring detection](aromatic_ring_detection.qmd) | Ring highlights and bond-length tolerances for Plotly and Three.js |
-| [Percolation paths and PLD](percolated_paths_tutorial.ipynb) | Percolation paths, pore limiting diameter, pocket accessibility |
-| [PLD and percolation](pld_and_percolation.ipynb) | Winding-number method |
-| [Compute pore diameters](compute_pore_diameters.ipynb) | LCD, PLD, and LIS |
-| [Accessibility methods](accessibility.qmd) | Winding vs lattice (Zeo++-style) accessibility, plus a 3D percolating cluster |
-| [Distance grid methods](dgrid_methods.qmd) | The four distance-grid backends and how to choose |
-| [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)** | `read_cif_to_ase`: much faster CIF parsing for large structures and high-throughput runs |
-| [Watershed backends](watershed_backends.qmd) **(new)** | `rust_det`, `rust_bucket`, `rust_det_parallel`, `skimage`: timing, memory, determinism |
-| [Selective smoothing](selective_smoothing.qmd) | `preserve_threshold`, `smooth_threshold`, `max_smooth_radius` and h-maxima |
-| [Window fingerprinting](window_fingerprinting.qmd) | Element-weighted shell fingerprints and accessible-region search |
-| [Surface area and void volume](surface_area.qmd) | MC shell surface area, void volume, per-pocket breakdowns |
-| [Pore size distributions](pore_size_distributions.qmd) **(new)** | Gelb–Gubbins global and pocket-wise PSDs, total vs accessible void |
-| [Property calculation](property_calculation.qmd) | LCD, PLD, ASA, percolating volume, and FFV of a crosslinked polymer |
 | [MOFDB example](mofdb_example.ipynb) | Large DataFrame from MOFDB |
 | [High-throughput characterization](hts_using_mofography.ipynb) | Pore graphs for the IZA dataset with Dask |
-| [Functional groups](detect_functional_groups_in_dataset.ipynb) | Detect moieties in a dataset such as CoREMOF |
 | [PoroNet](PoroNet.qmd) **(new)** | Train a graph neural network on pore graphs |
+| [Crosslinked polymer properties](property_calculation.qmd) | LCD, PLD, ASA, percolating volume, and FFV of a crosslinked polymer |
+| [Functional groups](detect_functional_groups_in_dataset.ipynb) | Detect moieties in a dataset such as CoREMOF |
+| [Advanced structure visualization](framework_visualization_example.ipynb) | Plotly and Three.js: framework, connections, customization |
+| [Framework subset visualization](plot_subset_as_mesh_tutorial.ipynb) | Only a subset of atoms and bonds |
+
+## Deeper knowledge
+
+How the methods work inside, what the knobs do, and older or niche approaches.
+
+| Tutorial | What it covers |
+|---|---|
+| [Tuning and safe ranges](parameter_tuning.qmd) | Defaults, safe ranges, and symptoms for `dgrid_from_atoms_rust` and `do_periodic_segmentation_rust` |
+| [Distance grid methods](dgrid_methods.qmd) | The four distance-grid backends and how to choose |
+| [Selective smoothing](selective_smoothing.qmd) | `preserve_threshold`, `smooth_threshold`, `max_smooth_radius` and h-maxima |
+| [Watershed backends](watershed_backends.qmd) **(new)** | `rust_det`, `rust_bucket`, `rust_det_parallel`, `skimage`: timing, memory, determinism |
+| [VDW radii and segmentation](vdw_radii.qmd) | How Bondi, CRC, and Alvarez radii change the grid and pore analysis |
+| [Accessibility methods](accessibility.qmd) | Winding vs lattice (Zeo++-style) accessibility, plus a 3D percolating cluster |
+| [Window fingerprinting](window_fingerprinting.qmd) | Element-weighted shell fingerprints and accessible-region search |
+| [Pathfinding on the pore graph](percolated_paths_tutorial.ipynb) | Dijkstra-style path finding; an example only, use the winding method for PLD and percolation |
+| [Fast Rust CIF reader](fast_cif_reader.qmd) **(new)** | `read_cif_to_ase`: much faster CIF parsing for large structures |
+| [Aromatic ring detection](aromatic_ring_detection.qmd) | Ring highlights and bond-length tolerances for Plotly and Three.js |
