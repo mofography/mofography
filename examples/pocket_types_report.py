@@ -100,7 +100,7 @@ BATCH_MATERIALS: Dict[str, tuple] = {
     "uio66": (TEST_CIF / "UiO-66-RASPA.cif", "UiO-66", "mic"),
     "dut75": (TEST_CIF / "DUT-75_uncapped.cif", "DUT-75", "mic"),
     "lta96": (TEST_CIF / "LTA-96.cif", "LTA (2x2x2)", "mic"),
-    "zif20": (RASPA_CIF / "ZIF-20.cif", "ZIF-20", "aabb"),
+    "zif20": (RASPA_CIF / "ZIF-20.cif", "ZIF-20", "rtree"),
     "nu1000": (TEST_CIF / "NU-1000_S1.cif", "NU-1000", "mic"),
     "irmof10": (RASPA_CIF / "IRMOF-10.cif", "IRMOF-10", "mic"),
     "umcm1": (RASPA_CIF / "UMCM-1.cif", "UMCM-1", "mic"),
@@ -154,8 +154,8 @@ def channel_cosine(a: PocketFingerprint, b: PocketFingerprint):
 
 
 def build_dgrid(atoms, spacing: float, backend: str = "mic") -> np.ndarray:
-    if backend == "aabb":
-        return mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=spacing).astype(np.float32)
+    if backend == "rtree":
+        return mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=spacing).astype(np.float32)
     return mgr.dgrid_from_atoms_rust(atoms, spacing=spacing).astype(np.float32)
 
 
@@ -714,7 +714,7 @@ def main(argv=None):
     p.add_argument("--out-dir", type=Path, default=REPO / "examples/pocket_reports")
     p.add_argument("--spacing", type=float, default=DEFAULT_SPACING_A)
     p.add_argument("--probe-radius-psd", type=float, default=DEFAULT_PROBE_RADIUS_PSD_A)
-    p.add_argument("--dgrid-backend", choices=("mic", "aabb"), default="mic")
+    p.add_argument("--dgrid-backend", choices=("mic", "rtree"), default="mic")
     p.add_argument("--no-auto-panel-a", action="store_true")
     p.add_argument("--panel-a-png-only", action="store_true", help="Export panel (a) PNG only (skip PDF/org/HTML)")
     p.add_argument("--panel-a-wait-ms", type=int, default=2500)

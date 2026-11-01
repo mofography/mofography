@@ -50,8 +50,8 @@ _SEG = dict(
 
 
 def build_dgrid(atoms, spacing: float, backend: str) -> np.ndarray:
-    if backend == "aabb":
-        return mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=spacing).astype(np.float32)
+    if backend == "rtree":
+        return mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=spacing).astype(np.float32)
     return mgr.dgrid_from_atoms_rust(atoms, spacing=spacing).astype(np.float32)
 
 
@@ -254,7 +254,7 @@ def main():
     p.add_argument("--name", default=None, help="Title prefix for HTML")
     p.add_argument("--out-dir", type=Path, default=ROOT / "examples/viz_outputs")
     p.add_argument("--spacing", type=float, default=DEFAULT_SPACING_A)
-    p.add_argument("--dgrid-backend", choices=("mic", "aabb"), default="mic")
+    p.add_argument("--dgrid-backend", choices=("mic", "rtree"), default="mic")
     p.add_argument("--skip-plotly", action="store_true", help="Large cells: Three.js only")
     p.add_argument("--instanced-framework", action="store_true", help="Lighter framework in Three.js")
     args = p.parse_args()

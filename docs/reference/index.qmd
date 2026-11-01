@@ -139,7 +139,7 @@ Superseded by a better function; still works.
 | [add_clustering_to_rag_geometry_js](add_clustering_to_rag_geometry_js.qmd#mofography.compute.add_clustering_to_rag_geometry_js) <span class="mg-tag mg-tag-legacy">legacy</span> | Adds cluster information to a region adjacency graph (RAG) by calculating the Jensen-Shannon distance between two histograms of distances. |
 | [add_csd_to_rag](add_csd_to_rag.qmd#mofography.compute.add_csd_to_rag) <span class="mg-tag mg-tag-legacy">legacy</span> | Attach cavity-size distribution (CSD) histograms to RAG nodes. |
 | [add_csd_to_rag_with_pbc](add_csd_to_rag_with_pbc.qmd#mofography.compute.add_csd_to_rag_with_pbc) <span class="mg-tag mg-tag-legacy">legacy</span> | Attach PBC-aware cavity-size distribution (CSD) histograms to RAG nodes. |
-| [check_percolation_periodic](check_percolation_periodic.qmd#mofography.compute.check_percolation_periodic) <span class="mg-tag mg-tag-legacy">legacy</span> | Return True if void voxels above threshold percolate through padded periodic faces. |
+| [check_percolation_periodic](check_percolation_periodic.qmd#mofography.compute.check_percolation_periodic) <span class="mg-tag mg-tag-legacy">legacy</span> | Return True if void voxels above threshold form a periodically infinite (winding) network. |
 | [compute_pld](compute_pld.qmd#mofography.compute.compute_pld) <span class="mg-tag mg-tag-legacy">legacy</span> | Compute the pore limiting diameter (PLD) from a CIF file. |
 | [compute_surface_area](compute_surface_area.qmd#mofography.compute.compute_surface_area) <span class="mg-tag mg-tag-legacy">legacy</span> | Compute the surface area based on the distance grid and probe radius. |
 | [compute_void_volume](compute_void_volume.qmd#mofography.compute.compute_void_volume) <span class="mg-tag mg-tag-legacy">legacy</span> | Compute the accessible volume based on the distance grid and probe radius. |
@@ -437,11 +437,11 @@ Valid, but not the default choice.
 | --- | --- |
 | [compute_psd_uniform_rust](compute_psd_uniform_rust.qmd#mofography.rust_fun.compute_psd_uniform_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute pore size distribution using uniform sampling. |
 | [compute_psds_pocketwise_accessible](compute_psds_pocketwise_accessible.qmd#mofography.rust_fun.compute_psds_pocketwise_accessible) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute pocket-wise PSD restricted to accessible (percolating) regions only. |
-| [dgrid_from_atoms_aabb_interp_rust](dgrid_from_atoms_aabb_interp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute a smoothed distance grid using coarse AABB sampling + trilinear interpolation. |
-| [dgrid_from_atoms_aabb_rust](dgrid_from_atoms_aabb_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute a distance grid using the Rust AABB/PBC neighbor search backend. |
 | [egrid_from_atoms_rust](egrid_from_atoms_rust.qmd#mofography.rust_fun.egrid_from_atoms_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute an energy grid from atomic positions using the Rust backend. |
 | [seeded_watershed_det_parallel_rust](seeded_watershed_det_parallel_rust.qmd#mofography.rust_fun.seeded_watershed_det_parallel_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Deterministic parallel seeded watershed wrapper around mgr_rust. |
 | [seeded_watershed_det_rust](seeded_watershed_det_rust.qmd#mofography.rust_fun.seeded_watershed_det_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Deterministic single-threaded seeded watershed wrapper around mgr_rust. |
+| [dgrid_from_atoms_rtree_interp_rust](dgrid_from_atoms_rtree_interp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_rtree_interp_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute a smoothed distance grid using coarse R-tree sampling + trilinear interpolation. |
+| [dgrid_from_atoms_rtree_rust](dgrid_from_atoms_rtree_rust.qmd#mofography.rust_fun.dgrid_from_atoms_rtree_rust) <span class="mg-tag mg-tag-alternate">alternate</span> | Compute a distance grid using the Rust R-tree (AABB) periodic neighbor-search backend. |
 
 ### Other
 
@@ -460,6 +460,8 @@ Do not use in new code.
 
 | | |
 | --- | --- |
+| [dgrid_from_atoms_aabb_interp_rust](dgrid_from_atoms_aabb_interp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust) <span class="mg-tag mg-tag-deprecated">deprecated</span> | Deprecated alias of `dgrid_from_atoms_rtree_interp_rust`. |
+| [dgrid_from_atoms_aabb_rust](dgrid_from_atoms_aabb_rust.qmd#mofography.rust_fun.dgrid_from_atoms_aabb_rust) <span class="mg-tag mg-tag-deprecated">deprecated</span> | Deprecated alias of `dgrid_from_atoms_rtree_rust`. |
 | [dgrid_from_atoms_exp_rust](dgrid_from_atoms_exp_rust.qmd#mofography.rust_fun.dgrid_from_atoms_exp_rust) <span class="mg-tag mg-tag-deprecated">deprecated</span> | Same as `dgrid_from_atoms_rust`; kept for backward-compatible imports. |
 
 ## Workflows

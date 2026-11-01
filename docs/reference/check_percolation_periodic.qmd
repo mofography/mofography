@@ -6,4 +6,11 @@
 compute.check_percolation_periodic(distance_grid, threshold)
 ```
 
-Return True if void voxels above threshold percolate through padded periodic faces.
+Return True if void voxels above threshold form a periodically infinite (winding) network.
+
+Components are labelled inside the cell (no halo), then stitched across opposite faces
+while tracking the cell-image offset of each component. A component that returns to
+itself at a different image offset winds around the torus. This is independent of where
+the cell origin sits, unlike matching one label on opposite faces of a halo-padded grid
+(the halo copies are not tied to the real boundary voxels, so a channel cut by the
+cell origin was missed).

@@ -209,7 +209,7 @@ Options: `layout="white"`, `camera_eye=(x, y, z)`, `camera_center=(x, y, z)` (Ca
 | `threshold_abs` | 1.5 Å | maxima must be at least this far from the framework |
 | `watershed_backend` | `rust_det` | alternatives: `rust_bucket`, `rust_det_parallel`, `skimage` |
 
-Large cells: `dgrid_from_atoms_aabb_rust` (less memory) or `dgrid_from_atoms_aabb_interp_rust` (coarse grid plus interpolation).
+Large cells: `dgrid_from_atoms_rtree_rust` (less memory) or `dgrid_from_atoms_rtree_interp_rust` (coarse grid plus interpolation).
 
 ## Gotchas
 

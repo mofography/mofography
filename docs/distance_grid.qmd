@@ -22,8 +22,8 @@ The distance grid is a 3D array where each voxel stores the signed distance from
 | Method | Function | Best For | Status |
 |--------|----------|----------|--------|
 | **Rust (Exact)** | `dgrid_from_atoms_rust()` | **All systems — recommended default** | ✅ Active |
-| **Rust AABB** | `dgrid_from_atoms_aabb_rust()` | Large systems, limited RAM | ✅ Active |
-| **Rust AABB Interp** | `dgrid_from_atoms_aabb_interp_rust()` | Very large systems, coarse→fine smoothing | ✅ Active |
+| **Rust R-tree** | `dgrid_from_atoms_rtree_rust()` | Large systems, limited RAM | ✅ Active |
+| **Rust R-tree Interp** | `dgrid_from_atoms_rtree_interp_rust()` | Very large systems, coarse→fine smoothing | ✅ Active |
 | **CPU/Dask** | `dgrid_from_atoms_cpu()` | Legacy compatibility, freud AABB celllist | ⚠️ Legacy |
 | ~~GPU (CuPy)~~ | ~~`dgrid_from_atoms_gpu()`~~ | — | ❌ Broken on skewed cells |
 | ~~CPU No-AABB~~ | ~~`dgrid_from_atoms_cpu_no_aabb()`~~ | — | ❌ Broken on skewed cells |
@@ -31,8 +31,8 @@ The distance grid is a 3D array where each voxel stores the signed distance from
 ### Quick Recommendation
 
 - **Default choice** → `dgrid_from_atoms_rust(spacing=0.5)` — thread-parallel Rust, correct MIC on all cell types
-- **Memory constrained** → `dgrid_from_atoms_aabb_rust(spacing=0.5, n_neighbors=10)` — R-tree based, uses less RAM
-- **Very large systems** (>5000 atoms, coarse acceptable) → `dgrid_from_atoms_aabb_interp_rust(spacing=1.0, coarse_factor=2)` — trilinear interpolation from coarse grid
+- **Memory constrained** → `dgrid_from_atoms_rtree_rust(spacing=0.5, n_neighbors=10)` — R-tree based, uses less RAM
+- **Very large systems** (>5000 atoms, coarse acceptable) → `dgrid_from_atoms_rtree_interp_rust(spacing=1.0, coarse_factor=2)` — trilinear interpolation from coarse grid
 
 ### ⚠️ Deprecated / Broken Methods
 
@@ -89,7 +89,7 @@ dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=0.5, radii=radii)
 
 ```{python}
 # R-tree based — only computes distances for atoms near each grid point
-dgrid = mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10)
+dgrid = mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=0.5, n_neighbors=10)
 ```
 
 Uses an AABB (axis-aligned bounding box) cell list via freud to find nearby atoms for each grid point. `n_neighbors` controls the neighbor search radius — higher = more accurate but slower.
@@ -98,7 +98,7 @@ Uses an AABB (axis-aligned bounding box) cell list via freud to find nearby atom
 
 ```{python}
 # For very large systems: coarse grid + trilinear interpolation
-dgrid = mgr.dgrid_from_atoms_aabb_interp_rust(
+dgrid = mgr.dgrid_from_atoms_rtree_interp_rust(
     atoms, spacing=1.0, coarse_factor=2, n_neighbors=10
 )
 # Equivalent to computing at spacing=1.0 then interpolating to 0.5
@@ -188,4 +188,4 @@ print(f"Regions array shape: {seg['regions_pbc'].shape}")
 - [Region Segmentation](region_segmentation.qmd) — maxima detection, watershed, and the output keys
 - [Tuning and safe ranges](parameter_tuning.qmd) — defaults and safe ranges for segmentation
 - [VDW Radii Comparison](vdw_radii_comparison.md) — bondi vs crc vs alvarez
-- [Benchmark: Rust AABB dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods
+- [Benchmark: Rust R-tree dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods
