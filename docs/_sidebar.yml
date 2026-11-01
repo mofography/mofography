@@ -299,11 +299,11 @@ website:
       - contents:
         - reference/compute_psd_uniform_rust.qmd
         - reference/compute_psds_pocketwise_accessible.qmd
-        - reference/dgrid_from_atoms_aabb_interp_rust.qmd
-        - reference/dgrid_from_atoms_aabb_rust.qmd
         - reference/egrid_from_atoms_rust.qmd
         - reference/seeded_watershed_det_parallel_rust.qmd
         - reference/seeded_watershed_det_rust.qmd
+        - reference/dgrid_from_atoms_rtree_interp_rust.qmd
+        - reference/dgrid_from_atoms_rtree_rust.qmd
         section: Alternate
       - contents:
         - reference/compute_pore_sizes_pocketwise_rust.qmd
@@ -312,6 +312,8 @@ website:
         - reference/tricubic_interpolator_from_grid.qmd
         section: Other
       - contents:
+        - reference/dgrid_from_atoms_aabb_interp_rust.qmd
+        - reference/dgrid_from_atoms_aabb_rust.qmd
         - reference/dgrid_from_atoms_exp_rust.qmd
         section: Deprecated
       section: Rust backend

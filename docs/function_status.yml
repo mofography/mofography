@@ -968,15 +968,23 @@ mofography.rust_fun.compute_psds_pocketwise_rust:
   note: Core Rust pocket-wise PSD sampler; used by segmentation helper and tutorials.
   status: recommended
 mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust:
-  note: Coarse AABB sample plus trilinear upsample; mild smoothing for tests.
-  status: alternate
+  note: Deprecated alias of dgrid_from_atoms_rtree_interp_rust; emits DeprecationWarning.
+  status: deprecated
+  use: dgrid_from_atoms_rtree_interp_rust
 mofography.rust_fun.dgrid_from_atoms_aabb_rust:
-  note: AABB neighbor-search dgrid; faster/coarser than exact MIC Rust path.
-  status: alternate
+  note: Deprecated alias of dgrid_from_atoms_rtree_rust; emits DeprecationWarning.
+  status: deprecated
+  use: dgrid_from_atoms_rtree_rust
 mofography.rust_fun.dgrid_from_atoms_exp_rust:
   note: Backward-compatible alias only; no separate implementation.
   status: deprecated
   use: dgrid_from_atoms_rust
+mofography.rust_fun.dgrid_from_atoms_rtree_interp_rust:
+  note: Coarse R-tree sample plus trilinear upsample; mild smoothing for very large cells.
+  status: alternate
+mofography.rust_fun.dgrid_from_atoms_rtree_rust:
+  note: R-tree neighbor-search dgrid; matches the exact path to ~1e-3 A with far less RAM.
+  status: alternate
 mofography.rust_fun.dgrid_from_atoms_rust:
   note: Default Rust distance grid; first step of the main segmentation workflow.
   status: recommended

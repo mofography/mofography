@@ -1,6 +1,6 @@
 ---
 title: "Distance Grid Methods — Choosing the Right Backend"
-description: "Compare all four distance grid backends (rust_exact, rust_aabb, rust_aabb_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use."
+description: "Compare all four distance grid backends (rust_exact, rust_rtree, rust_rtree_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use."
 image: tutorial_images/distance_grid_isosurface.png
 jupyter: python3
 execute:
@@ -15,7 +15,7 @@ This tutorial covers:
 
 1. The four **active** distance grid backends and their exact signatures
 2. A **decision tree** mapping system size to the right method
-3. The **auto-AABB** policy the interactive app uses
+3. The **auto-R-tree** policy the interactive app uses
 4. ⚠️ The two **broken** methods to *never* use and why
 
 If you have not done so, please complete the [Distance Grid tutorial](distance_grid.qmd) first — the rest of this page assumes you understand what a `dgrid` is and what `spacing` controls.
@@ -25,8 +25,8 @@ If you have not done so, please complete the [Distance Grid tutorial](distance_g
 | # | Function | Strategy | Best for | Status |
 |---|----------|----------|----------|--------|
 | 1 | `dgrid_from_atoms_rust` | Brute-force Rust, exact MIC, thread-parallel | **All systems — default** | ✅ Active |
-| 2 | `dgrid_from_atoms_aabb_rust` | R-tree (AABB) neighbor search in Rust | Large systems, memory-constrained | ✅ Active |
-| 3 | `dgrid_from_atoms_aabb_interp_rust` | Coarse AABB + trilinear interpolation | Very large systems, mild smoothing OK | ✅ Active |
+| 2 | `dgrid_from_atoms_rtree_rust` | R-tree (AABB) neighbor search in Rust | Large systems, memory-constrained | ✅ Active |
+| 3 | `dgrid_from_atoms_rtree_interp_rust` | Coarse R-tree + trilinear interpolation | Very large systems, mild smoothing OK | ✅ Active |
 | 4 | `dgrid_from_atoms_cpu` | freud `AABBQuery` + Dask, Python | Legacy compatibility | ⚠️ Legacy |
 
 ::: {.callout-warning}
@@ -54,10 +54,10 @@ dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)
 
 **Use when:** you want the most accurate distance grid and you have enough RAM for one float32 per voxel.
 
-### 2. `dgrid_from_atoms_aabb_rust` — R-tree, memory-efficient
+### 2. `dgrid_from_atoms_rtree_rust` — R-tree, memory-efficient
 
 ```python
-dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10)
+dgrid_from_atoms_rtree_rust(ase_atoms, spacing, radii=None, n_neighbors=10)
 ```
 
 | Parameter | Type | Default | Meaning |
@@ -67,14 +67,14 @@ dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii=None, n_neighbors=10)
 | `radii` | `np.ndarray` or `None` | `None` | Per-atom VDW radii (Å) |
 | `n_neighbors` | `int` | `10` | Number of nearest atoms to query per grid point |
 
-**Strategy:** Builds a Rust AABB (axis-aligned bounding box) tree on the atoms, then queries `n_neighbors` nearest atoms for every grid point under PBC. The minimum of `dist - radii[nbr]` becomes the surface distance. Memory is dominated by the R-tree, *not* by the grid → much smaller RAM footprint than brute force on large cells.
+**Strategy:** Builds a Rust R-tree (built on axis-aligned bounding boxes) on the atoms, then queries `n_neighbors` nearest atoms for every grid point under PBC. The minimum of `dist - radii[nbr]` becomes the surface distance. Memory is dominated by the R-tree, *not* by the grid → much smaller RAM footprint than brute force on large cells.
 
 **Use when:** cells > 50 Å or atoms > 1000 and the brute-force Rust path runs out of memory. Accuracy depends on `n_neighbors`: 10 is safe for typical MOFs; reduce to 4–6 if the structure has very large open channels where the nearest atoms may be far apart, and consider whether you need 20+ for tiny-pore systems.
 
-### 3. `dgrid_from_atoms_aabb_interp_rust` — coarse + trilinear
+### 3. `dgrid_from_atoms_rtree_interp_rust` — coarse + trilinear
 
 ```python
-dgrid_from_atoms_aabb_interp_rust(
+dgrid_from_atoms_rtree_interp_rust(
     ase_atoms, spacing, coarse_factor=2, radii=None, n_neighbors=10,
 )
 ```
@@ -83,15 +83,15 @@ dgrid_from_atoms_aabb_interp_rust(
 |-----------|------|---------|---------|
 | `ase_atoms` | `ase.Atoms` | — | Framework structure |
 | `spacing` | `float` | — | **Fine** grid spacing in Å |
-| `coarse_factor` | `int` | `2` | Coarsening factor for the AABB sampling grid (must be > 1) |
+| `coarse_factor` | `int` | `2` | Coarsening factor for the coarse sampling grid (must be > 1) |
 | `radii` | `np.ndarray` or `None` | `None` | Per-atom VDW radii (Å) |
-| `n_neighbors` | `int` | `10` | AABB neighbor count |
+| `n_neighbors` | `int` | `10` | R-tree neighbor count |
 
 **Returns:** `np.ndarray` (float32) of shape `(nx, ny, nz)` matching the *fine* `spacing`.
 
-**Strategy:** Computes the AABB distance grid on a **coarse** grid (spacing × `coarse_factor`), then trilinearly interpolates back to the fine grid. Reduces compute by `coarse_factor³` (default 8×) and *also* acts as a mild low-pass filter. The grid shape is identical to the brute-force result, so downstream code is unchanged.
+**Strategy:** Computes the R-tree distance grid on a **coarse** grid (spacing × `coarse_factor`), then trilinearly interpolates back to the fine grid. Reduces compute by `coarse_factor³` (default 8×) and *also* acts as a mild low-pass filter. The grid shape is identical to the brute-force result, so downstream code is unchanged.
 
-**Use when:** systems so large that even the AABB Rust path is too slow, *and* you can tolerate a slightly smoother distance field (mild trilinear averaging of nearby values). Good for HT screens where you want a ballpark PSD, less ideal for resolving sub-Å features like pore-limiting windows. Increase `coarse_factor` to 3 or 4 for very large cells; decrease toward 1 (in practice, use the plain AABB method) when you need sharper windows.
+**Use when:** systems so large that even the R-tree Rust path is too slow, *and* you can tolerate a slightly smoother distance field (mild trilinear averaging of nearby values). Good for HT screens where you want a ballpark PSD, less ideal for resolving sub-Å features like pore-limiting windows. Increase `coarse_factor` to 3 or 4 for very large cells; decrease toward 1 (in practice, use the plain R-tree method) when you need sharper windows.
 
 ### 4. `dgrid_from_atoms_cpu` — freud + Dask, Python
 
@@ -123,8 +123,8 @@ flowchart TD
     A[System: ASE Atoms + spacing] --> B{Atoms × grid voxels<br/>fits in RAM<br/>and runtime OK?}
     B -- Yes --> C[rust_exact<br/>dgrid_from_atoms_rust]
     B -- No, OOM or too slow --> D{Is mild smoothing<br/>of the dgrid OK?}
-    D -- Yes --> E[rust_aabb_interp<br/>dgrid_from_atoms_aabb_interp_rust]
-    D -- No, need exact --> F[rust_aabb<br/>dgrid_from_atoms_aabb_rust]
+    D -- Yes --> E[rust_rtree_interp<br/>dgrid_from_atoms_rtree_interp_rust]
+    D -- No, need exact --> F[rust_rtree<br/>dgrid_from_atoms_rtree_rust]
     A --> G[Need Python-level<br/>introspection?]
     G -- Yes --> H[cpu / Dask<br/>dgrid_from_atoms_cpu]
     G -- No --> C
@@ -137,20 +137,20 @@ flowchart TD
 | System size (atoms × grid voxels) | Recommended method | Why |
 |------------------------------------|--------------------|-----|
 | < 5 × 10⁷ (small-to-medium) | `dgrid_from_atoms_rust` | Brute-force is fast enough and the most accurate |
-| 5 × 10⁷ to 5 × 10⁸ (large) | `dgrid_from_atoms_aabb_rust` | AABB tree cuts memory; same accuracy as brute force |
-| > 5 × 10⁸ (very large, HT screens) | `dgrid_from_atoms_aabb_interp_rust` with `coarse_factor=2` or `3` | 8–27× compute savings; smooths fine features |
+| 5 × 10⁷ to 5 × 10⁸ (large) | `dgrid_from_atoms_rtree_rust` | R-tree cuts memory; same accuracy as brute force |
+| > 5 × 10⁸ (very large, HT screens) | `dgrid_from_atoms_rtree_interp_rust` with `coarse_factor=2` or `3` | 8–27× compute savings; smooths fine features |
 | Need Python / Dask composition | `dgrid_from_atoms_cpu` | Slowest but flexible; uses correct freud MIC |
 
-These are rough numbers — the actual crossover depends on cell shape, number of periodic images the AABB has to handle, and how much RAM you have. The auto-AABB policy in the interactive app uses a similar memory budget to switch.
+These are rough numbers — the actual crossover depends on cell shape, number of periodic images the R-tree has to handle, and how much RAM you have. The auto-R-tree policy in the interactive app uses a similar memory budget to switch.
 
-## Auto-AABB policy (interactive app)
+## Auto-R-tree policy (interactive app)
 
 The Streamlit app (`mofography_dash` / hosted demo) does **not** expose the distance-grid method as a user knob by default. Instead it runs a two-step policy:
 
 1. **Estimate** the float32 memory cost of the brute-force grid: `4 × nx × ny × nz` bytes.
-2. **If** that estimate exceeds the configured RAM budget (default: ~512 MB), it auto-switches to `dgrid_from_atoms_aabb_rust` with `n_neighbors=10` (or to `dgrid_from_atoms_aabb_interp_rust` with `coarse_factor=2` for very large systems). A short status line in the UI tells you which backend was used.
+2. **If** that estimate exceeds the configured RAM budget (default: ~512 MB), it auto-switches to `dgrid_from_atoms_rtree_rust` with `n_neighbors=10` (or to `dgrid_from_atoms_rtree_interp_rust` with `coarse_factor=2` for very large systems). A short status line in the UI tells you which backend was used.
 
-This means the app "just works" for both IRMOF-1 and a 100-atom × 200-Å supercell, but it also means you should *check the UI output* before running a 1000-frame batch — silently hitting the AABB path on a system that needs brute-force precision can change window diameters by a few percent. The notebook and CLI surfaces do **not** auto-switch; you choose the backend explicitly.
+This means the app "just works" for both IRMOF-1 and a 100-atom × 200-Å supercell, but it also means you should *check the UI output* before running a 1000-frame batch — silently hitting the R-tree path on a system that needs brute-force precision can change window diameters by a few percent. The notebook and CLI surfaces do **not** auto-switch; you choose the backend explicitly.
 
 ## Setup
 
@@ -179,31 +179,31 @@ print(f"rust_exact:    shape={dgrid_exact.shape}, "
 **Pros:** exact MIC for all cell types, thread-parallel, no accuracy trade-off.
 **Cons:** O(N_atoms × N_grid) — memory scales with grid size.
 
-## Method 2: `dgrid_from_atoms_aabb_rust` (memory-efficient)
+## Method 2: `dgrid_from_atoms_rtree_rust` (memory-efficient)
 
 ```{python}
 t0 = time.perf_counter()
-dgrid_aabb = mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10)
-t_aabb = time.perf_counter() - t0
-print(f"rust_aabb:     shape={dgrid_aabb.shape}, "
-      f"min={dgrid_aabb.min():.2f}, max={dgrid_aabb.max():.2f}, "
-      f"time={t_aabb*1000:.0f} ms")
+dgrid_rtree = mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=0.5, n_neighbors=10)
+t_rtree = time.perf_counter() - t0
+print(f"rust_rtree:     shape={dgrid_rtree.shape}, "
+      f"min={dgrid_rtree.min():.2f}, max={dgrid_rtree.max():.2f}, "
+      f"time={t_rtree*1000:.0f} ms")
 
 # Agreement with exact method
-print(f"max |dgrid_exact - dgrid_aabb| = {np.abs(dgrid_exact - dgrid_aabb).max():.3e}")
+print(f"max |dgrid_exact - dgrid_rtree| = {np.abs(dgrid_exact - dgrid_rtree).max():.3e}")
 ```
 
-Uses a Rust AABB tree to find nearby atoms for each grid point. `n_neighbors` controls the search radius — higher = more accurate but slower. For typical MOFs, `n_neighbors=10` agrees with the exact method to ~1e-3 Å. If you see a few-voxel disagreement near a wall, raise `n_neighbors` to 16 or 20.
+Uses a Rust R-tree to find nearby atoms for each grid point. `n_neighbors` controls the search radius — higher = more accurate but slower. For typical MOFs, `n_neighbors=10` agrees with the exact method to ~1e-3 Å. If you see a few-voxel disagreement near a wall, raise `n_neighbors` to 16 or 20.
 
-## Method 3: `dgrid_from_atoms_aabb_interp_rust` (very large systems)
+## Method 3: `dgrid_from_atoms_rtree_interp_rust` (very large systems)
 
 ```{python}
 t0 = time.perf_counter()
-dgrid_interp = mgr.dgrid_from_atoms_aabb_interp_rust(
+dgrid_interp = mgr.dgrid_from_atoms_rtree_interp_rust(
     atoms, spacing=0.5, coarse_factor=2, n_neighbors=10,
 )
 t_interp = time.perf_counter() - t0
-print(f"rust_aabb+int: shape={dgrid_interp.shape}, "
+print(f"rust_rtree+int: shape={dgrid_interp.shape}, "
       f"min={dgrid_interp.min():.2f}, max={dgrid_interp.max():.2f}, "
       f"time={t_interp*1000:.0f} ms")
 
@@ -233,8 +233,8 @@ print(f"max |dgrid_exact - dgrid_cpu| = {np.abs(dgrid_exact - dgrid_cpu).max():.
 ```{python}
 methods = {
     "rust_exact":     mgr.dgrid_from_atoms_rust(atoms, spacing=0.5),
-    "rust_aabb":      mgr.dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10),
-    "rust_aabb+int":  mgr.dgrid_from_atoms_aabb_interp_rust(atoms, spacing=0.5, coarse_factor=2),
+    "rust_rtree":      mgr.dgrid_from_atoms_rtree_rust(atoms, spacing=0.5, n_neighbors=10),
+    "rust_rtree+int":  mgr.dgrid_from_atoms_rtree_interp_rust(atoms, spacing=0.5, coarse_factor=2),
     "cpu/dask":       mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000),
 }
 ref = methods["rust_exact"]
@@ -278,34 +278,34 @@ dgrid = mgr.dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000)
 |-----------|------------|---------|---------------|------------------|
 | `spacing` | all | — | 0.2 – 1.0 Å | Voxel edge length. Halving → 8× voxels. |
 | `radii` | all | `None` | — | Override per-atom VDW radii (Å). `None` → Bondi (1964) + Mendeleev fill. |
-| `n_neighbors` | AABB, interp, CPU | `10` | 4 – 20 | Number of nearest atoms queried per voxel. |
+| `n_neighbors` | R-tree, interp, CPU | `10` | 4 – 20 | Number of nearest atoms queried per voxel. |
 | `coarse_factor` | interp | `2` | 2 – 4 | Coarsening of the sampling grid. |
 | `block_size` | CPU | `50000` | 10k – 200k | Dask chunk size (grid points per block). |
 | `precompute` | CPU | `True` | bool | `True` → return NumPy; `False` → return lazy Dask array. |
 | `probe_radius` | CPU | `0` | 0 – 5 Å | Extra probe radius added on top of `radii`. |
 
-**Tip:** Start with `dgrid_from_atoms_rust(atoms, spacing=0.5)` and only switch to AABB or interp when you hit a memory or runtime wall.
+**Tip:** Start with `dgrid_from_atoms_rust(atoms, spacing=0.5)` and only switch to the R-tree or interp backend when you hit a memory or runtime wall.
 
 ## Quick decision recap
 
 - **Default → `dgrid_from_atoms_rust(atoms, spacing=0.5)`** — exact MIC, correct for all cell types.
-- **OOM on big cell → `dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10)`** — R-tree, same accuracy, less RAM.
-- **HT screen / very large system → `dgrid_from_atoms_aabb_interp_rust(atoms, spacing=0.5, coarse_factor=2)`** — 8× faster, mild smoothing.
+- **OOM on big cell → `dgrid_from_atoms_rtree_rust(atoms, spacing=0.5, n_neighbors=10)`** — R-tree, same accuracy, less RAM.
+- **HT screen / very large system → `dgrid_from_atoms_rtree_interp_rust(atoms, spacing=0.5, coarse_factor=2)`** — 8× faster, mild smoothing.
 - **Python/Dask composition → `dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000)`** — slowest, but lazy-friendly.
 - **NEVER → `dgrid_from_atoms_gpu`, `dgrid_from_atoms_cpu_no_aabb`** — broken on skewed cells.
 
 ## Next steps
 
 - [Distance Grid tutorial](distance_grid.qmd) — basic usage, spacing tradeoffs, visualization.
-- [Benchmark: Rust AABB dgrid](benchmark_rust_aabb_dgrid.md) — performance numbers across methods.
+- [Benchmark: Rust R-tree dgrid](benchmark_rust_rtree_dgrid.md) — performance numbers across methods.
 - [Region Segmentation](region_segmentation.qmd) — what happens after the distance grid.
 - [Appyling Periodic Boundary Conditions](pbc_considerations.qmd) — PBC group structure on top of the segmentation.
 
 ## Related documentation
 
 - `mofography.rust_fun.dgrid_from_atoms_rust`
-- `mofography.rust_fun.dgrid_from_atoms_aabb_rust`
-- `mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust`
+- `mofography.rust_fun.dgrid_from_atoms_rtree_rust`
+- `mofography.rust_fun.dgrid_from_atoms_rtree_interp_rust`
 - `mofography.compute.dgrid_from_atoms_cpu` (active, correct)
 - `mofography.compute.dgrid_from_atoms_gpu` (broken on skewed cells — do not use)
 - `mofography.compute.dgrid_from_atoms_cpu_no_aabb` (broken on skewed cells — do not use)

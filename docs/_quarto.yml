@@ -432,11 +432,11 @@ quartodoc:
     contents:
     - compute_psd_uniform_rust
     - compute_psds_pocketwise_accessible
-    - dgrid_from_atoms_aabb_interp_rust
-    - dgrid_from_atoms_aabb_rust
     - egrid_from_atoms_rust
     - seeded_watershed_det_parallel_rust
     - seeded_watershed_det_rust
+    - dgrid_from_atoms_rtree_interp_rust
+    - dgrid_from_atoms_rtree_rust
   - subtitle: Other
     desc: Low-level helpers and building blocks.
     package: mofography.rust_fun
@@ -449,6 +449,8 @@ quartodoc:
     desc: Do not use in new code.
     package: mofography.rust_fun
     contents:
+    - dgrid_from_atoms_aabb_interp_rust
+    - dgrid_from_atoms_aabb_rust
     - dgrid_from_atoms_exp_rust
   - title: Workflows
     package: mofography.workflow
