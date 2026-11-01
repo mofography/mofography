@@ -4,3 +4,4 @@
 analyze.get_bonds_and_orders_without_replication(ase_atoms, nlist=None)
 ```
 
+Infer covalent bonds and pymatgen bond orders without replicating periodic images.

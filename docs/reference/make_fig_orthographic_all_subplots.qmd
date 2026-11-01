@@ -4,3 +4,4 @@
 visualize.make_fig_orthographic_all_subplots(fig)
 ```
 
+Apply orthographic cameras and mesh lighting to every 3D subplot in a figure.

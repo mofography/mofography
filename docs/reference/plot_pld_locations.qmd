@@ -1,5 +1,7 @@
 # plot_pld_locations { #mofography.visualize.plot_pld_locations }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Scatter markers for pore limiting diameter locations on a structure or grid context.
+
 ```python
 visualize.plot_pld_locations(
     dgrid,
@@ -11,8 +13,7 @@ visualize.plot_pld_locations(
 )
 ```
 
-Generate a 3D scatter plot with markers representing PLD locations, and
-optionally display spheres around the PLD locations.
+Return Plotly Scatter3d traces for pore limiting diameter locations on a distance grid.
 
 
 

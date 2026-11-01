@@ -4,3 +4,4 @@
 viz_backend.iter_leaf_traces(traces)
 ```
 
+Yield individual trace objects from nested lists or trace-bundle dicts.

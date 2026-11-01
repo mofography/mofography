@@ -1,5 +1,7 @@
 # plot_pocket_psds { #mofography.visualize.plot_pocket_psds }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Interactive figure comparing overall and per-pocket probe PSD curves (not in-place RAG attrs). Use `plot_pocket_psds_on_rag` instead.
+
 ```python
 visualize.plot_pocket_psds(
     pore_sizes,

@@ -4,3 +4,4 @@
 helper.find_psd_peaks(psd, **kwargs)
 ```
 
+Locate PSD peaks with scipy continuous wavelet transform peak finding (``find_peaks_cwt``).

@@ -1,5 +1,7 @@
 # compute_percolation_history_winding { #mofography.winding_percolation.compute_percolation_history_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Tutorial entry for winding threshold history plus PLD voxel locations.
+
 ```python
 winding_percolation.compute_percolation_history_winding(
     results,
@@ -9,4 +11,4 @@ winding_percolation.compute_percolation_history_winding(
 )
 ```
 
-Wrapper similar to ``compute_percolation_history2`` but also returns cluster metadata.
+Compute winding percolation history and return clusters plus PLD voxel locations.

@@ -1,5 +1,7 @@
 # add_pocket_types_to_rag { #mofography.compute.add_pocket_types_to_rag }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Writes env_cluster (or other) type labels on RAG nodes after assign_pocket_types.
+
 ```python
 compute.add_pocket_types_to_rag(
     rag,

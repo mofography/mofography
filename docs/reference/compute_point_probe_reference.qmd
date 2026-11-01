@@ -1,5 +1,7 @@
 # compute_point_probe_reference { #mofography.compute.compute_point_probe_reference }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Point-probe (zero-radius) void volume and surface reference from a results dict.
+
 ```python
 compute.compute_point_probe_reference(results_dict, mat_atoms)
 ```

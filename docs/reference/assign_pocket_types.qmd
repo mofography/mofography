@@ -1,5 +1,7 @@
 # assign_pocket_types { #mofography.workflow.assign_pocket_types }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> High-level pocket typing on segmentation; default method env_cluster.
+
 ```python
 workflow.assign_pocket_types(
     segmentation_results,

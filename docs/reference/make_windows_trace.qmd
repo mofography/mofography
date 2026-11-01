@@ -12,3 +12,4 @@ movies.make_windows_trace(
 )
 ```
 
+Build internal and periodic window marker traces from connections in seg.

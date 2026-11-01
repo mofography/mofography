@@ -1,5 +1,7 @@
 # plot_dgrid_as_volume { #mofography.visualize.plot_dgrid_as_volume }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Optional Plotly Volume view of a distance grid; mesh isosurfaces are the usual choice. Use `plot_surface_dgrid` instead.
+
 ```python
 visualize.plot_dgrid_as_volume(
     dgrid,

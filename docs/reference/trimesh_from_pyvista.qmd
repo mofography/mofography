@@ -4,7 +4,7 @@
 visualize.trimesh_from_pyvista(pv_mesh)
 ```
 
-`trimesh_from_pyvista(pv_mesh)` takes a PyVista mesh and returns a Trimesh mesh
+Convert a PyVista mesh to a trimesh surface mesh.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

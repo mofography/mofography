@@ -1,10 +1,12 @@
 # plot_everything { #mofography.visualize.plot_everything }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> One-shot demo figure from old do_it_all tuple output including legacy pore graph. Use `show_mof_plotly` instead.
+
 ```python
 visualize.plot_everything(everything)
 ```
 
-It takes in the output of the do_it_all function and returns a plotly figure
+Build a demo Plotly figure from the legacy do_it_all output tuple (HKUST-1 style).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

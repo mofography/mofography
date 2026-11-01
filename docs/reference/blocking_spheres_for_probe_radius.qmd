@@ -1,5 +1,7 @@
 # blocking_spheres_for_probe_radius { #mofography.raspa_helper.blocking_spheres_for_probe_radius }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> One-call BlockPockets spheres from winding inaccessible labels at probe_radius.
+
 ```python
 raspa_helper.blocking_spheres_for_probe_radius(
     results,

@@ -10,6 +10,8 @@ compute.add_props_to_graph(
 )
 ```
 
+Add node and edge property dicts to a graph.
+
 The function takes in a graph, and a list of node properties and edge properties, and adds them to the graph as node and
 edge attributes.
 

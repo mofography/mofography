@@ -12,7 +12,7 @@ compute.get_sampling_paths_for_region(
 )
 ```
 
-> It finds the paths from the maxima of a region to the windows of that region
+Find Dijkstra paths from a region maximum to its connection window sites.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

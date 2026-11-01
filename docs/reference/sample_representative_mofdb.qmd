@@ -1,5 +1,7 @@
 # sample_representative_mofdb { #mofography.data.sample_representative_mofdb }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Stratified sampling of MOFdb-style DataFrames for HTS and tutorial workflows.
+
 ```python
 data.sample_representative_mofdb(
     df,

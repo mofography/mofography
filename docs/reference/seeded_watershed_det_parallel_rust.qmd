@@ -1,5 +1,7 @@
 # seeded_watershed_det_parallel_rust { #mofography.rust_fun.seeded_watershed_det_parallel_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Parallel deterministic watershed; optional backend, not the default pipeline.
+
 ```python
 rust_fun.seeded_watershed_det_parallel_rust(image, seeds, mask=None)
 ```

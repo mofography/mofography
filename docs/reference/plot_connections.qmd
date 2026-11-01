@@ -1,6 +1,9 @@
 # plot_connections { #mofography.threejs_viz.plot_connections }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Pore-graph connections from a full seg dict (Three.js traces).
+
 ```python
 threejs_viz.plot_connections(seg, atoms, hide_periodic=True, **kwargs)
 ```
 
+Build Three.js pore-graph connection line and node traces from a seg dict.

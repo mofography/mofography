@@ -4,3 +4,4 @@
 compute.add_props_to_rag(rag, props)
 ```
 
+Copy skimage region ``props`` dicts onto matching RAG nodes as ``props``.

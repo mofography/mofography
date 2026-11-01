@@ -1,5 +1,7 @@
 # compute_psds_from_points_pocketwise { #mofography.helper.compute_psds_from_points_pocketwise }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Pure-Python per-pocket PSD histograms; Rust pocketwise PSD is faster at scale. Use `compute_psds_pocketwise_rust` instead.
+
 ```python
 helper.compute_psds_from_points_pocketwise(
     sample_points_labels,

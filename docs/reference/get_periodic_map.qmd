@@ -11,8 +11,7 @@ compute.get_periodic_map(
 )
 ```
 
-It takes a 3D array of integers representing region indices that is obtained from region segmentation, a list of maxima, and a list of maxima radii, and returns a dictionary
-that maps each region to the nearest maximum.
+Map each region label to its periodic representative (optional connectivity groups).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

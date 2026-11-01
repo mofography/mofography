@@ -1,5 +1,7 @@
 # compute_surface_area_mc_winding { #mofography.compute.compute_surface_area_mc_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Primary Monte Carlo accessible surface area on segmentation results (winding).
+
 ```python
 compute.compute_surface_area_mc_winding(
     results_dict,

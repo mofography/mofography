@@ -1,5 +1,7 @@
 # compute_segmentation_for_snapshot { #mofography.movies.compute_segmentation_for_snapshot }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Run segmentation pipeline on one MD snapshot for movie overlays.
+
 ```python
 movies.compute_segmentation_for_snapshot(
     snapshot,

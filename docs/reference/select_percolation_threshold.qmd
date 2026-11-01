@@ -1,5 +1,7 @@
 # select_percolation_threshold { #mofography.compute.select_percolation_threshold }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Maps probe radius to a history threshold for accessibility or surface area.
+
 ```python
 compute.select_percolation_threshold(
     percolation_history,

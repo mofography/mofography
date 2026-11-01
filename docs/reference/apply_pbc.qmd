@@ -12,6 +12,8 @@ compute.apply_pbc(
 )
 ```
 
+Pad a region-label array with periodic boundary images.
+
 It takes a 3D array of regions and returns a 3D array of regions with periodic boundary conditions
 applied
 

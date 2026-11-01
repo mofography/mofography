@@ -4,3 +4,4 @@
 helper.compare_psd_peaks(peak_values1, peak_values2)
 ```
 
+Pairwise match shorter PSD peak diameter lists to the nearest peaks in a longer list.

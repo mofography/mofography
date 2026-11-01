@@ -1,5 +1,7 @@
 # dgrid_from_atoms_cpu { #mofography.compute.dgrid_from_atoms_cpu }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> CPU Dask dgrid with AABB; slow vs Rust backend used in tutorials. Use `dgrid_from_atoms_rust` instead.
+
 ```python
 compute.dgrid_from_atoms_cpu(
     ase_atoms,
@@ -12,8 +14,7 @@ compute.dgrid_from_atoms_cpu(
 )
 ```
 
-This function generates a distance grid over atoms using Dask arrays and pandas, with an option to
-precompute the grid.
+Build a distance grid on CPU with Dask, using freud AABB neighbor queries when precompute=True.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

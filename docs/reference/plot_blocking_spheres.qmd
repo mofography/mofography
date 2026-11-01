@@ -1,5 +1,7 @@
 # plot_blocking_spheres { #mofography.visualize.plot_blocking_spheres }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Plot RASPA blocking spheres from fractional center-radius records in angstrom radii.
+
 ```python
 visualize.plot_blocking_spheres(
     spheres_or_builder_output,

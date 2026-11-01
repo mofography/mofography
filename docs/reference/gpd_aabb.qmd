@@ -10,8 +10,7 @@ compute.gpd_aabb(
 )
 ```
 
-This subroutine computes the shortest distance to the framework surface for any grid point using the Axis Aligned
-Bounding Box method  as implemented by the Glotzer group from Univ. of Michigan.
+Compute shortest probe distance from each grid point to the framework surface via Freud AABB search.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

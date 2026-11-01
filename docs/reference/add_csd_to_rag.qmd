@@ -1,5 +1,7 @@
 # add_csd_to_rag { #mofography.compute.add_csd_to_rag }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Centroid-distance CSD on RAG nodes; kept for old notebooks, not default typing input. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_csd_to_rag(G, region_props, bins, ase_atoms, shape)
 ```

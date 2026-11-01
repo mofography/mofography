@@ -4,8 +4,7 @@
 data.create_db_from_pickled_graphs(db_path, pickle_path)
 ```
 
-The function `create_db_from_pickled_graphs` creates a SQLite database and stores compressed pickled
-graphs in it from a given pickle file.
+Create a SQLite database and store gzip-compressed pickled graphs from a pickle file.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

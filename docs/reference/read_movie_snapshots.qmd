@@ -1,5 +1,7 @@
 # read_movie_snapshots { #mofography.movies.read_movie_snapshots }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Load ASE-readable trajectories into canonical snapshot dicts.
+
 ```python
 movies.read_movie_snapshots(
     path,

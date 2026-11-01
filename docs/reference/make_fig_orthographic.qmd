@@ -4,3 +4,4 @@
 visualize.make_fig_orthographic(fig)
 ```
 
+Set orthographic projection and default mesh lighting on a Plotly 3D figure.

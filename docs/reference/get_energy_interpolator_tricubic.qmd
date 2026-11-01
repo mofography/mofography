@@ -1,5 +1,7 @@
 # get_energy_interpolator_tricubic { #mofography.compute.get_energy_interpolator_tricubic }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Most accurate energy interpolator; used for configurational-integral screening in the paper.
+
 ```python
 compute.get_energy_interpolator_tricubic(
     egrid,

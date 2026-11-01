@@ -1,5 +1,7 @@
 # find_pbc_wrap_marker_pair { #mofography.widest_path_resegment.find_pbc_wrap_marker_pair }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Pick the leakiest PBC wrap marker pair for re-partition.
+
 ```python
 widest_path_resegment.find_pbc_wrap_marker_pair(
     maxima_info,

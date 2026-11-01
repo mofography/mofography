@@ -1,5 +1,7 @@
 # add_csd_to_rag_with_pbc { #mofography.compute.add_csd_to_rag_with_pbc }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> CSD descriptor is old and simple; env_cluster typing supersedes it. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_csd_to_rag_with_pbc(rag, props, pbc_groups, bins, ase_atoms, shape)
 ```

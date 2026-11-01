@@ -1,5 +1,7 @@
 # find_all_pbc_wrap_marker_pairs { #mofography.widest_path_resegment.find_all_pbc_wrap_marker_pairs }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Enumerate leaky in-cell plus wrapped marker pairs at maxima.
+
 ```python
 widest_path_resegment.find_all_pbc_wrap_marker_pairs(
     maxima_info,

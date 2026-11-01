@@ -1,6 +1,9 @@
 # check_percolation_periodic { #mofography.compute.check_percolation_periodic }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> Pad-and-label percolation test; superseded by axis-wise and winding solvers. Use `check_percolation_periodic2` instead.
+
 ```python
 compute.check_percolation_periodic(distance_grid, threshold)
 ```
 
+Return True if void voxels above threshold percolate through padded periodic faces.

@@ -4,3 +4,4 @@
 threejs_viz.qualitative_colorscale(name='Pastel')
 ```
 
+Return Plotly qualitative palette colors as 0–1 RGB triples for Three.js traces.

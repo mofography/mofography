@@ -4,8 +4,7 @@
 analyze.find_smiles_in_mofid(mofid, pattern_smiles)
 ```
 
-It takes a MOFid string and a list of SMILES strings, and returns a list of the number of times each
-SMILES string is found in the MOFid string
+Search MOFid linker SMILES segments for matches to a SMILES pattern via ``detect_smiles_in_mol``.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

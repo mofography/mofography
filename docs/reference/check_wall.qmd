@@ -4,3 +4,4 @@
 helper.check_wall(maxima, ase_atoms, spacing, wall_thickness=0.075)
 ```
 
+Flag grid maxima that lie in the near-wall voxel band along any cell direction.

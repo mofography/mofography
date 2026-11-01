@@ -4,6 +4,8 @@
 compute.filter_percolated_paths(paths, path_windows, path_lengths, probe_size)
 ```
 
+Keep only percolated paths whose limiting window meets a size threshold.
+
 The function filters paths based on whether their corresponding path windows meet a certain size
 threshold.
 

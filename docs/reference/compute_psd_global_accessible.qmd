@@ -1,5 +1,7 @@
 # compute_psd_global_accessible { #mofography.rust_fun.compute_psd_global_accessible }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> App-compatible histogram wrapper around compute_accessible_psd_from_results.
+
 ```python
 rust_fun.compute_psd_global_accessible(
     results,

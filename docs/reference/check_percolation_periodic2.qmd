@@ -1,6 +1,9 @@
 # check_percolation_periodic2 { #mofography.compute.check_percolation_periodic2 }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Axis-wise periodic percolation via percolation_all_axes_periodic; lattice PLD helper. Use `check_percolation_winding` instead.
+
 ```python
 compute.check_percolation_periodic2(dgrid, threshold)
 ```
 
+Return True if void voxels percolate along any axis (``percolation_all_axes_periodic``).

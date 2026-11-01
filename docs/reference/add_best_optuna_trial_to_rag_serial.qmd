@@ -1,5 +1,7 @@
 # add_best_optuna_trial_to_rag_serial { #mofography.compute.add_best_optuna_trial_to_rag_serial }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Optuna guest placement without nested Dask; preferred when batching over structures.
+
 ```python
 compute.add_best_optuna_trial_to_rag_serial(
     rag,

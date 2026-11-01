@@ -4,7 +4,7 @@
 winding_percolation.percolation_winding_multidigraph(G)
 ```
 
-Evaluate percolation using winding numbers on a deduplicated MultiDiGraph.
+Evaluate percolation with winding numbers on a deduplicated MultiDiGraph.
 
 
 

@@ -10,8 +10,7 @@ visualize.get_isosurface_mesh(
 )
 ```
 
-The function `get_isosurface_mesh` generates a triangular mesh representing an isosurface from input
-data using the marching cubes algorithm.
+Build a trimesh isosurface from a 3D grid at the given isovalue with periodic cell metadata.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

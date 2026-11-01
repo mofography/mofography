@@ -1,5 +1,7 @@
 # plot_connections_as_it_is { #mofography.threejs_viz.plot_connections_as_it_is }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Go-to Three.js pore graph from raw connections and maxima (mirrors Plotly API).
+
 ```python
 threejs_viz.plot_connections_as_it_is(
     connections,
@@ -13,3 +15,4 @@ threejs_viz.plot_connections_as_it_is(
 )
 ```
 
+Build Three.js connection traces from raw connections, maxima, and grid shape.

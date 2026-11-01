@@ -4,8 +4,7 @@
 compute.sample_path(path_indices, points_per_path=100)
 ```
 
-It takes a list of points and returns a list of points that are evenly spaced along the path defined
-by the input points using spline interpolation
+Resample a voxel path to evenly spaced points using spline interpolation.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

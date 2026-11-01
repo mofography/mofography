@@ -1,5 +1,7 @@
 # plot_maxima_from_grid { #mofography.threejs_viz.plot_maxima_from_grid }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Maxima traces from dgrid and coordinate arrays without full seg.
+
 ```python
 threejs_viz.plot_maxima_from_grid(
     dgrid,
@@ -19,3 +21,4 @@ threejs_viz.plot_maxima_from_grid(
 )
 ```
 
+Build Three.js maxima traces from dgrid, maxima arrays, and optional regions.

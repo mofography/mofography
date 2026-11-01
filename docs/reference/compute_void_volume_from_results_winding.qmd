@@ -1,5 +1,7 @@
 # compute_void_volume_from_results_winding { #mofography.compute.compute_void_volume_from_results_winding }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default accessible void volume from segmentation results via winding accessibility.
+
 ```python
 compute.compute_void_volume_from_results_winding(
     results_dict,

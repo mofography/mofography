@@ -4,6 +4,8 @@
 compute.add_pbc_to_rag(rag, pbc_groups)
 ```
 
+Add a `pbc_group` attribute to each RAG node from the PBC groups.
+
 It takes a RAG and a list of PBC groups, and adds a 'pbc_group' attribute to each node in the RAG
 
 ## Parameters {.doc-section .doc-section-parameters}

@@ -1,5 +1,7 @@
 # add_pocket_psds_to_rag_from_segmentation { #mofography.compute.add_pocket_psds_to_rag_from_segmentation }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Convenience to copy pocket PSDs from a segmentation dict onto an existing RAG.
+
 ```python
 compute.add_pocket_psds_to_rag_from_segmentation(
     rag,

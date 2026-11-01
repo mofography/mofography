@@ -1,5 +1,7 @@
 # update_with_covalent_bonds { #mofography.analyze.update_with_covalent_bonds }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Fast Rust covalent bond assignment; prerequisite for most graph and aromatic routines.
+
 ```python
 analyze.update_with_covalent_bonds(
     ase_atoms,

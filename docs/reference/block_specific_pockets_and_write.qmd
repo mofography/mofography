@@ -1,5 +1,7 @@
 # block_specific_pockets_and_write { #mofography.raspa_helper.block_specific_pockets_and_write }
 
+<span class="mg-tag mg-tag-legacy">legacy</span> RAG-node blocking list; prefer winding inaccessible-region sphere builders. Use `blocking_spheres_for_probe_radius` instead.
+
 ```python
 raspa_helper.block_specific_pockets_and_write(
     file_path,
@@ -9,7 +11,7 @@ raspa_helper.block_specific_pockets_and_write(
 )
 ```
 
-Takes specific pocket IDs and writes their blocking information to a file.
+Write RASPA blocking spheres for selected RAG pocket node IDs.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

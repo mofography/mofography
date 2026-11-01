@@ -1,5 +1,7 @@
 # plot_percolation_windows { #mofography.threejs_viz.plot_percolation_windows }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Windows and PLD-critical markers along percolating paths.
+
 ```python
 threejs_viz.plot_percolation_windows(
     analysis,

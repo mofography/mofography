@@ -1,5 +1,7 @@
 # add_clustering_to_rag_pca { #mofography.compute.add_clustering_to_rag_pca }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> PCA-based clustering is no longer used. Use `add_env_cluster_pocket_types_to_rag` instead.
+
 ```python
 compute.add_clustering_to_rag_pca(
     rag2,
@@ -10,6 +12,8 @@ compute.add_clustering_to_rag_pca(
     kwargs_pca={},
 )
 ```
+
+Cluster RAG nodes using PCA of their features (deprecated).
 
 The function `add_clustering_to_rag_pca` performs clustering on data from a graph and adds the
 clustering information to the graph nodes.

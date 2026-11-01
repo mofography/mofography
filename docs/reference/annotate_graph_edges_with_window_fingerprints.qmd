@@ -1,5 +1,7 @@
 # annotate_graph_edges_with_window_fingerprints { #mofography.winding_percolation.annotate_graph_edges_with_window_fingerprints }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Optional window-shell fingerprints for FP rescue; not default percolation path.
+
 ```python
 winding_percolation.annotate_graph_edges_with_window_fingerprints(
     graph,

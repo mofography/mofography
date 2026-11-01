@@ -1,5 +1,7 @@
 # plot_framework_as_mesh_3js { #mofography.threejs_viz.plot_framework_as_mesh_3js }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Framework mesh plus optional aromatic rings for Figure3js chaining.
+
 ```python
 threejs_viz.plot_framework_as_mesh_3js(
     ase_atoms,

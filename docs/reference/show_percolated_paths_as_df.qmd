@@ -4,9 +4,7 @@
 data.show_percolated_paths_as_df(paths, path_windows, path_lengths)
 ```
 
-The function `show_percolated_paths_as_df` creates a DataFrame from paths, path windows, and path
-lengths, sorts it by the number of elements in the paths list and then by path lengths, and returns
-the sorted DataFrame.
+Build a sorted DataFrame of pore-graph paths, window diameters along each path, and hop counts.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

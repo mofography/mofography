@@ -4,3 +4,4 @@
 data.fetch(url, session)
 ```
 
+Fetch JSON from a URL with aiohttp (single-page MOFdb helper).

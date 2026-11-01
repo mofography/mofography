@@ -1,5 +1,7 @@
 # default_vdw_radii_angstrom { #mofography.vdw_radii.default_vdw_radii_angstrom }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Default Bondi/CRC VDW radii table for distance-grid and segmentation.
+
 ```python
 vdw_radii.default_vdw_radii_angstrom(ase_atoms)
 ```

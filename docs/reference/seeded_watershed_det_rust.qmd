@@ -1,5 +1,7 @@
 # seeded_watershed_det_rust { #mofography.rust_fun.seeded_watershed_det_rust }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Direct Rust watershed API; do_periodic_segmentation_rust defaults to rust_det internally.
+
 ```python
 rust_fun.seeded_watershed_det_rust(image, seeds, mask=None)
 ```

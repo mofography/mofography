@@ -1,6 +1,9 @@
 # get_pld_for_rag { #mofography.compute.get_pld_for_rag }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> RAG-based PLD; the winding functions are the default. Use `find_pore_limiting_radius_winding` instead.
+
 ```python
 compute.get_pld_for_rag(rag, return_pld_path_info=False, **kwargs)
 ```
 
+Estimate PLD from a RAG via supercell tiling, re-segmentation, and percolated-path analysis.

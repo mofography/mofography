@@ -1,6 +1,9 @@
 # plot_rag { #mofography.visualize.plot_rag }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Optional alternate RAG plot. Use `plot_connections_as_it_is` instead.
+
 ```python
 visualize.plot_rag(G, plot_with='maxima', **kwargs)
 ```
 
+Return one Plotly Scatter3d trace for a region adjacency graph at node coordinates.

@@ -4,3 +4,4 @@
 viz_backend.is_plotly_trace(obj)
 ```
 
+Return whether ``obj`` is a Plotly trace (and not a Three.js dict).

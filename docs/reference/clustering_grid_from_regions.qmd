@@ -4,3 +4,4 @@
 compute.clustering_grid_from_regions(regions, rag2, cluster_key='cluster')
 ```
 
+Paint region labels with RAG cluster ids for a given ``cluster_key`` attribute.

@@ -1,5 +1,7 @@
 # make_percolation_windows_trace { #mofography.movies.make_percolation_windows_trace }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Percolation window and PLD-critical markers for Three.js.
+
 ```python
 movies.make_percolation_windows_trace(
     analysis,

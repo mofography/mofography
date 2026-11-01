@@ -4,3 +4,4 @@
 threejs_viz.seg_from_connections(connections, maxima, grid_shape, *, dgrid=None)
 ```
 
+Build a minimal segmentation dict from connections, maxima, and grid shape.

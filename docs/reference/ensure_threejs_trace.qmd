@@ -4,3 +4,4 @@
 viz_backend.ensure_threejs_trace(obj, *, context='add_trace')
 ```
 
+Raise ``TypeError`` if ``obj`` is not a mofography Three.js trace dict.

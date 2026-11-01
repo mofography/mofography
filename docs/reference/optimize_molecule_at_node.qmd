@@ -1,5 +1,7 @@
 # optimize_molecule_at_node { #mofography.compute.optimize_molecule_at_node }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Optuna guest pose search at a RAG node; specialized adsorption prototyping.
+
 ```python
 compute.optimize_molecule_at_node(
     node,
@@ -13,3 +15,4 @@ compute.optimize_molecule_at_node(
 )
 ```
 
+Optimize guest pose at a RAG node with Optuna using a grid energy interpolator.

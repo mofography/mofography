@@ -1,5 +1,7 @@
 # build_fixed_framework_movie { #mofography.movies.build_fixed_framework_movie }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Core builder for fixed framework plus animated adsorbate MovieFigure.
+
 ```python
 movies.build_fixed_framework_movie(
     snapshots,

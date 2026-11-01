@@ -4,3 +4,4 @@
 helper.find_end_channel_pairs(regions_pbc, regions_nonpbc, size_ratio=0.3)
 ```
 
+Pair wall-adjacent segmented regions that share a PBC label and may form end-to-end channels.

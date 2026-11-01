@@ -1,10 +1,12 @@
 # get_wall_windows3 { #mofography.compute.get_wall_windows3 }
 
+<span class="mg-tag mg-tag-deprecated">deprecated</span> Unfinished stub that does not run. Use `get_wall_windows2` instead.
+
 ```python
 compute.get_wall_windows3(regions, maxima, dgrid, ase_atoms, wall_thickness)
 ```
 
-This function calculates the wall windows based on the provided regions, maxima, dgrid, and other parameters.
+Incomplete wall-window stub; use get_wall_windows2 for face-pair wall window detection.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

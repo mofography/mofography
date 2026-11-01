@@ -4,3 +4,4 @@
 threejs_viz.prepare_seg_threejs(seg, *, dgrid=None)
 ```
 
+Validate and normalize a segmentation dict for Three.js plot helpers.

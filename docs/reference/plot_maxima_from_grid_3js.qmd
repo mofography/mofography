@@ -1,4 +1,6 @@
 # plot_maxima_from_grid_3js { #mofography.threejs_viz.plot_maxima_from_grid_3js }
 
+<span class="mg-tag mg-tag-alternate">alternate</span> Alias of plot_maxima_from_grid for Plotly-parity naming. Use `plot_maxima_from_grid` instead.
+
 `threejs_viz.plot_maxima_from_grid_3js`
 

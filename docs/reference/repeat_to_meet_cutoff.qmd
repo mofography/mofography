@@ -4,8 +4,7 @@
 compute.repeat_to_meet_cutoff(ase_atoms, forcefield_mixed, cutoff=12.5)
 ```
 
-It takes an ASE atoms object and a forcefield, and returns a new ASE atoms object and a new
-forcefield that are repeated in such a way that the vdw cutoff is met
+Tile the structure and forcefield until the Lennard-Jones cutoff is satisfied in all directions.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

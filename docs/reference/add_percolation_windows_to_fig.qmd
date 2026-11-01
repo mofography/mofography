@@ -1,5 +1,7 @@
 # add_percolation_windows_to_fig { #mofography.workflow.add_percolation_windows_to_fig }
 
+<span class="mg-tag mg-tag-recommended">go-to</span> Adds internal and PLD-critical window traces onto an existing Plotly figure.
+
 ```python
 workflow.add_percolation_windows_to_fig(
     fig,

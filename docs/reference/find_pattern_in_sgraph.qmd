@@ -4,8 +4,7 @@
 analyze.find_pattern_in_sgraph(sgraph, pattern)
 ```
 
-It takes a graph and a pattern graph and returns a list of dictionaries that map the nodes of the
-pattern graph to the nodes of the original graph
+Find subgraph isomorphisms of ``pattern`` in ``sgraph`` (element and bond_type node/edge matching).
 
 ## Parameters {.doc-section .doc-section-parameters}
 

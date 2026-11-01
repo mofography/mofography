@@ -4,8 +4,7 @@
 compute.get_repetitions_to_meet_cutoff(ase_atoms, cutoff=12.5)
 ```
 
-It takes an ASE atoms object and a cutoff distance, and returns the number of unit cells in each
-direction that are needed to ensure that the cutoff distance is satisfied
+Return supercell repeat counts along each axis so pairwise interactions meet the cutoff.
 
 ## Parameters {.doc-section .doc-section-parameters}
 

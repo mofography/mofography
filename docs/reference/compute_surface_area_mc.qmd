@@ -1,5 +1,7 @@
 # compute_surface_area_mc { #mofography.compute.compute_surface_area_mc }
 
+<span class="mg-tag mg-tag-experimental">experimental</span> Monte Carlo shell surface estimator; kept for method comparison, not main tutorials.
+
 ```python
 compute.compute_surface_area_mc(
     results_dict,
