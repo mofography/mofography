@@ -5,7 +5,7 @@
 
 <img src="docs/feature_strip.svg" alt="Segmentation · Textural Properties · Pore Windows · Percolated Clusters · Pore Graphs · 3D Visualization · High-Throughput · ML Featurization" width="880" />
 
-*Characterization toolkit for MOFs, zeolites, polymers, and other crystalline nanoporous materials*
+*Characterization toolkit for MOFs, zeolites, polymers, and other periodic nanoporous materials*
 
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Release](https://img.shields.io/badge/Release-2026.10.09.1-success?logo=github&logoColor=white)](docs/releases-and-citing.md)
@@ -13,7 +13,9 @@
 [![Rust](https://img.shields.io/badge/Backend-Rust-dea584?logo=rust&logoColor=black)](docs/rust_backend_documentation.md)
 [![Cite this code](https://img.shields.io/badge/Cite-this_code-2563eb?logo=zenodo&logoColor=white)](docs/releases-and-citing.md)
 [![Web demo](https://img.shields.io/badge/Try-Web_demo-ff6b35?logo=huggingface&logoColor=white)](https://arung-northwestern-mofography-web-demo.hf.space/)
-[![Docs](https://img.shields.io/badge/Docs-Quarto_(preview)-0ea5e9?logo=quarto&logoColor=white)](https://mofography.github.io/mofography/)
+[![Documentation](https://img.shields.io/badge/Documentation-read_the_docs-0ea5e9?logo=quarto&logoColor=white&style=for-the-badge)](https://mofography.github.io/mofography/)
+
+**[Documentation: tutorials, function reference, install guide](https://mofography.github.io/mofography/)**
 
 [Features](#features) ·
 [Who is it for?](#who) ·
@@ -26,7 +28,7 @@
 
 </div>
 
-**mofography** segments the void space of crystalline nanoporous materials into pockets and builds **pore graphs** from them. One segmentation gives you global and pocket-level textural properties, pore types, windows, and percolation, plus interactive 3D views and graph descriptors for screening and machine learning (see [Features](#features)).
+**mofography** segments the void space of periodic nanoporous materials into pockets and builds **pore graphs** from them. One segmentation gives you global and pocket-level textural properties, pore types, windows, and percolation, plus interactive 3D views and graph descriptors for screening and machine learning (see [Features](#features)).
 
 Core numerics run in a **Rust** backend (`mgr_rust`) behind a **Python** API.
 
@@ -218,43 +220,42 @@ Interactive **Three.js HTML** is not stored in this repo; export from the **web 
 
 ## Tutorials & documentation
 
-Tutorials are first-class: Jupyter notebooks and Quarto pages live under [`docs/`](docs/). The site is built with **Quarto** (+ **quartodoc** API reference) into `docs/_site/`:
+**Read the docs: [mofography.github.io/mofography](https://mofography.github.io/mofography/)** (planned public URL; live once `mofography/mofography` is public and GitHub Pages is deployed). The site has the tutorials below, the [function reference](https://mofography.github.io/mofography/reference/), and the install guide. GitHub shows `.qmd` tutorials as plain text, so read those on the website; the `.ipynb` notebooks render fine on GitHub.
 
-```bash
-cd docs && quarto render
-open _site/index.html # macOS; or use a local static server
-```
-
-**Planned public URL (GitHub Pages when `mofography/mofography` is public):** [https://mofography.github.io/mofography/](https://mofography.github.io/mofography/) — the Docs badge above will point there after deploy. Until then, render locally or browse notebook sources on GitHub under `docs/`.
+The list below mirrors the [Learn page](docs/learn.qmd). To build the site locally, see [Building the docs](#building-the-docs).
 
 ### Basic tutorials (recommended order)
 
-1. [Quick start](docs/quick_start.qmd) — end-to-end workflow **(new)**
-2. [Basic structure analysis](docs/basic_structure_io.ipynb)
-3. [Basic structure visualization](docs/quick_structure_visualization.ipynb)
-4. [Distance grid](docs/distance_grid.qmd)
-5. [Region segmentation](docs/region_segmentation.qmd)
-6. [PBC considerations](docs/pbc_considerations.qmd)
-7. [Region adjacency graph (RAG)](docs/region_adjacency_graph.ipynb)
-8. [Connections and windows](docs/connections_and_windows.qmd)
-9. [Pocket type detection](docs/pockets_detection.qmd) (environment-cluster method) **(new)**
+1. [Quick start](docs/quick_start.qmd) — CIF to pore graph, pocket types, windows, and textural properties **(new)**
+2. [Guide to choosing functions](docs/choosing_functions.qmd) — which function to call for each task **(new)**
+3. [Distance grid](docs/distance_grid.qmd)
+4. [Region segmentation](docs/region_segmentation.qmd)
+5. [PBC considerations](docs/pbc_considerations.qmd)
+6. [Connections and windows](docs/connections_and_windows.qmd)
+7. [Pore graph (region adjacency graph, RAG)](docs/region_adjacency_graph.ipynb)
+8. [Compute pore diameters](docs/compute_pore_diameters.ipynb)
+9. [Surface area and void volume](docs/surface_area.qmd)
+10. [PLD and percolation (winding method)](docs/pld_and_percolation.ipynb)
+11. [Pore size distributions](docs/pore_size_distributions.qmd)
+12. [Pocket type detection](docs/pockets_detection.qmd) **(new)**
+13. [Three.js plotting](docs/threejs_plotting.qmd) **(new)**
+14. [Basic structure visualization using Plotly](docs/quick_structure_visualization.ipynb)
 
 ### Advanced tutorials
 
-- [Three.js plotting](docs/threejs_plotting.qmd) **(new)**
-- [Watershed backends](docs/watershed_backends.qmd) **(new)**
-- [Fast Rust CIF reader](docs/fast_cif_reader.qmd) **(new)**
-- [Advanced structure visualization](docs/framework_visualization_example.ipynb)
-- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb)
-- [PLD and percolation history](docs/pld_and_percolation.ipynb)
-- [Compute pore diameters](docs/compute_pore_diameters.ipynb)
 - [MOFDB example](docs/mofdb_example.ipynb)
 - [High-throughput characterization](docs/hts_using_mofography.ipynb)
-- [Periodic segmentation Rust vs Python (HTS)](docs/hts_periodic_seg_benchmark.ipynb)
-- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
 - [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) **(new)**
+- [Advanced geometric and topological pore network properties](docs/property_calculation.qmd)
+- [Structure analysis](docs/basic_structure_io.ipynb)
+- [Aromatic ring detection](docs/aromatic_ring_detection.qmd)
+- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
+- [Advanced structure visualization](docs/framework_visualization_example.ipynb)
+- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb)
 
-Quarto guides (not only `.ipynb`): [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [learn hub](docs/learn.qmd), [API reference](docs/reference/index.qmd).
+**Deeper knowledge** (parameter tuning, distance-grid and watershed backends, accessibility methods, and more) is on the [Learn page of the docs](docs/learn.qmd#deeper-knowledge); see the website for the full list.
+
+Also: [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [API reference](docs/reference/index.qmd).
 
 ---
 
