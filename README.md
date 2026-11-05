@@ -118,9 +118,10 @@ flowchart TB
 ## Cite this code
 
 - **Software:** release tag **`2026.10.09.1`** + commit hash — [docs/releases-and-citing.md](docs/releases-and-citing.md), [CITATION.cff](CITATION.cff).
-- **Paper:**
-  - (Software) A. Gopalan*, C. Zheng, B. Azdapour, K. Shi*, L. Sarkisov, "Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs". arXiv *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
-  - (Pore graph) C. Zheng, A. Gopalan, K. Shi*, "PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks". *J. Chem. Theory Comput.* 2026, 22 (11), 5716–5730. [link](https://doi.org/10.1021/acs.jctc.6c00100)
+- **Main methods paper:** A. Gopalan*, C. Zheng, B. Azdapour, K. Shi*, L. Sarkisov, "Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs". arXiv *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
+- **Other relevant papers:**
+  - **[Pore graph]**: C. Zheng, A. Gopalan, K. Shi*, "PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks". *J. Chem. Theory Comput.* 2026, 22 (11), 5716–5730. [link](https://doi.org/10.1021/acs.jctc.6c00100)
+  - **[Software benchmark]**: C. Zheng, A. Gopalan, K. Shi*, "Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks". *ChemRxiv*, 25 October 2026. DOI: https://doi.org/10.26434/chemrxiv.15011012/v1 
 
 ```python
 import mofography as m
