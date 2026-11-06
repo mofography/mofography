@@ -6,18 +6,37 @@ toc: true
 
 ## Cite MOFography
 
-This is the original MOFography paper(s), please cite it if you use MOFography in your work:
+If you use MOFography in your work, please cite the main methods paper (first entry). The other two entries are related papers that build on MOFography pore graphs, so cite them where relevant:
 
-```{bib}
-@article{mofography,
-    title={Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},
-    author={Gopalan, Arun and Shi, Kaihang and Zheng, Chao and Azadpour, Behnam and Sarkisov, Lev},
-    journal={ChemRxiv},
-    year={2026},
-    doi={10.26434/chemrxiv.15011793/v1},
-    url={https://doi.org/10.26434/chemrxiv.15011793/v1}
+```bibtex
+@article{gopalan2026mofography,
+  title   = {Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},
+  author  = {Gopalan, Arun and Zheng, Chao and Azadpour, Behnam and Shi, Kaihang and Sarkisov, Lev},
+  journal = {ChemRxiv},
+  year    = {2026},
+  doi     = {10.26434/chemrxiv.15011793/v1},
+  url     = {https://doi.org/10.26434/chemrxiv.15011793/v1}
 }
 
+@article{zheng2026poronet,
+  title   = {{PoroNet}: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal--Organic Frameworks},
+  author  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},
+  journal = {Journal of Chemical Theory and Computation},
+  year    = {2026},
+  volume  = {22},
+  number  = {11},
+  pages   = {5716--5730},
+  doi     = {10.1021/acs.jctc.6c00100}
+}
+
+@article{zheng2026percolation,
+  title   = {Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks},
+  author  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},
+  journal = {ChemRxiv},
+  year    = {2026},
+  doi     = {10.26434/chemrxiv.15011012/v1},
+  url     = {https://doi.org/10.26434/chemrxiv.15011012/v1}
+}
 ```
 
 ## Related Publications
@@ -25,6 +44,7 @@ This is the original MOFography paper(s), please cite it if you use MOFography i
 Built on mofography pore graphs:
 
 - C. Zheng, A. Gopalan, K. Shi. *PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal-Organic Frameworks.* J. Chem. Theory Comput. 2026, 22 (11), 5716-5730. [doi:10.1021/acs.jctc.6c00100](https://doi.org/10.1021/acs.jctc.6c00100)
+- C. Zheng, A. Gopalan, K. Shi. *Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks.* ChemRxiv, 25 October 2026. [doi:10.26434/chemrxiv.15011012/v1](https://doi.org/10.26434/chemrxiv.15011012/v1)
 
 More publications that used mofography will be listed here.
 
