@@ -8,6 +8,7 @@ project:
   - "*.ipynb"
   - "*.md"
   - "!property_calculation.md"
+  - "!PAPER_METADATA_TODO.md"
 jupyter: python3
 execute:
   freeze: true
