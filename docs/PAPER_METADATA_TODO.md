@@ -2,7 +2,7 @@
 
 Complete these when the manuscript is on arXiv / accepted and when the org repo goes public.
 
-- [ ] **arXiv:** Replace `PLACEHOLDER_ARXIV_ID` in `README.md` and `CITATION.cff` with the real ID and URL.
+- [x] **Preprint:** ChemRxiv doi:10.26434/chemrxiv.15011793/v1 added to README, CITATION.cff, docs.
 - [ ] **Journal:** Add volume, pages, and publisher DOI when accepted (update `preferred-citation` in `CITATION.cff`).
 - [ ] **Zenodo:** After `mofography/mofography` is public, follow [releases-and-citing.md](releases-and-citing.md) → Zenodo checklist; add version DOI to `CITATION.cff` and README.
 - [ ] **CITATION.cff authors:** Software entry is currently minimal; align `authors` / `preferred-citation.authors` with the final author list from the paper.

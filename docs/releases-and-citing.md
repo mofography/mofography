@@ -50,11 +50,11 @@ Cite a **released tag** `YYYY.MM.DD.N` from the [mofography releases](https://gi
 
 ## Example wording (collaborators)
 
-Use the **tag and commit from the release you actually ran**, not `master`. Below uses release `2026.10.09.1` (commit `f873e50`) as a template—swap version/hash when citing a newer release.
+Use the **tag and commit from the release you actually ran**, not `master`. Below uses release `2026.10.09.1` (commit `e608d33`) as a template—swap version/hash when citing a newer release.
 
 ### Methods or software paragraph (journal)
 
-> Pore segmentation, graph construction, and visualization were performed with **mofography** version **2026.10.09.1** (Gopalan; https://github.com/mofography/mofography; release tag `2026.10.09.1`, commit `f873e50effd0bbe7d5a00ec3517394f96766a91b`).
+> Pore segmentation, graph construction, and visualization were performed with **mofography** version **2026.10.09.1** (Gopalan; https://github.com/mofography/mofography; release tag `2026.10.09.1`, commit `e608d3385211e2431c8ff5702db761c50011eb51`).
 
 ### Supporting Information (one line)
 
@@ -62,7 +62,7 @@ Use the **tag and commit from the release you actually ran**, not `master`. Belo
 
 ### Proposal (facilities / software section)
 
-> **Open-source software:** We use **mofography** (v2026.10.09.1), a Python package for pore analysis in nanoporous materials, obtained from the canonical repository https://github.com/mofography/mofography at release tag `2026.10.09.1` (commit `f873e50`). Interactive 3D outputs are generated with the project web application; archived analysis uses the tagged source code only.
+> **Open-source software:** We use **mofography** (v2026.10.09.1), a Python package for pore analysis in nanoporous materials, obtained from the canonical repository https://github.com/mofography/mofography at release tag `2026.10.09.1` (commit `e608d33`). Interactive 3D outputs are generated with the project web application; archived analysis uses the tagged source code only.
 
 ### LaTeX (manual `\bibitem` or supplementary refs)
 
@@ -71,7 +71,7 @@ Use the **tag and commit from the release you actually ran**, not `master`. Belo
 A.~Gopalan,
 \textit{mofography} (version 2026.10.09.1),
 \url{https://github.com/mofography/mofography},
-release tag 2026.10.09.1, commit f873e50effd0bbe7d5a00ec3517394f96766a91b,
+release tag 2026.10.09.1, commit e608d3385211e2431c8ff5702db761c50011eb51,
 2026.
 ```
 
@@ -92,7 +92,7 @@ The repo does **not** ship large Three.js HTML snapshots under `examples/viz_out
 
 ## Zenodo reminder (do this when the paper / repo goes public)
 
-**Until `mofography/mofography` is public:** cite **GitHub release tag + commit** (e.g. `2026.10.09.1`, `f873e50`). That is enough for the manuscript and for collaborators.
+**Until `mofography/mofography` is public:** cite **GitHub release tag + commit** (e.g. `2026.10.09.1`, `e608d33`). That is enough for the manuscript and for collaborators.
 
 **After arXiv (or when you intentionally open the org repo):** archive releases on Zenodo so journals can cite a **DOI**. Zenodo does not replace tagging; it snapshots each **GitHub Release** you already cut.
 

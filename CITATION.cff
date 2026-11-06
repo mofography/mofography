@@ -34,14 +34,13 @@ preferred-citation:
       given-names: Arun
     - family-names: Zheng
       given-names: Chao
-    - family-names: Azdapour
+    - family-names: Azadpour
       given-names: Behnam
     - family-names: Shi
       given-names: Kaihang
     - family-names: Sarkisov
       given-names: Lev
   year: 2026
-  notes: >-
-    PLACEHOLDER: add arXiv URL/ID when posted (see docs/PAPER_METADATA_TODO.md).
-    Manuscript source: mgr_sn_v2.org in the mgr_sn repository.
-  url: 'https://arxiv.org/abs/PLACEHOLDER_ARXIV_ID'
+  journal: ChemRxiv
+  doi: 10.26434/chemrxiv.15011793/v1
+  url: 'https://doi.org/10.26434/chemrxiv.15011793/v1'

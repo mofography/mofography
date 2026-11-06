@@ -10,11 +10,12 @@ This is the original MOFography paper(s), please cite it if you use MOFography i
 
 ```{bib}
 @article{mofography,
-    title={Mofography: Advanced Characterization and Featurization of MOF Pores using Pore Graphs},
-    author={Gopalan, Arun and Shi, Kaihang and Zheng, Chao and Azdapour, Behnam and Sarkisov, Lev},
-    journal={TBD},
-    year={TBD},
-    publisher={TBD}
+    title={Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},
+    author={Gopalan, Arun and Shi, Kaihang and Zheng, Chao and Azadpour, Behnam and Sarkisov, Lev},
+    journal={ChemRxiv},
+    year={2026},
+    doi={10.26434/chemrxiv.15011793/v1},
+    url={https://doi.org/10.26434/chemrxiv.15011793/v1}
 }
 
 ```

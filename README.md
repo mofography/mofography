@@ -120,10 +120,47 @@ flowchart TB
 ## Cite this code
 
 - **Software:** release tag **`2026.10.09.1`** + commit hash — [docs/releases-and-citing.md](docs/releases-and-citing.md), [CITATION.cff](CITATION.cff).
-- **Main methods paper:** A. Gopalan*, C. Zheng, B. Azdapour, K. Shi*, L. Sarkisov, "Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs". arXiv *link when posted* (`PLACEHOLDER_ARXIV_ID` — [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md)).
+- **Main methods paper:** A. Gopalan*, C. Zheng, B. Azadpour, K. Shi*, L. Sarkisov, "Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs". *ChemRxiv* 2026. [doi:10.26434/chemrxiv.15011793/v1](https://doi.org/10.26434/chemrxiv.15011793/v1)
 - **Other relevant papers:**
   - **[Pore graph]**: C. Zheng, A. Gopalan, K. Shi*, "PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks". *J. Chem. Theory Comput.* 2026, 22 (11), 5716–5730. [link](https://doi.org/10.1021/acs.jctc.6c00100)
   - **[Software benchmark]**: C. Zheng, A. Gopalan, K. Shi*, "Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks". *ChemRxiv*, 25 October 2026. DOI: https://doi.org/10.26434/chemrxiv.15011012/v1 
+
+
+<details>
+<summary>BibTeX</summary>
+
+```bibtex
+@article{gopalan2026mofography,
+  title   = {Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},
+  author  = {Gopalan, Arun and Zheng, Chao and Azadpour, Behnam and Shi, Kaihang and Sarkisov, Lev},
+  journal = {ChemRxiv},
+  year    = {2026},
+  doi     = {10.26434/chemrxiv.15011793/v1},
+  url     = {https://doi.org/10.26434/chemrxiv.15011793/v1}
+}
+
+@article{zheng2026poronet,
+  title   = {{PoroNet}: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal--Organic Frameworks},
+  author  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},
+  journal = {Journal of Chemical Theory and Computation},
+  year    = {2026},
+  volume  = {22},
+  number  = {11},
+  pages   = {5716--5730},
+  doi     = {10.1021/acs.jctc.6c00100}
+}
+
+@article{zheng2026percolation,
+  title   = {Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks},
+  author  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},
+  journal = {ChemRxiv},
+  year    = {2026},
+  doi     = {10.26434/chemrxiv.15011012/v1},
+  url     = {https://doi.org/10.26434/chemrxiv.15011012/v1}
+}
+```
+
+</details>
 
 ```python
 import mofography as m
@@ -267,7 +304,7 @@ To build the website locally, or publish it on GitHub Pages, see [BUILDING_DOCS.
 
 ## Releases & metadata
 
-Calendar-version tags and collaborator citations: [docs/releases-and-citing.md](docs/releases-and-citing.md). Maintainer TODOs (arXiv, Zenodo, `mgr_cli_py` links): [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md).
+Calendar-version tags and collaborator citations: [docs/releases-and-citing.md](docs/releases-and-citing.md). Maintainer TODOs (Zenodo, `mgr_cli_py` links): [docs/PAPER_METADATA_TODO.md](docs/PAPER_METADATA_TODO.md).
 
 ---
 

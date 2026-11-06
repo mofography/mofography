@@ -111,7 +111,7 @@ flowchart TB
 ## Cite this code {#cite}
 
 - **Software:** release tag **`2026.10.09.1`** + commit hash — [releases and citing](releases-and-citing.md), [CITATION.cff](https://github.com/mofography/mofography/blob/master/CITATION.cff).
-- **Paper:** A. Gopalan, C. Zheng, B. Azdapour, K. Shi, L. Sarkisov. *Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs.* In preparation.
+- **Paper:** A. Gopalan, C. Zheng, B. Azadpour, K. Shi, L. Sarkisov. *Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs.* *ChemRxiv* 2026. [doi:10.26434/chemrxiv.15011793/v1](https://doi.org/10.26434/chemrxiv.15011793/v1)
 - **Application (machine learning on pore graphs):** C. Zheng, A. Gopalan, K. Shi. *PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks.* *J. Chem. Theory Comput.* 2026, 22 (11), 5716–5730. [doi:10.1021/acs.jctc.6c00100](https://doi.org/10.1021/acs.jctc.6c00100)
 
 ```python
@@ -123,7 +123,7 @@ print(m.__version__, m.__git_revision__)
 
 Bug reports, questions, and pull requests are welcome: open an [issue](https://github.com/mofography/mofography/issues) or a pull request on [mofography/mofography](https://github.com/mofography/mofography). If you add a function or a tutorial, mark its status (go-to, alternate, legacy, ...) so the [reference](reference/index.qmd) and the [guide to choosing functions](choosing_functions.qmd) stay accurate. Using an AI coding agent? See the [agent skill](https://github.com/mofography/mofography/blob/master/skills/mofography/SKILL.md).
 
-**Contributors:** Arun Gopalan (lead developer), Chao Zheng, Kaihang Shi, Joe Manning. The method paper adds Behnam Azdapour and Lev Sarkisov as authors (see [Cite this code](#cite)).
+**Contributors:** Arun Gopalan (lead developer), Chao Zheng, Kaihang Shi, Joe Manning. The method paper adds Behnam Azadpour and Lev Sarkisov as authors (see [Cite this code](#cite)).
 
 ## Acknowledgments {#acknowledgments}
 
