@@ -298,7 +298,7 @@ Also: [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [
 
 ## Building the docs
 
-To build the website locally, or publish it on GitHub Pages, see [BUILDING_DOCS.md](BUILDING_DOCS.md).
+To build the website locally, or update the live GitHub Pages site (`gh-pages` branch, manual deploy), see [BUILDING_DOCS.md](BUILDING_DOCS.md).
 
 ---
 
