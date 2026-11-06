@@ -562,11 +562,48 @@ flowchart TB
 <h2 class="anchored" data-anchor-id="cite">Cite this code</h2>
 <ul>
 <li><strong>Software:</strong> release tag <strong><code>2026.10.09.1</code></strong> + commit hash — <a href="./releases-and-citing.html">releases and citing</a>, <a href="https://github.com/mofography/mofography/blob/master/CITATION.cff">CITATION.cff</a>.</li>
-<li><strong>Paper:</strong> A. Gopalan, C. Zheng, B. Azadpour, K. Shi, L. Sarkisov. <em>Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs.</em> <em>ChemRxiv</em> 2026. <a href="https://doi.org/10.26434/chemrxiv.15011793/v1">doi:10.26434/chemrxiv.15011793/v1</a></li>
-<li><strong>Application (machine learning on pore graphs):</strong> C. Zheng, A. Gopalan, K. Shi. <em>PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks.</em> <em>J. Chem. Theory Comput.</em> 2026, 22 (11), 5716–5730. <a href="https://doi.org/10.1021/acs.jctc.6c00100">doi:10.1021/acs.jctc.6c00100</a></li>
+<li><strong>Main methods paper:</strong> A. Gopalan, C. Zheng, B. Azadpour, K. Shi, L. Sarkisov. <em>Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs.</em> <em>ChemRxiv</em> 2026. <a href="https://doi.org/10.26434/chemrxiv.15011793/v1">doi:10.26434/chemrxiv.15011793/v1</a></li>
+<li><strong>Other relevant papers:</strong>
+<ul>
+<li><strong>Pore graph (machine learning):</strong> C. Zheng, A. Gopalan, K. Shi. <em>PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal–Organic Frameworks.</em> <em>J. Chem. Theory Comput.</em> 2026, 22 (11), 5716–5730. <a href="https://doi.org/10.1021/acs.jctc.6c00100">doi:10.1021/acs.jctc.6c00100</a></li>
+<li><strong>Software benchmark:</strong> C. Zheng, A. Gopalan, K. Shi. <em>Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks.</em> <em>ChemRxiv</em>, 25 October 2026. <a href="https://doi.org/10.26434/chemrxiv.15011012/v1">doi:10.26434/chemrxiv.15011012/v1</a></li>
+</ul></li>
 </ul>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> m</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(m.__version__, m.__git_revision__)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<details>
+<summary>
+BibTeX
+</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">gopalan2026mofography</span>,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Gopalan, Arun and Zheng, Chao and Azadpour, Behnam and Shi, Kaihang and Sarkisov, Lev},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {ChemRxiv},</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.26434/chemrxiv.15011793/v1},</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span>     = {https://doi.org/10.26434/chemrxiv.15011793/v1}</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">zheng2026poronet</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {{PoroNet}: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal--Organic Frameworks},</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {Journal of Chemical Theory and Computation},</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">volume</span>  = {22},</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">number</span>  = {11},</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">pages</span>   = {5716--5730},</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.1021/acs.jctc.6c00100}</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">zheng2026percolation</span>,</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks},</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {ChemRxiv},</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.26434/chemrxiv.15011012/v1},</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span>     = {https://doi.org/10.26434/chemrxiv.15011012/v1}</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> m</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(m.__version__, m.__git_revision__)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="contributing" class="level2">
 <h2 class="anchored" data-anchor-id="contributing">Contributing and contributors</h2>

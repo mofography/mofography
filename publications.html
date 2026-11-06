@@ -20,6 +20,41 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
 </style>
 
 
@@ -345,22 +380,42 @@ ul.task-list li input[type="checkbox"] {
 
 <section id="cite-mofography" class="level2">
 <h2 class="anchored" data-anchor-id="cite-mofography">Cite MOFography</h2>
-<p>This is the original MOFography paper(s), please cite it if you use MOFography in your work:</p>
-<pre class="{bib}"><code>@article{mofography,
-    title={Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},
-    author={Gopalan, Arun and Shi, Kaihang and Zheng, Chao and Azadpour, Behnam and Sarkisov, Lev},
-    journal={ChemRxiv},
-    year={2026},
-    doi={10.26434/chemrxiv.15011793/v1},
-    url={https://doi.org/10.26434/chemrxiv.15011793/v1}
-}
-</code></pre>
+<p>If you use MOFography in your work, please cite the main methods paper (first entry). The other two entries are related papers that build on MOFography pore graphs, so cite them where relevant:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">gopalan2026mofography</span>,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {Advanced High-Throughput Characterization of Nanoporous Materials using Pore Graphs},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Gopalan, Arun and Zheng, Chao and Azadpour, Behnam and Shi, Kaihang and Sarkisov, Lev},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {ChemRxiv},</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.26434/chemrxiv.15011793/v1},</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span>     = {https://doi.org/10.26434/chemrxiv.15011793/v1}</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">zheng2026poronet</span>,</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {{PoroNet}: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal--Organic Frameworks},</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {Journal of Chemical Theory and Computation},</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>  <span class="dt">volume</span>  = {22},</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>  <span class="dt">number</span>  = {11},</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">pages</span>   = {5716--5730},</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.1021/acs.jctc.6c00100}</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">zheng2026percolation</span>,</span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>   = {Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks},</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>  = {Zheng, Chao and Gopalan, Arun and Shi, Kaihang},</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span> = {ChemRxiv},</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>    = {2026},</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>  <span class="dt">doi</span>     = {10.26434/chemrxiv.15011012/v1},</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>  <span class="dt">url</span>     = {https://doi.org/10.26434/chemrxiv.15011012/v1}</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="related-publications" class="level2">
 <h2 class="anchored" data-anchor-id="related-publications">Related Publications</h2>
 <p>Built on mofography pore graphs:</p>
 <ul>
 <li>C. Zheng, A. Gopalan, K. Shi. <em>PoroNet: An Intrinsically Interpretable Pore Graph Neural Network for Resolving Pore-Level Adsorption in Metal-Organic Frameworks.</em> J. Chem. Theory Comput. 2026, 22 (11), 5716-5730. <a href="https://doi.org/10.1021/acs.jctc.6c00100">doi:10.1021/acs.jctc.6c00100</a></li>
+<li>C. Zheng, A. Gopalan, K. Shi. <em>Revisiting Percolation and Molecular Diffusion in Disordered Pore Networks.</em> ChemRxiv, 25 October 2026. <a href="https://doi.org/10.26434/chemrxiv.15011012/v1">doi:10.26434/chemrxiv.15011012/v1</a></li>
 </ul>
 <p>More publications that used mofography will be listed here.</p>
 <p>Figures from the mofography paper, interactive scenes, and static images are on the <a href="./gallery.html">Gallery</a>.</p>
