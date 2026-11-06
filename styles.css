@@ -1,0 +1,240 @@
+/* mofography docs: Bricolage Grotesque + Hanken Grotesk, cobalt + amber.
+   Light tokens on :root, dark tokens on body.quarto-dark (Quarto's toggle). */
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("assets/fonts/BricolageGrotesque-var.woff2") format("woff2");
+  font-weight: 200 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Hanken Grotesk";
+  src: url("assets/fonts/HankenGrotesk-var.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("assets/fonts/JetBrainsMono-var.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+:root {
+  --mg-bg: #f2f5f9;
+  --mg-ink: #111827;
+  --mg-soft: #475569;
+  --mg-mist: #e2e8f0;
+  --mg-pri: #1d4ed8;
+  --mg-acc: #b45309;
+  --mg-line: #cbd5e1;
+  --mg-teal: #0f9d8f;
+  --mg-sky: #0284c7;
+  --mg-vio: #7c3aed;
+  --mg-org: #ea580c;
+  --mg-pink: #db2777;
+  --mg-em: #059669;
+  --mg-amb: #b45309;
+  --mg-ind: #4f46e5;
+}
+body.quarto-dark {
+  --mg-bg: #0f172a;
+  --mg-ink: #f1f5f9;
+  --mg-soft: #94a3b8;
+  --mg-mist: #1e293b;
+  --mg-pri: #60a5fa;
+  --mg-acc: #fbbf24;
+  --mg-line: #334155;
+  --mg-teal: #2dd4bf;
+  --mg-sky: #38bdf8;
+  --mg-vio: #a78bfa;
+  --mg-org: #fb923c;
+  --mg-pink: #f472b6;
+  --mg-em: #34d399;
+  --mg-amb: #fbbf24;
+  --mg-ind: #818cf8;
+}
+
+/* ---------- global ---------- */
+h1, h2, h3, h4, .title { letter-spacing: -0.02em; line-height: 1.12; }
+h2 { margin-top: 2.2rem; }
+.content p, .content li { max-width: 72ch; }
+a { text-underline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--mg-acc); outline-offset: 2px; border-radius: 4px; }
+pre, div.sourceCode { border-radius: 10px; border: 1px solid var(--mg-line); }
+code { font-size: 0.86em; }
+table { font-size: 0.95rem; }
+.navbar { border-bottom: 1px solid var(--mg-line); }
+.navbar-brand img, .navbar-logo { max-height: 34px; }
+.nav-footer { border-top: 1px solid var(--mg-line); font-size: 0.9rem; }
+img { max-width: 100%; height: auto; }
+
+/* ---------- landing page (README order) ---------- */
+.mg-mast { text-align: center; padding: 1.5rem 0 0.4rem; }
+.mg-logo { width: min(420px, 92vw); height: auto; }
+.mg-logo-dark { display: none; }
+body.quarto-dark .mg-logo-light { display: none; }
+body.quarto-dark .mg-logo-dark { display: inline; }
+.mg-strip { display: block; width: min(880px, 100%); height: auto; margin: 0.85rem auto 0; }
+.mg-tagline {
+  font-style: italic; color: var(--mg-soft); font-size: 1.08rem;
+  max-width: 46rem; margin: 0.9rem auto 0.35rem;
+}
+.mg-jumps { margin: 0.35rem 0 1.15rem; }
+.mg-jumps a { text-decoration: none; }
+.mg-media { margin: 0 auto 1.5rem; background: transparent; }
+.mg-media video { display: block; width: 100%; height: auto; }
+.mg-media .mg-still { display: none; width: 100%; height: auto; }
+body:has(.mg-mast) #quarto-document-content table { font-size: 0.92rem; }
+body:has(.mg-mast) #quarto-document-content td, body:has(.mg-mast) #quarto-document-content th { vertical-align: top; }
+body:has(.mg-mast) #quarto-document-content pre, body:has(.mg-mast) #quarto-document-content .sourceCode { max-width: 100%; overflow-x: auto; }
+@media (max-width: 700px) {
+  body:has(.mg-mast) #quarto-document-content table { display: block; max-width: 100%; overflow-x: auto; }
+}
+body:has(.mg-mast) #quarto-document-content .mermaid { text-align: center; margin: 1.2rem 0; background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mg-media video { display: none; }
+  .mg-media .mg-still { display: block; }
+}
+
+body:has(.mg-mast) #title-block-header.quarto-title-block { display: none; }
+
+/* ---------- code folding ---------- */
+details.code-fold { margin: 0.2rem 0 1rem; }
+details.code-fold > summary {
+  display: inline-block; cursor: pointer; list-style-position: inside;
+  font: 600 0.78rem/1 "Hanken Grotesk", system-ui, sans-serif; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--mg-pri);
+  background: var(--mg-mist); border: 1px solid var(--mg-line);
+  border-radius: 999px; padding: 0.4rem 0.8rem; margin-bottom: 0.4rem;
+}
+details.code-fold > summary:hover { border-color: var(--mg-pri); }
+details.code-fold > summary::marker { content: ""; }
+details.code-fold[open] > summary { border-radius: 8px; }
+/* Quarto emits plain-text summaries; swap the label with CSS so open blocks read "Hide code" */
+details.code-fold > summary { font-size: 0; list-style: none; }
+details.code-fold > summary::-webkit-details-marker { display: none; }
+details.code-fold > summary::after {
+  content: "\25B8  Show code"; font-size: 0.78rem; white-space: pre;
+}
+details.code-fold[open] > summary::after { content: "\25BE  Hide code"; }
+
+/* ---------- long output folding (see code-fold.html) ---------- */
+.mg-out-fold { position: relative; }
+.mg-out-fold > pre.mg-collapsed { max-height: 400px; overflow: auto; margin-bottom: 0; }
+.mg-out-fold > button.mg-out-toggle {
+  display: block; margin: 0.3rem 0 1rem; cursor: pointer;
+  font: 600 0.78rem/1 "Hanken Grotesk", system-ui, sans-serif; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--mg-pri);
+  background: var(--mg-mist); border: 1px solid var(--mg-line); border-radius: 999px; padding: 0.4rem 0.8rem;
+}
+.mg-out-fold > button.mg-out-toggle:hover { border-color: var(--mg-pri); }
+details.code-fold > div.sourceCode, details.code-fold > pre { margin-top: 0; }
+.code-copy-button { border-radius: 6px; }
+
+/* ---------- paper figure plate (white-matte images, light + dark) ---------- */
+img.mg-plate, img[src*="tutorial_images/paper_"] {
+  display: block; box-sizing: border-box; max-width: 100%; height: auto;
+  margin: 1.2rem auto 0.4rem; padding: 12px;
+  background: #fff; border: 1px solid #94a3b8; border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px #e2e8f0,            /* paper bevel */
+    inset 0 0 18px rgba(15, 23, 42, 0.07), /* inner shade */
+    0 0 0 5px var(--mg-mist),            /* mat */
+    0 0 0 6px var(--mg-line),            /* mat edge */
+    0 14px 26px -12px rgba(15, 23, 42, 0.45);
+}
+body.quarto-dark img.mg-plate, body.quarto-dark img[src*="tutorial_images/paper_"] {
+  border-color: #cbd5e1;
+  box-shadow:
+    inset 0 0 0 1px #e2e8f0,
+    inset 0 0 18px rgba(15, 23, 42, 0.1),
+    0 0 0 5px var(--mg-mist),
+    0 0 0 6px #475569,
+    0 0 0 7px rgba(255, 255, 255, 0.06),
+    0 16px 30px -10px rgba(0, 0, 0, 0.75);
+}
+figure:has(img.mg-plate, img[src*="tutorial_images/paper_"]), div.quarto-figure:has(img.mg-plate, img[src*="tutorial_images/paper_"]) { margin: 2rem 6px; }
+figure:has(img.mg-plate, img[src*="tutorial_images/paper_"]) > figcaption, div.quarto-figure:has(img.mg-plate, img[src*="tutorial_images/paper_"]) figcaption {
+  margin: 0.9rem auto 0; padding: 0.45rem 0.8rem; max-width: 100%;
+  font-size: 0.85rem; color: var(--mg-soft); text-align: left;
+  background: var(--mg-mist); border: 1px solid var(--mg-line); border-top: 3px solid var(--mg-pri);
+  border-radius: 0 0 6px 6px;
+}
+
+/* ---------- small screens ---------- */
+p code, li code, td code, th code { white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  #quarto-document-content table { display: block; max-width: 100%; overflow-x: auto; }
+}
+
+/* ---------- mermaid: readable arrows and boxes in both themes ---------- */
+.mermaid svg { max-width: 100%; height: auto; }
+.mermaid .flowchart-link, .mermaid .edgePath path { stroke: #6f93d6 !important; stroke-width: 2px !important; }
+.mermaid .marker, .mermaid marker path { fill: #6f93d6 !important; stroke: #6f93d6 !important; }
+.mermaid .nodeLabel, .mermaid .label { font-size: 15px !important; }
+
+/* ---------- reference sidebar fold-all button ---------- */
+.mg-fold-all {
+  margin: 0 0 .6rem; padding: .2rem .7rem; font-size: .78rem; cursor: pointer;
+  border: 1px solid rgba(127, 127, 127, .4); border-radius: 999px;
+  background: transparent; color: inherit;
+}
+.mg-fold-all:hover { background: rgba(127, 127, 127, .15); }
+
+/* ---------- reference index: name on one line, description underneath ---------- */
+.mg-ref-index #quarto-document-content table,
+.mg-ref-index #quarto-document-content tbody { display: block; width: 100%; border: 0; overflow: visible; }
+.mg-ref-index #quarto-document-content thead { display: none; }
+.mg-ref-index #quarto-document-content tr {
+  display: block; padding: .55rem .8rem; margin: 0 0 .45rem;
+  border: 1px solid rgba(127, 127, 127, .28); border-radius: 6px;
+}
+.mg-ref-index #quarto-document-content td { display: block; padding: 0; border: 0; width: auto !important; }
+.mg-ref-index #quarto-document-content td:first-child a {
+  font-family: "JetBrains Mono", monospace; font-size: .9em; font-weight: 600;
+  word-break: normal; overflow-wrap: anywhere;
+}
+.mg-ref-index #quarto-document-content td:nth-child(2) { margin-top: .2rem; font-size: .88em; opacity: .85; }
+.mg-ref-index #quarto-document-content td:nth-child(2):empty { display: none; }
+
+/* ---------- gallery grid (gallery.qmd) ---------- */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+.gallery-item { min-width: 0; }
+.gallery-item img { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--mg-line); }
+.gallery-item p { margin: 0.35rem 0 0.4rem; font-size: 0.9rem; }
+.gallery-item .callout { margin: 0.3rem 0 0; }
+.gallery-item pre { font-size: 0.78rem; }
+.gallery-item div.sourceCode { overflow-x: auto; }
+
+/* Function status tags (reference) */
+.mg-tag { display: inline-block; margin-left: .5em; padding: 0 .55em; border-radius: 999px; font-size: .72em;
+  font-family: var(--bs-font-sans-serif, inherit); font-weight: 600; letter-spacing: .02em; vertical-align: middle;
+  border: 1px solid currentColor; line-height: 1.6; }
+.mg-tag-recommended { color: #2f9e6f; }
+.mg-tag-alternate { color: #3b82c4; }
+.mg-tag-utility { color: #8a8f98; }
+.mg-tag-experimental { color: #b7791f; }
+.mg-tag-legacy { color: #c2641f; }
+.mg-tag-deprecated { color: #c53030; }
+.mg-tag-filter { margin: 0 0 1.2rem; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.mg-tag-btn { background: transparent; border: 1px solid currentColor; border-radius: 999px; padding: .1rem .75rem;
+  font-size: .8rem; cursor: pointer; color: inherit; opacity: .75; }
+.mg-tag-btn.mg-tag-recommended, .mg-tag-btn.mg-tag-alternate, .mg-tag-btn.mg-tag-utility,
+.mg-tag-btn.mg-tag-experimental, .mg-tag-btn.mg-tag-legacy, .mg-tag-btn.mg-tag-deprecated { margin: 0; padding: .1rem .75rem; font-size: .8rem; }
+.mg-tag-btn.active { opacity: 1; background: rgba(127, 127, 127, .22); font-weight: 600; }
+
+/* Search overlay: reference hits last, under a label (see code-fold.html) */
+.aa-List.mg-search-list { display: flex; flex-direction: column; }
+.aa-List.mg-search-list .mg-ref-item { order: 2; }
+.aa-List.mg-search-list .mg-ref-first::before {
+  content: "Reference (function names)"; display: block; padding: .5rem 1rem .25rem; margin-top: .5rem;
+  font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; opacity: .65;
+  border-top: 1px solid rgba(127, 127, 127, .35);
+}

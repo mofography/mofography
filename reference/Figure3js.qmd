@@ -1,0 +1,448 @@
+# Figure3js { #mofography.threejs_viz.Figure3js }
+
+<span class="mg-tag mg-tag-recommended">go-to</span> Plotly-style chained builder for Three.js scenes; use .show() or .save_html().
+
+```python
+threejs_viz.Figure3js(layout='dark', stylize=True)
+```
+
+Plotly-like granular builder for Three.js MOF visualisations.
+
+Mirror of the plotly trace API from ``mgr.visualize`` (``plot_surface_dgrid``,
+``plot_cell``, ``plot_maxima``, ``plot_connections_as_it_is``, ``plot_windows``,
+``draw_framework``) but targeting the Three.js backend (``MovieFigure``).
+
+All ``plot_*`` / ``draw_*`` methods return ``self`` so they can be chained::
+
+    fig = (
+        Figure3js()
+        .plot_framework(atoms)
+        .plot_cell(atoms, color="orange")
+        .plot_surface(dgrid, regions, atoms, name="Regions", opacity=1.0)
+        .plot_surface(dgrid, regions_pbc, atoms, name="Regions PBC",
+                      trace_id="surface_pbc", opacity=0.35)
+        .plot_maxima(dgrid, all_maxima, atoms, name="Maxima", cscale=cscale)
+        .plot_connections(connections, all_maxima, dgrid.shape, atoms)
+        .plot_windows(connections, atoms=atoms, name="Windows",
+                      marker_color="yellow")
+        .to_html("output.html")
+    )
+
+The underlying ``MovieFigure`` is always accessible via ``.figure``.
+
+
+
+## Parameters {.doc-section .doc-section-parameters}
+
+layout : "dark" | "white"
+    Scene background preset.
+stylize : bool
+    Apply PBR material tweaks (roughness / metalness) to mesh traces.
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [figure](#mofography.threejs_viz.Figure3js.figure) | The underlying ``MovieFigure`` for advanced / low-level access. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [add_group](#mofography.threejs_viz.Figure3js.add_group) | Manually register a legend group. |
+| [add_trace](#mofography.threejs_viz.Figure3js.add_trace) | Add a raw Three.js trace dict (escape hatch for advanced use). |
+| [add_traces](#mofography.threejs_viz.Figure3js.add_traces) | Add a trace dict or bundle (dict-of-traces / list of traces). |
+| [export_png](#mofography.threejs_viz.Figure3js.export_png) | Export PNG (requires Playwright — see ``MovieFigure.export_png``). |
+| [plot_cell](#mofography.threejs_viz.Figure3js.plot_cell) | Add unit-cell wireframe.  Mirrors ``mgr.plot_cell()``. |
+| [plot_connections](#mofography.threejs_viz.Figure3js.plot_connections) | Add pore-graph connection lines and node markers. |
+| [plot_connections_as_it_is](#mofography.threejs_viz.Figure3js.plot_connections_as_it_is) | Exact-signature alias matching ``mgr.plot_connections_as_it_is()``. |
+| [plot_framework](#mofography.threejs_viz.Figure3js.plot_framework) | Add framework mesh (ball-and-stick, stick, or space-filling). |
+| [plot_guests](#mofography.threejs_viz.Figure3js.plot_guests) | Add guest/adsorbate atoms as instanced spheres. |
+| [plot_maxima](#mofography.threejs_viz.Figure3js.plot_maxima) | Add pore-centre maxima scatter points. |
+| [plot_maxima_from_grid](#mofography.threejs_viz.Figure3js.plot_maxima_from_grid) | Raw-arrays alias; mirrors ``mgr.plot_maxima_from_grid()``. |
+| [plot_percolated_cluster_meshes](#mofography.threejs_viz.Figure3js.plot_percolated_cluster_meshes) | Add percolating cluster meshes. Mirrors ``visualize.plot_percolated_cluster_meshes``. |
+| [plot_percolation_windows](#mofography.threejs_viz.Figure3js.plot_percolation_windows) | Add percolation window markers. Mirrors ``visualize.plot_percolation_windows``. |
+| [plot_surface](#mofography.threejs_viz.Figure3js.plot_surface) | Add segmentation isosurface mesh. |
+| [plot_surface_dgrid](#mofography.threejs_viz.Figure3js.plot_surface_dgrid) | Functional-API alias for ``plot_surface``; matches ``mgr.plot_surface_dgrid()``. |
+| [plot_windows](#mofography.threejs_viz.Figure3js.plot_windows) | Add window markers between connected pores. |
+| [plot_windows_from_results](#mofography.threejs_viz.Figure3js.plot_windows_from_results) | Add window markers with optional far-outside → periodic reclassification. |
+| [set_appearance](#mofography.threejs_viz.Figure3js.set_appearance) | Set scene appearance (background colour, theme, …). |
+| [set_camera](#mofography.threejs_viz.Figure3js.set_camera) | Set camera position and projection type. |
+| [set_lights](#mofography.threejs_viz.Figure3js.set_lights) | Set scene lighting (see ``MovieFigure.set_lights``). |
+| [show](#mofography.threejs_viz.Figure3js.show) | Display inline in Jupyter (iframe srcdoc) or, outside a kernel, in a browser tab. |
+| [to_html](#mofography.threejs_viz.Figure3js.to_html) | Export to standalone HTML. |
+| [update_traces](#mofography.threejs_viz.Figure3js.update_traces) | Apply a style patch to matching traces (opacity, color, visible, …). |
+
+### add_group { #mofography.threejs_viz.Figure3js.add_group }
+
+```python
+threejs_viz.Figure3js.add_group(group_id, traces, label)
+```
+
+Manually register a legend group.
+
+### add_trace { #mofography.threejs_viz.Figure3js.add_trace }
+
+```python
+threejs_viz.Figure3js.add_trace(trace)
+```
+
+Add a raw Three.js trace dict (escape hatch for advanced use).
+
+### add_traces { #mofography.threejs_viz.Figure3js.add_traces }
+
+```python
+threejs_viz.Figure3js.add_traces(traces)
+```
+
+Add a trace dict or bundle (dict-of-traces / list of traces).
+
+### export_png { #mofography.threejs_viz.Figure3js.export_png }
+
+```python
+threejs_viz.Figure3js.export_png(
+    path,
+    *,
+    resolution_mult=2,
+    width=None,
+    height=None,
+    wait_ms=1500,
+)
+```
+
+Export PNG (requires Playwright — see ``MovieFigure.export_png``).
+
+### plot_cell { #mofography.threejs_viz.Figure3js.plot_cell }
+
+```python
+threejs_viz.Figure3js.plot_cell(atoms, color=None, name='cell', **style)
+```
+
+Add unit-cell wireframe.  Mirrors ``mgr.plot_cell()``.
+
+### plot_connections { #mofography.threejs_viz.Figure3js.plot_connections }
+
+```python
+threejs_viz.Figure3js.plot_connections(
+    connections,
+    all_maxima,
+    shape,
+    atoms,
+    *,
+    dgrid=None,
+    regions=None,
+    hide_periodic=True,
+    plot_periodic=False,
+    name='Connections',
+    trace_id=None,
+    **style,
+)
+```
+
+Add pore-graph connection lines and node markers.
+
+Mirrors ``mgr.plot_connections_as_it_is()``.
+
+### plot_connections_as_it_is { #mofography.threejs_viz.Figure3js.plot_connections_as_it_is }
+
+```python
+threejs_viz.Figure3js.plot_connections_as_it_is(
+    connections,
+    all_maxima,
+    shape,
+    ase_atoms,
+    *,
+    plot_periodic=True,
+    plot_disconnected=False,
+    name='Connections',
+    trace_id=None,
+    cscale=None,
+    **style,
+)
+```
+
+Exact-signature alias matching ``mgr.plot_connections_as_it_is()``.
+
+### plot_framework { #mofography.threejs_viz.Figure3js.plot_framework }
+
+```python
+threejs_viz.Figure3js.plot_framework(
+    atoms,
+    bonds='auto',
+    representation='ball_and_stick',
+    name=None,
+    **style,
+)
+```
+
+Add framework mesh (ball-and-stick, stick, or space-filling).
+
+Mirrors ``mgr.draw_framework()``.
+
+### plot_guests { #mofography.threejs_viz.Figure3js.plot_guests }
+
+```python
+threejs_viz.Figure3js.plot_guests(atoms, color=None, **style)
+```
+
+Add guest/adsorbate atoms as instanced spheres.
+
+### plot_maxima { #mofography.threejs_viz.Figure3js.plot_maxima }
+
+```python
+threejs_viz.Figure3js.plot_maxima(
+    dgrid_or_seg,
+    maxima_or_atoms=None,
+    ase_atoms=None,
+    *,
+    regions=None,
+    maxima_pbc=None,
+    maxima_info=None,
+    maxima_pbc_dict=None,
+    connections=None,
+    name='Maxima',
+    trace_id=None,
+    cscale=None,
+    hide_periodic=True,
+    **style,
+)
+```
+
+Add pore-centre maxima scatter points.
+
+Accepts either:
+- ``(seg_dict, atoms)``  — seg-dict path, matches ``mgr.plot_maxima(seg, atoms)``
+- ``(dgrid, maxima_arr, atoms)`` — raw arrays, matches ``mgr.plot_maxima(dgrid, maxima, atoms)``
+
+Mirrors ``mgr.plot_maxima()`` / ``mgr.plot_maxima_from_grid()``.
+
+### plot_maxima_from_grid { #mofography.threejs_viz.Figure3js.plot_maxima_from_grid }
+
+```python
+threejs_viz.Figure3js.plot_maxima_from_grid(
+    dgrid,
+    maxima,
+    ase_atoms,
+    *,
+    regions=None,
+    name='Maxima',
+    trace_id=None,
+    cscale=None,
+    hide_periodic=False,
+    **kwargs,
+)
+```
+
+Raw-arrays alias; mirrors ``mgr.plot_maxima_from_grid()``.
+
+### plot_percolated_cluster_meshes { #mofography.threejs_viz.Figure3js.plot_percolated_cluster_meshes }
+
+```python
+threejs_viz.Figure3js.plot_percolated_cluster_meshes(
+    percolation_history,
+    distance_grid,
+    regions,
+    ase_atoms,
+    *,
+    probe_radius=None,
+    isovalue=1.6,
+    cscale=None,
+    cluster_opacity=1.0,
+    step_size=2,
+    taubin_smooth=False,
+    **kwargs,
+)
+```
+
+Add percolating cluster meshes. Mirrors ``visualize.plot_percolated_cluster_meshes``.
+
+### plot_percolation_windows { #mofography.threejs_viz.Figure3js.plot_percolation_windows }
+
+```python
+threejs_viz.Figure3js.plot_percolation_windows(
+    analysis,
+    atoms,
+    *,
+    probe_radius=None,
+    pld_tolerance=0.25,
+    **kwargs,
+)
+```
+
+Add percolation window markers. Mirrors ``visualize.plot_percolation_windows``.
+
+### plot_surface { #mofography.threejs_viz.Figure3js.plot_surface }
+
+```python
+threejs_viz.Figure3js.plot_surface(
+    dgrid,
+    region_labels,
+    atoms,
+    isovalue=1.0,
+    name='Regions',
+    opacity=1.0,
+    trace_id=None,
+    cscale=None,
+    step_size=1,
+    stylize=False,
+    taubin_smooth=True,
+    taubin_iterations=3,
+    taubin_lambda=0.2175,
+    taubin_nu=-0.2175,
+    hover_label='Region',
+    **style,
+)
+```
+
+Add segmentation isosurface mesh.
+
+Mirrors ``mgr.plot_surface_dgrid()``.  Unlike the functional version
+this method *adds* the trace directly to the figure and returns ``self``.
+
+### plot_surface_dgrid { #mofography.threejs_viz.Figure3js.plot_surface_dgrid }
+
+```python
+threejs_viz.Figure3js.plot_surface_dgrid(
+    dgrid,
+    isovalue,
+    ase_atoms,
+    region_labels=None,
+    opacity=1.0,
+    cscale=None,
+    stepsize=1,
+    stylize=False,
+    taubin_smooth=True,
+    taubin_iterations=3,
+    taubin_lambda=0.2175,
+    taubin_nu=-0.2175,
+    **kwargs,
+)
+```
+
+Functional-API alias for ``plot_surface``; matches ``mgr.plot_surface_dgrid()``.
+
+### plot_windows { #mofography.threejs_viz.Figure3js.plot_windows }
+
+```python
+threejs_viz.Figure3js.plot_windows(
+    connections,
+    atoms=None,
+    name='Windows',
+    trace_id='windows',
+    marker_color=None,
+    marker_size=10,
+    marker_opacity=0.8,
+    hide_periodic=True,
+    spacing=None,
+    dgrid=None,
+    maxima=None,
+    grid_shape=None,
+    **kwargs,
+)
+```
+
+Add window markers between connected pores.
+
+Mirrors ``mgr.plot_windows()``.  Accepts either a seg-dict or a raw
+connections list (requires ``grid_shape=`` and ``maxima=``).
+
+### plot_windows_from_results { #mofography.threejs_viz.Figure3js.plot_windows_from_results }
+
+```python
+threejs_viz.Figure3js.plot_windows_from_results(
+    connections_or_seg,
+    *,
+    dgrid=None,
+    atoms=None,
+    spacing=None,
+    name='Windows',
+    trace_id=None,
+    marker_color=None,
+    marker_size=10,
+    marker_opacity=0.8,
+    hide_periodic=True,
+    outside_windows_to_periodic=True,
+    **kwargs,
+)
+```
+
+Add window markers with optional far-outside → periodic reclassification.
+
+### set_appearance { #mofography.threejs_viz.Figure3js.set_appearance }
+
+```python
+threejs_viz.Figure3js.set_appearance(**kwargs)
+```
+
+Set scene appearance (background colour, theme, …).
+
+### set_camera { #mofography.threejs_viz.Figure3js.set_camera }
+
+```python
+threejs_viz.Figure3js.set_camera(
+    eye=None,
+    center=None,
+    up=None,
+    projection='perspective',
+)
+```
+
+Set camera position and projection type.
+
+### set_lights { #mofography.threejs_viz.Figure3js.set_lights }
+
+```python
+threejs_viz.Figure3js.set_lights(**kwargs)
+```
+
+Set scene lighting (see ``MovieFigure.set_lights``).
+
+### show { #mofography.threejs_viz.Figure3js.show }
+
+```python
+threejs_viz.Figure3js.show(
+    renderer=None,
+    *,
+    height=600,
+    width='100%',
+    port=None,
+)
+```
+
+Display inline in Jupyter (iframe srcdoc) or, outside a kernel, in a browser tab.
+
+See ``MovieFigure.show``. Three.js loads from CDN (internet required).
+
+### to_html { #mofography.threejs_viz.Figure3js.to_html }
+
+```python
+threejs_viz.Figure3js.to_html(path=None, **kwargs)
+```
+
+Export to standalone HTML.
+
+
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+path : str or Path, optional
+    Output file path.  If *None* the HTML string is returned instead.
+**kwargs
+    Forwarded to ``MovieFigure.to_html()``.
+
+
+
+#### Returns {.doc-section .doc-section-returns}
+
+str
+    HTML string when *path* is None.
+Path
+    Resolved output path when *path* is given.
+
+### update_traces { #mofography.threejs_viz.Figure3js.update_traces }
+
+```python
+threejs_viz.Figure3js.update_traces(patch, selector=None)
+```
+
+Apply a style patch to matching traces (opacity, color, visible, …).

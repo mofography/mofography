@@ -1,0 +1,185 @@
+#+title: Window fingerprinting — accessible textural properties and window typing
+#+filetags: :mofography:windows:fingerprinting:textural-properties:winding:
+#+description: Multi-modal window characterization (diameter + framework shell), Mechanism A/B mismatches, accessible SA/vol curation, experimental LIS use, and window-type detection.
+#+property: header-args:python :eval no-export :exports code
+#+options: toc:3
+#+startup: overview
+
+:PROPERTIES:
+:ID:       window-fp-accessible-2026-06
+:ROAM_ALIASES: "window fingerprint" "window_fp_for_accessible" "Mechanism B"
+:ROAM_TAGS: mofography windows fingerprinting accessible winding dfsd
+:END:
+
+* Overview
+
+Window *diameter* (local PLD along a pocket–pocket connection) is the quantity most tools report. Mofography additionally builds a lightweight **window shell fingerprint**: a direction-invariant, element-weighted vector of framework atoms within a fixed shell around each window centre (=mofography/winding_percolation.py=, =_window_shell_fingerprint=). Together, diameter + shell chemistry/topology give a **multi-modal** description of each aperture—analogous to pocket typing (PSD peak + annulus SH + connectivity), but oriented at *connections* rather than *cavities*.
+
+This note covers:
+
+1. Why fingerprints exist (grid/watershed vs graph window mismatch).
+2. How they are used for **accessible** surface area and void volume.
+3. Why they do **not** override user probe radius for **Mechanism A** (PLD threshold) failures.
+4. Optional, **experimental** use in **LIS** (winding / winding2).
+5. Prototype **window-type detection** (LTA-96 example script).
+
+* Window shell fingerprint
+
+** Definition
+
+For a window centre (fractional coordinates on the periodic graph edge), collect all framework atoms within ``shell_radius`` Å (default 3.5 Å), weight each element channel by inverse distance, and L2-normalize to a 118-dimensional vector (one slot per atomic number). Implementation: =annotate_graph_edges_with_window_fingerprints=.
+
+** What it captures
+
+- *Size channel*: =window_radius= on the pore graph (max over duplicate periodic images on that canonical edge).
+- *Structure channel*: which elements and local geometry ring the aperture (Si/Al/O rings in zeolites, carboxylate pillars in MOFs, etc.).
+
+Two windows can share nearly the same diameter yet differ in shell chemistry (e.g. 8-ring vs distorted 8-ring on different cage pairs). Cosine similarity on the shell vector separates those cases—similar in spirit to splitting pocket types when PSD peaks are close but annulus fingerprints disagree (=mofography/pocket_typing.py=).
+
+* Mechanism A vs Mechanism B mismatches
+
+When accessible void volume or MC surface area at probe radius *r* disagrees with Zeo++-style geometric accessibility, the failure mode usually falls into one of two buckets:
+
+** Mechanism B — watershed / graph window gating (fingerprints help)
+
+- Winding percolation at probe *r* marks *mouth* watershed labels as percolating.
+- Bulk void may sit in *other* labels connected only through graph edges whose =window_radius= is slightly **below** *r* (grid spacing, mask thickness, watershed placement).
+- Geometric isosurface accessibility can be nonzero while mgr accessible is ~0 until sub-probe windows are bridged.
+- *Remedy*: BFS expansion (=_expand_percolating_labels_with_window_fingerprint=) adds neighbor regions when the connecting edge has =window_radius < r= but within =window_fp_subprobe_gap= (default 0.5 Å), shell fingerprint cosine ≥ =window_fp_sim_thresh= (default 0.88), **and** the candidate window is not more than =window_fp_subprobe_gap= smaller than the matched reference open edge (=wr_ref − wr_cand ≤ subprobe_gap=; one-sided gate that blocks annex bridges with Δwr ≈ 0.7–0.8 Å while allowing grid undershoot Δwr ≈ 0.4–0.5 Å).
+
+This respects the user's probe: regions behind windows that are genuinely too small or structurally unlike open windows stay excluded.
+
+** Mechanism A — PLD threshold / no percolation seed (fingerprints do not help)
+
+- Accessible volume is zero because mgr PLD at the graph is **below** the requested probe, while Zeo++ PLD is slightly **above** (often ~0.1–0.4 Å).
+- No percolating watershed seed exists at the probe → fingerprint expansion returns immediately.
+- *Policy*: do **not** silently widen the probe or force percolation; the user-set probe radius remains strict. Fixing Mechanism A is a separate PLD-threshold / graph-edge calibration topic, not fingerprint bridging.
+
+* Accessible surface area and void volume (default on)
+
+** API
+
+Accessible label selection is centralized in =_accessible_percolating_region_labels= (=mofography/compute.py=). These entry points default =window_fp_for_accessible=True=:
+
+- =compute_void_volume_from_results=
+- =compute_surface_area_from_results_mc=
+- =compute_surface_area_from_results=
+
+Pass =window_fp_for_accessible=False= for legacy behaviour (union of components from =percolation_history= + =select_percolation_threshold=).
+
+** Tunable kwargs (via =winding_kwargs= or stored =results['winding_kwargs']=)
+
+| Keyword | Default | Role |
+|---------+---------+------|
+| =window_fp_shell_radius= | 3.5 Å | Shell for fingerprint vector |
+| =window_fp_sim_thresh= | 0.88 | Min cosine to match open window |
+| =window_fp_subprobe_gap= | 0.5 Å | Max (probe − window_radius) for candidate edge |
+| =window_fp_ref_tol= | 0.12 Å | Reference edges must be ≥ probe − this |
+| =window_fp_size_tol= | 0.20 Å | Symmetric \|Δwr\| gate for LIS FP expansion only |
+| =window_fp_ref_minus_cand_tol= | (=subprobe_gap=) | Max =wr_ref − wr_cand= for accessible FP bridge (one-sided) |
+
+Merged by =_merge_winding_kwargs=; caller flags override stored dict.
+
+** Example
+
+#+begin_src python
+import mofography as mgr
+
+vol = mgr.compute_void_volume_from_results(results, mat_atoms, probe_radius=1.2)
+sa  = mgr.compute_surface_area_from_results_mc(results, mat_atoms, probe_radius=1.2)
+
+# Legacy (no fingerprint bridging):
+vol_legacy = mgr.compute_void_volume_from_results(
+    results, mat_atoms, probe_radius=1.2, window_fp_for_accessible=False
+)
+#+end_src
+
+* LIS mode (winding / winding2) — experimental
+
+**Separate code path.** Largest included sphere (LIS) along percolating pathways uses =percolating_region_labels_at_probe_dfsd= (and winding2 analogue). An optional second stage, =_expand_dfsd_labels_with_window_fingerprint=, can rescue the max-cavity label when it sits behind a sub-probe window that fingerprint-matches an already-percolating mouth.
+
+- Controlled by =window_fp_for_lis=True= in =winding_kwargs=.
+- **Default is False** — LIS scalar is unchanged unless explicitly enabled.
+- Treat as **experimental**: helpful on a subset of structures with Mechanism B–like LIS undershoot; **not required for most materials**; not coupled to accessible SA/vol unless you also enable =window_fp_for_accessible=.
+
+Most production parity work targets accessible properties; enable LIS fingerprinting only when validating a specific outlier.
+
+* Window-type detection (prototype)
+
+** Motivation
+
+Zeolites and complex MOFs often have multiple distinct aperture families (e.g. LTA: 8-rings linking sodalite cages, 6-rings in the dual cage network). Diameter alone merges them; shell fingerprints separate windows that share size but differ in framework context—parallel to pocket-type assignment (=assign_pocket_types_from_segmentation=) using PSD + annulus + connectivity.
+
+** Prototype script
+
+=examples/window_types_lta96_report.py= on LTA-96:
+
+1. Periodic segmentation + pore graph with =annotate_graph_edges_with_window_fingerprints=.
+2. Cluster canonical graph windows by (=window_radius= band, shell cosine).
+3. Emit PDF: type counts, element-shell bar chart, pairwise cosine matrix (panels modelled on =pocket_types_report.py=).
+4. Plotly HTML: orthographic framework mesh subsets per type via freud AABB ball query around window centres (=mgr.AABB_on_atoms= + =plot_subset_of_atoms=; see =docs/segment_cage_walls.ipynb=, =docs/plot_subset_as_mesh_tutorial.ipynb=).
+
+** Status
+
+Experimental capability—API and clustering thresholds may change. Not yet integrated into =workflow.assign_pocket_types= or high-throughput benchmarks.
+
+* Related files
+
+| File | Role |
+|------+------|
+| =mofography/winding_percolation.py= | Fingerprints, accessible BFS, LIS expansion |
+| =mofography/compute.py= | Accessible SA/vol integration |
+| =mofography/pocket_typing.py= | Pocket-type analogue (PSD + shell) |
+| =examples/window_types_lta96_report.py= | LTA-96 window-type prototype |
+| =docs/textural_props_methods.org= | Global vs pocket-wise textural properties |
+
+* Mechanism C — dead-end annex pockets (core-2000 outliers, not bugs)
+
+Pore-graph tracing on accessible-volume undercounts in the CoRE-2000 screen (June 2026, probe 1.2 Å, =mgr_sn/mgr_org_scripts/diagnose_mech_c_d.py=) shows a third failure mode that is **not** fixed by fingerprint bridging and is **not** an erroneous graph pruning of the main percolating path.
+
+** What it is
+
+- Winding correctly marks the **through-route** cages/nodes (large pockets connected by windows with =window_radius ≥ probe=).
+- Zeo++ accessible volume is closer to **geometric** accessibility: all =dgrid > probe= voxels on a percolating geometric mask, regardless of watershed pocket identity.
+- Mofography counts void only in watershed labels that are **graph-reachable** from percolating mouths at the probe (optionally extended by Mechanism B FP for *near*-probe windows of **similar size**).
+- The residual Zeo++ excess often sits in **dead-end annex pockets**: small satellite cages (pocket_r ~2 Å) hung off main cages via windows with =window_radius ≈ 0.6–0.8 Å= (gap 0.4–0.6 Å below probe). These are leaves on the pore graph, not alternate paths Zeo++ “found” and Mofography “lost.”
+
+** Worked examples (probe 1.2 Å)
+
+| Material | Zeo AV | Mgr (FP on) | Geometric | Interpretation |
+|----------+--------+-------------+-----------+----------------|
+| UDEMEW_manual | 0.778 | 0.184 | 0.784 | Main path percolates; ~0.69 cm³/g void in annex labels (e.g. graph nodes 5, 34) behind wr ≈ 0.58–0.66 Å throats |
+| UVUFIC_clean | 0.0037 | 0.0015 | 0.0021 | Side pocket node 8; edge from percolating node 2 with wr = 0.23 Å (gap 0.97 Å) |
+
+For UDEMEW, raising =window_fp_subprobe_gap= alone recovers more annex void but still under-shoots Zeo++ because many annex mouths remain genuinely sub-probe. That behaviour is **intentionally conservative**: a 1.2 Å probe cannot pass a 0.6 Å graph window even if the annex interior is wide.
+
+** Comparison to Zeo++
+
+Zeo++ accessible volume is a **geometric** quantity: voxels with =dgrid > probe= on a percolating mask, with no pore-graph dead-end pruning and no requirement that annex void be reachable through windows with =window_radius ≥ probe=. In practice Zeo++ therefore **does not filter**:
+
+- dead-end annex pockets hung off the main percolating cage network (graph leaves);
+- void in watershed components reachable only through **sub-probe** throats (wr ≪ probe), even when those annex interiors are geometrically wide.
+
+Mofography’s winding + window model counts only labels **graph-reachable** from percolating mouths at the declared probe (Mechanism B FP rescues *near*-probe grid undershoot on the *same* mouth, not unrelated annex apertures). We regard that as the more physically consistent reading for CoRE-style comparison at a fixed probe radius.
+
+** Policy
+
+Treat large Zeo++ excess with good PLD agreement and intact main-path winding as **expected conservative bias**, not a mgr bug—unless pore-graph tracing shows the through-route itself was wrongly pruned (we did not observe that for the cases below).
+
+** Diagnostics
+
+- =mgr_sn/mgr_org_scripts/mech_c_d_diagnosis.json=
+- =mgr_sn/mgr_org_scripts/regenerate_sa_vol_parity_and_outliers.py= (PLD-coloured parity plots)
+
+* Mechanism D — FP over-bridge to annex apertures (XALDOE; fixed June 2026)
+
+Separate from Mechanism C: fingerprint bridging can **over-connect** when a sub-probe candidate window shares shell cosine with an open mouth on the percolating path but has a **much smaller** =window_radius= (annex throat on the same framework shell, different aperture size). XALDOE_clean was the canonical case: FP-on accessible AV ≈ 0.155 cm³/g vs fp-off ≈ 0.086 vs Zeo ≈ 0.018.
+
+*Fix*: one-sided reference gate in =_window_fp_matches_reference_edges= — reject bridge when =wr_ref − wr_cand > window_fp_ref_minus_cand_tol= (default =subprobe_gap=, 0.5 Å). Blocks XALDOE (Δwr ≈ 0.7–0.8 Å) while preserving Mechanism B grid undershoot (Δwr ≈ 0.4–0.5 Å). After fix: XALDOE fp-on/off AV both ≈ 0.086 cm³/g (probe 1.2 Å); residual Zeo gap is non-FP winding / geometric-access difference, not annex FP bridging.
+
+* References within the repo
+
+- POMMAH_clean and similar: Mechanism B accessible vol parity with fingerprint on (see session benchmarks / =mgr_sn= investigation scripts).
+- IDORIE-like cases: Mechanism A — fingerprint on still yields zero accessible vol at probe > mgr PLD.
+- UDEMEW_manual, UVUFIC_clean: Mechanism C — annex dead-ends; Mofography conservative vs Zeo++ geometric flood.
+- XALDOE_clean: Mechanism D — FP over-bridge (fixed); see =mgr_sn/mgr_org_scripts/mech_c_d_diagnosis.json=.

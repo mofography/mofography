@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Download a subset from MOFDB and Quick Cluster – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@*/dist/embed-amd.js" crossorigin="anonymous"></script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Download a subset from MOFDB and Quick Cluster – mofography">
+<meta property="og:description" content="Pore graphs for periodic nanoporous materials: segmentation, textural properties, windows, percolation, and ML features from one calculation.">
+<meta property="og:site_name" content="mofography">
+<meta name="twitter:title" content="Download a subset from MOFDB and Quick Cluster – mofography">
+<meta name="twitter:description" content="Pore graphs for periodic nanoporous materials: segmentation, textural properties, windows, percolation, and ML features from one calculation.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#set-paths-and-import-mofography" id="toc-set-paths-and-import-mofography" class="nav-link active" data-scroll-target="#set-paths-and-import-mofography">Set paths and import mofography</a></li>
+  <li><a href="#write-dataset-to-file" id="toc-write-dataset-to-file" class="nav-link" data-scroll-target="#write-dataset-to-file">Write dataset to file</a></li>
+  <li><a href="#create-ase-atoms-objects" id="toc-create-ase-atoms-objects" class="nav-link" data-scroll-target="#create-ase-atoms-objects">Create ASE atoms objects</a></li>
+  <li><a href="#segment-the-pore-space" id="toc-segment-the-pore-space" class="nav-link" data-scroll-target="#segment-the-pore-space">Segment the pore space</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.dev/mofography/mofography/blob/main/mofdb_example.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Download a subset from MOFDB and Quick Cluster</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>In this tutorial, we see how to download a subset of structures from the MOFDB database using a wrapper function in mofography. MOFDB is a large database of nanoporous materials, including MOFs and zeolites that is hosted by Northwestern University. https://mof.tech.northwestern.edu/</p>
+<p>For a lot of the materials workflows, it is very convenient to have a subset of structures to be used as a starting point, and to be saved as a pandas dataframe, that some of the textural properties of the material along with its crystallographic information. However, downloading large datasets can be cumbersome. Hence, mofography provides a wrapper that can do this asynchronously, meaning, the pages and pages of your search results will be downloaded in parallel, saving a lot of time. Note that at the time of writing, MOFDB itself has a python API that does this, https://github.com/n8ta/mofdb-client, the comparison of speeds of the two codes is not tested, but you are welcome to test it out as well.</p>
+<p><em>Note that in order to avoid excessive strain on the MOFDB website, it is recommended you save the downloaded dataset locally (we will show this at the end) instead of downloading it every time.</em></p>
+<p>Once we have the dataset, we can create ASE atoms objects from it, pick one or more at random and perform a mofography workflo. In this example, we simply perform the quick cluster workflow, but feel free to build one of your own. If you don’t remember what the Quick Cluster workflow does, please go check out the Quick Cluster notebook in the tutorials.</p>
+<section id="set-paths-and-import-mofography" class="level2">
+<h2 class="anchored" data-anchor-id="set-paths-and-import-mofography">Set paths and import mofography</h2>
+<div id="cell-3" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Now grabbing data from MOFDB using mofography is very easy. There are many options by which you can filter the data, you can find them here: https://mof.tech.northwestern.edu/api</p>
+<p>As an example, let’s download all the materials with void fraction between 0.7 and 0.8, and with a largest cavity diameter between 12 and 13 angstroms from the CoREMOF-2019 database. Granted this is only small subset, selected purely for demonstration purposes. It takes about 4 mins on a regular day with this set of parameters</p>
+<div id="cell-6" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># get_data_from_mofdb is async: it must be awaited (top-level await in a notebook,</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="co"># asyncio.run(...) in a script)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> <span class="cf">await</span> mgr.get_data_from_mofdb(params<span class="op">=</span>{<span class="st">'vf_min'</span>: <span class="fl">0.7</span>, <span class="st">'vf_max'</span>: <span class="fl">0.75</span>, <span class="st">'lcd_min'</span>: <span class="dv">12</span>, <span class="st">'lcd_max'</span>: <span class="dv">14</span>, <span class="st">'database'</span>: <span class="st">'CoREMOF 2019'</span>})</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id":"813e667e55a24dc29d0e7785463d2f28","version_major":2,"version_minor":0,"quarto_mimetype":"application/vnd.jupyter.widget-view+json"}
+</script>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+</div>
+<p>Let’s look at the first few rows of this dataframe</p>
+<div id="cell-8" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>df.head(<span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="3">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">id</th>
+<th data-quarto-table-cell-role="th">mofid</th>
+<th data-quarto-table-cell-role="th">mofkey</th>
+<th data-quarto-table-cell-role="th">hashkey</th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">void_fraction</th>
+<th data-quarto-table-cell-role="th">surface_area_m2g</th>
+<th data-quarto-table-cell-role="th">surface_area_m2cm3</th>
+<th data-quarto-table-cell-role="th">pld</th>
+<th data-quarto-table-cell-role="th">lcd</th>
+<th data-quarto-table-cell-role="th">...</th>
+<th data-quarto-table-cell-role="th">pore_size_distribution</th>
+<th data-quarto-table-cell-role="th">database</th>
+<th data-quarto-table-cell-role="th">batch_number</th>
+<th data-quarto-table-cell-role="th">elements</th>
+<th data-quarto-table-cell-role="th">cif</th>
+<th data-quarto-table-cell-role="th">url</th>
+<th data-quarto-table-cell-role="th">adsorbates</th>
+<th data-quarto-table-cell-role="th">heats</th>
+<th data-quarto-table-cell-role="th">isotherms</th>
+<th data-quarto-table-cell-role="th">mofdb_version</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>173921</td>
+<td>None</td>
+<td>None</td>
+<td>c83f3cb36e0bdad5ead5471ad8a1b89225c7fb6f5504e1...</td>
+<td>acs.inorgchem.6b02413_ic6b02413_si_002_clean</td>
+<td>0.7400</td>
+<td>2730.07</td>
+<td>2195.74</td>
+<td>6.88163</td>
+<td>13.3773</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 27.546\n_cel...</td>
+<td>/mofs/173921.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>173987</td>
+<td>None</td>
+<td>None</td>
+<td>79e851559c2af43b378a63b4b468ccadf6804dd517e3d2...</td>
+<td>AGABIU_clean</td>
+<td>0.7402</td>
+<td>2773.67</td>
+<td>1794.91</td>
+<td>10.82740</td>
+<td>12.5710</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 18.605\n_cel...</td>
+<td>/mofs/173987.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>174106</td>
+<td>None</td>
+<td>None</td>
+<td>70afd8ccd600fd030504ce0c97919d5110cebead9459fa...</td>
+<td>ANOMOG_clean</td>
+<td>0.7198</td>
+<td>2698.05</td>
+<td>2116.78</td>
+<td>5.50166</td>
+<td>12.8003</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 32.461\n_cel...</td>
+<td>/mofs/174106.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>174196</td>
+<td>None</td>
+<td>None</td>
+<td>29a7e26bd38915ad1c147d2088d54906bffb579ec86021...</td>
+<td>ASINEX_clean</td>
+<td>0.7014</td>
+<td>2801.34</td>
+<td>1848.81</td>
+<td>7.27061</td>
+<td>12.5357</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 74.91\n_cell...</td>
+<td>/mofs/174196.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>174197</td>
+<td>None</td>
+<td>None</td>
+<td>e2eb2e4b54ff5bc14d64019746578c77fe71402d8a8eaa...</td>
+<td>ASINIB_clean</td>
+<td>0.7130</td>
+<td>2773.85</td>
+<td>1847.56</td>
+<td>7.22634</td>
+<td>12.4005</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 75.033\n_cel...</td>
+<td>/mofs/174197.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">5</th>
+<td>174278</td>
+<td>None</td>
+<td>None</td>
+<td>5842c228d724798a90bc4599997bd3d766e1f4a42995c9...</td>
+<td>AVIVUW_clean</td>
+<td>0.7162</td>
+<td>2491.03</td>
+<td>1817.90</td>
+<td>6.91892</td>
+<td>12.0408</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 22.963\n_cel...</td>
+<td>/mofs/174278.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">6</th>
+<td>174294</td>
+<td>None</td>
+<td>None</td>
+<td>c2eeca1b812f60d10f8e08b7e6d31126b754d4039c9c76...</td>
+<td>AWASEY_clean</td>
+<td>0.7186</td>
+<td>1646.54</td>
+<td>1906.22</td>
+<td>7.26209</td>
+<td>12.0509</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_image0\n_cell_length_a 30.332\n_cel...</td>
+<td>/mofs/174294.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">7</th>
+<td>174429</td>
+<td>None</td>
+<td>None</td>
+<td>594e605ccc2636780d8a4d1047ec910d12c302481211a5...</td>
+<td>BAZJET_clean</td>
+<td>0.7420</td>
+<td>3450.50</td>
+<td>2143.77</td>
+<td>12.10120</td>
+<td>13.3702</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_BAZJET_clean\n_audit_creation_date ...</td>
+<td>/mofs/174429.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">8</th>
+<td>174549</td>
+<td>None</td>
+<td>None</td>
+<td>2e72bfca4ff457bde255581761a55cc102f95820e003f4...</td>
+<td>BINCUY_manual</td>
+<td>0.7246</td>
+<td>3760.71</td>
+<td>2196.14</td>
+<td>8.62623</td>
+<td>13.3117</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_BINCUY_clean_b\n_audit_creation_date ...</td>
+<td>/mofs/174549.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">9</th>
+<td>174550</td>
+<td>None</td>
+<td>None</td>
+<td>47936b6cf988f16f2f51b47970dad99122035c3190cd0d...</td>
+<td>BINDAF_manual</td>
+<td>0.7212</td>
+<td>3638.73</td>
+<td>2185.42</td>
+<td>8.49712</td>
+<td>13.1432</td>
+<td>...</td>
+<td>None</td>
+<td>CoREMOF 2019</td>
+<td>41</td>
+<td>[]</td>
+<td>data_BINDAF_clean_b\n_audit_creation_date ...</td>
+<td>/mofs/174550.json</td>
+<td>[{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...</td>
+<td>[]</td>
+<td>[{'batch_number': 41, 'adsorbates': [{'id': 80...</td>
+<td>dc8a0295db</td>
+</tr>
+</tbody>
+</table>
+
+<p>10 rows × 21 columns</p>
+</div>
+</div>
+</div>
+<div id="cell-9" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df.columns</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<pre><code>Index(['id', 'mofid', 'mofkey', 'hashkey', 'name', 'void_fraction',
+       'surface_area_m2g', 'surface_area_m2cm3', 'pld', 'lcd', 'pxrd',
+       'pore_size_distribution', 'database', 'batch_number', 'elements', 'cif',
+       'url', 'adsorbates', 'heats', 'isotherms', 'mofdb_version'],
+      dtype='object')</code></pre>
+</div>
+</div>
+</section>
+<section id="write-dataset-to-file" class="level2">
+<h2 class="anchored" data-anchor-id="write-dataset-to-file">Write dataset to file</h2>
+<p>Since what you have is a pandas dataframe, you can save it to a file for the future, using any of thre pandas write functions. For example, to save as a feather file use the following code</p>
+<div id="cell-11" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># df.to_feather('mofdb_data.feather')</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="create-ase-atoms-objects" class="level2">
+<h2 class="anchored" data-anchor-id="create-ase-atoms-objects">Create ASE atoms objects</h2>
+<p>Since all the calculations in mofography start with an ASE atoms, object, let’s convert make a list of ASE atoms objects for all the materiasl in this dataframe.</p>
+<div id="cell-13" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>atoms_list <span class="op">=</span> mgr.atoms_from_mofdb_df(df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>We can now do a workflow on one or more of this atoms objects, parallelize them whichever way we want and whatnot. Let’s save that for another tutorial. For the time being, let’s just pick one at random and run the quick cluster workflow on it and visualize</p>
+<p>If you don’t remember what the quick cluster workflow does, pleae go back and refer to the Quick Cluster notebook in the docs.</p>
+<div id="cell-16" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> random </span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>index <span class="op">=</span> random.randint(<span class="dv">0</span>,<span class="bu">len</span>(atoms_list)<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> atoms_list[index]</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(mat_atoms)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Let’s see what we chose</p>
+<div id="cell-18" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>df.loc[index]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display" data-execution_count="8">
+<pre><code>id                                                                   179343
+mofid                                                                  None
+mofkey                                                                 None
+hashkey                   c04fb14ffad3d21bd199eb7faed1c0d1d9dee9ebf3de0b...
+name                                                           LUDLIH_clean
+void_fraction                                                        0.7124
+surface_area_m2g                                                    2404.81
+surface_area_m2cm3                                                  2107.58
+pld                                                                 6.67449
+lcd                                                                 13.2324
+pxrd                                                                   None
+pore_size_distribution                                                 None
+database                                                       CoREMOF 2019
+batch_number                                                             41
+elements                                                                 []
+cif                       data_image0\n_cell_length_a       26.37\n_cell...
+url                                                       /mofs/179343.json
+adsorbates                [{'id': 80, 'InChIKey': 'IJGRMHOSHXDMSA-UHFFFA...
+heats                                                                    []
+isotherms                 [{'batch_number': 41, 'adsorbates': [{'id': 80...
+mofdb_version                                                    dc8a0295db
+Name: 56, dtype: object</code></pre>
+</div>
+</div>
+</section>
+<section id="segment-the-pore-space" class="level2">
+<h2 class="anchored" data-anchor-id="segment-the-pore-space">Segment the pore space</h2>
+<p>Now run the standard workflow from the <a href="./quick_start.html">Quick start</a> on this atoms object: distance grid, periodic segmentation, then plot.</p>
+<div id="cell-20" class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>spacing <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(mat_atoms, spacing<span class="op">=</span>spacing).astype(np.float32)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>seg <span class="op">=</span> mgr.do_periodic_segmentation_rust(</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    dgrid, mat_atoms, spacing<span class="op">=</span>spacing,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">0.05</span>, h<span class="op">=</span><span class="fl">0.2</span>, min_distance<span class="op">=</span><span class="fl">1.5</span>, threshold_abs<span class="op">=</span><span class="fl">1.5</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    compute_connections<span class="op">=</span><span class="va">True</span>, return_dgrid<span class="op">=</span><span class="va">True</span>, disable_tqdm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pockets (PBC-merged): </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'maxima_pbc'</span>])<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<p>Let’s visualize the result. Change the ‘renderer’ to ‘notebook_connected’ for an interactive plot in the notebook, or to ‘browser’ for a browser tab.</p>
+<div id="cell-22" class="cell">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> mgr.show_mof_plotly(seg, mat_atoms, stylize<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>fig.show(renderer<span class="op">=</span><span class="st">'png'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.dev/mofography/mofography/blob/main/mofdb_example.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

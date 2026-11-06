@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Extract, analyze, and visualize pore windows and inter-region connections from a periodic segmentation result.">
+
+<title>Connections and Pore Windows – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script>
+window.PlotlyConfig = {MathJaxConfig: 'local'};
+if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+</script>
+<script type="module">import "https://cdn.plot.ly/plotly-3.7.0.min"</script>
+
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Connections and Pore Windows – mofography">
+<meta property="og:description" content="Extract, analyze, and visualize pore windows and inter-region connections from a periodic segmentation result.">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/paper_window_detection_methods.webp">
+<meta property="og:site_name" content="mofography">
+<meta name="twitter:title" content="Connections and Pore Windows – mofography">
+<meta name="twitter:description" content="Extract, analyze, and visualize pore windows and inter-region connections from a periodic segmentation result.">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/paper_window_detection_methods.webp">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#why-windows-matter" id="toc-why-windows-matter" class="nav-link" data-scroll-target="#why-windows-matter">Why windows matter</a>
+  <ul class="collapse">
+  <li><a href="#how-windows-are-defined" id="toc-how-windows-are-defined" class="nav-link" data-scroll-target="#how-windows-are-defined">How windows are defined</a></li>
+  </ul></li>
+  <li><a href="#imports-and-structure" id="toc-imports-and-structure" class="nav-link" data-scroll-target="#imports-and-structure">Imports and structure</a></li>
+  <li><a href="#step-1-compute-the-distance-grid" id="toc-step-1-compute-the-distance-grid" class="nav-link" data-scroll-target="#step-1-compute-the-distance-grid">Step 1: Compute the distance grid</a></li>
+  <li><a href="#step-2-periodic-segmentation-with-windows" id="toc-step-2-periodic-segmentation-with-windows" class="nav-link" data-scroll-target="#step-2-periodic-segmentation-with-windows">Step 2: Periodic segmentation with windows</a></li>
+  <li><a href="#step-3-inspect-segconnections" id="toc-step-3-inspect-segconnections" class="nav-link" data-scroll-target="#step-3-inspect-segconnections">Step 3: Inspect <code>seg['connections']</code></a></li>
+  <li><a href="#step-4-trim-to-unit-cell-connections" id="toc-step-4-trim-to-unit-cell-connections" class="nav-link" data-scroll-target="#step-4-trim-to-unit-cell-connections">Step 4: Trim to unit-cell connections</a></li>
+  <li><a href="#step-5-internal-vs-periodic-windows" id="toc-step-5-internal-vs-periodic-windows" class="nav-link" data-scroll-target="#step-5-internal-vs-periodic-windows">Step 5: Internal vs periodic windows</a></li>
+  <li><a href="#step-6-window-size-statistics" id="toc-step-6-window-size-statistics" class="nav-link" data-scroll-target="#step-6-window-size-statistics">Step 6: Window-size statistics</a></li>
+  <li><a href="#step-7-visualize-windows-with-show_mof_plotly" id="toc-step-7-visualize-windows-with-show_mof_plotly" class="nav-link" data-scroll-target="#step-7-visualize-windows-with-show_mof_plotly">Step 7: Visualize windows with <code>show_mof_plotly</code></a></li>
+  <li><a href="#step-8-histogram-of-window-diameters" id="toc-step-8-histogram-of-window-diameters" class="nav-link" data-scroll-target="#step-8-histogram-of-window-diameters">Step 8: Histogram of window diameters</a></li>
+  <li><a href="#tuning-minimum_window_separation" id="toc-tuning-minimum_window_separation" class="nav-link" data-scroll-target="#tuning-minimum_window_separation">Tuning <code>minimum_window_separation</code></a></li>
+  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">Troubleshooting</a></li>
+  <li><a href="#where-to-go-next" id="toc-where-to-go-next" class="nav-link" data-scroll-target="#where-to-go-next">Where to go next</a>
+  <ul class="collapse">
+  <li><a href="#advanced-window-analysis" id="toc-advanced-window-analysis" class="nav-link" data-scroll-target="#advanced-window-analysis">Advanced window analysis</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/connections_and_windows.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Connections and Pore Windows</h1>
+</div>
+
+<div>
+  <div class="description">
+    Extract, analyze, and visualize pore windows and inter-region connections from a periodic segmentation result.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/paper_window_detection_methods.webp" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>Window detection algorithm: the window is the voxel with the largest non-overlapping sphere in the shared boundary of two adjacent regions; works for on-axis and off-axis windows and handles non-convex cavities (paper Figure 6)</figcaption>
+</figure>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/paper_window_detection_results.webp" class="img-fluid figure-img" style="width:100.0%"></p>
+<figcaption>Window detection results on representative MOFs (paper Figure 7)</figcaption>
+</figure>
+</div>
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p><strong>Pore windows</strong> (also called <strong>connections</strong> or <strong>neck regions</strong>) are the narrow passages that connect neighboring pores in a crystalline material. In <code>mofography</code>, every connection in the segmentation result is a <em>5-tuple</em> describing two touching regions, the type of contact, the window centroid, and the window radius.</p>
+<p>In this tutorial we will:</p>
+<ol type="1">
+<li>Run a <strong>single-call</strong> periodic segmentation with <code>compute_connections=True</code> so that windows are detected automatically.</li>
+<li>Inspect <code>seg['connections']</code> — the list of 5-tuples describing every window.</li>
+<li>Trim to <strong>unit-cell</strong> connections and split them into <em>internal</em> vs <em>periodic</em>.</li>
+<li>Compute window-size statistics, including the <strong>Pore Limiting Diameter (PLD)</strong>.</li>
+<li>Visualize everything interactively with <code>show_mof_plotly(seg, atoms, ...)</code>, which already includes window markers.</li>
+</ol>
+<p>If you have not done so, please complete the <a href="./quick_start.html">Quick Start: Full MOF Pore Analysis</a> tutorial first — the rest of the page assumes you have run a segmentation and have a <code>seg</code> dict in hand.</p>
+</section>
+<section id="why-windows-matter" class="level2">
+<h2 class="anchored" data-anchor-id="why-windows-matter">Why windows matter</h2>
+<ul>
+<li><strong>Transport control</strong> — windows gate molecular diffusion through the material. Their size distribution dictates selectivity in gas-separation MOFs.</li>
+<li><strong>Pore Limiting Diameter (PLD)</strong> — the <em>smallest</em> window in a continuous path determines which molecules can pass.</li>
+<li><strong>Energy barriers</strong> — narrow windows create higher diffusion barriers and influence kinetic selectivity.</li>
+<li><strong>Connectivity of the pore graph</strong> — each window is an edge in the region-adjacency graph (RAG).</li>
+</ul>
+<section id="how-windows-are-defined" class="level3">
+<h3 class="anchored" data-anchor-id="how-windows-are-defined">How windows are defined</h3>
+<p>A window is the <strong>centroid of points in the shared boundary</strong> of two adjacent pore regions. The detection algorithm distinguishes two contact types:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 38%">
+<col style="width: 44%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Description</th>
+<th>In pore graph</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Internal</strong></td>
+<td>Both regions lie fully inside the unit cell</td>
+<td>Edge between nodes</td>
+</tr>
+<tr class="even">
+<td><strong>Periodic</strong></td>
+<td>One region sits across a unit-cell boundary</td>
+<td>Edge with an offset</td>
+</tr>
+</tbody>
+</table>
+<p>When two regions touch at <em>multiple</em> distinct points, <code>mofography</code> reports each window separately. The minimum spatial gap between two distinct windows is controlled by the <code>minimum_window_separation</code> parameter (Å). Internally this is an agglomerative-clustering distance threshold on the boundary points.</p>
+</section>
+</section>
+<section id="imports-and-structure" class="level2">
+<h2 class="anchored" data-anchor-id="imports-and-structure">Imports and structure</h2>
+<div id="07e9ec24" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="step-1-compute-the-distance-grid" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-compute-the-distance-grid">Step 1: Compute the distance grid</h2>
+<p><code>dgrid_from_atoms_rust</code> is the thread-parallel Rust backend — the correct choice for every cell type.</p>
+<div id="2547e225" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>atoms <span class="op">=</span> read(<span class="st">"IRMOF-1.cif"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>spacing <span class="op">=</span> <span class="fl">0.5</span>  <span class="co"># Å — see Quick Start for trade-offs</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span>spacing)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Grid shape: </span><span class="sc">{</span>dgrid<span class="sc">.</span>shape<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span>dgrid<span class="sc">.</span>size<span class="sc">:,}</span><span class="ss"> voxels)"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Void max:   </span><span class="sc">{</span>dgrid<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.1f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Grid shape: (52, 52, 52) (140,608 voxels)
+Void max:   7.5 Å</code></pre>
+</div>
+</div>
+</section>
+<section id="step-2-periodic-segmentation-with-windows" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-periodic-segmentation-with-windows">Step 2: Periodic segmentation with windows</h2>
+<p>Set <code>compute_connections=True</code> (default) so that the same call returns both the segmentation grid <strong>and</strong> the window list. The relevant tuning knobs for window detection are:</p>
+<ul>
+<li><code>minimum_window_separation</code> (Å) — distance threshold that splits boundary points into distinct windows. Default is <code>None</code>, which the function resolves internally; pass an explicit value to control window multiplicity.</li>
+<li><code>wall_thickness</code> — near-boundary band, as a fraction of the longest perpendicular cell length (not Å), used to filter maxima.</li>
+<li><code>extra_padding</code> (Å) — extra padding around the unit cell so that periodic windows are not clipped.</li>
+</ul>
+<div id="c579de1e" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dgrid_f32 <span class="op">=</span> dgrid.astype(np.float32)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>seg <span class="op">=</span> mgr.do_periodic_segmentation_rust(</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    dgrid_f32, atoms,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    spacing<span class="op">=</span>spacing,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">0.05</span>,        <span class="co"># void-space threshold (Å)</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    h<span class="op">=</span><span class="fl">0.2</span>,                      <span class="co"># H-maxima persistence</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    min_distance<span class="op">=</span><span class="fl">1.5</span>,           <span class="co"># min separation between distinct maxima (Å)</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    threshold_abs<span class="op">=</span><span class="fl">1.5</span>,          <span class="co"># absolute threshold for maxima (Å)</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    minimum_window_separation<span class="op">=</span><span class="fl">1.5</span>,  <span class="co"># Å — see "Tuning" section below</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    wall_thickness<span class="op">=</span><span class="fl">0.05</span>,        <span class="co"># Å</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    extra_padding<span class="op">=</span><span class="dv">5</span>,            <span class="co"># Å — PBC padding for window detection</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    compute_connections<span class="op">=</span><span class="va">True</span>,   <span class="co"># detect windows + build pore graph</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    watershed_backend<span class="op">=</span><span class="st">"rust_det"</span>,</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    disable_tqdm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pockets (PBC-grouped): </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'maxima_pbc'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unique regions:        </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'unique_regions'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Window connections:    </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'connections'</span>])<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pockets (PBC-grouped): 8
+Unique regions:        27
+Window connections:    300</code></pre>
+</div>
+</div>
+</section>
+<section id="step-3-inspect-segconnections" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-inspect-segconnections">Step 3: Inspect <code>seg['connections']</code></h2>
+<p>The <code>connections</code> entry is a list of <code>numpy</code> arrays, one per window. Each array has five elements:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 43%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Index</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>c[0]</code></td>
+<td>Two region labels that the window connects</td>
+</tr>
+<tr class="even">
+<td><code>c[1]</code></td>
+<td>Confirmation flag (currently always <code>True</code> for a detected window)</td>
+</tr>
+<tr class="odd">
+<td><code>c[2]</code></td>
+<td><code>'internal'</code> or <code>'periodic'</code></td>
+</tr>
+<tr class="even">
+<td><code>c[3]</code></td>
+<td>Window centroid coordinates (shape <code>(1, 3)</code>)</td>
+</tr>
+<tr class="odd">
+<td><code>c[4]</code></td>
+<td>Window radius in Å (shape <code>(1,)</code>)</td>
+</tr>
+</tbody>
+</table>
+<div id="fee20da9" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>connections <span class="op">=</span> seg[<span class="st">"connections"</span>]</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>c <span class="op">=</span> connections[<span class="dv">0</span>]</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Type:    "</span>, <span class="bu">type</span>(c).<span class="va">__name__</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Length:  "</span>, <span class="bu">len</span>(c))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"c[0] regions:"</span>, c[<span class="dv">0</span>])</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"c[1] flag:   "</span>, c[<span class="dv">1</span>])</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"c[2] type:   "</span>, c[<span class="dv">2</span>])</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"c[3] centre: "</span>, c[<span class="dv">3</span>])</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"c[4] radius: "</span>, c[<span class="dv">4</span>], <span class="st">"Å  →  diameter ="</span>, <span class="bu">float</span>(c[<span class="dv">4</span>][<span class="dv">0</span>]) <span class="op">*</span> <span class="dv">2</span>, <span class="st">"Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Type:     ndarray
+Length:   5
+c[0] regions: [49 83]
+c[1] flag:    True
+c[2] type:    periodic
+c[3] centre:  [[ 33.53192308 -12.916       38.748     ]]
+c[4] radius:  [3.67783356] Å  →  diameter = 7.3556671142578125 Å</code></pre>
+</div>
+</div>
+</section>
+<section id="step-4-trim-to-unit-cell-connections" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-trim-to-unit-cell-connections">Step 4: Trim to unit-cell connections</h2>
+<p><code>do_periodic_segmentation_rust</code> reports every window it finds in the <em>padded</em> analysis domain, including windows between regions that only exist in the padding. To get a single, non-over-counted set of connections inside the unit cell, keep the windows that touch at least one region in <code>unique_regions</code>.</p>
+<div id="f56296cc" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>unique_regions <span class="op">=</span> seg[<span class="st">"unique_regions"</span>]</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>connections_trimmed <span class="op">=</span> np.array([</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    c <span class="cf">for</span> c <span class="kw">in</span> connections</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> np.<span class="bu">any</span>(np.isin(c[<span class="dv">0</span>], unique_regions))</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>])</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"All detected windows:  </span><span class="sc">{</span><span class="bu">len</span>(connections)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unit-cell windows:     </span><span class="sc">{</span><span class="bu">len</span>(connections_trimmed)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>All detected windows:  300
+Unit-cell windows:     108</code></pre>
+</div>
+</div>
+</section>
+<section id="step-5-internal-vs-periodic-windows" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-internal-vs-periodic-windows">Step 5: Internal vs periodic windows</h2>
+<div id="3fd1eb68" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>internal <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> connections_trimmed <span class="cf">if</span> c[<span class="dv">2</span>] <span class="op">==</span> <span class="st">"internal"</span>]</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>periodic <span class="op">=</span> [c <span class="cf">for</span> c <span class="kw">in</span> connections_trimmed <span class="cf">if</span> c[<span class="dv">2</span>] <span class="op">==</span> <span class="st">"periodic"</span>]</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Internal:  </span><span class="sc">{</span><span class="bu">len</span>(internal)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Periodic:  </span><span class="sc">{</span><span class="bu">len</span>(periodic)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Window positions and radii</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>all_radii    <span class="op">=</span> np.array([<span class="bu">float</span>(c[<span class="dv">4</span>][<span class="dv">0</span>]) <span class="cf">for</span> c <span class="kw">in</span> connections_trimmed])</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>all_centres  <span class="op">=</span> np.array([c[<span class="dv">3</span>].flatten()  <span class="cf">for</span> c <span class="kw">in</span> connections_trimmed])</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>all_diameters <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> all_radii</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Internal:  54
+Periodic:  54</code></pre>
+</div>
+</div>
+</section>
+<section id="step-6-window-size-statistics" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-window-size-statistics">Step 6: Window-size statistics</h2>
+<div id="9946a47a" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"WINDOW SIZE STATISTICS"</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Total windows:        </span><span class="sc">{</span><span class="bu">len</span>(all_diameters)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pore Limiting Diam.:  </span><span class="sc">{</span>all_diameters<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.3f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Largest diameter:     </span><span class="sc">{</span>all_diameters<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Mean diameter:        </span><span class="sc">{</span>all_diameters<span class="sc">.</span>mean()<span class="sc">:.3f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Median diameter:      </span><span class="sc">{</span>np<span class="sc">.</span>median(all_diameters)<span class="sc">:.3f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">50</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>==================================================
+WINDOW SIZE STATISTICS
+==================================================
+Total windows:        108
+Pore Limiting Diam.:  7.356 Å
+Largest diameter:     7.914 Å
+Mean diameter:        7.632 Å
+Median diameter:      7.420 Å
+==================================================</code></pre>
+</div>
+</div>
+<p>The <strong>PLD</strong> (<code>min</code> diameter) is the smallest window in the unit cell — it is a hard upper bound on the diameter of a sphere that can diffuse through a single repeating cell of this MOF.</p>
+</section>
+<section id="step-7-visualize-windows-with-show_mof_plotly" class="level2">
+<h2 class="anchored" data-anchor-id="step-7-visualize-windows-with-show_mof_plotly">Step 7: Visualize windows with <code>show_mof_plotly</code></h2>
+<p><code>show_mof_plotly</code> consumes the full <code>seg</code> dict, so window markers come along for the ride. There is no need to call <code>plot_connections_as_it_is</code> separately — pass <code>stylize=True</code> for a clean dark theme and <code>fig.show()</code> to render the interactive Plotly figure inline.</p>
+<div id="c7d8c80e" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> mgr.show_mof_plotly(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    seg, atoms,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    framework_atoms<span class="op">=</span>atoms,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    stylize<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>fig.update_layout(title<span class="op">=</span><span class="bu">dict</span>(text<span class="op">=</span><span class="st">"IRMOF-1: Pore Windows"</span>, x<span class="op">=</span><span class="fl">0.5</span>))</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"tutorial_images/connections_and_windows_windows.png"</span>, width<span class="op">=</span><span class="dv">1100</span>, height<span class="op">=</span><span class="dv">800</span>)  <span class="co"># static preview for the docs</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+[TIMING batched_mesh_for_atoms] 472 atoms, 1024 bonds | spheres: 0.00s, cylinders: 0.00s, concat: 0.00s | total faces: 212480</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/connections_and_windows_windows.png" class="img-fluid figure-img"></p>
+<figcaption>IRMOF-1 pore windows</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled" title="Interactive version">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Interactive version
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> mgr.show_mof_plotly(seg, atoms, framework_atoms<span class="op">=</span>atoms, stylize<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>fig.show()   <span class="co"># rotate, zoom, hover over windows</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+<p><a href="interactive/irmof1_pockets_windows_threejs.html" target="_blank">Open the interactive version</a></p>
+<p>You should see:</p>
+<ul>
+<li>coloured surfaces for the pore regions,</li>
+<li>spheres at pore centres (maxima),</li>
+<li><strong>markers at the windows</strong> between regions, and</li>
+<li>a translucent framework mesh.</li>
+</ul>
+<p>Because the figure is a Plotly <code>Figure</code> (in the interactive version), you can rotate, zoom, and hover over each window to read its region labels, contact type, and diameter directly from the metadata baked into the trace.</p>
+</section>
+<section id="step-8-histogram-of-window-diameters" class="level2">
+<h2 class="anchored" data-anchor-id="step-8-histogram-of-window-diameters">Step 8: Histogram of window diameters</h2>
+<p>A quick sanity check on the size distribution:</p>
+<div id="db065905" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>fig3 <span class="op">=</span> px.histogram(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>all_diameters,</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    nbins<span class="op">=</span><span class="dv">25</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"x"</span>: <span class="st">"Window diameter (Å)"</span>},</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"IRMOF-1: Distribution of window diameters"</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    color_discrete_sequence<span class="op">=</span>[<span class="st">"steelblue"</span>],</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>fig3.add_vline(</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span>all_diameters.<span class="bu">min</span>(),</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    line_dash<span class="op">=</span><span class="st">"dash"</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    line_color<span class="op">=</span><span class="st">"red"</span>,</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    annotation_text<span class="op">=</span><span class="ss">f"PLD = </span><span class="sc">{</span>all_diameters<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.2f}</span><span class="ss"> Å"</span>,</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>fig3.update_layout(showlegend<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>fig3.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div style="height:525px; width:100%;">            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script>if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.7.0.min.js" integrity="sha256-jvTGqxNp8AGWEcvNLVuKr+8j5dGe9Yw51LQkmDH+IYA=" crossorigin="anonymous"></script>                <div id="095d326d-58d3-4589-90f9-193d110d5142" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("095d326d-58d3-4589-90f9-193d110d5142")) {                    Plotly.newPlot(                        "095d326d-58d3-4589-90f9-193d110d5142",                        [{"bingroup":"x","hovertemplate":"Window diameter (Å)=%{x}\u003cbr\u003ecount=%{y}\u003cextra\u003e\u003c\u002fextra\u003e","legendgroup":"","marker":{"color":"steelblue","pattern":{"shape":""}},"name":"","nbinsx":25,"orientation":"v","showlegend":false,"x":{"dtype":"f8","bdata":"AAAAQIinH0AAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAABAiKcfQAAAAECIpx9AAAAAADRsHUAAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAABAiKcfQAAAACAprh1AAAAAQIinH0AAAABAiKcfQAAAAECIpx9AAAAAICmuHUAAAAAgKa4dQAAAAAA0bB1AAAAAQIinH0AAAABAiKcfQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAAAgKa4dQAAAAAA0bB1AAAAAQIinH0AAAABAiKcfQAAAACAprh1AAAAAICmuHUAAAAAgKa4dQAAAAECIpx9AAAAAQIinH0AAAABAiKcfQAAAACAprh1AAAAAICmuHUAAAAAANGwdQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAAECIpx9AAAAAICmuHUAAAAAgKa4dQAAAAECIpx9AAAAAICmuHUAAAABAiKcfQAAAACAprh1AAAAAQIinH0AAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAABAiKcfQAAAAAA0bB1AAAAAQIinH0AAAAAANGwdQAAAACAprh1AAAAAICmuHUAAAAAgKa4dQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAAAA0bB1AAAAAADRsHUAAAABAiKcfQAAAACAprh1AAAAAQIinH0AAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAABAiKcfQAAAAECIpx9AAAAAICmuHUAAAAAANGwdQAAAAECIpx9AAAAAICmuHUAAAABAiKcfQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAAECIpx9AAAAAQIinH0AAAAAgKa4dQAAAACAprh1AAAAAICmuHUAAAABAiKcfQAAAACAprh1AAAAAQIinH0AAAABAiKcfQAAAACAprh1AAAAAQIinH0AAAAAANGwdQAAAAECIpx9AAAAAQIinH0AAAABAiKcfQAAAAAA0bB1AAAAAICmuHUAAAABAiKcfQAAAAECIpx9AAAAAICmuHUAAAABAiKcfQAAAAAA0bB1AAAAAICmuHUAAAAAgKa4dQAAAACAprh1A"},"xaxis":"x","yaxis":"y","type":"histogram"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30}}},"xaxis":{"anchor":"y","domain":[0.0,1.0],"title":{"text":"Window diameter (Å)"}},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"text":"count"}},"legend":{"tracegroupgap":0},"title":{"text":"IRMOF-1: Distribution of window diameters"},"barmode":"relative","shapes":[{"line":{"color":"red","dash":"dash"},"type":"line","x0":7.3556671142578125,"x1":7.3556671142578125,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"annotations":[{"showarrow":false,"text":"PLD = 7.36 Å","x":7.3556671142578125,"xanchor":"left","xref":"x","y":1,"yanchor":"top","yref":"y domain"}],"showlegend":false},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('095d326d-58d3-4589-90f9-193d110d5142');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+<p>For IRMOF-1 you should see a narrow, roughly symmetric peak centred near the mean diameter, with the red dashed line marking the PLD at the left tail.</p>
+</section>
+<section id="tuning-minimum_window_separation" class="level2">
+<h2 class="anchored" data-anchor-id="tuning-minimum_window_separation">Tuning <code>minimum_window_separation</code></h2>
+<p>This parameter is the <strong>distance threshold</strong> that the internal agglomerative clustering uses to split boundary points into distinct windows. Concretely:</p>
+<ul>
+<li><strong>Larger value</strong> → boundary points further apart than <code>minimum_window_separation</code> Å are <em>not</em> merged → fewer, more distinct windows per region-pair.</li>
+<li><strong>Smaller value</strong> → closer points are allowed to cluster together → fewer windows per region-pair, but each centroid is more stable.</li>
+<li><strong>Set to <code>None</code></strong> (default) → the function chooses a sensible internal default. Set it explicitly whenever you have a domain-specific expectation (e.g.&nbsp;you know two apertures must be resolved).</li>
+</ul>
+<p>If the windows appear in the wrong positions, or two clearly distinct windows are being merged into one, start by adjusting <code>minimum_window_separation</code> before re-tuning <code>h</code> or <code>threshold_abs</code>.</p>
+</section>
+<section id="troubleshooting" class="level2">
+<h2 class="anchored" data-anchor-id="troubleshooting">Troubleshooting</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 32%">
+<col style="width: 50%">
+<col style="width: 17%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>No connections found</td>
+<td><code>compute_connections=False</code>, or segmentation produced a single region</td>
+<td>Re-run with <code>compute_connections=True</code>; relax <code>h</code> / <code>threshold_abs</code></td>
+</tr>
+<tr class="even">
+<td>Windows appear in the wrong positions</td>
+<td>Boundary points being merged across distinct apertures</td>
+<td>Lower <code>minimum_window_separation</code></td>
+</tr>
+<tr class="odd">
+<td>Too few windows overall</td>
+<td>Over-aggressive merging</td>
+<td>Raise <code>minimum_window_separation</code> and/or relax <code>h</code></td>
+</tr>
+<tr class="even">
+<td>Periodic windows clipped</td>
+<td>Padding too small</td>
+<td>Increase <code>extra_padding</code></td>
+</tr>
+<tr class="odd">
+<td>Window radii are noisy</td>
+<td>Boundary points straddling multiple regions</td>
+<td>Lower <code>wall_thickness</code> and rerun</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="where-to-go-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-go-next">Where to go next</h2>
+<ul>
+<li><a href="./quick_start.html">Quick Start: Full MOF Pore Analysis</a> — the canonical 3-function workflow this tutorial builds on.</li>
+<li><a href="./pore_graph.html">Pore Graph (RAG)</a> — once you have windows, you can build the Region Adjacency Graph.</li>
+<li><a href="./pockets_detection.html">Pockets detection</a> — classify each pore as a cage, channel, or dead-end pocket.</li>
+</ul>
+<section id="advanced-window-analysis" class="level3">
+<h3 class="anchored" data-anchor-id="advanced-window-analysis">Advanced window analysis</h3>
+<p>These notes document experimental refinements on top of the basic <code>connections</code> list:</p>
+<ul>
+<li><a href="./window_fingerprinting.html">Window fingerprinting</a> — direction-invariant element-weighted fingerprints of the framework shell around each window. Used for <strong>accessible</strong> surface-area and void-volume curation, the <code>Mechanism A</code> / <code>Mechanism B</code> PLD distinction, optional DFSD signals, and prototype window-type detection.</li>
+</ul>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/connections_and_windows.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

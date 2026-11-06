@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Pore diameters with the winding method: parity with Zeo++ – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script>
+window.PlotlyConfig = {MathJaxConfig: 'local'};
+if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+</script>
+<script type="module">import "https://cdn.plot.ly/plotly-3.7.0.min"</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@*/dist/embed-amd.js" crossorigin="anonymous"></script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Pore diameters with the winding method: parity with Zeo++ – mofography">
+<meta property="og:description" content="Pore graphs for periodic nanoporous materials: segmentation, textural properties, windows, percolation, and ML features from one calculation.">
+<meta property="og:site_name" content="mofography">
+<meta name="twitter:title" content="Pore diameters with the winding method: parity with Zeo++ – mofography">
+<meta name="twitter:description" content="Pore graphs for periodic nanoporous materials: segmentation, textural properties, windows, percolation, and ML features from one calculation.">
+<meta name="twitter:card" content="summary">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#importing-the-necessary-libraries" id="toc-importing-the-necessary-libraries" class="nav-link active" data-scroll-target="#importing-the-necessary-libraries">Importing the necessary libraries</a></li>
+  <li><a href="#load-the-dataset" id="toc-load-the-dataset" class="nav-link" data-scroll-target="#load-the-dataset">Load the dataset</a></li>
+  <li><a href="#create-ase-atoms-objects-from-the-dataframe" id="toc-create-ase-atoms-objects-from-the-dataframe" class="nav-link" data-scroll-target="#create-ase-atoms-objects-from-the-dataframe">Create ASE atoms objects from the dataframe</a></li>
+  <li><a href="#pore-diameter-calculation-winding-method" id="toc-pore-diameter-calculation-winding-method" class="nav-link" data-scroll-target="#pore-diameter-calculation-winding-method">Pore diameter calculation (winding method)</a></li>
+  <li><a href="#iza-parity-plot-winding-vs-zeo" id="toc-iza-parity-plot-winding-vs-zeo" class="nav-link" data-scroll-target="#iza-parity-plot-winding-vs-zeo">IZA parity plot (winding vs Zeo++)</a></li>
+  <li><a href="#comparison-only-face-merging-older-less-accurate" id="toc-comparison-only-face-merging-older-less-accurate" class="nav-link" data-scroll-target="#comparison-only-face-merging-older-less-accurate">Comparison only: face merging (older, less accurate)</a></li>
+  <li><a href="#core-mof-2019-not-executed-here" id="toc-core-mof-2019-not-executed-here" class="nav-link" data-scroll-target="#core-mof-2019-not-executed-here">CoRE-MOF 2019 (not executed here)</a></li>
+  <li><a href="#conclusions" id="toc-conclusions" class="nav-link" data-scroll-target="#conclusions">Conclusions</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.dev/mofography/mofography/blob/main/compute_pore_diameters.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Pore diameters with the winding method: parity with Zeo++</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>In this notebook we take the IZA zeolite dataset from MOFDB and compare the LCD and PLD tabulated there (Zeo++) with the values computed by mofography’s <strong>winding-number percolation</strong> (<code>get_pore_dia_mgr_winding</code>, the standard method), and make parity plots. The older face-merging method is run at the end for comparison only.</p>
+<section id="importing-the-necessary-libraries" class="level2">
+<h2 class="anchored" data-anchor-id="importing-the-necessary-libraries">Importing the necessary libraries</h2>
+<div id="cell-3" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings, logging</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>logging.disable(logging.WARNING)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> plotly.subplots <span class="im">import</span> make_subplots</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> r2_score, mean_absolute_error</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># for the parallel workflow</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> dask</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dask <span class="im">import</span> delayed</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> dask.distributed <span class="im">import</span> Client</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="load-the-dataset" class="level2">
+<h2 class="anchored" data-anchor-id="load-the-dataset">Load the dataset</h2>
+<p><code>get_data_from_mofdb</code> is an <code>async</code> function (it queries the MOFDB web API), so it must be awaited. In a notebook cell use top-level <code>await</code>; in a script use <code>asyncio.run(...)</code>.</p>
+<div id="cell-5" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>iza_df <span class="op">=</span> <span class="cf">await</span> mgr.get_data_from_mofdb(params<span class="op">=</span>{<span class="st">"database"</span>: <span class="st">"IZA"</span>})</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(iza_df.shape)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>iza_df[[<span class="st">"name"</span>, <span class="st">"lcd"</span>, <span class="st">"pld"</span>]].head()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<script type="application/vnd.jupyter.widget-view+json">
+{"model_id":"de6be8ad0ee84255affd140b6071e62b","version_major":2,"version_minor":0,"quarto_mimetype":"application/vnd.jupyter.widget-view+json"}
+</script>
+</div>
+<div class="cell-output cell-output-display">
+<pre style="white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace"></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>(216, 21)</code></pre>
+</div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<div>
+
+
+<table class="dataframe caption-top table table-sm table-striped small" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">name</th>
+<th data-quarto-table-cell-role="th">lcd</th>
+<th data-quarto-table-cell-role="th">pld</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">0</th>
+<td>ABW-0</td>
+<td>3.60282</td>
+<td>2.88024</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">1</th>
+<td>ACO-0</td>
+<td>3.92937</td>
+<td>2.93515</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">2</th>
+<td>AEI-0</td>
+<td>6.69320</td>
+<td>3.21360</td>
+</tr>
+<tr class="even">
+<th data-quarto-table-cell-role="th">3</th>
+<td>AEL-0</td>
+<td>4.99656</td>
+<td>3.98810</td>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">4</th>
+<td>AEN-0</td>
+<td>3.79191</td>
+<td>3.03180</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+</section>
+<section id="create-ase-atoms-objects-from-the-dataframe" class="level2">
+<h2 class="anchored" data-anchor-id="create-ase-atoms-objects-from-the-dataframe">Create ASE atoms objects from the dataframe</h2>
+<div id="cell-7" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>iza_atoms <span class="op">=</span> mgr.atoms_from_mofdb_df(iza_df)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="pore-diameter-calculation-winding-method" class="level2">
+<h2 class="anchored" data-anchor-id="pore-diameter-calculation-winding-method">Pore diameter calculation (winding method)</h2>
+<p><code>get_pore_dia_mgr_winding(mat_atoms, kwargs=...)</code> takes a distance grid (computed with <code>dgrid_from_atoms_rust</code>, as float32), builds the periodic segmentation and the pore graph, then returns <code>(lcd, pld, lis, dgrid)</code> (diameters in Å). LIS (largest included sphere along percolating pathways) is what older code calls DFSD. We run it over the whole dataset with dask. (There is no <code>compute_pore_diameters_winding</code> function; this is the one-call entry point.)</p>
+<div id="cell-9" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_pore_dia_winding(mat_atoms):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    spacing <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># pass a float32 dgrid: the Rust segmentation rejects float64 grids</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(mat_atoms, spacing<span class="op">=</span>spacing).astype(np.float32)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    lcd, pld, lis, _ <span class="op">=</span> mgr.get_pore_dia_mgr_winding(mat_atoms, dgrid<span class="op">=</span>dgrid, kwargs<span class="op">=</span><span class="bu">dict</span>(spacing<span class="op">=</span>spacing))</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> lcd, pld, lis</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> safe_result(f):</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># blocks until the task finishes; failed structures become None</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">try</span>:</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> f.result()</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">except</span> <span class="pp">Exception</span>:</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">None</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>client <span class="op">=</span> Client(processes<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>futures <span class="op">=</span> client.compute([delayed(get_pore_dia_winding)(a) <span class="cf">for</span> a <span class="kw">in</span> iza_atoms])</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>iza_pore_dias <span class="op">=</span> [safe_result(f) <span class="cf">for</span> f <span class="kw">in</span> futures]</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>n_ok <span class="op">=</span> <span class="bu">sum</span>(d <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span> <span class="cf">for</span> d <span class="kw">in</span> iza_pore_dias)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>n_ok<span class="sc">}</span><span class="ss">/</span><span class="sc">{</span><span class="bu">len</span>(iza_pore_dias)<span class="sc">}</span><span class="ss"> structures finished"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>212/216 structures finished</code></pre>
+</div>
+</div>
+</section>
+<section id="iza-parity-plot-winding-vs-zeo" class="level2">
+<h2 class="anchored" data-anchor-id="iza-parity-plot-winding-vs-zeo">IZA parity plot (winding vs Zeo++)</h2>
+<div id="cell-11" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># grab the lcd and pld values from both</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>lcd_mgr <span class="op">=</span> np.array([d[<span class="dv">0</span>] <span class="cf">if</span> d <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span> <span class="cf">else</span> <span class="va">None</span> <span class="cf">for</span> d <span class="kw">in</span> iza_pore_dias])</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>lcd_zeo <span class="op">=</span> iza_df[<span class="st">'lcd'</span>].values</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>pld_mgr <span class="op">=</span> np.array([d[<span class="dv">1</span>] <span class="cf">if</span> d <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span> <span class="cf">else</span> <span class="va">None</span> <span class="cf">for</span> d <span class="kw">in</span> iza_pore_dias])</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>pld_zeo <span class="op">=</span> iza_df[<span class="st">'pld'</span>].values</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Create subplots</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> make_subplots(rows<span class="op">=</span><span class="dv">1</span>, cols<span class="op">=</span><span class="dv">2</span>, subplot_titles<span class="op">=</span>(<span class="st">"(a) LCD"</span>, <span class="st">"(b) PLD"</span>),</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>                    horizontal_spacing<span class="op">=</span><span class="fl">0.1</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="co"># LCD subplot</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>fig.add_trace(</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    go.Scatter(</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span>lcd_mgr,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        y<span class="op">=</span>lcd_zeo,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>        mode<span class="op">=</span><span class="st">'markers'</span>,</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">10</span>, line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'black'</span>, width<span class="op">=</span><span class="dv">1</span>)),</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">'LCD Data'</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">1</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>fig.add_trace(</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    go.Scatter(</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(lcd_zeo)<span class="op">+</span><span class="dv">3</span>],</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>        y<span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(lcd_zeo)<span class="op">+</span><span class="dv">3</span>],</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>        mode<span class="op">=</span><span class="st">'lines'</span>,</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>        line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'black'</span>, width<span class="op">=</span><span class="dv">1</span>, dash<span class="op">=</span><span class="st">'dash'</span>),</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">'LCD Parity Line'</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">1</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a><span class="co"># PLD subplot</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>fig.add_trace(</span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>    go.Scatter(</span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span>pld_mgr,  <span class="co"># Assuming you have pld_mgr data</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>        y<span class="op">=</span>pld_zeo,  <span class="co"># Assuming you have pld_zeo data</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>        mode<span class="op">=</span><span class="st">'markers'</span>,</span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>        marker<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">10</span>, line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'black'</span>, width<span class="op">=</span><span class="dv">1</span>)),</span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">'PLD Data'</span></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">2</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>fig.add_trace(</span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    go.Scatter(</span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(pld_zeo)<span class="op">+</span><span class="dv">3</span>],</span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>        y<span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(pld_zeo)<span class="op">+</span><span class="dv">3</span>],</span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>        mode<span class="op">=</span><span class="st">'lines'</span>,</span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>        line<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'black'</span>, width<span class="op">=</span><span class="dv">1</span>, dash<span class="op">=</span><span class="st">'dash'</span>),</span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>        name<span class="op">=</span><span class="st">'PLD Parity Line'</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">2</span></span>
+<span id="cb7-53"><a href="#cb7-53" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-54"><a href="#cb7-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-55"><a href="#cb7-55" aria-hidden="true" tabindex="-1"></a><span class="co"># Update layout for both subplots</span></span>
+<span id="cb7-56"><a href="#cb7-56" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb7-57"><a href="#cb7-57" aria-hidden="true" tabindex="-1"></a>    template<span class="op">=</span><span class="st">'simple_white'</span>,</span>
+<span id="cb7-58"><a href="#cb7-58" aria-hidden="true" tabindex="-1"></a>    showlegend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-59"><a href="#cb7-59" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(family<span class="op">=</span><span class="st">'Arial'</span>),</span>
+<span id="cb7-60"><a href="#cb7-60" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="dv">1200</span>,</span>
+<span id="cb7-61"><a href="#cb7-61" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="dv">600</span>,</span>
+<span id="cb7-62"><a href="#cb7-62" aria-hidden="true" tabindex="-1"></a>    autosize<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-63"><a href="#cb7-63" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-64"><a href="#cb7-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-65"><a href="#cb7-65" aria-hidden="true" tabindex="-1"></a><span class="co"># Update x and y axes for both subplots</span></span>
+<span id="cb7-66"><a href="#cb7-66" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> [<span class="dv">1</span>, <span class="dv">2</span>]:</span>
+<span id="cb7-67"><a href="#cb7-67" aria-hidden="true" tabindex="-1"></a>    fig.update_xaxes(</span>
+<span id="cb7-68"><a href="#cb7-68" aria-hidden="true" tabindex="-1"></a>        title<span class="op">=</span><span class="bu">dict</span>(text<span class="op">=</span><span class="st">'MOFography (</span><span class="ch">\u212b</span><span class="st">)'</span>, font<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">14</span>)),</span>
+<span id="cb7-69"><a href="#cb7-69" aria-hidden="true" tabindex="-1"></a>        tickfont<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">12</span>),</span>
+<span id="cb7-70"><a href="#cb7-70" aria-hidden="true" tabindex="-1"></a>        mirror<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb7-71"><a href="#cb7-71" aria-hidden="true" tabindex="-1"></a>        showgrid<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-72"><a href="#cb7-72" aria-hidden="true" tabindex="-1"></a>        <span class="bu">range</span><span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(lcd_zeo <span class="cf">if</span> i <span class="op">==</span> <span class="dv">1</span> <span class="cf">else</span> pld_zeo) <span class="op">+</span> <span class="dv">3</span>],</span>
+<span id="cb7-73"><a href="#cb7-73" aria-hidden="true" tabindex="-1"></a>        row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span>i</span>
+<span id="cb7-74"><a href="#cb7-74" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb7-75"><a href="#cb7-75" aria-hidden="true" tabindex="-1"></a>    fig.update_yaxes(</span>
+<span id="cb7-76"><a href="#cb7-76" aria-hidden="true" tabindex="-1"></a>        title<span class="op">=</span><span class="bu">dict</span>(text<span class="op">=</span><span class="st">'Zeo++ (</span><span class="ch">\u212b</span><span class="st">)'</span>, font<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">14</span>)),</span>
+<span id="cb7-77"><a href="#cb7-77" aria-hidden="true" tabindex="-1"></a>        tickfont<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">12</span>),</span>
+<span id="cb7-78"><a href="#cb7-78" aria-hidden="true" tabindex="-1"></a>        mirror<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb7-79"><a href="#cb7-79" aria-hidden="true" tabindex="-1"></a>        showgrid<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-80"><a href="#cb7-80" aria-hidden="true" tabindex="-1"></a>        <span class="bu">range</span><span class="op">=</span>[<span class="dv">0</span>, <span class="bu">max</span>(lcd_zeo <span class="cf">if</span> i <span class="op">==</span> <span class="dv">1</span> <span class="cf">else</span> pld_zeo) <span class="op">+</span> <span class="dv">3</span>],</span>
+<span id="cb7-81"><a href="#cb7-81" aria-hidden="true" tabindex="-1"></a>        row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span>i</span>
+<span id="cb7-82"><a href="#cb7-82" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb7-83"><a href="#cb7-83" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to remove NaN entries from both arrays</span></span>
+<span id="cb7-84"><a href="#cb7-84" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> remove_nan_pairs(arr1, arr2):</span>
+<span id="cb7-85"><a href="#cb7-85" aria-hidden="true" tabindex="-1"></a>    arr1 <span class="op">=</span> np.array(arr1, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb7-86"><a href="#cb7-86" aria-hidden="true" tabindex="-1"></a>    arr2 <span class="op">=</span> np.array(arr2, dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb7-87"><a href="#cb7-87" aria-hidden="true" tabindex="-1"></a>    mask <span class="op">=</span> <span class="op">~</span>np.isnan(arr1) <span class="op">&amp;</span> <span class="op">~</span>np.isnan(arr2)</span>
+<span id="cb7-88"><a href="#cb7-88" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> arr1[mask], arr2[mask]</span>
+<span id="cb7-89"><a href="#cb7-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-90"><a href="#cb7-90" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove NaN entries and compute R² and MAE for LCD</span></span>
+<span id="cb7-91"><a href="#cb7-91" aria-hidden="true" tabindex="-1"></a>lcd_zeo_clean, lcd_mgr_clean <span class="op">=</span> remove_nan_pairs(lcd_zeo, lcd_mgr)</span>
+<span id="cb7-92"><a href="#cb7-92" aria-hidden="true" tabindex="-1"></a>lcd_r2 <span class="op">=</span> r2_score(lcd_zeo_clean, lcd_mgr_clean)</span>
+<span id="cb7-93"><a href="#cb7-93" aria-hidden="true" tabindex="-1"></a>lcd_mae <span class="op">=</span> mean_absolute_error(lcd_zeo_clean, lcd_mgr_clean)</span>
+<span id="cb7-94"><a href="#cb7-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-95"><a href="#cb7-95" aria-hidden="true" tabindex="-1"></a><span class="co"># Remove NaN entries and compute R² and MAE for PLD</span></span>
+<span id="cb7-96"><a href="#cb7-96" aria-hidden="true" tabindex="-1"></a>pld_zeo_clean, pld_mgr_clean <span class="op">=</span> remove_nan_pairs(pld_zeo, pld_mgr)</span>
+<span id="cb7-97"><a href="#cb7-97" aria-hidden="true" tabindex="-1"></a>pld_r2 <span class="op">=</span> r2_score(pld_zeo_clean, pld_mgr_clean)</span>
+<span id="cb7-98"><a href="#cb7-98" aria-hidden="true" tabindex="-1"></a>pld_mae <span class="op">=</span> mean_absolute_error(pld_zeo_clean, pld_mgr_clean)</span>
+<span id="cb7-99"><a href="#cb7-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-100"><a href="#cb7-100" aria-hidden="true" tabindex="-1"></a><span class="co"># Add annotations for LCD</span></span>
+<span id="cb7-101"><a href="#cb7-101" aria-hidden="true" tabindex="-1"></a>fig.add_annotation(</span>
+<span id="cb7-102"><a href="#cb7-102" aria-hidden="true" tabindex="-1"></a>    text<span class="op">=</span><span class="ss">f"R²: </span><span class="sc">{</span>lcd_r2<span class="sc">:.2f}</span><span class="ss">&lt;br&gt;MAE: </span><span class="sc">{</span>lcd_mae<span class="sc">:.2f}</span><span class="ss"> Å"</span>,</span>
+<span id="cb7-103"><a href="#cb7-103" aria-hidden="true" tabindex="-1"></a>    xref<span class="op">=</span><span class="st">"x1"</span>, yref<span class="op">=</span><span class="st">"y1"</span>,</span>
+<span id="cb7-104"><a href="#cb7-104" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="fl">0.05</span> <span class="op">*</span> <span class="bu">max</span>(lcd_zeo), y<span class="op">=</span><span class="fl">0.95</span> <span class="op">*</span> <span class="bu">max</span>(lcd_zeo),</span>
+<span id="cb7-105"><a href="#cb7-105" aria-hidden="true" tabindex="-1"></a>    showarrow<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-106"><a href="#cb7-106" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">14</span>),</span>
+<span id="cb7-107"><a href="#cb7-107" aria-hidden="true" tabindex="-1"></a>    bgcolor<span class="op">=</span><span class="st">"white"</span>,</span>
+<span id="cb7-108"><a href="#cb7-108" aria-hidden="true" tabindex="-1"></a>    opacity<span class="op">=</span><span class="fl">0.8</span>,</span>
+<span id="cb7-109"><a href="#cb7-109" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">1</span></span>
+<span id="cb7-110"><a href="#cb7-110" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-111"><a href="#cb7-111" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-112"><a href="#cb7-112" aria-hidden="true" tabindex="-1"></a><span class="co"># Add annotations for PLD</span></span>
+<span id="cb7-113"><a href="#cb7-113" aria-hidden="true" tabindex="-1"></a>fig.add_annotation(</span>
+<span id="cb7-114"><a href="#cb7-114" aria-hidden="true" tabindex="-1"></a>    text<span class="op">=</span><span class="ss">f"R²: </span><span class="sc">{</span>pld_r2<span class="sc">:.2f}</span><span class="ss">&lt;br&gt;MAE: </span><span class="sc">{</span>pld_mae<span class="sc">:.2f}</span><span class="ss"> Å"</span>,</span>
+<span id="cb7-115"><a href="#cb7-115" aria-hidden="true" tabindex="-1"></a>    xref<span class="op">=</span><span class="st">"x2"</span>, yref<span class="op">=</span><span class="st">"y2"</span>,</span>
+<span id="cb7-116"><a href="#cb7-116" aria-hidden="true" tabindex="-1"></a>    x<span class="op">=</span><span class="fl">0.05</span> <span class="op">*</span> <span class="bu">max</span>(pld_zeo), y<span class="op">=</span><span class="fl">0.95</span> <span class="op">*</span> <span class="bu">max</span>(pld_zeo),</span>
+<span id="cb7-117"><a href="#cb7-117" aria-hidden="true" tabindex="-1"></a>    showarrow<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb7-118"><a href="#cb7-118" aria-hidden="true" tabindex="-1"></a>    font<span class="op">=</span><span class="bu">dict</span>(size<span class="op">=</span><span class="dv">14</span>),</span>
+<span id="cb7-119"><a href="#cb7-119" aria-hidden="true" tabindex="-1"></a>    bgcolor<span class="op">=</span><span class="st">"white"</span>,</span>
+<span id="cb7-120"><a href="#cb7-120" aria-hidden="true" tabindex="-1"></a>    opacity<span class="op">=</span><span class="fl">0.8</span>,</span>
+<span id="cb7-121"><a href="#cb7-121" aria-hidden="true" tabindex="-1"></a>    row<span class="op">=</span><span class="dv">1</span>, col<span class="op">=</span><span class="dv">2</span></span>
+<span id="cb7-122"><a href="#cb7-122" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb7-123"><a href="#cb7-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-124"><a href="#cb7-124" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div style="height:600px; width:1200px;">            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script>if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.7.0.min.js" integrity="sha256-jvTGqxNp8AGWEcvNLVuKr+8j5dGe9Yw51LQkmDH+IYA=" crossorigin="anonymous"></script>                <div id="a8e69692-583e-40b9-93a4-852376c2bb6c" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("a8e69692-583e-40b9-93a4-852376c2bb6c")) {                    Plotly.newPlot(                        "a8e69692-583e-40b9-93a4-852376c2bb6c",                        [{"marker":{"line":{"color":"black","width":1},"size":10},"mode":"markers","name":"LCD Data","x":[3.344162702560425,3.520939826965332,6.776221752166748,4.841248989105225,3.867948293685913,7.6069512367248535,5.339763641357422,7.561023235321045,4.638508319854736,4.942713260650635,7.395580768585205,9.111690521240234,7.008836269378662,6.398136615753174,7.047361373901367,7.421566486358643,3.1102683544158936,3.501030206680298,3.7268764972686768,4.095249652862549,6.7372331619262695,4.948419570922852,5.512831211090088,5.330597877502441,6.398733139038086,4.606292724609375,3.8430469036102295,6.031407833099365,4.228565692901611,6.332518100738525,null,5.881172180175781,5.75577974319458,3.5214126110076904,4.792407035827637,7.235892295837402,8.219615936279297,9.108393669128418,4.617513179779053,4.425394058227539,4.017785549163818,4.7232770919799805,6.848866939544678,5.0355916023254395,5.13641357421875,6.736100673675537,6.977995872497559,3.685624599456787,4.553033828735352,6.971346378326416,10.890204429626465,4.1702165603637695,7.2566962242126465,8.123099327087402,5.949699401855469,4.285327434539795,6.141502857208252,10.995516777038574,7.042690277099609,4.813204765319824,5.850518226623535,5.5810627937316895,null,9.512394905090332,6.022576808929443,null,5.611615180969238,5.551108360290527,10.701811790466309,5.379103183746338,5.987492561340332,4.290846347808838,5.8501715660095215,7.046541690826416,5.6398773193359375,3.8663172721862793,5.150681018829346,7.382168769836426,6.427002429962158,7.147209167480469,6.023322105407715,5.826791286468506,6.563299179077148,8.339115142822266,13.916892051696777,10.472646713256836,6.2239298820495605,7.767128944396973,6.218688488006592,6.2041335105896,5.493677139282227,12.765851020812988,4.0323405265808105,6.734111309051514,7.341762065887451,8.096654891967773,6.302633762359619,3.6645147800445557,3.5968265533447266,3.9215152263641357,3.92653489112854,7.162278652191162,4.923156261444092,4.875307083129883,10.191309928894043,5.448337078094482,6.380662441253662,5.491867542266846,5.365787029266357,4.244980812072754,9.460561752319336,7.676468849182129,3.4164350032806396,9.611983299255371,9.18275260925293,5.552502155303955,7.610432147979736,7.603341102600098,6.53682279586792,4.594547748565674,6.2517852783203125,5.612789154052734,6.037872791290283,3.5390782356262207,6.093057632446289,9.633246421813965,5.4752373695373535,6.481357097625732,6.387010097503662,5.359521389007568,5.996184825897217,5.337597846984863,5.266621112823486,null,10.063738822937012,9.287911415100098,3.646123170852661,3.8287363052368164,6.114243984222412,6.068929672241211,3.306952476501465,9.890427589416504,3.238269329071045,8.469094276428223,6.064194679260254,6.299594879150391,5.977442741394043,5.577579021453857,5.1002583503723145,10.081588745117188,5.589391231536865,4.744650363922119,4.218595504760742,6.365952491760254,5.087613582611084,4.831399917602539,10.030773162841797,3.569688320159912,4.239963054656982,6.388465881347656,7.391456604003906,3.842664957046509,14.004493713378906,6.04909610748291,8.09097671508789,8.556312561035156,6.071371078491211,8.01510238647461,12.097949028015137,4.111683368682861,10.499992370605469,10.175671577453613,5.845136642456055,5.8309736251831055,6.7303147315979,5.793234825134277,7.445509910583496,7.443715572357178,7.2408833503723145,6.951725482940674,6.834256649017334,6.678556442260742,4.7067036628723145,5.823174476623535,4.565324783325195,4.196640968322754,6.545263767242432,6.522012233734131,7.218100547790527,5.591273784637451,6.398915767669678,6.3733954429626465,4.790187835693359,5.970512390136719,5.422101974487305,6.109093189239502,4.328119277954102,5.462557315826416,4.842257976531982,15.506650924682617,7.933319568634033,5.016345500946045,9.690038681030273,5.035150051116943,6.087959289550781,4.600106239318848,6.046924591064453,8.461708068847656,8.031255722045898,5.987189769744873,11.340929985046387,3.947206735610962,3.6906776428222656,3.6441946029663086,3.7626771926879883,4.762800693511963],"y":{"dtype":"f8","bdata":"bf\u002fKSpPSDEBzEd+JWW8PQEtZhjjWxRpAzQGCOXr8E0C9APvo1FUOQAb1LXO6DB9AhlW8kXnkFkDG3LWEfJAeQMdGIF7XbxJAV2DI6lYvE0DHEWvxKeAeQJT2Bl+YvCFAQs9m1edqHEDJWdjTDr8ZQNIA3gIJahxAo3VUNUG0HEATChFwCJUKQFbUYBqGjwxAvcYuUb21DECM1lHVBDERQBb2tMNfEx1AnIpUGFsoE0D7dDxmoBIVQCcxCKwcWhRAho+IKZGkGkDgEKrU7CETQPPIHww8dxBAmfViKCf6GUCrWz0nvQ8SQO84RUdyWRtADhDM0eM3CUCJ0t7gCzMYQMcpOpLLPxlATihEwCFUDEAuBDkoYcYTQIe\u002fJmvUox1AOZz51RwgIEBjtI6qJrghQIwVNZiGoRJAnpj1YignEkAX8Z2Y9aIRQJCDEmbanhRA7zhFR3JZG0AJxOv6BXsUQHE9Ctej8BRAAIxn0NA\u002fG0BUAIxn0LAbQHfbheY6DQ1APX5v05+dEkBsskY9RAMcQDVeukkMQiVAOwFNhA3PEUBI4XoUrsccQII5evzeRiBAiGh0B7HzGUDgnBGlvUEUQH6MuWsJORlAJuSDns3KJUA2yCQjZ8EcQEXY8PRKWRNAuOnPfqSIGUAzMzMzM1MWQDylg\u002fV\u002f7hZAz6Chf4LLIkAai6azk2EZQFiQZiya7hVACFqBIau7F0CUTbnCu9wWQGWqYFRSJyVAyEEJM22fFkBhTzv8NRkYQPIMGvonWBFArP9zmC+vFkB3Z+22C20cQJHVrZ6TvhZAbRyxFp8CD0BDyk+qfVoVQF4u4jsx6xxAIo51cRttGkA\u002fUkSGVTwcQAkWhzO\u002fGhlAzt+EQgQcGEBUHXIz3MAaQHYaaam8DSFAT0ATYcOTK0DLoUW2810lQMjqVs9JbxlA4bTgRV+hHkAz4Zf6eXMZQA5KmGn7VxhAlX1XBP\u002fbFkDvOEVHcpkpQDJaR1UTZBBAyLWhYpxfG0B9BWnGomkeQKbVkLjHkh9A2UKQgxLGGUA3\u002fdmPFFENQAvSjEXTWRBACmgibHgaEUDnqQ65Ga4PQNHoDmJnyhxAI2dhTzvcEkDXTL7Z5gYTQFwbKsb5+yNAngyOkleHFUBH5pE\u002fGNgZQFyPwvUonBVAXD0nvW\u002fcFkBlNsgkIwcSQO58PzVeuiRAQiECDqEKHkDO\u002fGoOEMwLQJBmLJrOriJAl4v4TszqIkAAAAAAAAAAAK9Cyk+qvR1A7KNTVz6rHUB40VeQZkwcQKqaIOo+QBNAL4Zyol0FGEBsPq4NFeMWQPkx5q4lpBhAe\u002ffHe9XKDEA8pYP1f04YQCBGCI82viJACVBTy9baFkDsNNJSedsZQMXJ\u002fQ5FYRpAmKPH7216FkAb9RCN7iAbQISB597DJRZAuJIdG4G4FUA8g4b+Ce4IQC7FVWXflSNAhXe5iO8EIkCetdsuNFcNQFH3AUhtIg9AS+oENBGWGUAGKuPfZ3wXQFcm\u002fFI\u002frwxA81SH3Aw3I0AVAOMZNDQMQPAzLhwIOSFADYl7LH1oGUCbyTfb3DgYQHHJcad0EBhAntLB+j\u002fHFUAOZ341B4gUQDs2AvG6niNAC7WmecepFUCneccpOhITQCHIQQkzLRFAKe0NvjCZGkDEX5M16qEUQA9\u002fTdaohxNAoYSZtn+FI0D0bFZ9rrYOQM78ag4QDBJAZDvfT423GUCFsYUgByUeQJlH\u002fmDgOQ5AowG8BRJ0K0B72uGvyRoYQLXgRV9B+h9AC3va4a+pIEDXL9gN27YYQH+8V61MWCBAnl4pyxDHJ0BxGw3gLbARQNJvXwfOmSVAP1dbsb8MJUCm8naE02IYQKK0N\u002fjCBBhAaR1VTRDVG0CKPEm6ZlIZQMzuycNCrR1AehnFcksrHUC5UzpY\u002fycdQCo6kst\u002fiBtADYl7LH1IHEAwZHWr52QcQE2h8xq7BBNA18BWCRanFkANiXssfQgSQLdFmQ0yyRBA+HDJcacUHEDJjo1AvA4bQDarPldb8RtAH4XrUbieFkAUeZJ0zaQYQAQEc\u002fT4nRlAmC8vwD46E0AJ+aBns0oYQMU9lj50gRZA\u002f3ivWpkwGUCPcFrwog8SQGZOl8XE5hZA9l0R\u002fG9FFEABTYQNT48vQHY3T3XITR9AH\u002fRsVn3OE0D9E1ysqOEiQPuWOV0W0xRA1CtlGeJYGUAicY+lDx0TQFuU2SCTjBhAUwWjkjpRIUCOAdnr3T8gQDliLT4FABdAf2q8dJO4JkCUMNP2r6wQQMOedvhrcg1ADvj8MEJ4DEDlm21uTM8OQAhVavZAyxRA"},"type":"scatter","xaxis":"x","yaxis":"y"},{"line":{"color":"black","dash":"dash","width":1},"mode":"lines","name":"LCD Parity Line","x":[0,18.779899999999998],"y":[0,18.779899999999998],"type":"scatter","xaxis":"x","yaxis":"y"},{"marker":{"line":{"color":"black","width":1},"size":10},"mode":"markers","name":"PLD Data","x":[3.1029601097106934,2.649698257446289,3.3676934242248535,3.8487839698791504,2.8502039909362793,7.138190746307373,1.795896053314209,7.034415245056152,2.949937582015991,4.277963638305664,6.312016487121582,5.629708290100098,3.15771484375,2.7938663959503174,3.0799758434295654,5.51745080947876,2.038613796234131,1.660318374633789,2.4691696166992188,3.2129664421081543,1.1322096586227417,4.071865081787109,3.747948169708252,5.118387222290039,6.305164337158203,3.273939847946167,3.039782762527466,2.8937859535217285,3.2045469284057617,3.5034282207489014,null,5.383017539978027,5.470763206481934,2.9465322494506836,3.9232921600341797,6.095243453979492,4.385344505310059,5.638759613037109,2.045691728591919,3.1413865089416504,2.1545372009277344,2.8655142784118652,6.73613977432251,2.6271414756774902,3.507520914077759,5.178301811218262,4.783526420593262,2.861246347427368,3.3206679821014404,2.9949612617492676,6.806346416473389,3.269440174102783,2.212348461151123,7.662898540496826,2.8727376461029053,2.2852301597595215,2.2282919883728027,6.980002403259277,6.013635158538818,3.258462905883789,2.9669809341430664,2.928724765777588,null,8.939981460571289,4.321369647979736,null,5.329902648925781,1.8072705268859863,6.670860290527344,4.310826301574707,2.257101535797119,2.893383026123047,1.9375356435775757,6.696174144744873,4.851359844207764,2.3287861347198486,3.2691473960876465,6.974054336547852,5.852877140045166,5.147150993347168,2.846782684326172,3.010934591293335,4.845974445343018,3.2699832916259766,11.725106239318848,8.671072006225586,5.746237754821777,3.834117889404297,5.482817649841309,4.491780757904053,4.417285919189453,11.636504173278809,3.307833671569824,5.500899314880371,5.980147838592529,6.409514904022217,5.427637577056885,3.146848201751709,1.3586596250534058,2.5536746978759766,3.3570687770843506,4.341951370239258,3.263983726501465,2.0855250358581543,3.659224033355713,3.554995059967041,2.9008660316467285,1.6645352840423584,2.054945230484009,3.258934497833252,3.0807840824127197,7.095508575439453,2.3593063354492188,7.112225532531738,1.4417738914489746,1.9685266017913818,7.100740432739258,6.4643168449401855,4.5612311363220215,1.0219115018844604,3.8400447368621826,3.969815254211426,4.828089714050293,3.041966438293457,5.72844123840332,7.150533676147461,4.977825164794922,5.994154930114746,1.6372177600860596,3.5838699340820312,1.8127673864364624,4.556473731994629,5.073356628417969,null,3.6966094970703125,4.128750324249268,2.82859468460083,3.545541286468506,4.662426948547363,1.581528663635254,3.104351758956909,2.8432693481445312,2.7278308868408203,4.550569534301758,5.493972301483154,5.417829513549805,5.4380645751953125,5.4821977615356445,3.3383865356445312,3.735856056213379,3.7919092178344727,2.9645509719848633,3.634441614151001,5.75580358505249,4.373675346374512,3.7343661785125732,3.6978564262390137,3.1318111419677734,3.266885280609131,3.5790140628814697,3.4520764350891113,2.736776351928711,5.733559608459473,5.612818717956543,6.249981880187988,3.8580663204193115,2.5893120765686035,3.3828392028808594,6.816585540771484,3.17868709564209,6.318082809448242,6.68105411529541,4.746947765350342,5.599377632141113,4.766172409057617,4.5697150230407715,6.0784735679626465,6.314623832702637,6.533177852630615,5.422542572021484,5.056606769561768,1.6585733890533447,3.1598243713378906,1.706766963005066,3.730783224105835,3.59775447845459,5.251575946807861,5.285552501678467,5.0023651123046875,4.460062026977539,5.426618576049805,3.3823494911193848,4.3230180740356445,1.49007248878479,4.2916340827941895,4.670638561248779,3.204089641571045,1.683797001838684,4.646669864654541,3.701199531555176,4.672624588012695,3.363460063934326,3.477553606033325,3.47377347946167,5.491454124450684,0.6911527514457703,5.550772666931152,7.080599784851074,5.133767604827881,5.586941242218018,10.250655174255371,2.451508045196533,3.2355170249938965,2.727487087249756,2.777195930480957,2.464170455932617],"y":{"dtype":"f8","bdata":"XwzlRLsKB0DQ1VbsL3sHQKFns+pztQlAumsJ+aDnD0A3GsBbIEEIQHFa8KKvwBtAD+7O2m2X\u002fj\u002f+1HjpJhEbQIP6ljld1gZAL4Zyol2lEUCA8Qwa+mcZQHReY5eofhVAl6jeGthqCEBg6udNRaoGQF5jl6je2ghA4lgXt9EAFUBcGyrG+dsAQHxhMlUwqvw\u002fLnO6LCY2BEAsDmd+NQcIQC3Pg7uzdvQ\u002fZQETuHU3DkAgRgiPNs4LQLxXrUz4ZRNA3eo56X3DGEDf\u002ffFetTIJQLKACdy62wZAQ+IeSx86B0DLoUW28z0IQGYUyy2tRgxA3\u002f3xXrUyAkAGL\u002foK0gwWQLGKNzKPfBdAIk+Srpk8B0BNMnIW9hQQQE87\u002fDVZ4xhAyTzyBwMvEUBfJLTlXIoVQIzWUdUEkQJAKXl1jgGZCUDLSpNS0K0CQDaTb7a5cQZAWmQ7309tGkCto6oJoi4DQJMdG4F43QpAzR5oBYbME0AmGTkLe7oSQF4u4jsxKwhAvfvjvWplDECE8GjjiPUHQOBKdmwEIhpAn7DEA8omCECGAyFZwIT\u002fPwfTMHxErB1AeO49XHJcB0CBBMWPMXcGQB4bgXhdvwNAhgMhWcDkGkBHcvkP6ZcYQE4oRMAhFAhAiuWWVkNiBkAUBfpEniQIQKg65Ga4QQZAWP\u002fnMF9eIUCpwTQMH3ERQBMsDmd+tQpAinYVUn7yFUAFxY8xd639P7VU3o5w2hpAsacd\u002fposEECvmXyzzY0AQEYldQKaiAVAxy5RvTUw\u002fz9u3c1THdIZQCmzQSYZORNAtYmT+x3KBEDcLjTXaSQIQGLboswG+RpActwpHaz\u002fFkCNCwdCsgAUQEmFsYUghwlAidLe4AtTCEA5fxMKETATQE7udygKNAhAseHplbLsJkD7OnDOiHIhQEtZhjjWxRZAAWpq2VqfDEAcQpWaPbAWQBhbCHJQ4hFAQUgWMIH7EUBQ\u002fBhz17ImQNOkFHR7iQpARMAhVKkZFUCwA+eMKA0YQJVIopdRjBlACmgibHh6FkDbbRea67QIQP4rK01Kwfk\u002fApoIG57eBkBX7C+7Jw8OQFzmdFlMrBFAA5Xx7zPuCEDACYUIOIT\u002fP\u002fjfSnZsRAtAPsvz4O5sC0CoUrMHWkEHQC7iOzHrxfs\u002frYbEPZa+\u002fj+vsUtUbw0JQGnGounspAxArfpcbcVeG0B5r1qZ8MsDQPt5U5EKYxtAA0NWt3pO9z8AAAAAAAAAALvtQnOdZhtAc0urIXEPGUCR0JZzKS4SQHiXi\u002fhOTPM\u002fychZ2NOODEDv\u002fnivWjkQQGqHvyZr9BJA0NVW7C87B0CjryDNWDQXQHzVyoRfihtA\u002fvFetTLBE0AUs14M5cQXQBEZVvFGZvc\u002fVd6OcFowC0CHinH+JpT\u002fP166SQwCyxFAGvonuFgxFECeJF0z+WYCQLRZ9bnaigtAIR\u002f0bFYdEUDLhF\u002fq540HQGSSkbOw5w1AwXPv4ZLDEUDV52or9pf6P23i5H6HoghAzojS3uCLB0ArweJw5lcFQNUmTu53KBJAx9eeWRLgF0AqxvmbUAgVQL4Ts14MhRZAcHztmSXhFEC70FynkRYJQJ+rrdhfdgtA96+sNCmFDEDyBwPPvYcIQPBQFOgTOQ1AZED2evfHF0DvVSsTfukQQK2GxD2Wvg1A\u002f+xHishwC0DejnBa8KILQM6luKrs+whA5ldzgGDOCkA7AU2EDQ8MQHxETIkkugRAcvkP6bevFkCreCPzyD8WQC4EOShhphhAasGLvoK0DEAuVtRgGgYFQNjw9EpZxgtAwM+4cCCEGkA91SE3w00JQFTjpZvEgBpAtcNfkzXKGkDC3Vm77aISQBKDwMqhRRZAkQpjC0HOEkDv5qkOufkSQLwFEhQ\u002fRhlAv2VOl8VEGEAouFhRg0kZQIBlpUkpKBVAfO2ZJQGqE0AFFytqMI33P+F6FK5H4QhA4dHGEWtx\u002fj8WpBmLpjMOQMSZX80BAg1AM+GX+nlTFkDz5QXYRycVQDAvwD46NRNAkuhlFMstEUA1Bwjm6NEVQHFV2XdFsAtA8rVnlgToEEB07+GS4870PwKfH0YILxBARMAhVKkZEkCRLGACt24IQMb5m1CIgPs\u002f9BWkGYvmEUBdp5GWypsLQAa7YduiDBNAGmmpvB0hCUCH4SNiSiQKQG\u002f1nPS+sQxABcB4Bg09F0Cph2h0B7HrP+viNhrAmxZAE36pnzfVG0BYrUz4pd4VQK+ZfLPNTRVA9ihcj8J1JUCuu3mqQy4EQNPB+j+H+QhAWmQ730+NBkDidf2C3fADQGCwG7YtCgdA"},"type":"scatter","xaxis":"x2","yaxis":"y2"},{"line":{"color":"black","dash":"dash","width":1},"mode":"lines","name":"PLD Parity Line","x":[0,14.4623],"y":[0,14.4623],"type":"scatter","xaxis":"x2","yaxis":"y2"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"rgb(36,36,36)"},"error_y":{"color":"rgb(36,36,36)"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"rgb(36,36,36)","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"rgb(36,36,36)"},"baxis":{"endlinecolor":"rgb(36,36,36)","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"rgb(36,36,36)"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"colorscale":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"colorscale":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"colorscale":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"colorscale":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"type":"histogram2d"}],"histogram":[{"marker":{"line":{"color":"white","width":0.6}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"},"colorscale":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"rgb(237,237,237)"},"line":{"color":"white"}},"header":{"fill":{"color":"rgb(217,217,217)"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":1,"tickcolor":"rgb(36,36,36)","ticks":"outside"}},"colorscale":{"diverging":[[0.0,"rgb(103,0,31)"],[0.1,"rgb(178,24,43)"],[0.2,"rgb(214,96,77)"],[0.3,"rgb(244,165,130)"],[0.4,"rgb(253,219,199)"],[0.5,"rgb(247,247,247)"],[0.6,"rgb(209,229,240)"],[0.7,"rgb(146,197,222)"],[0.8,"rgb(67,147,195)"],[0.9,"rgb(33,102,172)"],[1.0,"rgb(5,48,97)"]],"sequential":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]],"sequentialminus":[[0.0,"#440154"],[0.1111111111111111,"#482878"],[0.2222222222222222,"#3e4989"],[0.3333333333333333,"#31688e"],[0.4444444444444444,"#26828e"],[0.5555555555555556,"#1f9e89"],[0.6666666666666666,"#35b779"],[0.7777777777777778,"#6ece58"],[0.8888888888888888,"#b5de2b"],[1.0,"#fde725"]]},"colorway":["#1F77B4","#FF7F0E","#2CA02C","#D62728","#9467BD","#8C564B","#E377C2","#7F7F7F","#BCBD22","#17BECF"],"font":{"color":"rgb(36,36,36)"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"white"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside"},"bgcolor":"white","radialaxis":{"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside"}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"rgb(232,232,232)","gridwidth":2,"linecolor":"rgb(36,36,36)","showbackground":true,"showgrid":false,"showline":true,"ticks":"outside","zeroline":false,"zerolinecolor":"rgb(36,36,36)"},"yaxis":{"backgroundcolor":"white","gridcolor":"rgb(232,232,232)","gridwidth":2,"linecolor":"rgb(36,36,36)","showbackground":true,"showgrid":false,"showline":true,"ticks":"outside","zeroline":false,"zerolinecolor":"rgb(36,36,36)"},"zaxis":{"backgroundcolor":"white","gridcolor":"rgb(232,232,232)","gridwidth":2,"linecolor":"rgb(36,36,36)","showbackground":true,"showgrid":false,"showline":true,"ticks":"outside","zeroline":false,"zerolinecolor":"rgb(36,36,36)"}},"shapedefaults":{"fillcolor":"black","line":{"width":0},"opacity":0.3},"ternary":{"aaxis":{"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside"},"baxis":{"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside"},"bgcolor":"white","caxis":{"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside"}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside","title":{"standoff":15},"zeroline":false,"zerolinecolor":"rgb(36,36,36)"},"yaxis":{"automargin":true,"gridcolor":"rgb(232,232,232)","linecolor":"rgb(36,36,36)","showgrid":false,"showline":true,"ticks":"outside","title":{"standoff":15},"zeroline":false,"zerolinecolor":"rgb(36,36,36)"}}},"xaxis":{"anchor":"y","domain":[0.0,0.45],"title":{"font":{"size":14},"text":"MOFography (Å)"},"tickfont":{"size":12},"mirror":true,"showgrid":false,"range":[0,18.779899999999998]},"yaxis":{"anchor":"x","domain":[0.0,1.0],"title":{"font":{"size":14},"text":"Zeo++ (Å)"},"tickfont":{"size":12},"mirror":true,"showgrid":false,"range":[0,18.779899999999998]},"xaxis2":{"anchor":"y2","domain":[0.55,1.0],"title":{"font":{"size":14},"text":"MOFography (Å)"},"tickfont":{"size":12},"mirror":true,"showgrid":false,"range":[0,14.4623]},"yaxis2":{"anchor":"x2","domain":[0.0,1.0],"title":{"font":{"size":14},"text":"Zeo++ (Å)"},"tickfont":{"size":12},"mirror":true,"showgrid":false,"range":[0,14.4623]},"annotations":[{"font":{"size":16},"showarrow":false,"text":"(a) LCD","x":0.225,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"font":{"size":16},"showarrow":false,"text":"(b) PLD","x":0.775,"xanchor":"center","xref":"paper","y":1.0,"yanchor":"bottom","yref":"paper"},{"bgcolor":"white","font":{"size":14},"opacity":0.8,"showarrow":false,"text":"R²: 0.96\u003cbr\u003eMAE: 0.21 Å","x":0.788995,"xref":"x","y":14.990905,"yref":"y"},{"bgcolor":"white","font":{"size":14},"opacity":0.8,"showarrow":false,"text":"R²: 0.98\u003cbr\u003eMAE: 0.17 Å","x":0.573115,"xref":"x2","y":10.889185,"yref":"y2"}],"font":{"family":"Arial"},"showlegend":false,"width":1200,"height":600,"autosize":false},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('a8e69692-583e-40b9-93a4-852376c2bb6c');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+</section>
+<section id="comparison-only-face-merging-older-less-accurate" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-only-face-merging-older-less-accurate">Comparison only: face merging (older, less accurate)</h2>
+<p>The previous percolation method labels the voxel grid and merges labels across periodic faces (<code>get_pore_dia_mgr</code>). It is the closer analogue of voxel-sweep tools such as PoreBlazer and is <strong>less accurate than the winding method</strong> on contorted frameworks, because it cannot follow paths that wrap around the cell obliquely. It is shown here only to compare against the winding results above; do not use it for new work.</p>
+<div id="cell-13" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> get_pore_dia_face_merging(mat_atoms):</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    lcd, pld, lis, _ <span class="op">=</span> mgr.get_pore_dia_mgr(mat_atoms, kwargs<span class="op">=</span><span class="bu">dict</span>(spacing<span class="op">=</span><span class="fl">0.5</span>))</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> lcd, pld, lis</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>futures_fm <span class="op">=</span> client.compute([delayed(get_pore_dia_face_merging)(a) <span class="cf">for</span> a <span class="kw">in</span> iza_atoms])</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>iza_fm <span class="op">=</span> [safe_result(f) <span class="cf">for</span> f <span class="kw">in</span> futures_fm]</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> mae_vs_zeo(dias, col, idx):</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.array([d[idx] <span class="cf">if</span> d <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span> <span class="cf">else</span> np.nan <span class="cf">for</span> d <span class="kw">in</span> dias], dtype<span class="op">=</span><span class="bu">float</span>)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> iza_df[col].values.astype(<span class="bu">float</span>)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> <span class="op">~</span>np.isnan(x) <span class="op">&amp;</span> <span class="op">~</span>np.isnan(y)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> mean_absolute_error(y[m], x[m]), r2_score(y[m], x[m])</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'method'</span><span class="sc">:&lt;22s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'LCD MAE'</span><span class="sc">:&gt;8s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'LCD R2'</span><span class="sc">:&gt;8s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'PLD MAE'</span><span class="sc">:&gt;8s}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'PLD R2'</span><span class="sc">:&gt;8s}</span><span class="ss">"</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, dias <span class="kw">in</span> [(<span class="st">"winding (standard)"</span>, iza_pore_dias), (<span class="st">"face merging (legacy)"</span>, iza_fm)]:</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>    lm, lr <span class="op">=</span> mae_vs_zeo(dias, <span class="st">"lcd"</span>, <span class="dv">0</span>)<span class="op">;</span> pm, pr <span class="op">=</span> mae_vs_zeo(dias, <span class="st">"pld"</span>, <span class="dv">1</span>)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;22s}</span><span class="ss"> </span><span class="sc">{</span>lm<span class="sc">:8.3f}</span><span class="ss"> </span><span class="sc">{</span>lr<span class="sc">:8.3f}</span><span class="ss"> </span><span class="sc">{</span>pm<span class="sc">:8.3f}</span><span class="ss"> </span><span class="sc">{</span>pr<span class="sc">:8.3f}</span><span class="ss">"</span>)</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>client.close()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>method                  LCD MAE   LCD R2  PLD MAE   PLD R2
+winding (standard)        0.213    0.956    0.169    0.983
+face merging (legacy)     0.194    0.957    0.257    0.960</code></pre>
+</div>
+</div>
+</section>
+<section id="core-mof-2019-not-executed-here" class="level2">
+<h2 class="anchored" data-anchor-id="core-mof-2019-not-executed-here">CoRE-MOF 2019 (not executed here)</h2>
+<p>The same workflow scales to a CoRE-MOF 2019 subset (7506 MOFs with void fraction above 0.5 were used in our test). It is too heavy for the docs build, so the code is shown but not run. Fetch the subset from MOFDB first (see the <a href="./mofdb_example.html">MOFDB tutorial</a>):</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>core_df <span class="op">=</span> <span class="cf">await</span> mgr.get_data_from_mofdb(params<span class="op">=</span>{<span class="st">"database"</span>: <span class="st">"CoREMOF 2019"</span>, <span class="st">"vf_min"</span>: <span class="fl">0.5</span>})</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>core_atoms <span class="op">=</span> mgr.atoms_from_mofdb_df(core_df)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>futures <span class="op">=</span> client.compute([delayed(get_pore_dia_winding)(a) <span class="cf">for</span> a <span class="kw">in</span> core_atoms])</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>core_dias <span class="op">=</span> [safe_result(f) <span class="cf">for</span> f <span class="kw">in</span> futures]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Then reuse the parity-plot cell above with <code>core_df</code> and <code>core_dias</code>.</p>
+</section>
+<section id="conclusions" class="level2">
+<h2 class="anchored" data-anchor-id="conclusions">Conclusions</h2>
+<ul>
+<li>Computed LCD and PLD for the 216 all-silica IZA zeolites with the winding method and compared them with the Zeo++ values tabulated in MOFDB.</li>
+<li>Face merging was run for comparison only; the winding method is the standard.</li>
+<li>Mofography uses a 0.5 Å grid here; finer grids give higher accuracy.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script type="application/vnd.jupyter.widget-state+json">
+{"state":{"03c7115fb84145f4923e8c9b09d17674":{"model_module":"@jupyter-widgets/base","model_module_version":"2.0.0","model_name":"LayoutModel","state":{"_model_module":"@jupyter-widgets/base","_model_module_version":"2.0.0","_model_name":"LayoutModel","_view_count":null,"_view_module":"@jupyter-widgets/base","_view_module_version":"2.0.0","_view_name":"LayoutView","align_content":null,"align_items":null,"align_self":null,"border_bottom":null,"border_left":null,"border_right":null,"border_top":null,"bottom":null,"display":null,"flex":null,"flex_flow":null,"grid_area":null,"grid_auto_columns":null,"grid_auto_flow":null,"grid_auto_rows":null,"grid_column":null,"grid_gap":null,"grid_row":null,"grid_template_areas":null,"grid_template_columns":null,"grid_template_rows":null,"height":null,"justify_content":null,"justify_items":null,"left":null,"margin":null,"max_height":null,"max_width":null,"min_height":null,"min_width":null,"object_fit":null,"object_position":null,"order":null,"overflow":null,"padding":null,"right":null,"top":null,"visibility":null,"width":null}},"54186cc1bf19463bae55913b51a585ce":{"model_module":"@jupyter-widgets/output","model_module_version":"1.0.0","model_name":"OutputModel","state":{"_dom_classes":[],"_model_module":"@jupyter-widgets/output","_model_module_version":"1.0.0","_model_name":"OutputModel","_view_count":null,"_view_module":"@jupyter-widgets/output","_view_module_version":"1.0.0","_view_name":"OutputView","layout":"IPY_MODEL_03c7115fb84145f4923e8c9b09d17674","msg_id":"","outputs":[{"data":{"text/html":"<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\">Working... <span style=\"color: #729c1f; text-decoration-color: #729c1f\">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span> <span style=\"color: #800080; text-decoration-color: #800080\">100%</span> <span style=\"color: #808000; text-decoration-color: #808000\">0:00:00</span>\n</pre>\n","text/plain":"Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00\n"},"metadata":{},"output_type":"display_data"}],"tabbable":null,"tooltip":null}},"5bd44290f3164418a4755360bb5a7a6b":{"model_module":"@jupyter-widgets/base","model_module_version":"2.0.0","model_name":"LayoutModel","state":{"_model_module":"@jupyter-widgets/base","_model_module_version":"2.0.0","_model_name":"LayoutModel","_view_count":null,"_view_module":"@jupyter-widgets/base","_view_module_version":"2.0.0","_view_name":"LayoutView","align_content":null,"align_items":null,"align_self":null,"border_bottom":null,"border_left":null,"border_right":null,"border_top":null,"bottom":null,"display":null,"flex":null,"flex_flow":null,"grid_area":null,"grid_auto_columns":null,"grid_auto_flow":null,"grid_auto_rows":null,"grid_column":null,"grid_gap":null,"grid_row":null,"grid_template_areas":null,"grid_template_columns":null,"grid_template_rows":null,"height":null,"justify_content":null,"justify_items":null,"left":null,"margin":null,"max_height":null,"max_width":null,"min_height":null,"min_width":null,"object_fit":null,"object_position":null,"order":null,"overflow":null,"padding":null,"right":null,"top":null,"visibility":null,"width":null}},"a968fcd204ab44f1ac772fc7a2f565a7":{"model_module":"@jupyter-widgets/output","model_module_version":"1.0.0","model_name":"OutputModel","state":{"_dom_classes":[],"_model_module":"@jupyter-widgets/output","_model_module_version":"1.0.0","_model_name":"OutputModel","_view_count":null,"_view_module":"@jupyter-widgets/output","_view_module_version":"1.0.0","_view_name":"OutputView","layout":"IPY_MODEL_5bd44290f3164418a4755360bb5a7a6b","msg_id":"","outputs":[{"data":{"text/html":"<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\">Working... <span style=\"color: #729c1f; text-decoration-color: #729c1f\">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span> <span style=\"color: #800080; text-decoration-color: #800080\">100%</span> <span style=\"color: #808000; text-decoration-color: #808000\">0:00:00</span>\n</pre>\n","text/plain":"Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00\n"},"metadata":{},"output_type":"display_data"}],"tabbable":null,"tooltip":null}},"aa1b310844da480189ab86e96192936d":{"model_module":"@jupyter-widgets/base","model_module_version":"2.0.0","model_name":"LayoutModel","state":{"_model_module":"@jupyter-widgets/base","_model_module_version":"2.0.0","_model_name":"LayoutModel","_view_count":null,"_view_module":"@jupyter-widgets/base","_view_module_version":"2.0.0","_view_name":"LayoutView","align_content":null,"align_items":null,"align_self":null,"border_bottom":null,"border_left":null,"border_right":null,"border_top":null,"bottom":null,"display":null,"flex":null,"flex_flow":null,"grid_area":null,"grid_auto_columns":null,"grid_auto_flow":null,"grid_auto_rows":null,"grid_column":null,"grid_gap":null,"grid_row":null,"grid_template_areas":null,"grid_template_columns":null,"grid_template_rows":null,"height":null,"justify_content":null,"justify_items":null,"left":null,"margin":null,"max_height":null,"max_width":null,"min_height":null,"min_width":null,"object_fit":null,"object_position":null,"order":null,"overflow":null,"padding":null,"right":null,"top":null,"visibility":null,"width":null}},"de6be8ad0ee84255affd140b6071e62b":{"model_module":"@jupyter-widgets/output","model_module_version":"1.0.0","model_name":"OutputModel","state":{"_dom_classes":[],"_model_module":"@jupyter-widgets/output","_model_module_version":"1.0.0","_model_name":"OutputModel","_view_count":null,"_view_module":"@jupyter-widgets/output","_view_module_version":"1.0.0","_view_name":"OutputView","layout":"IPY_MODEL_aa1b310844da480189ab86e96192936d","msg_id":"","outputs":[{"data":{"text/html":"<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\">Working... <span style=\"color: #729c1f; text-decoration-color: #729c1f\">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span> <span style=\"color: #800080; text-decoration-color: #800080\">100%</span> <span style=\"color: #808000; text-decoration-color: #808000\">0:00:00</span>\n</pre>\n","text/plain":"Working... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00\n"},"metadata":{},"output_type":"display_data"}],"tabbable":null,"tooltip":null}}},"version_major":2,"version_minor":0}
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.dev/mofography/mofography/blob/main/compute_pore_diameters.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

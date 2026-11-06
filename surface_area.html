@@ -1,0 +1,1788 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Compute accessible surface area, void volume, and per-pocket/per-region breakdowns with the Monte-Carlo shell estimator, compare against marching-cubes mesh, and explore how window fingerprinting affects accessibility.">
+
+<title>Surface Area &amp; Void Volume — MC Shell Estimator + Window Fingerprints – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script>
+window.PlotlyConfig = {MathJaxConfig: 'local'};
+if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}
+</script>
+<script type="module">import "https://cdn.plot.ly/plotly-3.7.0.min"</script>
+
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Surface Area &amp; Void Volume — MC Shell Estimator + Window Fingerprints – mofography">
+<meta property="og:description" content="Compute accessible surface area, void volume, and per-pocket/per-region breakdowns with the Monte-Carlo shell estimator, compare against marching-cubes mesh, and explore how window fingerprinting affects accessibility.">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/surface_area_dgrid.png">
+<meta property="og:site_name" content="mofography">
+<meta name="twitter:title" content="Surface Area &amp; Void Volume — MC Shell Estimator + Window Fingerprints – mofography">
+<meta name="twitter:description" content="Compute accessible surface area, void volume, and per-pocket/per-region breakdowns with the Monte-Carlo shell estimator, compare against marching-cubes mesh, and explore how window fingerprinting affects accessibility.">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/surface_area_dgrid.png">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#why-the-mc-shell-estimator" id="toc-why-the-mc-shell-estimator" class="nav-link" data-scroll-target="#why-the-mc-shell-estimator">Why the MC shell estimator?</a></li>
+  <li><a href="#imports-and-structure" id="toc-imports-and-structure" class="nav-link" data-scroll-target="#imports-and-structure">Imports and structure</a></li>
+  <li><a href="#step-1-load-irmof-1-and-compute-the-distance-grid" id="toc-step-1-load-irmof-1-and-compute-the-distance-grid" class="nav-link" data-scroll-target="#step-1-load-irmof-1-and-compute-the-distance-grid">Step 1: Load IRMOF-1 and compute the distance grid</a></li>
+  <li><a href="#step-2-periodic-segmentation-percolation-history" id="toc-step-2-periodic-segmentation-percolation-history" class="nav-link" data-scroll-target="#step-2-periodic-segmentation-percolation-history">Step 2: Periodic segmentation + percolation history</a></li>
+  <li><a href="#step-3-pore-diameters-lcd-pld-dfsd" id="toc-step-3-pore-diameters-lcd-pld-dfsd" class="nav-link" data-scroll-target="#step-3-pore-diameters-lcd-pld-dfsd">Step 3: Pore diameters (LCD, PLD, DFSD)</a></li>
+  <li><a href="#step-4-monte-carlo-shell-surface-area" id="toc-step-4-monte-carlo-shell-surface-area" class="nav-link" data-scroll-target="#step-4-monte-carlo-shell-surface-area">Step 4: Monte-Carlo shell surface area</a>
+  <ul class="collapse">
+  <li><a href="#per-pocket-breakdown" id="toc-per-pocket-breakdown" class="nav-link" data-scroll-target="#per-pocket-breakdown">Per-pocket breakdown</a></li>
+  <li><a href="#per-region-and-per-cluster-breakdowns" id="toc-per-region-and-per-cluster-breakdowns" class="nav-link" data-scroll-target="#per-region-and-per-cluster-breakdowns">Per-region and per-cluster breakdowns</a></li>
+  </ul></li>
+  <li><a href="#step-5-mesh-surface-area-marching-cubes-reference" id="toc-step-5-mesh-surface-area-marching-cubes-reference" class="nav-link" data-scroll-target="#step-5-mesh-surface-area-marching-cubes-reference">Step 5: Mesh surface area (marching-cubes reference)</a></li>
+  <li><a href="#step-6-void-volume" id="toc-step-6-void-volume" class="nav-link" data-scroll-target="#step-6-void-volume">Step 6: Void volume</a>
+  <ul class="collapse">
+  <li><a href="#per-pocket-void-volume" id="toc-per-pocket-void-volume" class="nav-link" data-scroll-target="#per-pocket-void-volume">Per-pocket void volume</a></li>
+  </ul></li>
+  <li><a href="#step-7-effect-of-window_fp-on-accessible-sa" id="toc-step-7-effect-of-window_fp-on-accessible-sa" class="nav-link" data-scroll-target="#step-7-effect-of-window_fp-on-accessible-sa">Step 7: Effect of <code>window_fp</code> on accessible SA</a></li>
+  <li><a href="#step-8-mc-shell-thickness-sweep-bias-and-variance" id="toc-step-8-mc-shell-thickness-sweep-bias-and-variance" class="nav-link" data-scroll-target="#step-8-mc-shell-thickness-sweep-bias-and-variance">Step 8: MC shell-thickness sweep — bias and variance</a></li>
+  <li><a href="#step-9-visualize-the-accessible-pockets" id="toc-step-9-visualize-the-accessible-pockets" class="nav-link" data-scroll-target="#step-9-visualize-the-accessible-pockets">Step 9: Visualize the accessible pockets</a></li>
+  <li><a href="#step-10-bar-chart-of-accessible-sa-per-pocket" id="toc-step-10-bar-chart-of-accessible-sa-per-pocket" class="nav-link" data-scroll-target="#step-10-bar-chart-of-accessible-sa-per-pocket">Step 10: Bar chart of accessible SA per pocket</a></li>
+  <li><a href="#side-by-side-summary" id="toc-side-by-side-summary" class="nav-link" data-scroll-target="#side-by-side-summary">Side-by-side summary</a></li>
+  <li><a href="#decision-flow" id="toc-decision-flow" class="nav-link" data-scroll-target="#decision-flow">Decision flow</a></li>
+  <li><a href="#common-pitfalls" id="toc-common-pitfalls" class="nav-link" data-scroll-target="#common-pitfalls">Common pitfalls</a></li>
+  <li><a href="#whats-in-the-output-dict" id="toc-whats-in-the-output-dict" class="nav-link" data-scroll-target="#whats-in-the-output-dict">What’s in the output dict</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next steps</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/surface_area.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Surface Area &amp; Void Volume — MC Shell Estimator + Window Fingerprints</h1>
+</div>
+
+<div>
+  <div class="description">
+    Compute accessible surface area, void volume, and per-pocket/per-region breakdowns with the Monte-Carlo shell estimator, compare against marching-cubes mesh, and explore how window fingerprinting affects accessibility.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>Once you have a periodic segmentation (<code>seg</code> dict from <code>do_periodic_segmentation_rust</code>), the next quantity of interest is the <em>probe-accessible</em> surface area and void volume at a chosen probe radius. <code>mofography</code> ships two complementary estimators that share the same percolation analysis pipeline:</p>
+<ol type="1">
+<li><strong>Mesh (marching-cubes)</strong> — <code>compute_surface_area_mesh_winding</code>. Deterministic; tessellates the level set <code>dgrid = r_probe</code> with <code>skimage.measure.marching_cubes</code>, then measures the mesh area with <code>trimesh</code>. Excellent as a reference, slow on large grids.</li>
+<li><strong>Monte-Carlo shell</strong> — <code>compute_surface_area_mc_winding</code>. Statistical; samples <code>N</code> random points in the unit cell, counts how many land in a thin shell of thickness <code>δ</code> around the probe surface, and reports <code>SA = V_cell · p_shell / δ</code>. Fast, parallelisable, and tunable for precision.</li>
+</ol>
+<p>This tutorial covers:</p>
+<ol type="1">
+<li>The full <code>dgrid → seg → SA / void volume</code> pipeline on <code>IRMOF-1.cif</code>.</li>
+<li>The Monte-Carlo shell estimator: signature, returned dict, per-region / per-pocket / per-cluster breakdowns.</li>
+<li>A side-by-side <strong>MC shell vs.&nbsp;marching-cubes mesh</strong> comparison.</li>
+<li><strong>Void volume</strong> via the same accessibility analysis — global, per-region, per-pocket, and a <em>point-probe reference</em> for sanity.</li>
+<li>The role of <strong>window fingerprinting</strong> (<code>window_fp=True</code>) on accessible SA: where the two accessibility modes disagree and why.</li>
+<li>A 3-D figure of the unit cell with a translucent dgrid isosurface and the pocket maxima.</li>
+</ol>
+<p>If you have not done so, please complete the <a href="./distance_grid.html">Distance Grid</a>, <a href="./region_segmentation.html">Region Segmentation</a>, and <a href="./connections_and_windows.html">Connections and Windows</a> tutorials first — the rest of this page assumes you can build a <code>seg</code> dict in your sleep.</p>
+</section>
+<section id="why-the-mc-shell-estimator" class="level2">
+<h2 class="anchored" data-anchor-id="why-the-mc-shell-estimator">Why the MC shell estimator?</h2>
+<p>The mesh method is exact (modulo tessellation) but two artifacts creep in on coarse grids:</p>
+<ul>
+<li><strong>Blocky isosurface</strong> — coarse <code>dgrid</code> spacing produces low-poly surfaces; mesh area underestimates the true value.</li>
+<li><strong>Region-boundary triangles dropped</strong> — faces that straddle region boundaries disappear when the per-region submeshes are built, leading to <em>systematic undercount</em> of surface area at the interfaces between pores.</li>
+</ul>
+<p>The MC shell estimator <strong>does not build a mesh at all</strong>. It directly measures the volume of the thin band around the isosurface — a quantity that is mathematically well-defined even when the discrete mesh is imperfect. In practice the MC shell agrees with Zeo++ better than the marching-cubes mesh does, and the noise floor is set by <code>n_samples</code> (∝ 1/√N).</p>
+</section>
+<section id="imports-and-structure" class="level2">
+<h2 class="anchored" data-anchor-id="imports-and-structure">Imports and structure</h2>
+<div id="87d2f134" class="cell" data-execution_count="1">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> os</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>os.chdir(<span class="st">"/Users/arungopalan/repos/mofography/docs"</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> logging</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Silence the chatty segmentation logger</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>logging.getLogger(<span class="st">"mofography"</span>).setLevel(logging.WARNING)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="step-1-load-irmof-1-and-compute-the-distance-grid" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-load-irmof-1-and-compute-the-distance-grid">Step 1: Load IRMOF-1 and compute the distance grid</h2>
+<p>IRMOF-1 is a clean test case: 424 atoms, ~26 Å cubic cell, two cage families, no disordered atoms. The defaults of <code>do_periodic_segmentation_rust</code> produce 8 PBC-grouped pockets.</p>
+<div id="40e5a5db" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>atoms <span class="op">=</span> read(<span class="st">"IRMOF-1.cif"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IRMOF-1: </span><span class="sc">{</span><span class="bu">len</span>(atoms)<span class="sc">}</span><span class="ss"> atoms, cell = </span><span class="sc">{</span>atoms<span class="sc">.</span>cell<span class="sc">.</span>cellpar()[:<span class="dv">3</span>]<span class="sc">.</span><span class="bu">round</span>(<span class="dv">2</span>)<span class="sc">}</span><span class="ss"> Å"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>spacing <span class="op">=</span> <span class="fl">0.5</span>                                  <span class="co"># Å — see dgrid_methods.qmd</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span>spacing)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> dgrid.astype(np.float32)               <span class="co"># cast to float32 — required by do_periodic_segmentation_rust</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dgrid: shape=</span><span class="sc">{</span>dgrid<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, void max = </span><span class="sc">{</span>dgrid<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.1f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>IRMOF-1: 424 atoms, cell = [25.83 25.83 25.83] Å
+dgrid: shape=(52, 52, 52), void max = 7.5 Å</code></pre>
+</div>
+</div>
+</section>
+<section id="step-2-periodic-segmentation-percolation-history" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-periodic-segmentation-percolation-history">Step 2: Periodic segmentation + percolation history</h2>
+<p>A single call to <code>do_periodic_segmentation_rust</code> returns a <code>seg</code> dict containing everything the SA / void-volume routines need: the <code>dgrid</code>, the <code>regions_pbc</code> and <code>pbc_groups</code> from the PBC merge, the <code>connections</code> list, and the <code>percolation_history</code> (computed automatically here because <code>compute_connections=True</code> and the percolation stage is on by default).</p>
+<div id="2423eeab" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>seg <span class="op">=</span> mgr.do_periodic_segmentation_rust(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    dgrid, atoms, spacing<span class="op">=</span>spacing,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">0.05</span>, h<span class="op">=</span><span class="fl">0.2</span>, min_distance<span class="op">=</span><span class="fl">1.5</span>, threshold_abs<span class="op">=</span><span class="fl">1.5</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    minimum_window_separation<span class="op">=</span><span class="fl">1.5</span>, wall_thickness<span class="op">=</span><span class="fl">0.05</span>, extra_padding<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    compute_connections<span class="op">=</span><span class="va">True</span>, watershed_backend<span class="op">=</span><span class="st">"rust_det"</span>, disable_tqdm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pockets (PBC-grouped):  </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'maxima_pbc'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unique regions:         </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'unique_regions'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Window connections:     </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'connections'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"pbc_groups:             </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'pbc_groups'</span>])<span class="sc">}</span><span class="ss"> PBC pockets"</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"percolation_history:    </span><span class="sc">{</span><span class="st">'percolation_history'</span> <span class="kw">in</span> seg<span class="sc">}</span><span class="ss">  (computed lazily if missing)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pockets (PBC-grouped):  8
+Unique regions:         27
+Window connections:     300
+pbc_groups:             8 PBC pockets
+percolation_history:    False  (computed lazily if missing)</code></pre>
+</div>
+</div>
+</section>
+<section id="step-3-pore-diameters-lcd-pld-dfsd" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-pore-diameters-lcd-pld-dfsd">Step 3: Pore diameters (LCD, PLD, DFSD)</h2>
+<p><code>get_pore_dia_mgr</code> is the single-call helper that returns the three standard diameters. We do this <strong>before</strong> SA so we can sanity-check the probe radius we feed into the SA routines — it should be <em>smaller</em> than the PLD, otherwise no pocket percolates and accessible SA drops to zero.</p>
+<div id="ece3b6c6" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lcd, pld, dfsd, _ <span class="op">=</span> mgr.get_pore_dia_mgr(atoms, dgrid<span class="op">=</span>dgrid, kwargs<span class="op">=</span>{})</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"LCD  (largest cavity diameter):       </span><span class="sc">{</span>lcd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PLD  (pore-limiting diameter):       </span><span class="sc">{</span>pld<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"DFSD (dominant framework-solvent):   </span><span class="sc">{</span>dfsd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>probe_radius <span class="op">=</span> <span class="fl">1.2</span>   <span class="co"># helium — well below the PLD, so all pockets percolate</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Chosen probe_radius = </span><span class="sc">{</span>probe_radius<span class="sc">}</span><span class="ss"> Å  →  probe &lt; PLD ✓"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>LCD  (largest cavity diameter):       15.08 Å
+PLD  (pore-limiting diameter):       7.89 Å
+DFSD (dominant framework-solvent):   15.08 Å
+
+Chosen probe_radius = 1.2 Å  →  probe &lt; PLD ✓</code></pre>
+</div>
+</div>
+</section>
+<section id="step-4-monte-carlo-shell-surface-area" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-monte-carlo-shell-surface-area">Step 4: Monte-Carlo shell surface area</h2>
+<p>The signature is:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>compute_surface_area_mc_winding(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    results_dict, mat_atoms,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    probe_radius<span class="op">=</span><span class="va">None</span>,         <span class="co"># default: helium radius (1.2 Å)</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    n_samples<span class="op">=</span><span class="dv">20_000</span>,          <span class="co"># MC sample count</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    shell_thickness<span class="op">=</span><span class="fl">0.5</span>,       <span class="co"># half-width of the band around the probe surface (Å)</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    return_details<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    window_fp<span class="op">=</span><span class="va">True</span>,            <span class="co"># window-fingerprint rescue on accessible side</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    winding_kwargs<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>It returns a dict with:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>total_surface_area</code></td>
+<td>SA over all regions at the probe radius (m²/g), MC estimate.</td>
+</tr>
+<tr class="even">
+<td><code>accessible_surface_area</code></td>
+<td>SA restricted to percolating regions only (m²/g).</td>
+</tr>
+<tr class="odd">
+<td><code>accessible_fraction</code></td>
+<td><code>accessible / total</code>.</td>
+</tr>
+<tr class="even">
+<td><code>by_region</code></td>
+<td><code>{region_id → SA (m²/g)}</code> for the <strong>accessible</strong> fragment regions.</td>
+</tr>
+<tr class="odd">
+<td><code>by_pocket</code></td>
+<td><code>{pocket_id → SA (m²/g)}</code> — sums <code>by_region</code> over each PBC pocket.</td>
+</tr>
+<tr class="even">
+<td><code>by_percolated_cluster</code></td>
+<td><code>{cluster_label → SA (m²/g)}</code> — per percolated cluster at the chosen threshold.</td>
+</tr>
+<tr class="odd">
+<td><code>sa_mc_diagnostics</code></td>
+<td><code>n_samples</code>, <code>shell_thickness</code>, <code>n_shell_hits_total</code>, <code>n_shell_hits_accessible</code>.</td>
+</tr>
+<tr class="even">
+<td><code>probe_radius</code></td>
+<td>The probe actually used.</td>
+</tr>
+</tbody>
+</table>
+<div id="32474d26" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>sa_mc <span class="op">=</span> mgr.compute_surface_area_mc_winding(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    seg, atoms, probe_radius<span class="op">=</span>probe_radius, n_samples<span class="op">=</span><span class="dv">20000</span>, shell_thickness<span class="op">=</span><span class="fl">0.5</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"MC SHELL SURFACE AREA  (IRMOF-1, He probe)"</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  total_surface_area:        </span><span class="sc">{</span>sa_mc[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss"> m²/g"</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  accessible_surface_area:   </span><span class="sc">{</span>sa_mc[<span class="st">'accessible_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss"> m²/g"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  accessible_fraction:       </span><span class="sc">{</span>sa_mc[<span class="st">'accessible_fraction'</span>]<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  probe_radius:              </span><span class="sc">{</span>sa_mc[<span class="st">'probe_radius'</span>]<span class="sc">:&gt;10.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  sa_mc_diagnostics:"</span>)</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> k, v <span class="kw">in</span> sa_mc[<span class="st">'sa_mc_diagnostics'</span>].items():</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"    </span><span class="sc">{</span>k<span class="sc">:&gt;26s}</span><span class="ss">  </span><span class="sc">{</span>v<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>============================================================
+MC SHELL SURFACE AREA  (IRMOF-1, He probe)
+============================================================
+  total_surface_area:            3794.0 m²/g
+  accessible_surface_area:       3794.0 m²/g
+  accessible_fraction:           1.0000
+  probe_radius:                    1.20 Å
+
+  sa_mc_diagnostics:
+                     n_samples  20000
+               shell_thickness  0.5
+            n_shell_hits_total  2251
+       n_shell_hits_accessible  2251</code></pre>
+</div>
+</div>
+<p>The diagnostic <code>n_shell_hits_total</code> is the raw number of <code>n_samples=20000</code> random points whose interpolated distance from the framework lies within <code>shell_thickness/2</code> of the probe radius. It is the MC count that gets converted to a surface area. With 20000 samples you expect a few-percent statistical error on <code>total_surface_area</code>.</p>
+<section id="per-pocket-breakdown" class="level3">
+<h3 class="anchored" data-anchor-id="per-pocket-breakdown">Per-pocket breakdown</h3>
+<p><code>by_pocket</code> is the most useful field for a structural-chemistry report: it gives one SA number per PBC pocket. We sort by descending area and print a small table.</p>
+<div id="246b60a2" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Accessible SA per pocket (sorted, top 10):</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">'pocket'</span><span class="sc">:&gt;8s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'SA (m²/g)'</span><span class="sc">:&gt;12s}</span><span class="ss">  bar"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> pid, area <span class="kw">in</span> <span class="bu">sorted</span>(sa_mc[<span class="st">'by_pocket'</span>].items(), key<span class="op">=</span><span class="kw">lambda</span> kv: <span class="op">-</span>kv[<span class="dv">1</span>])[:<span class="dv">10</span>]:</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    bar <span class="op">=</span> <span class="st">"█"</span> <span class="op">*</span> <span class="bu">int</span>(area <span class="op">/</span> <span class="dv">5</span>)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="bu">int</span>(pid)<span class="sc">:&gt;8d}</span><span class="ss">  </span><span class="sc">{</span>area<span class="sc">:&gt;12.2f}</span><span class="ss">  </span><span class="sc">{</span>bar<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Accessible SA per pocket (sorted, top 10):
+
+    pocket     SA (m²/g)  bar
+         7        665.76  █████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+         8        633.73  ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+         2        620.25  ████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+         6        574.74  ██████████████████████████████████████████████████████████████████████████████████████████████████████████████████
+         3        352.26  ██████████████████████████████████████████████████████████████████████
+         1        332.04  ██████████████████████████████████████████████████████████████████
+         5        316.87  ███████████████████████████████████████████████████████████████
+         4        298.33  ███████████████████████████████████████████████████████████</code></pre>
+</div>
+</div>
+</section>
+<section id="per-region-and-per-cluster-breakdowns" class="level3">
+<h3 class="anchored" data-anchor-id="per-region-and-per-cluster-breakdowns">Per-region and per-cluster breakdowns</h3>
+<p>The same numbers are available at finer and coarser granularity.</p>
+<div id="d07c3232" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">by_region — </span><span class="sc">{</span><span class="bu">len</span>(sa_mc[<span class="st">'by_region'</span>])<span class="sc">}</span><span class="ss"> accessible regions:"</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> rid, area <span class="kw">in</span> <span class="bu">sorted</span>(sa_mc[<span class="st">'by_region'</span>].items(), key<span class="op">=</span><span class="kw">lambda</span> kv: <span class="op">-</span>kv[<span class="dv">1</span>])[:<span class="dv">5</span>]:</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  region </span><span class="sc">{</span>rid<span class="sc">:&gt;3d}</span><span class="ss">   </span><span class="sc">{</span>area<span class="sc">:&gt;8.2f}</span><span class="ss"> m²/g"</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  ..."</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">by_percolated_cluster — </span><span class="sc">{</span><span class="bu">len</span>(sa_mc[<span class="st">'by_percolated_cluster'</span>])<span class="sc">}</span><span class="ss"> percolated clusters:"</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cid, area <span class="kw">in</span> <span class="bu">sorted</span>(sa_mc[<span class="st">'by_percolated_cluster'</span>].items(), key<span class="op">=</span><span class="kw">lambda</span> kv: <span class="op">-</span>kv[<span class="dv">1</span>])[:<span class="dv">5</span>]:</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>cid<span class="sc">:&lt;22s}</span><span class="ss">  </span><span class="sc">{</span>area<span class="sc">:&gt;10.2f}</span><span class="ss"> m²/g"</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"  ..."</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+by_region — 27 accessible regions:
+  region  20     340.46 m²/g
+  region   7     325.29 m²/g
+  region  12     311.81 m²/g
+  region   2     308.44 m²/g
+  region   4     298.33 m²/g
+  ...
+
+by_percolated_cluster — 20 percolated clusters:
+  axis_x_cluster_0           3793.98 m²/g
+  axis_x_cluster_1           3793.98 m²/g
+  axis_x_cluster_2           3793.98 m²/g
+  axis_x_cluster_3           3793.98 m²/g
+  axis_x_cluster_4           3793.98 m²/g
+  ...</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="step-5-mesh-surface-area-marching-cubes-reference" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-mesh-surface-area-marching-cubes-reference">Step 5: Mesh surface area (marching-cubes reference)</h2>
+<p>For a head-to-head comparison we run the mesh method on the <em>same</em> <code>seg</code> dict, same probe radius, same accessibility mode. The two should agree to within a few percent on a clean MOF; the disagreement quantifies how much the mesh is <em>missing</em> at region interfaces.</p>
+<div id="c4fabad0" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>sa_mesh <span class="op">=</span> mgr.compute_surface_area_mesh_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'method'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'total'</span><span class="sc">:&gt;10s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'accessible'</span><span class="sc">:&gt;12s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'frac'</span><span class="sc">:&gt;8s}</span><span class="ss">"</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'MC shell'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>sa_mc[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss">  "</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>sa_mc[<span class="st">'accessible_surface_area'</span>]<span class="sc">:&gt;12.1f}</span><span class="ss">  </span><span class="sc">{</span>sa_mc[<span class="st">'accessible_fraction'</span>]<span class="sc">:&gt;8.3f}</span><span class="ss">"</span>)</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Mesh'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>sa_mesh[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss">  "</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>sa_mesh[<span class="st">'accessible_surface_area'</span>]<span class="sc">:&gt;12.1f}</span><span class="ss">  </span><span class="sc">{</span>sa_mesh[<span class="st">'accessible_fraction'</span>]<span class="sc">:&gt;8.3f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>mesh colors [[102, 197, 204, 255], [155, 201, 170, 255], [209, 204, 137, 255], [246, 201, 113, 255], [247, 182, 114, 255], [248, 164, 116, 255], [242, 160, 144, 255], [231, 168, 191, 255], [221, 175, 237, 255], [192, 183, 193, 255], [160, 191, 139, 255], [137, 196, 106, 255], [145, 192, 161, 255], [154, 187, 216, 255], [176, 176, 231, 255], [211, 158, 206, 255], [247, 140, 182, 255], [238, 161, 159, 255], [219, 191, 136, 255], [199, 219, 118, 255], [176, 221, 136, 255], [153, 223, 153, 255], [145, 213, 174, 255], [160, 186, 199, 255], [175, 159, 224, 255], [180, 158, 218, 255], [179, 169, 198, 255], [179, 179, 179, 255]]
+method               total    accessible      frac
+--------------------------------------------------
+MC shell            3794.0        3794.0     1.000
+Mesh                3568.2        3253.4     0.912</code></pre>
+</div>
+</div>
+<p>For IRMOF-1 the mesh returns a lower <em>accessible</em> SA than the MC shell — typical when the segmentation includes regions where the marching-cubes tessellation drops triangles at the boundary between percolating and non-percolating regions.</p>
+</section>
+<section id="step-6-void-volume" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-void-volume">Step 6: Void volume</h2>
+<p><code>compute_void_volume_from_results_winding</code> reuses the same <code>percolation_history</code> and <code>pbc_groups</code> machinery. The output dict mirrors the SA dict but with two extra completeness fields: <code>complete_pockets</code> and <code>incomplete_pockets</code> — a pocket is <em>complete</em> if <strong>every</strong> region in its PBC group percolates, and <em>incomplete</em> otherwise (in which case its accessible volume is partial and the function reports it separately under <code>flagged_incomplete_pockets</code>).</p>
+<div id="a489d027" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>vv <span class="op">=</span> mgr.compute_void_volume_from_results_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"VOID VOLUME  (IRMOF-1, He probe)"</span>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  total_void_volume:           </span><span class="sc">{</span>vv[<span class="st">'total_void_volume'</span>]<span class="sc">:&gt;10.4f}</span><span class="ss"> cm³/g"</span>)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  accessible_void_volume:      </span><span class="sc">{</span>vv[<span class="st">'accessible_void_volume'</span>]<span class="sc">:&gt;10.4f}</span><span class="ss"> cm³/g"</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  accessible_fraction:         </span><span class="sc">{</span>vv[<span class="st">'accessible_fraction'</span>]<span class="sc">:&gt;10.4f}</span><span class="ss">"</span>)</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  num_regions:                 </span><span class="sc">{</span>vv[<span class="st">'num_regions'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  num_accessible_regions:      </span><span class="sc">{</span>vv[<span class="st">'num_accessible_regions'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  num_pockets:                 </span><span class="sc">{</span>vv[<span class="st">'num_pockets'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  num_accessible_pockets:      </span><span class="sc">{</span>vv[<span class="st">'num_accessible_pockets'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  num_percolated_clusters:     </span><span class="sc">{</span>vv[<span class="st">'num_percolated_clusters'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  complete_pockets:            </span><span class="sc">{</span>vv[<span class="st">'complete_pockets'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  incomplete_pockets:          </span><span class="sc">{</span>vv[<span class="st">'incomplete_pockets'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  pocket_completeness_stats:   </span><span class="sc">{</span>vv[<span class="st">'pocket_completeness_stats'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  point_probe_reference (He, no accessibility):  </span><span class="sc">{</span>vv[<span class="st">'point_probe_reference'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>============================================================
+VOID VOLUME  (IRMOF-1, He probe)
+============================================================
+  total_void_volume:               0.9271 cm³/g
+  accessible_void_volume:          0.9271 cm³/g
+  accessible_fraction:             1.0000
+
+  num_regions:                 27
+  num_accessible_regions:      27
+  num_pockets:                 8
+  num_accessible_pockets:      8
+  num_percolated_clusters:     20
+
+  complete_pockets:            8
+  incomplete_pockets:          0
+  pocket_completeness_stats:   {'total_pockets': 8, 'complete_pockets': 8, 'incomplete_pockets': 0, 'completeness_rate': 1.0}
+
+  point_probe_reference (He, no accessibility):  {'surface_area': np.float64(3202.5459833100713), 'void_volume': np.float64(1.3601850370844109), 'void_volume_fraction': np.float64(0.6816130851663843)}</code></pre>
+</div>
+</div>
+<p>A few things to notice:</p>
+<ul>
+<li><code>total_void_volume</code> and <code>accessible_void_volume</code> agree to within numerical noise → every pocket percolates at the helium probe, so the whole void is probe-accessible.</li>
+<li><code>point_probe_reference.void_volume_fraction = 0.68</code> is the <em>geometric</em> void fraction measured at the helium probe without any accessibility filter — a useful sanity check that the framework is correctly built.</li>
+<li><code>complete_pockets = num_pockets = 8</code> — no partial pockets at this probe.</li>
+</ul>
+<section id="per-pocket-void-volume" class="level3">
+<h3 class="anchored" data-anchor-id="per-pocket-void-volume">Per-pocket void volume</h3>
+<div id="f308faea" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Accessible void volume per pocket (sorted):</span><span class="ch">\n</span><span class="st">"</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="st">'pocket'</span><span class="sc">:&gt;8s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'V (cm³/g)'</span><span class="sc">:&gt;12s}</span><span class="ss">  bar"</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> pid, vol <span class="kw">in</span> <span class="bu">sorted</span>(vv[<span class="st">'by_pocket'</span>].items(), key<span class="op">=</span><span class="kw">lambda</span> kv: <span class="op">-</span>kv[<span class="dv">1</span>])[:<span class="dv">10</span>]:</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    bar <span class="op">=</span> <span class="st">"█"</span> <span class="op">*</span> <span class="bu">int</span>(vol <span class="op">*</span> <span class="dv">100</span>)</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span><span class="bu">int</span>(pid)<span class="sc">:&gt;8d}</span><span class="ss">  </span><span class="sc">{</span>vol<span class="sc">:&gt;12.4f}</span><span class="ss">  </span><span class="sc">{</span>bar<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Accessible void volume per pocket (sorted):
+
+    pocket     V (cm³/g)  bar
+         8        0.1690  ████████████████
+         2        0.1533  ███████████████
+         6        0.1533  ███████████████
+         7        0.1533  ███████████████
+         1        0.0770  ███████
+         3        0.0770  ███████
+         5        0.0770  ███████
+         4        0.0671  ██████</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="step-7-effect-of-window_fp-on-accessible-sa" class="level2">
+<h2 class="anchored" data-anchor-id="step-7-effect-of-window_fp-on-accessible-sa">Step 7: Effect of <code>window_fp</code> on accessible SA</h2>
+<p><code>window_fp=True</code> (the default) lets the winding accessibility logic <em>rescue</em> watershed regions that are visually accessible but lie behind a sub-probe window. The mechanism is: if the window’s direction-invariant shell fingerprint matches a reference open window (e.g.&nbsp;a window of the same size on a different edge of the same region), the downstream region is treated as percolating. Setting <code>window_fp=False</code> disables that rescue and falls back to strict winding-only percolation.</p>
+<p>The impact is structure-specific. On IRMOF-1 (a clean, symmetric framework) the difference is small; on more irregular MOFs with sub-probe windows it can flip the accessibility of an entire pocket.</p>
+<div id="b4e735d5" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>sa_fp_on  <span class="op">=</span> mgr.compute_surface_area_mc_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius, window_fp<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>sa_fp_off <span class="op">=</span> mgr.compute_surface_area_mc_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius, window_fp<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'window_fp'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'total'</span><span class="sc">:&gt;10s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'accessible'</span><span class="sc">:&gt;12s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'n_pockets'</span><span class="sc">:&gt;10s}</span><span class="ss">"</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">52</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'True'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>sa_fp_on[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss">  "</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>sa_fp_on[<span class="st">'accessible_surface_area'</span>]<span class="sc">:&gt;12.1f}</span><span class="ss">  </span><span class="sc">{</span><span class="bu">len</span>(sa_fp_on[<span class="st">'by_pocket'</span>])<span class="sc">:&gt;10d}</span><span class="ss">"</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'False'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>sa_fp_off[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss">  "</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>sa_fp_off[<span class="st">'accessible_surface_area'</span>]<span class="sc">:&gt;12.1f}</span><span class="ss">  </span><span class="sc">{</span><span class="bu">len</span>(sa_fp_off[<span class="st">'by_pocket'</span>])<span class="sc">:&gt;10d}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>window_fp            total    accessible   n_pockets
+----------------------------------------------------
+True                3676.0        3676.0           8
+False               3906.9        3906.9           8</code></pre>
+</div>
+</div>
+<p>Same comparison for void volume — flip the same <code>window_fp</code> switch on the void-volume routine:</p>
+<div id="7a8ffaf0" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>vv_fp_on  <span class="op">=</span> mgr.compute_void_volume_from_results_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius, window_fp<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>vv_fp_off <span class="op">=</span> mgr.compute_void_volume_from_results_winding(seg, atoms, probe_radius<span class="op">=</span>probe_radius, window_fp<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'window_fp'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'V_void (cm³/g)'</span><span class="sc">:&gt;14s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'complete'</span><span class="sc">:&gt;10s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'incomplete'</span><span class="sc">:&gt;12s}</span><span class="ss">"</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">56</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'True'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>vv_fp_on[<span class="st">'accessible_void_volume'</span>]<span class="sc">:&gt;14.4f}</span><span class="ss">  "</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>vv_fp_on[<span class="st">'complete_pockets'</span>]<span class="sc">:&gt;10d}</span><span class="ss">  </span><span class="sc">{</span>vv_fp_on[<span class="st">'incomplete_pockets'</span>]<span class="sc">:&gt;12d}</span><span class="ss">"</span>)</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'False'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>vv_fp_off[<span class="st">'accessible_void_volume'</span>]<span class="sc">:&gt;14.4f}</span><span class="ss">  "</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>vv_fp_off[<span class="st">'complete_pockets'</span>]<span class="sc">:&gt;10d}</span><span class="ss">  </span><span class="sc">{</span>vv_fp_off[<span class="st">'incomplete_pockets'</span>]<span class="sc">:&gt;12d}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>window_fp       V_void (cm³/g)    complete    incomplete
+--------------------------------------------------------
+True                    0.9271           8             0
+False                   0.9271           8             0</code></pre>
+</div>
+</div>
+<blockquote class="blockquote">
+<p><strong>When to flip <code>window_fp</code>.</strong> Default to <code>True</code>: it is the right choice for the majority of MOFs and matches what users see in the interactive app. Set it to <code>False</code> only when you are explicitly testing the strict-winding accessibility bound, or when you suspect the fingerprint matcher is over-percolating an irregular MOF (compare <code>by_pocket</code> between the two settings and look for newly-appearing pockets).</p>
+</blockquote>
+</section>
+<section id="step-8-mc-shell-thickness-sweep-bias-and-variance" class="level2">
+<h2 class="anchored" data-anchor-id="step-8-mc-shell-thickness-sweep-bias-and-variance">Step 8: MC shell-thickness sweep — bias and variance</h2>
+<p>The expected value of the MC estimator is <strong>independent of <code>shell_thickness</code></strong> in the small-δ limit, because <code>p_shell</code> scales linearly with <code>δ</code> and the <code>1/δ</code> factor cancels. The variance, however, scales with <code>1/δ</code>: thicker shells contain more samples and the estimate is less noisy. A sweep across <code>δ</code> is a useful diagnostic — agreement to within a few percent confirms the shell-thickness bias is small.</p>
+<div id="87ba2625" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'δ (Å)'</span><span class="sc">:&gt;6s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'total SA'</span><span class="sc">:&gt;10s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'shell hits'</span><span class="sc">:&gt;12s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'hits/sample'</span><span class="sc">:&gt;14s}</span><span class="ss">"</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> delta <span class="kw">in</span> (<span class="fl">0.3</span>, <span class="fl">0.5</span>, <span class="fl">0.7</span>, <span class="fl">1.0</span>):</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    sa <span class="op">=</span> mgr.compute_surface_area_mc_winding(</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>        seg, atoms, probe_radius<span class="op">=</span>probe_radius, n_samples<span class="op">=</span><span class="dv">40000</span>, shell_thickness<span class="op">=</span>delta</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    hits <span class="op">=</span> sa[<span class="st">'sa_mc_diagnostics'</span>][<span class="st">'n_shell_hits_total'</span>]</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>delta<span class="sc">:&gt;4.1f}</span><span class="ss">  </span><span class="sc">{</span>sa[<span class="st">'total_surface_area'</span>]<span class="sc">:&gt;10.1f}</span><span class="ss">  </span><span class="sc">{</span>hits<span class="sc">:&gt;12d}</span><span class="ss">  "</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span>hits<span class="op">/</span><span class="dv">40000</span><span class="sc">:&gt;14.4f}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code> δ (Å)    total SA    shell hits     hits/sample
+--------------------------------------------------
+   0.3      3868.1          2754          0.0688
+   0.5      3810.0          4521          0.1130
+   0.7      3903.1          6484          0.1621
+   1.0      3777.5          8965          0.2241</code></pre>
+</div>
+</div>
+<p>For IRMOF-1 all four rows should agree within ~3% — the MC noise level for 40 000 samples. If they do not agree, one of two things is happening:</p>
+<ul>
+<li><strong>δ is comparable to the probe radius</strong> → the shell is sampling curvature that the small-δ approximation cannot resolve. Drop δ to <code>0.5</code> or below.</li>
+<li><strong>A real feature is being washed out</strong> by the shell (e.g.&nbsp;a 1-Å window at a 1.2-Å probe with δ=1.0). Drop δ to <code>0.3</code> and re-check.</li>
+</ul>
+</section>
+<section id="step-9-visualize-the-accessible-pockets" class="level2">
+<h2 class="anchored" data-anchor-id="step-9-visualize-the-accessible-pockets">Step 9: Visualize the accessible pockets</h2>
+<p><code>plot_maxima</code> returns a <em>tuple</em> <code>(Scatter3d, Mesh3d)</code> when <code>show_spheres=True</code> — we unpack it and add both traces to a <code>go.Figure</code>. <code>plot_surface_dgrid</code> returns a single <code>Mesh3d</code> trace; we add it directly. Passing <code>select=</code> with the accessible region labels (the keys of <code>by_region</code>) trims the isosurface to the accessible domains, so a blocked pocket would not be drawn.</p>
+<div id="838b4a19" class="cell" data-execution_count="14">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>n_pockets <span class="op">=</span> <span class="bu">int</span>(seg[<span class="st">"regions_pbc"</span>].<span class="bu">max</span>())</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>unit_cell_maxima <span class="op">=</span> seg[<span class="st">"all_maxima"</span>][:n_pockets]</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Pore maxima as spheres (sphere opacity = 0.6, colour ~ pore radius)</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>scatter_tr, mesh_tr <span class="op">=</span> mgr.plot_maxima(</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    dgrid, unit_cell_maxima, atoms,</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    show_spheres<span class="op">=</span><span class="va">True</span>, sphere_opacity<span class="op">=</span><span class="fl">0.6</span>,</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="ss">f"Pockets (</span><span class="sc">{</span>n_pockets<span class="sc">}</span><span class="ss">)"</span>,</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Translucent dgrid isosurface at the probe radius, trimmed to the accessible regions.</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="co"># `by_region` holds the accessible region labels of the un-merged `seg["regions"]`</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="co"># (labels of the PBC-merged array would also pull in partial pores).</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>accessible_labels <span class="op">=</span> <span class="bu">list</span>(sa_mc[<span class="st">"by_region"</span>])</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>surf_tr <span class="op">=</span> mgr.plot_surface_dgrid(</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    dgrid, probe_radius, atoms,</span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>    region_labels<span class="op">=</span>seg[<span class="st">"regions"</span>], select<span class="op">=</span>accessible_labels,</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    opacity<span class="op">=</span><span class="fl">0.35</span>, cscale<span class="op">=</span>px.colors.qualitative.Pastel,</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>    stylize<span class="op">=</span><span class="va">True</span>, name<span class="op">=</span><span class="ss">f"accessible isosurface @ </span><span class="sc">{</span>probe_radius<span class="sc">}</span><span class="ss"> Å"</span>,</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Faint framework</span></span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>fw_atoms <span class="op">=</span> mgr.update_with_covalent_bonds(atoms)</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>framework_trs <span class="op">=</span> mgr.plot_framework_as_mesh(</span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>    fw_atoms, stylize<span class="op">=</span><span class="va">True</span>, kwargs_frame_mesh<span class="op">=</span>{<span class="st">"opacity"</span>: <span class="fl">0.15</span>},</span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> go.Figure(data<span class="op">=</span>[scatter_tr, mesh_tr, surf_tr, <span class="op">*</span>framework_trs])</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>    scene_aspectmode<span class="op">=</span><span class="st">"data"</span>,</span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="bu">dict</span>(</span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>        text<span class="op">=</span><span class="ss">f"IRMOF-1: 8 PBC pockets + accessible SA = </span><span class="sc">{</span>sa_mc[<span class="st">'accessible_surface_area'</span>]<span class="sc">:.0f}</span><span class="ss"> m²/g"</span>,</span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span><span class="fl">0.5</span>, xanchor<span class="op">=</span><span class="st">"center"</span>,</span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>    paper_bgcolor<span class="op">=</span><span class="st">"black"</span>,</span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"tutorial_images/surface_area_pockets.png"</span>, width<span class="op">=</span><span class="dv">1100</span>, height<span class="op">=</span><span class="dv">800</span>)  <span class="co"># static preview for the docs</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[TIMING batched_mesh_for_atoms] 472 atoms, 1024 bonds | spheres: 0.00s, cylinders: 0.00s, concat: 0.00s | total faces: 212480</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/surface_area_pockets.png" class="img-fluid figure-img"></p>
+<figcaption>IRMOF-1: PBC pockets inside the probe-radius isosurface</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled" title="Interactive version">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Interactive version
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># build `fig` as above, then:</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>fig.show()   <span class="co"># rotatable Plotly figure</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>fig.write_html(<span class="st">"surface_area_pockets.html"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+<p><a href="interactive/cubtc_surface_area_plotly.html" target="_blank">Open the interactive version</a></p>
+<p>You should see one sphere per PBC pocket (eight for IRMOF-1) sitting inside a translucent isosurface at the probe radius. The two cage families — small and large — are visually obvious in the cube.</p>
+</section>
+<section id="step-10-bar-chart-of-accessible-sa-per-pocket" class="level2">
+<h2 class="anchored" data-anchor-id="step-10-bar-chart-of-accessible-sa-per-pocket">Step 10: Bar chart of accessible SA per pocket</h2>
+<p>A quick sanity plot. Sorted descending, the bar chart should show all eight pockets contributing roughly the same area (the framework is highly symmetric).</p>
+<div id="9ca3c671" class="cell" data-execution_count="15">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>pockets <span class="op">=</span> <span class="bu">list</span>(sa_mc[<span class="st">"by_pocket"</span>].keys())</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>areas   <span class="op">=</span> [sa_mc[<span class="st">"by_pocket"</span>][p] <span class="cf">for</span> p <span class="kw">in</span> pockets]</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>order   <span class="op">=</span> np.argsort(areas)[::<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>pockets_sorted <span class="op">=</span> [<span class="bu">int</span>(pockets[i]) <span class="cf">for</span> i <span class="kw">in</span> order]</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>areas_sorted   <span class="op">=</span> [areas[i] <span class="cf">for</span> i <span class="kw">in</span> order]</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>fig2 <span class="op">=</span> go.Figure(</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    go.Bar(x<span class="op">=</span>pockets_sorted, y<span class="op">=</span>areas_sorted,</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>           marker_color<span class="op">=</span><span class="st">"steelblue"</span>, name<span class="op">=</span><span class="st">"Accessible SA per pocket"</span>,</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>           hovertemplate<span class="op">=</span><span class="st">"Pocket %</span><span class="sc">{x}</span><span class="st">&lt;br&gt;SA = %</span><span class="sc">{y:.1f}</span><span class="st"> m²/g&lt;extra&gt;&lt;/extra&gt;"</span>)</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>fig2.update_layout(</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="st">"IRMOF-1: accessible SA per PBC pocket (He probe)"</span>,</span>
+<span id="cb31-14"><a href="#cb31-14" aria-hidden="true" tabindex="-1"></a>    xaxis_title<span class="op">=</span><span class="st">"PBC pocket id"</span>,</span>
+<span id="cb31-15"><a href="#cb31-15" aria-hidden="true" tabindex="-1"></a>    yaxis_title<span class="op">=</span><span class="st">"Accessible SA (m²/g)"</span>,</span>
+<span id="cb31-16"><a href="#cb31-16" aria-hidden="true" tabindex="-1"></a>    template<span class="op">=</span><span class="st">"plotly_white"</span>,</span>
+<span id="cb31-17"><a href="#cb31-17" aria-hidden="true" tabindex="-1"></a>    showlegend<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb31-18"><a href="#cb31-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb31-19"><a href="#cb31-19" aria-hidden="true" tabindex="-1"></a>fig2.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-display">
+<div style="height:525px; width:100%;">            <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_SVG"></script><script>if (window.MathJax && window.MathJax.Hub && window.MathJax.Hub.Config) {window.MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script>                <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.7.0.min.js" integrity="sha256-jvTGqxNp8AGWEcvNLVuKr+8j5dGe9Yw51LQkmDH+IYA=" crossorigin="anonymous"></script>                <div id="89bdd0c6-a03d-4fd9-b270-66a5dc214bbe" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("89bdd0c6-a03d-4fd9-b270-66a5dc214bbe")) {                    Plotly.newPlot(                        "89bdd0c6-a03d-4fd9-b270-66a5dc214bbe",                        [{"hovertemplate":"Pocket %{x}\u003cbr\u003eSA = %{y:.1f} m²\u002fg\u003cextra\u003e\u003c\u002fextra\u003e","marker":{"color":"steelblue"},"name":"Accessible SA per pocket","x":[7,8,2,6,3,1,5,4],"y":[665.7580247926724,633.7342210684677,620.2505142372238,574.7430036817755,352.26184096624945,332.0362807193834,316.8671105342339,298.3270136412734],"type":"bar"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"margin":{"b":0,"l":0,"r":0,"t":30},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"title":{"text":"IRMOF-1: accessible SA per PBC pocket (He probe)"},"xaxis":{"title":{"text":"PBC pocket id"}},"yaxis":{"title":{"text":"Accessible SA (m²\u002fg)"}},"showlegend":false},                        {"responsive": true}                    ).then(function(){
+                            
+var gd = document.getElementById('89bdd0c6-a03d-4fd9-b270-66a5dc214bbe');
+var x = new MutationObserver(function (mutations, observer) {{
+        var display = window.getComputedStyle(gd).display;
+        if (!display || display === 'none') {{
+            console.log([gd, 'removed!']);
+            Plotly.purge(gd);
+            observer.disconnect();
+        }}
+}});
+
+// Listen for the removal of the full notebook cells
+var notebookContainer = gd.closest('#notebook-container');
+if (notebookContainer) {{
+    x.observe(notebookContainer, {childList: true});
+}}
+
+// Listen for the clearing of the current output cell
+var outputEl = gd.closest('.output');
+if (outputEl) {{
+    x.observe(outputEl, {childList: true});
+}}
+
+                        })                };            </script>        </div>
+</div>
+</div>
+</section>
+<section id="side-by-side-summary" class="level2">
+<h2 class="anchored" data-anchor-id="side-by-side-summary">Side-by-side summary</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Quantity</th>
+<th>MC shell (<code>compute_surface_area_mc_winding</code>)</th>
+<th>Mesh (<code>compute_surface_area_mesh_winding</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Inputs</strong></td>
+<td><code>seg</code>, <code>atoms</code>, <code>probe_radius</code>, <code>n_samples</code>, <code>shell_thickness</code>, <code>window_fp</code></td>
+<td><code>seg</code>, <code>atoms</code>, <code>probe_radius</code>, <code>window_fp</code></td>
+</tr>
+<tr class="even">
+<td><strong>Algorithm</strong></td>
+<td>count random samples in a thin shell around the isosurface</td>
+<td>marching-cubes tessellation of the isosurface, then mesh area</td>
+</tr>
+<tr class="odd">
+<td><strong>Determinism</strong></td>
+<td>stochastic (set <code>np.random.seed</code> for reproducibility)</td>
+<td>deterministic</td>
+</tr>
+<tr class="even">
+<td><strong>Speed on IRMOF-1 (52³ grid, 20k samples)</strong></td>
+<td>~1 s</td>
+<td>~3 s</td>
+</tr>
+<tr class="odd">
+<td><strong>Bias from grid resolution</strong></td>
+<td>low (shell sampling smooths over 1-voxel artefacts)</td>
+<td>visible at coarse spacing (blocky surfaces, dropped boundary triangles)</td>
+</tr>
+<tr class="even">
+<td><strong>Tunable knobs</strong></td>
+<td><code>n_samples</code>, <code>shell_thickness</code></td>
+<td><code>step_size</code> (marching cubes)</td>
+</tr>
+<tr class="odd">
+<td><strong>Best for</strong></td>
+<td>high-throughput screening; large grids; noisy materials</td>
+<td>small grids where you need a <em>reference</em>; per-region sub-mesh visualisation</td>
+</tr>
+<tr class="even">
+<td><strong>Output dict</strong></td>
+<td>identical keys</td>
+<td>identical keys</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="decision-flow" class="level2">
+<h2 class="anchored" data-anchor-id="decision-flow">Decision flow</h2>
+<pre class="mermaid"><code>flowchart TD
+    A[seg dict + probe_radius] --&gt; B{Need per-region&lt;br/&gt;SA breakdown?}
+    B -- Yes --&gt; C[MC shell&lt;br/&gt;by_region, by_pocket]
+    B -- No --&gt; D{Need fast number&lt;br/&gt;for one structure?}
+    D -- Yes --&gt; E[MC shell&lt;br/&gt;n_samples=20k]
+    D -- No, exact --&gt; F[Mesh]
+    A --&gt; G{Window FP&lt;br/&gt;rescue needed?}
+    G -- Yes --&gt; H[window_fp=True&lt;br/&gt;(default)]
+    G -- No, strict --&gt; I[window_fp=False]
+    A --&gt; J{Plotting +&lt;br/&gt;region colours?}
+    J -- Yes --&gt; K[Mesh]
+    J -- No --&gt; L[MC shell]</code></pre>
+</section>
+<section id="common-pitfalls" class="level2">
+<h2 class="anchored" data-anchor-id="common-pitfalls">Common pitfalls</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>accessible_surface_area = 0</code> at small probe</td>
+<td>probe &gt; PLD; nothing percolates</td>
+<td>drop <code>probe_radius</code> until it sits well below the PLD</td>
+</tr>
+<tr class="even">
+<td>MC and mesh disagree by &gt;10%</td>
+<td>shell thickness is too small (<code>δ &lt;&lt; spacing</code>) or mesh has resolution artefacts</td>
+<td>raise <code>n_samples</code> to 50 000+ and re-sweep <code>δ ∈ {0.3, 0.5, 0.7}</code></td>
+</tr>
+<tr class="odd">
+<td>Mesh misses a region boundary</td>
+<td>sub-mesh tessellation drops boundary triangles; this is a real estimator bias</td>
+<td>use MC shell; cross-check the <code>accessible_fraction</code></td>
+</tr>
+<tr class="even">
+<td>Accessible SA jumps when you turn <code>window_fp</code> off</td>
+<td>a pocket sits behind a sub-probe window that the fingerprint would normally rescue</td>
+<td>either is defensible — interpret as a <em>strict</em> bound; document the choice</td>
+</tr>
+<tr class="odd">
+<td><code>by_percolated_cluster</code> keys look like <code>axis_x_cluster_0</code></td>
+<td>cluster labels carry the axis they were detected on; the same percolating region can appear under multiple axes</td>
+<td>group / deduplicate by cluster id when reporting</td>
+</tr>
+<tr class="even">
+<td><code>point_probe_reference.void_volume_fraction</code> looks very different from <code>accessible_void_volume / cell_volume</code></td>
+<td>the point-probe reference uses a different (purely geometric) convention</td>
+<td>use the <em>accessible</em> numbers for the screening-quality value; the point-probe number is a consistency check</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="whats-in-the-output-dict" class="level2">
+<h2 class="anchored" data-anchor-id="whats-in-the-output-dict">What’s in the output dict</h2>
+<p>A single call to <code>compute_surface_area_mc_winding(seg, atoms, probe_radius=1.2)</code> gives you this:</p>
+<pre><code>{
+  'total_surface_area':       &lt;float, m²/g&gt;,
+  'accessible_surface_area':  &lt;float, m²/g&gt;,
+  'accessible_fraction':      &lt;float in [0, 1]&gt;,
+  'probe_radius':             &lt;float, Å&gt;,
+  'by_region':                {region_id (int)            → SA (m²/g)},
+  'by_pocket':                {pocket_id (int)            → SA (m²/g)},
+  'by_percolated_cluster':    {"axis_X_cluster_N" (str)   → SA (m²/g)},
+  'sa_mc_diagnostics': {
+      'n_samples':                 &lt;int&gt;,
+      'shell_thickness':           &lt;float, Å&gt;,
+      'n_shell_hits_total':        &lt;int&gt;,
+      'n_shell_hits_accessible':   &lt;int&gt;,
+  },
+}</code></pre>
+<p>A single call to <code>compute_void_volume_from_results_winding(seg, atoms, probe_radius=1.2)</code> gives you this:</p>
+<pre><code>{
+  'total_void_volume':             &lt;float, cm³/g&gt;,
+  'accessible_void_volume':        &lt;float, cm³/g&gt;,
+  'by_region':                     {region_id → V (cm³/g)},  # accessible fragments
+  'by_region_pbc':                 {region_pbc_label → V (cm³/g)},
+  'by_pocket':                     {pocket_id → V (cm³/g)},
+  'by_percolated_cluster':         {cluster_label → V (cm³/g)},
+  'accessible_fraction':           &lt;float&gt;,
+  'probe_radius':                  &lt;float, Å&gt;,
+  'num_regions':                   &lt;int&gt;,
+  'num_accessible_regions':        &lt;int&gt;,
+  'num_pockets':                   &lt;int&gt;,
+  'num_accessible_pockets':        &lt;int&gt;,
+  'num_percolated_clusters':       &lt;int&gt;,
+  'complete_pockets':              &lt;int&gt;,
+  'incomplete_pockets':            &lt;int&gt;,
+  'flagged_incomplete_pockets':    {pocket_id → {accessible_void_volume, completeness_fraction, missing_regions, accessible_regions}},
+  'pocket_completeness_stats':     {total_pockets, complete_pockets, incomplete_pockets, completeness_rate},
+  'point_probe_reference':         {surface_area, void_volume, void_volume_fraction},
+}</code></pre>
+<p>The fields you actually want in a screening report are usually:</p>
+<ul>
+<li><strong>Total</strong> surface area / void volume — for table 1.</li>
+<li><code>accessible_fraction</code> — for filtering “open” MOFs.</li>
+<li><code>by_pocket</code> — for ranking pockets within a single MOF.</li>
+<li><code>point_probe_reference.void_volume_fraction</code> — for cross-validating against Zeo++.</li>
+</ul>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Concept</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>compute_surface_area_mc_winding</code></td>
+<td>MC shell SA — fast, statistical, robust to mesh artefacts.</td>
+</tr>
+<tr class="even">
+<td><code>compute_surface_area_mesh_winding</code></td>
+<td>Marching-cubes mesh SA — slow, deterministic, tessellation artefacts.</td>
+</tr>
+<tr class="odd">
+<td><code>compute_void_volume_from_results_winding</code></td>
+<td>Voxel-counted void volume + per-pocket completeness.</td>
+</tr>
+<tr class="even">
+<td><code>n_samples</code></td>
+<td>MC sample count. <code>20 000</code> is the default; <code>50 000+</code> for sub-percent noise.</td>
+</tr>
+<tr class="odd">
+<td><code>shell_thickness</code></td>
+<td>Half-width of the MC band around the isosurface. <code>0.5 Å</code> is the canonical default; sweep <code>{0.3, 0.5, 0.7}</code> to confirm bias is small.</td>
+</tr>
+<tr class="even">
+<td><code>window_fp=True</code></td>
+<td>Use window-fingerprint rescue on the accessible side. Default; flip to <code>False</code> for a strict-winding bound.</td>
+</tr>
+<tr class="odd">
+<td><code>by_region</code> / <code>by_pocket</code> / <code>by_percolated_cluster</code></td>
+<td>Three granularities of accessible SA / void volume for a single MOF.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key takeaways:</strong></p>
+<ul>
+<li>The MC shell estimator is the right default for high-throughput screening — <code>n_samples=20 000</code> is fast, gives few-percent accuracy, and does not suffer from mesh artefacts.</li>
+<li>A shell-thickness sweep at fixed <code>n_samples</code> is the simplest bias diagnostic: if <code>δ=0.3</code> and <code>δ=0.7</code> agree to within a few percent, the bias is small.</li>
+<li><code>window_fp=True</code> (default) is the more permissive accessibility mode; switch to <code>False</code> only when you want the strict-winding bound.</li>
+<li>Always sanity-check with the <strong>point-probe reference</strong> in the void-volume output — it catches segmentation / dgrid mistakes that would otherwise pass unnoticed.</li>
+</ul>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next steps</h2>
+<ul>
+<li><a href="./connections_and_windows.html">Connections and Windows</a> — how to extract the per-window sizes that the SA routines use implicitly.</li>
+<li><a href="window_fingerprinting.org">Window fingerprinting</a> — the direction-invariant shell fingerprint matcher that powers <code>window_fp=True</code>.</li>
+<li><a href="./pockets_detection.html">Pockets detection</a> — classify each pocket as cage / channel / dead-end; combine with <code>by_pocket</code> SA for chemistry-aware ranking.</li>
+<li><a href="./quick_start.html">Quick Start: Full MOF Pore Analysis</a> — the canonical pipeline that this tutorial extends.</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/surface_area.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

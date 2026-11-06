@@ -1,0 +1,1375 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="How to compute LCD, PLD, and DFSD with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius.">
+
+<title>Accessibility: Winding vs Lattice Percolation – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Accessibility: Winding vs Lattice Percolation – mofography">
+<meta property="og:description" content="How to compute LCD, PLD, and LIS with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius.">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/segmentation_cross_section.png">
+<meta property="og:site_name" content="mofography">
+<meta property="og:image:height" content="1600">
+<meta property="og:image:width" content="1600">
+<meta name="twitter:title" content="Accessibility: Winding vs Lattice Percolation – mofography">
+<meta name="twitter:description" content="How to compute LCD, PLD, and LIS with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius.">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/segmentation_cross_section.png">
+<meta name="twitter:image-height" content="1600">
+<meta name="twitter:image-width" content="1600">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#why-two-algorithms" id="toc-why-two-algorithms" class="nav-link" data-scroll-target="#why-two-algorithms">Why two algorithms?</a></li>
+  <li><a href="#imports-and-setup" id="toc-imports-and-setup" class="nav-link" data-scroll-target="#imports-and-setup">Imports and setup</a></li>
+  <li><a href="#step-1-load-irmof-1-and-build-the-distance-grid" id="toc-step-1-load-irmof-1-and-build-the-distance-grid" class="nav-link" data-scroll-target="#step-1-load-irmof-1-and-build-the-distance-grid">Step 1: Load IRMOF-1 and build the distance grid</a></li>
+  <li><a href="#step-2-run-periodic-segmentation" id="toc-step-2-run-periodic-segmentation" class="nav-link" data-scroll-target="#step-2-run-periodic-segmentation">Step 2: Run periodic segmentation</a></li>
+  <li><a href="#step-3-compute-pld-lcd-dfsd-via-the-winding-algorithm" id="toc-step-3-compute-pld-lcd-dfsd-via-the-winding-algorithm" class="nav-link" data-scroll-target="#step-3-compute-pld-lcd-dfsd-via-the-winding-algorithm">Step 3: Compute PLD, LCD, DFSD via the winding algorithm</a></li>
+  <li><a href="#step-4-percolation-history-probe-by-probe" id="toc-step-4-percolation-history-probe-by-probe" class="nav-link" data-scroll-target="#step-4-percolation-history-probe-by-probe">Step 4: Percolation history — probe by probe</a></li>
+  <li><a href="#step-5-final-percolating-cluster-what-is-connected-at-pld" id="toc-step-5-final-percolating-cluster-what-is-connected-at-pld" class="nav-link" data-scroll-target="#step-5-final-percolating-cluster-what-is-connected-at-pld">Step 5: Final percolating cluster — what is connected at PLD?</a></li>
+  <li><a href="#step-6-compare-with-the-lattice-zeo-style-algorithm" id="toc-step-6-compare-with-the-lattice-zeo-style-algorithm" class="nav-link" data-scroll-target="#step-6-compare-with-the-lattice-zeo-style-algorithm">Step 6: Compare with the lattice (Zeo++-style) algorithm</a></li>
+  <li><a href="#step-7-visualise-the-percolating-cluster-interactively" id="toc-step-7-visualise-the-percolating-cluster-interactively" class="nav-link" data-scroll-target="#step-7-visualise-the-percolating-cluster-interactively">Step 7: Visualise the percolating cluster interactively</a></li>
+  <li><a href="#step-8-probe-by-probe-visualisation-with-the-lattice-method" id="toc-step-8-probe-by-probe-visualisation-with-the-lattice-method" class="nav-link" data-scroll-target="#step-8-probe-by-probe-visualisation-with-the-lattice-method">Step 8: Probe-by-probe visualisation with the lattice method</a></li>
+  <li><a href="#step-9-sanity-checks-on-the-result" id="toc-step-9-sanity-checks-on-the-result" class="nav-link" data-scroll-target="#step-9-sanity-checks-on-the-result">Step 9: Sanity checks on the result</a></li>
+  <li><a href="#what-to-read-next" id="toc-what-to-read-next" class="nav-link" data-scroll-target="#what-to-read-next">What to read next</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/accessibility.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Accessibility: Winding vs Lattice Percolation</h1>
+</div>
+
+<div>
+  <div class="description">
+    How to compute LCD, PLD, and DFSD with the winding-number percolation algorithm, compare against the lattice (Zeo++-style) variant, and render an interactive 3D scene of the percolating cluster at any probe radius.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>A porous crystal does not just <em>have</em> pores — it has <strong>accessible</strong> pores. “Accessible” means a spherical probe of radius <span class="math inline">\(r\)</span> can travel from one face of the unit cell to the opposite face, weaving through windows that are at least as wide as the probe. The largest probe that can do this is the <strong>Pore Limiting Diameter (PLD)</strong>, and the act of testing whether such a path exists at a given <span class="math inline">\(r\)</span> is the <strong>percolation</strong> test.</p>
+<p>This tutorial covers the <strong>winding</strong> accessibility method — <code>mofography</code>’s default — and contrasts it with the <strong>lattice</strong> method, which is closer in spirit to the Zeo++ voxel-sweep approach. On a simple cubic MOF like <strong>IRMOF-1</strong> both methods give the same answer (modulo the voxel resolution); the differences emerge on contorted, low-symmetry frameworks where the winding algorithm’s graph topology is more robust.</p>
+<p>You will:</p>
+<ol type="1">
+<li>Run <code>do_periodic_segmentation_rust</code> to get a pore graph.</li>
+<li>Compute PLD / LCD / DFSD with <code>get_pore_dia_mgr_winding</code>.</li>
+<li>Step the probe radius and watch the percolating cluster grow / shrink with <code>compute_percolation_history_winding</code>.</li>
+<li>Run the equivalent <strong>lattice v2</strong> sweep and compare.</li>
+<li>Render an interactive Three.js scene with <code>show_percolation_threejs</code> for any chosen probe radius.</li>
+</ol>
+<p>Prerequisites: the <a href="./distance_grid.html">Distance Grid tutorial</a>, <a href="./region_segmentation.html">Region Segmentation</a>, and <a href="./connections_and_windows.html">Connections and Windows</a>. The conceptual background for the two algorithms is in the <a href="./face_merging_vs_winding.html"><code>face_merging_vs_winding.qmd</code></a> slides and in <a href="./pore_limiting_diameter_pld_and_percolation.html"><code>pore_limiting_diameter_pld_and_percolation.md</code></a>.</p>
+</section>
+<section id="why-two-algorithms" class="level2">
+<h2 class="anchored" data-anchor-id="why-two-algorithms">Why two algorithms?</h2>
+<p>Both methods answer the same question — <em>is the void connected across the periodic cell at probe radius <span class="math inline">\(r\)</span>?</em> — but on different representations:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Representation</th>
+<th>What it checks</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Winding</strong> (graph)</td>
+<td>The deduplicated pore graph (nodes = cage centres, edges = windows). Each edge carries a <code>window_radius</code> and a periodic relative offset <span class="math inline">\((di, dj, dk) \in \{-1, 0, 1\}^3\)</span>.</td>
+<td>A BFS from a source node that tracks accumulated periodic offsets. If the BFS visits a node with offset <span class="math inline">\(\Delta \ne 0\)</span> along axis <span class="math inline">\(a\)</span>, the cluster <em>wraps</em> across axis <span class="math inline">\(a\)</span> — percolation along <span class="math inline">\(a\)</span>.</td>
+</tr>
+<tr class="even">
+<td><strong>Lattice v2</strong> (voxel)</td>
+<td>The PBC-merged labeled <code>regions</code> array. Each face pair <span class="math inline">\((x_0, x_{N-1})\)</span>, <span class="math inline">\((y_0, y_{N-1})\)</span>, <span class="math inline">\((z_0, z_{N-1})\)</span> is unioned via a UnionFind.</td>
+<td>After the union, the percolating labels are those present on <strong>both</strong> faces of an axis.</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>winding</strong> method is the better default because it:</p>
+<ul>
+<li>Avoids the label-merging ambiguity that voxel methods suffer when two cages nearly touch across a periodic face.</li>
+<li>Captures <em>topology</em> (which cages connect through which windows), not just voxel contiguity.</li>
+<li>Is much faster on large cells — percolation is decided by walking the graph, not by re-labelling the grid at every probe radius.</li>
+</ul>
+<p>The <strong>lattice</strong> method is preserved mainly for <strong>direct comparability with Zeo++</strong> papers, which report <code>pld</code> from a voxel-sweep algorithm. The <code>variant='v2'</code> lattice path is the recommended lattice sweep; <code>v1</code> is the older UnionFind-only path retained for legacy comparisons.</p>
+</section>
+<section id="imports-and-setup" class="level2">
+<h2 class="anchored" data-anchor-id="imports-and-setup">Imports and setup</h2>
+<div id="c450d65f" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> logging</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> warnings</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>warnings.filterwarnings(<span class="st">"ignore"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>logging.getLogger(<span class="st">"mofography"</span>).setLevel(logging.ERROR)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+</section>
+<section id="step-1-load-irmof-1-and-build-the-distance-grid" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-load-irmof-1-and-build-the-distance-grid">Step 1: Load IRMOF-1 and build the distance grid</h2>
+<p>IRMOF-1 is a cubic MOF (<span class="math inline">\(a = b = c \approx 25.83\)</span> Å) with two families of cages — small and large — connected through a 3D pore network. The cubic symmetry is convenient: any method that works correctly on a cubic cell will produce the same PLD up to a half-voxel.</p>
+<div id="95db2bae" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>atoms <span class="op">=</span> read(<span class="st">"IRMOF-1.cif"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"IRMOF-1: </span><span class="sc">{</span><span class="bu">len</span>(atoms)<span class="sc">}</span><span class="ss"> atoms, cell = </span><span class="sc">{</span>atoms<span class="sc">.</span>cell<span class="sc">.</span>cellpar()[:<span class="dv">3</span>]<span class="sc">.</span><span class="bu">round</span>(<span class="dv">2</span>)<span class="sc">}</span><span class="ss"> Å"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>spacing <span class="op">=</span> <span class="fl">0.5</span>                                  <span class="co"># Å — see distance_grid.qmd</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span>spacing)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> dgrid.astype(np.float32)               <span class="co"># Rust kernel requires float32</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"dgrid: </span><span class="sc">{</span>dgrid<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, void max = </span><span class="sc">{</span>dgrid<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>IRMOF-1: 424 atoms, cell = [25.83 25.83 25.83] Å
+dgrid: (52, 52, 52), void max = 7.54 Å</code></pre>
+</div>
+</div>
+</section>
+<section id="step-2-run-periodic-segmentation" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-run-periodic-segmentation">Step 2: Run periodic segmentation</h2>
+<p><code>do_periodic_segmentation_rust</code> builds the pore graph. We pass back the <code>dgrid</code> so downstream functions do not have to recompute it. The <code>return_padded_regions=True</code> flag is required for the percolation routines — they need the periodic copies of the regions array to evaluate window connections across cell boundaries.</p>
+<div id="f541d67e" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>results <span class="op">=</span> mgr.do_periodic_segmentation_rust(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    dgrid, atoms,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">1.5</span>, h<span class="op">=</span><span class="fl">0.2</span>, min_distance<span class="op">=</span><span class="fl">1.5</span>, threshold_abs<span class="op">=</span><span class="fl">1.5</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    spacing<span class="op">=</span>spacing, return_dgrid<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    return_padded_regions<span class="op">=</span><span class="va">True</span>, extra_padding<span class="op">=</span><span class="dv">2</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>regions <span class="op">=</span> results[<span class="st">"regions"</span>]</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"regions: shape=</span><span class="sc">{</span>regions<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span><span class="bu">int</span>(regions.<span class="bu">max</span>())<span class="sc">}</span><span class="ss"> unique labels"</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"maxima_info: </span><span class="sc">{</span>results[<span class="st">'maxima_info'</span>]<span class="sc">.</span>shape<span class="sc">}</span><span class="ss"> (label, i, j, k, di, dj, dk)"</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"connections: </span><span class="sc">{</span><span class="bu">len</span>(results[<span class="st">'connections'</span>])<span class="sc">}</span><span class="ss"> inter-region windows"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>regions: shape=(52, 52, 52), 27 unique labels
+maxima_info: (125, 7) (label, i, j, k, di, dj, dk)
+connections: 300 inter-region windows</code></pre>
+</div>
+</div>
+<p>The result is a richly populated dictionary. The two keys the percolation routines need are <code>regions</code> (the labeled volume) and <code>maxima_info</code> (one row per local maximum, including the PBC image it belongs to). The <code>connections</code> list carries <code>(region_a, region_b, di, dj, dk, window_radius)</code> tuples — these become the edges of the pore graph.</p>
+</section>
+<section id="step-3-compute-pld-lcd-dfsd-via-the-winding-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-compute-pld-lcd-dfsd-via-the-winding-algorithm">Step 3: Compute PLD, LCD, DFSD via the winding algorithm</h2>
+<p><code>get_pore_dia_mgr_winding</code> is the one-shot entry point. Pass the segmentation <code>results</code> and the framework <code>atoms</code>; it builds the directed pore graph and returns the three classical textural properties:</p>
+<ul>
+<li><strong>LCD</strong> (Largest Cavity Diameter): <span class="math inline">\(2 \times \max(\texttt{dgrid})\)</span>. The diameter of the single largest sphere that fits anywhere in the void — no connectivity requirement.</li>
+<li><strong>PLD</strong> (Pore Limiting Diameter): <span class="math inline">\(2 \times r_{\max}\)</span> where <span class="math inline">\(r_{\max}\)</span> is the largest probe radius at which the void percolates. The diameter of the largest sphere that can traverse the material end-to-end.</li>
+<li><strong>DFSD</strong> (Directional Free Sphere Diameter): <span class="math inline">\(2 \times \max(\texttt{dgrid}[\text{percolating labels}])\)</span>. The largest sphere that fits inside a <em>percolating</em> region. Always <span class="math inline">\(\text{DFSD} \le \text{LCD}\)</span> by construction.</li>
+</ul>
+<div id="8518deee" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>lcd, pld, dfsd, _ <span class="op">=</span> mgr.get_pore_dia_mgr_winding(atoms, dgrid<span class="op">=</span>dgrid, results<span class="op">=</span>results)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"LCD = </span><span class="sc">{</span>lcd<span class="sc">:.3f}</span><span class="ss"> Å    (largest cavity anywhere)"</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PLD = </span><span class="sc">{</span>pld<span class="sc">:.3f}</span><span class="ss"> Å    (largest traversing probe)"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"DFSD = </span><span class="sc">{</span>dfsd<span class="sc">:.3f}</span><span class="ss"> Å   (largest cavity in a percolating region)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>LCD = 15.076 Å    (largest cavity anywhere)
+PLD = 7.914 Å    (largest traversing probe)
+DFSD = 15.076 Å   (largest cavity in a percolating region)</code></pre>
+</div>
+</div>
+<p>The inequality <span class="math inline">\(\text{PLD} \le \text{DFSD} \le \text{LCD}\)</span> should hold — the PLD is bounded by the smallest window along the percolating route, the DFSD by the largest cavity along that same route, and the LCD by the largest cavity <em>anywhere</em> (which may be a dead-end pocket that the probe can never reach).</p>
+</section>
+<section id="step-4-percolation-history-probe-by-probe" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-percolation-history-probe-by-probe">Step 4: Percolation history — probe by probe</h2>
+<p>The single triple <code>(lcd, pld, dfsd)</code> is the answer to one question. The full <strong>percolation history</strong> answers a richer one: <em>as the probe grows, when does each axis stop percolating, and which regions drop out of the percolating cluster at each step?</em></p>
+<div id="20e352cf" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>hist_w, pld_locs_w, clusters_w <span class="op">=</span> mgr.compute_percolation_history_winding(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    results<span class="op">=</span>results, step<span class="op">=</span><span class="fl">0.1</span>, min_threshold<span class="op">=</span><span class="fl">0.0</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"winding history: </span><span class="sc">{</span><span class="bu">len</span>(hist_w)<span class="sc">}</span><span class="ss"> entries from "</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>hist_w[<span class="dv">0</span>][<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> Å to </span><span class="sc">{</span>hist_w[<span class="op">-</span><span class="dv">1</span>][<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> Å probe radius"</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  PLD locations: </span><span class="sc">{</span>pld_locs_w<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">  (grid coords of the bottleneck)"</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  final clusters: </span><span class="sc">{</span><span class="bu">len</span>(clusters_w)<span class="sc">}</span><span class="ss">  (one per percolating axis)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>winding history: 40 entries from 0.00 Å to 3.90 Å probe radius
+  PLD locations: (0, 3)  (grid coords of the bottleneck)
+  final clusters: 3  (one per percolating axis)</code></pre>
+</div>
+</div>
+<p>The history is a list of <code>(probe_radius, axis_clusters)</code> tuples. <code>axis_clusters</code> is a dict <code>{"x": [...], "y": [...], "z": [...]}</code> where each value is a list of percolating groups; each group is a list of region labels in that group.</p>
+<p>Let me see how IRMOF-1 percolates as a function of probe radius:</p>
+<div id="b615f93f" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'probe r (Å)'</span><span class="sc">:&gt;12s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'x'</span><span class="sc">:&gt;3s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'y'</span><span class="sc">:&gt;3s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'z'</span><span class="sc">:&gt;3s}</span><span class="ss">  "</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span><span class="st">'x cluster sizes'</span><span class="sc">:&gt;20s}</span><span class="ss">"</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">50</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> t, axes <span class="kw">in</span> hist_w[::<span class="dv">4</span>]:           <span class="co"># every 4th entry to keep output small</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    sizes_x <span class="op">=</span> [<span class="bu">len</span>(g) <span class="cf">for</span> g <span class="kw">in</span> axes[<span class="st">'x'</span>]]</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>t<span class="sc">:&gt;12.2f}</span><span class="ss">  "</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Y'</span> <span class="cf">if</span> axes[<span class="st">'x'</span>] <span class="cf">else</span> <span class="st">'.'</span><span class="sc">:&gt;3s}</span><span class="ss">  "</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Y'</span> <span class="cf">if</span> axes[<span class="st">'y'</span>] <span class="cf">else</span> <span class="st">'.'</span><span class="sc">:&gt;3s}</span><span class="ss">  "</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">'Y'</span> <span class="cf">if</span> axes[<span class="st">'z'</span>] <span class="cf">else</span> <span class="st">'.'</span><span class="sc">:&gt;3s}</span><span class="ss">  "</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="bu">str</span>(sizes_x)<span class="sc">:&gt;20s}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+ probe r (Å)    x    y    z       x cluster sizes
+--------------------------------------------------
+        0.00    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        0.40    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        0.80    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        1.20    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        1.60    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        2.00    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        2.40    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        2.80    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        3.20    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]
+        3.60    Y    Y    Y  [27, 27, 27, 27, 27, 27, 27, 27]</code></pre>
+</div>
+</div>
+<p>IRMOF-1 is fully 3D-percolating at every probe radius up to ~3.9 Å: the x, y, and z channels are all open through the entire range. Above the PLD threshold (3.955 Å in the binary search that backs <code>get_pore_dia_mgr_winding</code>), no axis percolates. The <code>step=0.1</code> here is the history <em>display</em> step — the underlying PLD search uses a finer binary search.</p>
+</section>
+<section id="step-5-final-percolating-cluster-what-is-connected-at-pld" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-final-percolating-cluster-what-is-connected-at-pld">Step 5: Final percolating cluster — what is connected at PLD?</h2>
+<p>The third return value of <code>compute_percolation_history_winding</code> is <code>final_clusters</code>: a dict keyed by cluster id, with metadata for each percolating cluster at the last probe radius where percolation still exists.</p>
+<div id="2eed0554" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cid, cdata <span class="kw">in</span> clusters_w.items():</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">cluster </span><span class="sc">{</span>cid<span class="sc">}</span><span class="ss">:"</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  regions (</span><span class="sc">{</span><span class="bu">len</span>(cdata[<span class="st">'regions'</span>])<span class="sc">}</span><span class="ss">): </span><span class="sc">{</span>cdata[<span class="st">'regions'</span>][:<span class="dv">8</span>]<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">' …'</span> <span class="cf">if</span> <span class="bu">len</span>(cdata[<span class="st">'regions'</span>]) <span class="op">&gt;</span> <span class="dv">8</span> <span class="cf">else</span> <span class="st">''</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  nodes  (</span><span class="sc">{</span><span class="bu">len</span>(cdata[<span class="st">'nodes'</span>])<span class="sc">}</span><span class="ss">):  </span><span class="sc">{</span>cdata[<span class="st">'nodes'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  edges  (</span><span class="sc">{</span><span class="bu">len</span>(cdata[<span class="st">'edges'</span>])<span class="sc">}</span><span class="ss">):  </span><span class="sc">{</span>cdata[<span class="st">'edges'</span>][:<span class="dv">4</span>]<span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>          <span class="ss">f"</span><span class="sc">{</span><span class="st">' …'</span> <span class="cf">if</span> <span class="bu">len</span>(cdata[<span class="st">'edges'</span>]) <span class="op">&gt;</span> <span class="dv">4</span> <span class="cf">else</span> <span class="st">''</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  axes percolating: </span><span class="sc">{</span>cdata[<span class="st">'axes'</span>]<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+cluster 1:
+  regions (20): [1, 3, 5, 8, 9, 10, 11, 13] …
+  nodes  (4):  [1, 3, 5, 8]
+  edges  (6):  [(1, 8, 0), (1, 8, 1), (3, 8, 0), (3, 8, 1)] …
+  axes percolating: ['x']
+
+cluster 2:
+  regions (20): [1, 3, 5, 8, 9, 10, 11, 13] …
+  nodes  (4):  [1, 3, 5, 8]
+  edges  (6):  [(1, 8, 0), (1, 8, 1), (3, 8, 0), (3, 8, 1)] …
+  axes percolating: ['y']
+
+cluster 3:
+  regions (20): [1, 3, 5, 8, 9, 10, 11, 13] …
+  nodes  (4):  [1, 3, 5, 8]
+  edges  (6):  [(1, 8, 0), (1, 8, 1), (3, 8, 0), (3, 8, 1)] …
+  axes percolating: ['z']</code></pre>
+</div>
+</div>
+<p>A few things to notice:</p>
+<ul>
+<li><code>edges</code> are triples <code>(u, v, axis_index)</code> recording which window (which periodic direction) carries the percolation. On a cubic MOF the windows along the three axes are geometrically equivalent; the algorithm still distinguishes them by relative offset.</li>
+<li><code>dangling_nodes</code> is empty here. On a more contorted MOF it would list pockets that touch the percolating cluster through only one window — a topological “leaf” that the probe can enter but not exit. See <a href="./pore_limiting_diameter_pld_and_percolation.html"><code>pore_limiting_diameter_pld_and_percolation.md</code></a> for the dangling-node discussion.</li>
+<li>The percolating cluster is the same along x, y, and z because IRMOF-1 is cubic. The winding algorithm returns one cluster per <em>axis</em>, not one cluster per <em>direction</em> — on a chiral MOF with a 1D channel you would see one entry here, for the axis the channel runs along.</li>
+</ul>
+</section>
+<section id="step-6-compare-with-the-lattice-zeo-style-algorithm" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-compare-with-the-lattice-zeo-style-algorithm">Step 6: Compare with the lattice (Zeo++-style) algorithm</h2>
+<p><code>compute_percolation_history_from_results2</code> runs the <strong>lattice v2</strong> sweep on the same segmentation and stores the history under <code>percolation_history_lattice</code>. This is the same data the CLI reports with <code>--accessibility-method lattice --lattice-variant v2</code>.</p>
+<div id="c022a111" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mgr.compute_percolation_history_from_results2(results)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>hist_l <span class="op">=</span> results[<span class="st">"percolation_history_lattice"</span>]</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>pld_locs_l <span class="op">=</span> results.get(<span class="st">"pld_locations_lattice"</span>, np.empty((<span class="dv">0</span>, <span class="dv">3</span>)))</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"lattice v2 history: </span><span class="sc">{</span><span class="bu">len</span>(hist_l)<span class="sc">}</span><span class="ss"> entries from "</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>hist_l[<span class="dv">0</span>][<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> Å to </span><span class="sc">{</span>hist_l[<span class="op">-</span><span class="dv">1</span>][<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> Å probe radius"</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  PLD locations: </span><span class="sc">{</span>pld_locs_l<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">  (one per voxel of the limiting window)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>lattice v2 history: 80 entries from 0.00 Å to 3.95 Å probe radius
+  PLD locations: (24, 3)  (one per voxel of the limiting window)</code></pre>
+</div>
+</div>
+<p>Side-by-side comparison of the two methods on IRMOF-1:</p>
+<div id="4879dd42" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> last_percolating_radius(history):</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">"""Return the largest probe radius in `history` that still has any axis percolating."""</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    last <span class="op">=</span> <span class="fl">0.0</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> t, axes <span class="kw">in</span> history:</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="bu">any</span>(axes[a] <span class="cf">for</span> a <span class="kw">in</span> axes):</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>            last <span class="op">=</span> t</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> last</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>pld_radius_winding   <span class="op">=</span> last_percolating_radius(hist_w)</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>pld_radius_lattice   <span class="op">=</span> last_percolating_radius(hist_l)</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>pld_diam_winding     <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> pld_radius_winding</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>pld_diam_lattice     <span class="op">=</span> <span class="fl">2.0</span> <span class="op">*</span> pld_radius_lattice</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span><span class="st">'method'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'r_max (Å)'</span><span class="sc">:&gt;10s}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'PLD (Å)'</span><span class="sc">:&gt;10s}</span><span class="ss">"</span>)</span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">38</span>)</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'winding'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>pld_radius_winding<span class="sc">:&gt;10.3f}</span><span class="ss">  </span><span class="sc">{</span>pld_diam_winding<span class="sc">:&gt;10.3f}</span><span class="ss">"</span>)</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'lattice v2'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>pld_radius_lattice<span class="sc">:&gt;10.3f}</span><span class="ss">  </span><span class="sc">{</span>pld_diam_lattice<span class="sc">:&gt;10.3f}</span><span class="ss">"</span>)</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'winding 1-shot'</span><span class="sc">:&lt;14s}</span><span class="ss">  </span><span class="sc">{</span>pld<span class="op">/</span><span class="dv">2</span><span class="sc">:&gt;10.3f}</span><span class="ss">  </span><span class="sc">{</span>pld<span class="sc">:&gt;10.3f}</span><span class="ss">    "</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"(from get_pore_dia_mgr_winding — binary search, finer step)"</span>)</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">difference (lattice - winding, diameter): "</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>(pld_diam_lattice <span class="op">-</span> pld_diam_winding)<span class="sc">:+.3f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+method           r_max (Å)     PLD (Å)
+--------------------------------------
+winding              3.900       7.800
+lattice v2           3.950       7.900
+winding 1-shot       3.957       7.914    (from get_pore_dia_mgr_winding — binary search, finer step)
+
+difference (lattice - winding, diameter): +0.100 Å</code></pre>
+</div>
+</div>
+<p>Both methods agree to within the grid resolution. With <code>spacing=0.5 Å</code>, a half-voxel is 0.25 Å, so the expected agreement is <span class="math inline">\(\pm 0.25\)</span> Å. The <code>get_pore_dia_mgr_winding</code> one-shot value (3.955 Å × 2 = 7.91 Å) sits between the two histories because it uses a finer binary search than the 0.1 Å step we asked for above. This is the expected behaviour on a cubic, well-behaved MOF.</p>
+<p>Where the two methods differ is on <strong>non-cubic, contorted pore networks</strong> — for example NU-1000 (see <a href="./face_merging_vs_winding.html"><code>face_merging_vs_winding.qmd</code></a>). There, the lattice method can miss wind-around paths that require the probe to leave the cell, wrap around, and re-enter, because its UnionFind only tracks face-touching labels, not the offset between them. The winding method tracks offsets explicitly and recovers the path.</p>
+</section>
+<section id="step-7-visualise-the-percolating-cluster-interactively" class="level2">
+<h2 class="anchored" data-anchor-id="step-7-visualise-the-percolating-cluster-interactively">Step 7: Visualise the percolating cluster interactively</h2>
+<p><code>show_percolation_threejs</code> returns a self-contained HTML string with an interactive Three.js scene: the framework as ball-and-stick, the pore maxima, the connections, and — at the chosen probe radius — the <strong>percolating regions</strong> as isosurface meshes and the <strong>PLD-critical windows</strong> highlighted. You can orbit, zoom, and toggle the layer visibility from the scene’s UI.</p>
+<p>The function needs an <code>analysis</code> dict with the percolation history attached; we already have one inside <code>results</code>. We save the HTML to a file (it is too large to embed inline) and link to it from the tutorial.</p>
+<div id="055db45f" class="cell" data-execution_count="11">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>analysis <span class="op">=</span> {</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dgrid"</span>: results[<span class="st">"dgrid"</span>],</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"regions"</span>: results[<span class="st">"regions"</span>],</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"maxima"</span>: results.get(<span class="st">"all_maxima"</span>),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"connections"</span>: results.get(<span class="st">"connections"</span>, []),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pld_locations"</span>: results.get(<span class="st">"pld_locations"</span>),</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"percolation_history"</span>: results.get(<span class="st">"percolation_history_winding"</span>, []),</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"isovalue"</span>: <span class="fl">1.6</span>,</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Pick a probe radius just below the PLD so we still see the percolating cluster</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="co"># fully intact (3.5 Å gives the full cluster with a comfortable margin to the limit).</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>probe_radius <span class="op">=</span> <span class="fl">3.5</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>html <span class="op">=</span> mgr.show_percolation_threejs(analysis, atoms, probe_radius<span class="op">=</span>probe_radius)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>out_path <span class="op">=</span> Path(<span class="st">"accessibility_percolation_irmof1.html"</span>)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>out_path.write_text(html, encoding<span class="op">=</span><span class="st">"utf-8"</span>)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"wrote </span><span class="sc">{</span>out_path<span class="sc">}</span><span class="ss">  (</span><span class="sc">{</span><span class="bu">len</span>(html) <span class="op">/</span> <span class="dv">1024</span><span class="sc">:.1f}</span><span class="ss"> KB)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>wrote accessibility_percolation_irmof1.html  (797.4 KB)</code></pre>
+</div>
+</div>
+<p>Open <a href="accessibility_percolation_irmof1.html">accessibility_percolation_irmof1.html</a> in a browser. You should see:</p>
+<ul>
+<li>The IRMOF-1 framework as a ball-and-stick model.</li>
+<li>The percolating cluster at the chosen probe radius as a coloured isosurface (one trace per percolating axis).</li>
+<li>The connections between regions as lines.</li>
+<li>The PLD-critical windows — windows within 0.25 Å of the percolation cutoff — highlighted separately.</li>
+</ul>
+<p>Try changing <code>probe_radius</code> to smaller values (<code>2.0</code>, <code>2.5</code>, <code>3.0</code>) and re-rendering: the percolating cluster stays the same on IRMOF-1 because the pore network is fully 3D-connected across the entire range. The interesting case is when you reach the PLD — above 3.955 Å the cluster is empty.</p>
+</section>
+<section id="step-8-probe-by-probe-visualisation-with-the-lattice-method" class="level2">
+<h2 class="anchored" data-anchor-id="step-8-probe-by-probe-visualisation-with-the-lattice-method">Step 8: Probe-by-probe visualisation with the lattice method</h2>
+<p>For direct visual comparison, build the same scene from the lattice history. The <code>analysis</code> dict is method-agnostic — only the <code>percolation_history</code> key changes.</p>
+<div id="e481f34d" class="cell" data-execution_count="12">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>analysis_lattice <span class="op">=</span> {</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"dgrid"</span>: results[<span class="st">"dgrid"</span>],</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"regions"</span>: results[<span class="st">"regions"</span>],</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"maxima"</span>: results.get(<span class="st">"all_maxima"</span>),</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"connections"</span>: results.get(<span class="st">"connections"</span>, []),</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"pld_locations"</span>: results.get(<span class="st">"pld_locations_lattice"</span>),</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">"percolation_history"</span>: results.get(<span class="st">"percolation_history_lattice"</span>, []),</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">"isovalue"</span>: <span class="fl">1.6</span>,</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>probe_radius <span class="op">=</span> <span class="fl">3.5</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>html_lat <span class="op">=</span> mgr.show_percolation_threejs(analysis_lattice, atoms, probe_radius<span class="op">=</span>probe_radius)</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>out_path_lat <span class="op">=</span> Path(<span class="st">"accessibility_percolation_irmof1_lattice.html"</span>)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>out_path_lat.write_text(html_lat, encoding<span class="op">=</span><span class="st">"utf-8"</span>)</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"wrote </span><span class="sc">{</span>out_path_lat<span class="sc">}</span><span class="ss">  (</span><span class="sc">{</span><span class="bu">len</span>(html_lat) <span class="op">/</span> <span class="dv">1024</span><span class="sc">:.1f}</span><span class="ss"> KB)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>wrote accessibility_percolation_irmof1_lattice.html  (797.4 KB)</code></pre>
+</div>
+</div>
+<p>The two HTML files are visually similar on IRMOF-1, as expected. The differences would show up on a framework with a long, winding channel that touches the periodic boundary obliquely.</p>
+</section>
+<section id="step-9-sanity-checks-on-the-result" class="level2">
+<h2 class="anchored" data-anchor-id="step-9-sanity-checks-on-the-result">Step 9: Sanity checks on the result</h2>
+<p>A few invariants that should always hold on the result of <code>compute_percolation_history_winding</code> + <code>get_pore_dia_mgr_winding</code>:</p>
+<div id="6156b4e7" class="cell" data-execution_count="13">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. PLD ≤ DFSD ≤ LCD</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> pld <span class="op">&lt;=</span> dfsd <span class="op">&lt;=</span> lcd, <span class="ss">f"PLD≤DFSD≤LCD violated: </span><span class="sc">{</span>pld<span class="op">=</span><span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>dfsd<span class="op">=</span><span class="sc">}</span><span class="ss"> </span><span class="sc">{</span>lcd<span class="op">=</span><span class="sc">}</span><span class="ss">"</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  PLD ≤ DFSD ≤ LCD  ✓  (</span><span class="sc">{</span>pld<span class="sc">:.3f}</span><span class="ss"> ≤ </span><span class="sc">{</span>dfsd<span class="sc">:.3f}</span><span class="ss"> ≤ </span><span class="sc">{</span>lcd<span class="sc">:.3f}</span><span class="ss">)"</span>)</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. At the reported PLD, the winding history still shows at least one percolating axis</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>last_t, last_axes <span class="op">=</span> hist_w[<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">any</span>(last_axes[a] <span class="cf">for</span> a <span class="kw">in</span> last_axes), <span class="st">"last history entry has no percolation"</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  history[-1] at r=</span><span class="sc">{</span>last_t<span class="sc">:.2f}</span><span class="ss"> Å percolates on "</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"</span><span class="sc">{</span>[a <span class="cf">for</span> a <span class="kw">in</span> last_axes <span class="cf">if</span> last_axes[a]]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. The one-shot PLD is within one grid step of the history's last percolating radius</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">abs</span>(pld <span class="op">/</span> <span class="dv">2</span> <span class="op">-</span> pld_radius_winding) <span class="op">&lt;</span> spacing, <span class="st">"one-shot PLD disagrees with history"</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  one-shot PLD/2 = </span><span class="sc">{</span>pld<span class="op">/</span><span class="dv">2</span><span class="sc">:.3f}</span><span class="ss">, history last = </span><span class="sc">{</span>pld_radius_winding<span class="sc">:.3f}</span><span class="ss">  "</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"(Δ = </span><span class="sc">{</span><span class="bu">abs</span>(pld<span class="op">/</span><span class="dv">2</span> <span class="op">-</span> pld_radius_winding)<span class="sc">:.3f}</span><span class="ss"> Å)"</span>)</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Winding and lattice agree to within one grid step</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">abs</span>(pld_diam_winding <span class="op">-</span> pld_diam_lattice) <span class="op">&lt;</span> spacing, <span class="op">\</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    <span class="ss">f"winding vs lattice disagree by </span><span class="sc">{</span><span class="bu">abs</span>(pld_diam_winding <span class="op">-</span> pld_diam_lattice)<span class="sc">:.3f}</span><span class="ss"> Å"</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"  winding vs lattice PLD agree within </span><span class="sc">{</span>spacing<span class="sc">}</span><span class="ss"> Å  ✓"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  PLD ≤ DFSD ≤ LCD  ✓  (7.914 ≤ 15.076 ≤ 15.076)
+  history[-1] at r=3.90 Å percolates on ['x', 'y', 'z']
+  one-shot PLD/2 = 3.957, history last = 3.900  (Δ = 0.057 Å)
+  winding vs lattice PLD agree within 0.5 Å  ✓</code></pre>
+</div>
+</div>
+</section>
+<section id="what-to-read-next" class="level2">
+<h2 class="anchored" data-anchor-id="what-to-read-next">What to read next</h2>
+<ul>
+<li><a href="./pore_limiting_diameter_pld_and_percolation.html"><code>pore_limiting_diameter_pld_and_percolation.md</code></a> — longer narrative tutorial on PLD, LCD, DFSD with the winding algorithm and a NU-1000 example.</li>
+<li><a href="./face_merging_vs_winding.html"><code>face_merging_vs_winding.qmd</code></a> — the two-algorithm comparison in slide form, including the line-by-line walkthrough of <code>percolation_all_axes_periodic</code> (lattice) and <code>percolation_winding_multidigraph</code> (winding).</li>
+<li><a href="./cli_quickstart.html"><code>cli_quickstart.qmd</code></a> — how to run the same analysis from the command line with <code>--accessibility-method</code> and <code>--lattice-variant</code>.</li>
+<li><a href="./selective_smoothing.html"><code>selective_smoothing.qmd</code></a> — the upstream knobs (<code>preserve_threshold</code>, <code>smooth_threshold</code>, <code>max_smooth_radius</code>) that control the segmentation, hence the pore graph, hence the PLD.</li>
+</ul>
+<p>The <code>dgrid_methods.qmd</code> tutorial explains the four distance-grid backends; the <code>dgrid_from_atoms_gpu</code> and <code>dgrid_from_atoms_cpu_no_aabb</code> variants are broken on non-orthogonal cells and should not be used.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/accessibility.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

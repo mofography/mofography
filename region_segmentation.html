@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="How region segmentation breaks pore space into discrete pockets — maxima detection, watershed, and PBC handling">
+
+<title>Region Segmentation in MOFography – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Region Segmentation in MOFography – mofography">
+<meta property="og:description" content="How region segmentation breaks pore space into discrete pockets — maxima detection, watershed, and PBC handling">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/regions_pbc_merged.png">
+<meta property="og:site_name" content="mofography">
+<meta property="og:image:height" content="1200">
+<meta property="og:image:width" content="1600">
+<meta name="twitter:title" content="Region Segmentation in MOFography – mofography">
+<meta name="twitter:description" content="How region segmentation breaks pore space into discrete pockets — maxima detection, watershed, and PBC handling">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/regions_pbc_merged.png">
+<meta name="twitter:image-height" content="1200">
+<meta name="twitter:image-width" content="1600">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#the-core-question" id="toc-the-core-question" class="nav-link" data-scroll-target="#the-core-question">The Core Question</a></li>
+  <li><a href="#why-we-need-periodic-segmentation" id="toc-why-we-need-periodic-segmentation" class="nav-link" data-scroll-target="#why-we-need-periodic-segmentation">Why We Need Periodic Segmentation</a></li>
+  <li><a href="#concept-1-maxima-detection-finding-pore-centers" id="toc-concept-1-maxima-detection-finding-pore-centers" class="nav-link" data-scroll-target="#concept-1-maxima-detection-finding-pore-centers">Concept 1: Maxima Detection (Finding Pore Centers)</a>
+  <ul class="collapse">
+  <li><a href="#the-challenge-noise-vs.-features" id="toc-the-challenge-noise-vs.-features" class="nav-link" data-scroll-target="#the-challenge-noise-vs.-features">The challenge: noise vs.&nbsp;features</a></li>
+  <li><a href="#h-maxima" id="toc-h-maxima" class="nav-link" data-scroll-target="#h-maxima">h-maxima</a></li>
+  <li><a href="#selective-smoothing" id="toc-selective-smoothing" class="nav-link" data-scroll-target="#selective-smoothing">Selective smoothing</a></li>
+  </ul></li>
+  <li><a href="#concept-2-watershed-segmentation" id="toc-concept-2-watershed-segmentation" class="nav-link" data-scroll-target="#concept-2-watershed-segmentation">Concept 2: Watershed Segmentation</a>
+  <ul class="collapse">
+  <li><a href="#the-water-filling-analogy" id="toc-the-water-filling-analogy" class="nav-link" data-scroll-target="#the-water-filling-analogy">The water-filling analogy</a></li>
+  <li><a href="#with-and-without-pbc" id="toc-with-and-without-pbc" class="nav-link" data-scroll-target="#with-and-without-pbc">With and without PBC</a></li>
+  </ul></li>
+  <li><a href="#the-single-api-call" id="toc-the-single-api-call" class="nav-link" data-scroll-target="#the-single-api-call">The Single API Call</a></li>
+  <li><a href="#the-15-output-keys" id="toc-the-15-output-keys" class="nav-link" data-scroll-target="#the-15-output-keys">The 15 Output Keys</a>
+  <ul class="collapse">
+  <li><a href="#maxima-arrays-pore-centers" id="toc-maxima-arrays-pore-centers" class="nav-link" data-scroll-target="#maxima-arrays-pore-centers">Maxima arrays (pore centers)</a></li>
+  <li><a href="#region-arrays-the-labeled-voxel-grids" id="toc-region-arrays-the-labeled-voxel-grids" class="nav-link" data-scroll-target="#region-arrays-the-labeled-voxel-grids">Region arrays (the labeled voxel grids)</a></li>
+  <li><a href="#connections-the-pore-graph" id="toc-connections-the-pore-graph" class="nav-link" data-scroll-target="#connections-the-pore-graph">Connections (the pore graph)</a></li>
+  <li><a href="#bookkeeping" id="toc-bookkeeping" class="nav-link" data-scroll-target="#bookkeeping">Bookkeeping</a></li>
+  </ul></li>
+  <li><a href="#accessing-the-results" id="toc-accessing-the-results" class="nav-link" data-scroll-target="#accessing-the-results">Accessing the Results</a>
+  <ul class="collapse">
+  <li><a href="#the-clever-indexing-trick" id="toc-the-clever-indexing-trick" class="nav-link" data-scroll-target="#the-clever-indexing-trick">The clever indexing trick</a></li>
+  <li><a href="#inspecting-connections" id="toc-inspecting-connections" class="nav-link" data-scroll-target="#inspecting-connections">Inspecting connections</a></li>
+  </ul></li>
+  <li><a href="#parameter-tuning" id="toc-parameter-tuning" class="nav-link" data-scroll-target="#parameter-tuning">Parameter Tuning</a>
+  <ul class="collapse">
+  <li><a href="#most-important-parameters" id="toc-most-important-parameters" class="nav-link" data-scroll-target="#most-important-parameters">Most important parameters</a></li>
+  <li><a href="#advanced-smoothing-parameters" id="toc-advanced-smoothing-parameters" class="nav-link" data-scroll-target="#advanced-smoothing-parameters">Advanced smoothing parameters</a></li>
+  <li><a href="#pbc-handling-parameters" id="toc-pbc-handling-parameters" class="nav-link" data-scroll-target="#pbc-handling-parameters">PBC handling parameters</a></li>
+  <li><a href="#recipes" id="toc-recipes" class="nav-link" data-scroll-target="#recipes">Recipes</a></li>
+  </ul></li>
+  <li><a href="#visualization" id="toc-visualization" class="nav-link" data-scroll-target="#visualization">Visualization</a></li>
+  <li><a href="#common-pitfalls" id="toc-common-pitfalls" class="nav-link" data-scroll-target="#common-pitfalls">Common Pitfalls</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next Steps</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/region_segmentation.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Region Segmentation in MOFography</h1>
+</div>
+
+<div>
+  <div class="description">
+    How region segmentation breaks pore space into discrete pockets — maxima detection, watershed, and PBC handling
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>Region segmentation breaks the void space of a nanoporous material into <strong>discrete pockets</strong>, each centered on a local maximum of the distance field. It is the conceptual bridge between the <a href="./distance_grid.html">distance grid</a> (a continuous scalar field) and the <a href="./pore_graph.html">pore graph</a> (a discrete graph you can analyze with NetworkX).</p>
+<p>This tutorial covers the <em>why</em> behind the algorithm: what maxima and watershed do, why periodic boundary conditions (PBC) matter, and which parameters to tune. For the hands-on three-call pipeline, see the <a href="./quick_start.html">Quick Start</a>. For defaults and safe ranges of every parameter, see <a href="./parameter_tuning.html">Tuning and safe ranges</a>.</p>
+</section>
+<section id="the-core-question" class="level2">
+<h2 class="anchored" data-anchor-id="the-core-question">The Core Question</h2>
+<p><strong>Segmentation</strong> answers: <em>“Which pore does this voxel belong to?”</em></p>
+<p>Imagine the distance field as a landscape:</p>
+<ul>
+<li>🎯 <strong>Local maxima</strong> → pore centers (peaks where a probe would sit)</li>
+<li>🏔️ <strong>Watershed boundaries</strong> → pore walls (ridges between adjacent valleys)</li>
+<li>💧 <strong>Voxels</strong> → assigned to the basin of the nearest maximum</li>
+</ul>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/pockets_3d.png" class="img-fluid figure-img"></p>
+<figcaption>Pockets as watershed basins</figcaption>
+</figure>
+</div>
+<p>This metaphor — <em>pour water into the inverted distance field, label each voxel by which basin it drains into</em> — is exactly what watershed segmentation does.</p>
+</section>
+<section id="why-we-need-periodic-segmentation" class="level2">
+<h2 class="anchored" data-anchor-id="why-we-need-periodic-segmentation">Why We Need Periodic Segmentation</h2>
+<p>Crystalline materials repeat across unit cell boundaries, but <strong>pores don’t respect those boundaries</strong>. A large pore sitting at the corner of a cubic cell appears as 8 fragments (one per corner) when you segment without PBC handling. Physically, those 8 fragments are <em>one</em> pore cut off by the box.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/regions_split_no_pbc.png" class="img-fluid figure-img"></p>
+<figcaption>Split regions at boundaries</figcaption>
+</figure>
+</div>
+<p>Periodic segmentation solves this by:</p>
+<ol type="1">
+<li>Padding the grid so maxima near edges can “see” their periodic images</li>
+<li>Identifying which maxima are periodic images of the same pore</li>
+<li>Assigning the same label to all images</li>
+<li>Trimming back to the original unit cell</li>
+</ol>
+<p>The result: the 8 corner pieces merge into a single pore.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/regions_pbc_merged.png" class="img-fluid figure-img"></p>
+<figcaption>Merged regions with PBC</figcaption>
+</figure>
+</div>
+</section>
+<section id="concept-1-maxima-detection-finding-pore-centers" class="level2">
+<h2 class="anchored" data-anchor-id="concept-1-maxima-detection-finding-pore-centers">Concept 1: Maxima Detection (Finding Pore Centers)</h2>
+<p>The first step is to find the <strong>local maxima</strong> of the distance field. These are the pore centers.</p>
+<section id="the-challenge-noise-vs.-features" class="level3">
+<h3 class="anchored" data-anchor-id="the-challenge-noise-vs.-features">The challenge: noise vs.&nbsp;features</h3>
+<p>A real distance grid has:</p>
+<ul>
+<li>Noise from grid discretization (atom responsible for nearest distance can jump abruptly, causing distance values to wobble)</li>
+<li>Real features: small pockets, large channels, tunnels</li>
+<li>Surface roughness that would spawn spurious maxima if treated as features</li>
+</ul>
+<p>A naive “every voxel that’s higher than its 26 neighbors” pass would give you hundreds of fake pockets. We need a <em>selective</em> approach.</p>
+</section>
+<section id="h-maxima" class="level3">
+<h3 class="anchored" data-anchor-id="h-maxima">h-maxima</h3>
+<p>The classic tool is <strong>h-maxima</strong> from scikit-image: keep only those local maxima that stand at least <code>h</code> units above their surroundings. Smaller peaks get suppressed. The parameter <code>h</code> is the <strong>persistence</strong> — how significant a peak has to be to count.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Conceptual: keep peak P iff (value(P) - value(any neighbor)) &gt;= h</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Smaller h  -&gt;  more, smaller pockets</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Larger h   -&gt;  fewer, larger pockets</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/parameter_effect_h_values.png" class="img-fluid figure-img"></p>
+<figcaption>Effect of h on maxima detection</figcaption>
+</figure>
+</div>
+</section>
+<section id="selective-smoothing" class="level3">
+<h3 class="anchored" data-anchor-id="selective-smoothing">Selective smoothing</h3>
+<p>MOFography’s Rust backend adds a layer on top of h-maxima: <strong>selective smoothing</strong>. The idea is to smooth the distance field with a spatially-varying Gaussian kernel that:</p>
+<ul>
+<li>Does <em>not</em> smooth small features (distance &lt; <code>preserve_threshold</code>) — they are real pockets</li>
+<li>Smooths heavily for large features (distance &gt; <code>smooth_threshold</code>) — this is roughness in channel walls that should not produce maxima</li>
+<li>Linearly interpolates the smoothing radius in between</li>
+</ul>
+<p>After smoothing, h-maxima runs on the cleaned-up field. The result is cleaner pore centers with fewer spurious ones.</p>
+<p>The three smoothing parameters you can tune:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 39%">
+<col style="width: 32%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>preserve_threshold</code></td>
+<td>3.0 Å</td>
+<td>Features below this distance are not smoothed (kept as pockets)</td>
+</tr>
+<tr class="even">
+<td><code>smooth_threshold</code></td>
+<td>6.0 Å</td>
+<td>Features above this distance are smoothed at <code>max_smooth_radius</code></td>
+</tr>
+<tr class="odd">
+<td><code>max_smooth_radius</code></td>
+<td>2.0 Å</td>
+<td>Cap on the smoothing radius (grid units)</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="concept-2-watershed-segmentation" class="level2">
+<h2 class="anchored" data-anchor-id="concept-2-watershed-segmentation">Concept 2: Watershed Segmentation</h2>
+<p>Once maxima are found, <strong>watershed segmentation</strong> assigns every void-space voxel to one of them.</p>
+<section id="the-water-filling-analogy" class="level3">
+<h3 class="anchored" data-anchor-id="the-water-filling-analogy">The water-filling analogy</h3>
+<ol type="1">
+<li>Take the (inverted) distance field — maxima become valleys</li>
+<li>Pour water simultaneously into each valley</li>
+<li>Where water from two valleys would meet, raise a “dam” — that is the watershed boundary</li>
+<li>When the water covers everything, each voxel is in the basin of exactly one maximum</li>
+</ol>
+<p>Equivalently, in MOFography, the watershed assigns each void voxel to the <em>nearest</em> maximum, where “nearest” is geodesic (respecting the topology of the void). The output is a 3D integer array where every void voxel has a region label.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/segmentation_cross_section.png" class="img-fluid figure-img"></p>
+<figcaption>Cross-section of segmentation</figcaption>
+</figure>
+</div>
+</section>
+<section id="with-and-without-pbc" class="level3">
+<h3 class="anchored" data-anchor-id="with-and-without-pbc">With and without PBC</h3>
+<p>You get two region arrays from the same call:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 45%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Array</th>
+<th>PBC handling</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>regions_pbc</code></td>
+<td>✅ Merged (all periodic images share a label)</td>
+<td>Property averaging, visualization, most analyses</td>
+</tr>
+<tr class="even">
+<td><code>regions</code></td>
+<td>❌ Split (each periodic image is its own region)</td>
+<td>Detailed pore graph, ML, non-periodic systems</td>
+</tr>
+</tbody>
+</table>
+<p>For most analyses of crystalline MOFs, use <code>regions_pbc</code>. The number of unique pores is simply <code>regions_pbc.max()</code>.</p>
+</section>
+</section>
+<section id="the-single-api-call" class="level2">
+<h2 class="anchored" data-anchor-id="the-single-api-call">The Single API Call</h2>
+<p>The whole pipeline — distance grid prep, selective smoothing, maxima detection, PBC grouping, watershed, connection detection — happens inside <code>do_periodic_segmentation_rust()</code>. It takes the distance grid and the ASE atoms, and returns a dictionary of 15 keys.</p>
+<div id="bfab7d1f" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 1: load the structure</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>atoms <span class="op">=</span> read(<span class="st">"IRMOF-1.cif"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Loaded </span><span class="sc">{</span>atoms<span class="sc">.</span>get_chemical_formula()<span class="sc">}</span><span class="ss">, </span><span class="sc">{</span><span class="bu">len</span>(atoms)<span class="sc">}</span><span class="ss"> atoms"</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Cell: </span><span class="sc">{</span>atoms<span class="sc">.</span>cell<span class="sc">.</span>cellpar()[:<span class="dv">3</span>]<span class="sc">.</span><span class="bu">round</span>(<span class="dv">2</span>)<span class="sc">}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loaded C192H96O104Zn32, 424 atoms
+Cell: [25.83 25.83 25.83] Å</code></pre>
+</div>
+</div>
+<div id="9c800056" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 2: compute the distance grid (see distance_grid.qmd for details)</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>spacing <span class="op">=</span> <span class="fl">0.5</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span>spacing)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Grid: </span><span class="sc">{</span>dgrid<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, void max: </span><span class="sc">{</span>dgrid<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.1f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Grid: (52, 52, 52), void max: 7.5 Å</code></pre>
+</div>
+</div>
+<div id="f08fb58f" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Step 3: run periodic segmentation — one call replaces 5-7 manual steps</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>dgrid_f32 <span class="op">=</span> dgrid.astype(np.float32)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>seg <span class="op">=</span> mgr.do_periodic_segmentation_rust(</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    dgrid_f32, atoms,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">0.05</span>,       <span class="co"># void-space threshold (Å) — default and recommended; anything closer to framework is "wall"</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    h<span class="op">=</span><span class="fl">0.2</span>,                     <span class="co"># h-maxima persistence (Å) — keep only peaks this tall</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    min_distance<span class="op">=</span><span class="fl">1.5</span>,          <span class="co"># min separation between distinct maxima (Å)</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    threshold_abs<span class="op">=</span><span class="fl">1.5</span>,         <span class="co"># absolute height threshold — ignore maxima shallower than this</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    preserve_threshold<span class="op">=</span><span class="fl">3.0</span>,    <span class="co"># selective smoothing: don't smooth features below this (Å)</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    smooth_threshold<span class="op">=</span><span class="fl">6.0</span>,      <span class="co"># selective smoothing: fully smooth features above this (Å)</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    max_smooth_radius<span class="op">=</span><span class="fl">2.0</span>,     <span class="co"># selective smoothing: max Gaussian radius</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    spacing<span class="op">=</span>spacing,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    compute_connections<span class="op">=</span><span class="va">True</span>,  <span class="co"># also detect windows between regions</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    disable_tqdm<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+</div>
+<div id="39b58832" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># What did we get?</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Pockets (PBC-grouped): </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'maxima_pbc'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"All maxima (with periodic images): </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'all_maxima'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unique regions influencing unit cell: </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'unique_regions'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Window connections: </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'connections'</span>])<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PBC equivalence groups: </span><span class="sc">{</span><span class="bu">len</span>(seg[<span class="st">'pbc_groups'</span>])<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Pockets (PBC-grouped): 8
+All maxima (with periodic images): 125
+Unique regions influencing unit cell: 27
+Window connections: 300
+PBC equivalence groups: 8</code></pre>
+</div>
+</div>
+</section>
+<section id="the-15-output-keys" class="level2">
+<h2 class="anchored" data-anchor-id="the-15-output-keys">The 15 Output Keys</h2>
+<p><code>do_periodic_segmentation_rust</code> returns a flat dictionary. Group by purpose:</p>
+<section id="maxima-arrays-pore-centers" class="level3">
+<h3 class="anchored" data-anchor-id="maxima-arrays-pore-centers">Maxima arrays (pore centers)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 36%">
+<col style="width: 46%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>What it is</th>
+<th>Typical size</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>maxima_pbc</code></td>
+<td>One representative per unique pore (after PBC grouping)</td>
+<td>Small — your pore count</td>
+</tr>
+<tr class="even">
+<td><code>all_maxima</code></td>
+<td>All periodic images, including those in the padded region</td>
+<td>Larger</td>
+</tr>
+<tr class="odd">
+<td><code>close_or_inside_maxima</code></td>
+<td>Subset of <code>all_maxima</code> that touch or sit inside the unit cell</td>
+<td>Medium</td>
+</tr>
+<tr class="even">
+<td><code>maxima_info</code></td>
+<td>Per-maxima metadata (radius, location, etc.)</td>
+<td>Same as <code>all_maxima</code></td>
+</tr>
+<tr class="odd">
+<td><code>maxima_pbc_dict</code></td>
+<td>Maps each PBC representative to the list of its images</td>
+<td>Same as <code>maxima_pbc</code></td>
+</tr>
+<tr class="even">
+<td><code>maxima_relative_locations</code></td>
+<td>Fractional coordinates of every maximum</td>
+<td>Same as <code>all_maxima</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="region-arrays-the-labeled-voxel-grids" class="level3">
+<h3 class="anchored" data-anchor-id="region-arrays-the-labeled-voxel-grids">Region arrays (the labeled voxel grids)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 68%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>regions_pbc</code></td>
+<td>3D array, PBC-merged — same pore = same label (use this for most analyses)</td>
+</tr>
+<tr class="even">
+<td><code>regions</code></td>
+<td>3D array, PBC-split — each periodic image is a distinct label</td>
+</tr>
+<tr class="odd">
+<td><code>unique_regions</code></td>
+<td>Region labels that have at least one voxel in the unit cell</td>
+</tr>
+<tr class="even">
+<td><code>close_or_inside_regions</code></td>
+<td>Region labels touching or inside the unit cell</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="connections-the-pore-graph" class="level3">
+<h3 class="anchored" data-anchor-id="connections-the-pore-graph">Connections (the pore graph)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 68%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>connections</code></td>
+<td>List of window connections between regions — used to build the pore graph</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="bookkeeping" class="level3">
+<h3 class="anchored" data-anchor-id="bookkeeping">Bookkeeping</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 68%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Key</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>pbc_groups</code></td>
+<td>Lists grouping <code>all_maxima</code> by their PBC equivalence class</td>
+</tr>
+<tr class="even">
+<td><code>input_params</code></td>
+<td>Echo of the parameters you passed (for reproducibility)</td>
+</tr>
+<tr class="odd">
+<td><code>dgrid</code></td>
+<td>The distance grid used (only present if <code>return_dgrid=True</code>)</td>
+</tr>
+<tr class="even">
+<td><code>mat_atoms</code></td>
+<td>The ASE atoms object echoed back</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="accessing-the-results" class="level2">
+<h2 class="anchored" data-anchor-id="accessing-the-results">Accessing the Results</h2>
+<p>The four keys you will reach for most often:</p>
+<div id="d2129cc6" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>maxima_pbc  <span class="op">=</span> seg[<span class="st">'maxima_pbc'</span>]   <span class="co"># one representative per unique pore</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>all_maxima  <span class="op">=</span> seg[<span class="st">'all_maxima'</span>]   <span class="co"># all periodic images</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>regions_pbc <span class="op">=</span> seg[<span class="st">'regions_pbc'</span>] <span class="co"># the labeled voxel grid (PBC-merged)</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>pbc_groups  <span class="op">=</span> seg[<span class="st">'pbc_groups'</span>]   <span class="co"># which images belong to which pore</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"maxima_pbc  : </span><span class="sc">{</span>maxima_pbc<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">  -&gt; one entry per unique pore"</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"all_maxima  : </span><span class="sc">{</span>all_maxima<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">  -&gt; all periodic images"</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"regions_pbc : </span><span class="sc">{</span>regions_pbc<span class="sc">.</span>shape<span class="sc">}</span><span class="ss"> -&gt; labeled voxel grid"</span>)</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"pbc_groups  : </span><span class="sc">{</span><span class="bu">len</span>(pbc_groups)<span class="sc">}</span><span class="ss"> groups"</span>)</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Number of unique pores in this material</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>n_pores <span class="op">=</span> <span class="bu">int</span>(regions_pbc.<span class="bu">max</span>())</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Number of unique pores: </span><span class="sc">{</span>n_pores<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>maxima_pbc  : (8, 3)  -&gt; one entry per unique pore
+all_maxima  : (125, 3)  -&gt; all periodic images
+regions_pbc : (52, 52, 52) -&gt; labeled voxel grid
+pbc_groups  : 8 groups
+
+Number of unique pores: 8</code></pre>
+</div>
+</div>
+<section id="the-clever-indexing-trick" class="level3">
+<h3 class="anchored" data-anchor-id="the-clever-indexing-trick">The clever indexing trick</h3>
+<p>Maxima are reindexed by importance, so the first <code>regions.max()</code> entries of <code>all_maxima</code> are exactly the ones that influence the unit cell:</p>
+<div id="120faabc" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># "maxima inside the unit cell" — same as close_or_inside_maxima[:regions.max()]</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>unit_cell_maxima <span class="op">=</span> all_maxima[: <span class="bu">int</span>(regions_pbc.<span class="bu">max</span>())]</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Maxima influencing the unit cell: </span><span class="sc">{</span><span class="bu">len</span>(unit_cell_maxima)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Maxima influencing the unit cell: 8</code></pre>
+</div>
+</div>
+</section>
+<section id="inspecting-connections" class="level3">
+<h3 class="anchored" data-anchor-id="inspecting-connections">Inspecting connections</h3>
+<p>Each connection is a tuple of region indices plus a geometry record:</p>
+<div id="c417d239" class="cell" data-execution_count="8">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># First three connections</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> c <span class="kw">in</span> seg[<span class="st">'connections'</span>][:<span class="dv">3</span>]:</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(c)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[array([49, 83], dtype=uint32) True 'periodic'
+ array([[ 33.53192308, -12.916     ,  38.748     ]]) array([3.67783356])]
+[array([ 5, 21], dtype=uint32) True 'internal'
+ array([[7.20315385, 0.        , 0.        ]]) array([3.95680285])]
+[array([41, 65], dtype=uint32) True 'periodic'
+ array([[ 17.63530769,  38.748     , -12.916     ]]) array([3.67783356])]</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="parameter-tuning" class="level2">
+<h2 class="anchored" data-anchor-id="parameter-tuning">Parameter Tuning</h2>
+<section id="most-important-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="most-important-parameters">Most important parameters</h3>
+<p>These four control the <em>number and shape</em> of the detected pores:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 39%">
+<col style="width: 32%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>h</code></td>
+<td>0.2 Å</td>
+<td>h-maxima persistence. Higher → fewer, larger pockets.</td>
+</tr>
+<tr class="even">
+<td><code>min_distance</code></td>
+<td>1.5 Å</td>
+<td>Maxima closer than this get merged. Higher → fewer pockets.</td>
+</tr>
+<tr class="odd">
+<td><code>threshold_abs</code></td>
+<td>1.5 Å</td>
+<td>Ignore peaks shallower than this. Higher → only large pores.</td>
+</tr>
+<tr class="even">
+<td><code>mask_thickness</code></td>
+<td>0.05 Å</td>
+<td>Voxels closer to framework than this are “wall”, not pore. 0.05 is the default and recommended; raise to ~0.15 only to drop wall slivers. Keep it well below the plotting isovalue.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="advanced-smoothing-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="advanced-smoothing-parameters">Advanced smoothing parameters</h3>
+<p>If you see spurious small maxima in the middle of large channels, or you are losing real small pockets, tune the selective-smoothing triad:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 39%">
+<col style="width: 32%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>preserve_threshold</code></td>
+<td>3.0 Å</td>
+<td>Below this distance, smoothing is <em>off</em> (real pockets preserved)</td>
+</tr>
+<tr class="even">
+<td><code>smooth_threshold</code></td>
+<td>6.0 Å</td>
+<td>Above this distance, smoothing is at <code>max_smooth_radius</code></td>
+</tr>
+<tr class="odd">
+<td><code>max_smooth_radius</code></td>
+<td>2.0 Å</td>
+<td>Cap on smoothing kernel (Å)</td>
+</tr>
+</tbody>
+</table>
+<p>Lower <code>smooth_threshold</code> to smooth more aggressively; raise <code>preserve_threshold</code> to protect more small pockets.</p>
+</section>
+<section id="pbc-handling-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="pbc-handling-parameters">PBC handling parameters</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 39%">
+<col style="width: 32%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>extra_padding</code></td>
+<td>5 Å</td>
+<td>Extra padding beyond the standard +5 Å, for very large pores</td>
+</tr>
+<tr class="even">
+<td><code>wall_thickness</code></td>
+<td>0.05</td>
+<td>Fraction of cell — controls how “wall” is defined near boundaries</td>
+</tr>
+<tr class="odd">
+<td><code>minimum_window_separation</code></td>
+<td>auto</td>
+<td>Min separation for two windows to count as distinct</td>
+</tr>
+<tr class="even">
+<td><code>watershed_backend</code></td>
+<td><code>"rust_det"</code></td>
+<td>One of <code>rust_det</code> | <code>rust_bucket</code> | <code>rust_det_parallel</code> | <code>skimage</code></td>
+</tr>
+<tr class="odd">
+<td><code>min_region_size</code></td>
+<td>0.001</td>
+<td>Fraction of padded volume — regions smaller than this are dropped</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="recipes" class="level3">
+<h3 class="anchored" data-anchor-id="recipes">Recipes</h3>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Try</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Too many tiny pockets</td>
+<td>Increase <code>h</code> (e.g.&nbsp;0.2 → 0.4), or increase <code>min_distance</code></td>
+</tr>
+<tr class="even">
+<td>Missing small pockets</td>
+<td>Decrease <code>threshold_abs</code> (1.5 → 1.0) or <code>h</code> (0.2 → 0.1)</td>
+</tr>
+<tr class="odd">
+<td>Spurious maxima in large channels</td>
+<td>Decrease <code>smooth_threshold</code> or increase <code>max_smooth_radius</code></td>
+</tr>
+<tr class="even">
+<td>Real small pockets getting smoothed away</td>
+<td>Increase <code>preserve_threshold</code> (3.0 → 4.0)</td>
+</tr>
+<tr class="odd">
+<td>Wall fragments in <code>regions</code></td>
+<td>Increase <code>mask_thickness</code> (0.05 → 0.15; see <a href="./parameter_tuning.html">Tuning</a>)</td>
+</tr>
+<tr class="even">
+<td>Out of memory</td>
+<td>Use <code>dgrid_from_atoms_rtree_rust</code> (R-tree, less RAM)</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="visualization" class="level2">
+<h2 class="anchored" data-anchor-id="visualization">Visualization</h2>
+<p>The fastest way to see what you got is <code>show_mof_plotly</code>, which lays framework, isosurface, regions, and maxima in one figure (static preview below, interactive version linked):</p>
+<div id="e15ca0ed" class="cell" data-execution_count="9">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Interactive 3D — framework + regions + maxima</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co"># plot_surface_isovalue is a distance-from-framework contour (Å); keep it well above mask_thickness</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> mgr.show_mof_plotly(seg, atoms, framework_atoms<span class="op">=</span>atoms, stylize<span class="op">=</span><span class="va">True</span>, plot_surface_isovalue<span class="op">=</span><span class="fl">1.5</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"tutorial_images/region_segmentation_overview.png"</span>, width<span class="op">=</span><span class="dv">1100</span>, height<span class="op">=</span><span class="dv">800</span>)  <span class="co"># static preview for the docs</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]
+[TIMING batched_mesh_for_atoms] 472 atoms, 1024 bonds | spheres: 0.00s, cylinders: 0.00s, concat: 0.00s | total faces: 212480</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/region_segmentation_overview.png" class="img-fluid figure-img"></p>
+<figcaption>IRMOF-1: framework, isosurface, regions, and maxima</figcaption>
+</figure>
+</div>
+<div class="callout callout-style-default callout-note callout-titled" title="Interactive version">
+<div class="callout-header d-flex align-content-center collapsed" data-bs-toggle="collapse" data-bs-target=".callout-1-contents" aria-controls="callout-1" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Note</span>Interactive version
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-1" class="callout-1-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> mgr.show_mof_plotly(seg, atoms, framework_atoms<span class="op">=</span>atoms, stylize<span class="op">=</span><span class="va">True</span>, plot_surface_isovalue<span class="op">=</span><span class="fl">1.5</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>fig.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</div>
+</div>
+<p><a href="interactive/irmof1_pockets_windows_threejs.html" target="_blank">Open the interactive version</a></p>
+<p>If you want more control (e.g.&nbsp;coloring a specific subset of regions), pull out the lower-level helpers:</p>
+<div id="5c50eb25" class="cell" data-execution_count="10">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.express <span class="im">as</span> px</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>cscale <span class="op">=</span> px.colors.qualitative.Pastel</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>maxima <span class="op">=</span> seg[<span class="st">'all_maxima'</span>][: <span class="bu">int</span>(seg[<span class="st">'regions_pbc'</span>].<span class="bu">max</span>())]</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Region isosurface, colored by pore label.</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co"># isovalue = distance from framework (Å); it must be well above mask_thickness (0.05)</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co"># or the surface hugs the masked wall and looks blotchy.</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>surf <span class="op">=</span> mgr.plot_surface_dgrid(</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    dgrid, isovalue<span class="op">=</span><span class="fl">1.5</span>,</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    ase_atoms<span class="op">=</span>atoms,</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    region_labels<span class="op">=</span>seg[<span class="st">'regions_pbc'</span>],</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    cscale<span class="op">=</span>cscale,</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="st">'Pores (PBC merged)'</span>,</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>    stylize<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>    opacity<span class="op">=</span><span class="fl">0.8</span>,</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Pore centers</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>pts <span class="op">=</span> mgr.plot_maxima(dgrid, maxima, atoms, show_spheres<span class="op">=</span><span class="va">False</span>, marker_colorscale<span class="op">=</span>cscale)</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Cell box</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>cell <span class="op">=</span> mgr.plot_cell(atoms)</span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a><span class="co"># Framework mesh</span></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>mat_updated <span class="op">=</span> mgr.update_with_covalent_bonds(atoms)</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>frame <span class="op">=</span> mgr.plot_framework_as_mesh(mat_updated, stylize<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> go.Figure(</span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>    data<span class="op">=</span>[cell, surf, pts, <span class="op">*</span>frame],</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>    layout<span class="op">=</span>mgr.dark_layout,</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>fig.update_layout(</span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>    scene_aspectmode<span class="op">=</span><span class="st">'data'</span>,</span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>    title<span class="op">=</span><span class="bu">dict</span>(text<span class="op">=</span><span class="st">'IRMOF-1: segmented pores'</span>, x<span class="op">=</span><span class="fl">0.5</span>, xanchor<span class="op">=</span><span class="st">'center'</span>, font<span class="op">=</span><span class="bu">dict</span>(color<span class="op">=</span><span class="st">'white'</span>, size<span class="op">=</span><span class="dv">16</span>)),</span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a>fig.write_image(<span class="st">"tutorial_images/region_segmentation_custom.png"</span>, width<span class="op">=</span><span class="dv">1100</span>, height<span class="op">=</span><span class="dv">800</span>)  <span class="co"># static preview; use fig.show() interactively</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[TIMING batched_mesh_for_atoms] 472 atoms, 1024 bonds | spheres: 0.00s, cylinders: 0.00s, concat: 0.00s | total faces: 212480</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>No node props provided, using default set: [position, scaled_position, element and atomic_number]
+No edge properties provided. Use the default set: [bond_order, bond_type]</code></pre>
+</div>
+</div>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="tutorial_images/region_segmentation_custom.png" class="img-fluid figure-img"></p>
+<figcaption>Custom figure built from lower-level helpers</figcaption>
+</figure>
+</div>
+</section>
+<section id="common-pitfalls" class="level2">
+<h2 class="anchored" data-anchor-id="common-pitfalls">Common Pitfalls</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 58%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Issue</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>dgrid</code> dtype error from Rust</td>
+<td><code>dgrid = dgrid_from_atoms_rust(...)</code> already returns float32 — do not pass a float64 grid from Dask.</td>
+</tr>
+<tr class="even">
+<td>Wrong unit cell conventions</td>
+<td>Use the Rust backend (<code>dgrid_from_atoms_rust</code>) — it handles non-orthogonal cells correctly. Avoid the deprecated <code>_gpu</code> and <code>_cpu_no_aabb</code> variants.</td>
+</tr>
+<tr class="odd">
+<td>Pore count doesn’t match expectation</td>
+<td>Check <code>regions_pbc.max()</code> (not <code>len(maxima_pbc)</code>) — both should agree, but <code>regions_pbc.max()</code> is the ground truth.</td>
+</tr>
+<tr class="even">
+<td>Some regions missing from unit cell</td>
+<td>Increase <code>extra_padding</code> — large pores may need more room around the cell to be detected.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next Steps</h2>
+<ul>
+<li><strong><a href="./quick_start.html">Quick Start</a></strong> — the canonical three-call pipeline (load → grid → segment → visualize) in one page</li>
+<li><strong><a href="./distance_grid.html">Distance Grid</a></strong> — how the distance grid is computed, with method comparisons</li>
+<li><strong><a href="./parameter_tuning.html">Tuning and safe ranges</a></strong> — defaults, safe ranges, and symptoms for every segmentation parameter</li>
+<li><strong><a href="./pore_graph.html">Pore Graph</a></strong> — once you have regions and connections, build the Region Adjacency Graph</li>
+<li><strong><a href="./connections_and_windows.html">Connections and Windows</a></strong> — the window detection step in detail</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/region_segmentation.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

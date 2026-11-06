@@ -1,0 +1,1565 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="description" content="Compare all four distance grid backends (rust_exact, rust_aabb, rust_aabb_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use.">
+
+<title>Distance Grid Methods — Choosing the Right Backend – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="Distance Grid Methods — Choosing the Right Backend – mofography">
+<meta property="og:description" content="Compare all four distance grid backends (rust_exact, rust_rtree, rust_rtree_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use.">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/distance_grid_isosurface.png">
+<meta property="og:site_name" content="mofography">
+<meta property="og:image:height" content="1800">
+<meta property="og:image:width" content="2400">
+<meta name="twitter:title" content="Distance Grid Methods — Choosing the Right Backend – mofography">
+<meta name="twitter:description" content="Compare all four distance grid backends (rust_exact, rust_rtree, rust_rtree_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use.">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/distance_grid_isosurface.png">
+<meta name="twitter:image-height" content="1800">
+<meta name="twitter:image-width" content="2400">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#overview" id="toc-overview" class="nav-link active" data-scroll-target="#overview">Overview</a></li>
+  <li><a href="#the-four-distance-grid-backends" id="toc-the-four-distance-grid-backends" class="nav-link" data-scroll-target="#the-four-distance-grid-backends">The four distance grid backends</a></li>
+  <li><a href="#signatures" id="toc-signatures" class="nav-link" data-scroll-target="#signatures">Signatures</a>
+  <ul class="collapse">
+  <li><a href="#dgrid_from_atoms_rust-exact-brute-force" id="toc-dgrid_from_atoms_rust-exact-brute-force" class="nav-link" data-scroll-target="#dgrid_from_atoms_rust-exact-brute-force">1. <code>dgrid_from_atoms_rust</code> — exact, brute-force</a></li>
+  <li><a href="#dgrid_from_atoms_aabb_rust-r-tree-memory-efficient" id="toc-dgrid_from_atoms_aabb_rust-r-tree-memory-efficient" class="nav-link" data-scroll-target="#dgrid_from_atoms_aabb_rust-r-tree-memory-efficient">2. <code>dgrid_from_atoms_aabb_rust</code> — R-tree, memory-efficient</a></li>
+  <li><a href="#dgrid_from_atoms_aabb_interp_rust-coarse-trilinear" id="toc-dgrid_from_atoms_aabb_interp_rust-coarse-trilinear" class="nav-link" data-scroll-target="#dgrid_from_atoms_aabb_interp_rust-coarse-trilinear">3. <code>dgrid_from_atoms_aabb_interp_rust</code> — coarse + trilinear</a></li>
+  <li><a href="#dgrid_from_atoms_cpu-freud-dask-python" id="toc-dgrid_from_atoms_cpu-freud-dask-python" class="nav-link" data-scroll-target="#dgrid_from_atoms_cpu-freud-dask-python">4. <code>dgrid_from_atoms_cpu</code> — freud + Dask, Python</a></li>
+  </ul></li>
+  <li><a href="#decision-tree" id="toc-decision-tree" class="nav-link" data-scroll-target="#decision-tree">Decision tree</a>
+  <ul class="collapse">
+  <li><a href="#rule-of-thumb" id="toc-rule-of-thumb" class="nav-link" data-scroll-target="#rule-of-thumb">Rule of thumb</a></li>
+  </ul></li>
+  <li><a href="#auto-aabb-policy-interactive-app" id="toc-auto-aabb-policy-interactive-app" class="nav-link" data-scroll-target="#auto-aabb-policy-interactive-app">Auto-AABB policy (interactive app)</a></li>
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#method-1-dgrid_from_atoms_rust-default" id="toc-method-1-dgrid_from_atoms_rust-default" class="nav-link" data-scroll-target="#method-1-dgrid_from_atoms_rust-default">Method 1: <code>dgrid_from_atoms_rust</code> (default)</a></li>
+  <li><a href="#method-2-dgrid_from_atoms_aabb_rust-memory-efficient" id="toc-method-2-dgrid_from_atoms_aabb_rust-memory-efficient" class="nav-link" data-scroll-target="#method-2-dgrid_from_atoms_aabb_rust-memory-efficient">Method 2: <code>dgrid_from_atoms_aabb_rust</code> (memory-efficient)</a></li>
+  <li><a href="#method-3-dgrid_from_atoms_aabb_interp_rust-very-large-systems" id="toc-method-3-dgrid_from_atoms_aabb_interp_rust-very-large-systems" class="nav-link" data-scroll-target="#method-3-dgrid_from_atoms_aabb_interp_rust-very-large-systems">Method 3: <code>dgrid_from_atoms_aabb_interp_rust</code> (very large systems)</a></li>
+  <li><a href="#method-4-dgrid_from_atoms_cpu-legacy-python" id="toc-method-4-dgrid_from_atoms_cpu-legacy-python" class="nav-link" data-scroll-target="#method-4-dgrid_from_atoms_cpu-legacy-python">Method 4: <code>dgrid_from_atoms_cpu</code> (legacy / Python)</a></li>
+  <li><a href="#side-by-side-timing" id="toc-side-by-side-timing" class="nav-link" data-scroll-target="#side-by-side-timing">Side-by-side timing</a></li>
+  <li><a href="#broken-methods" id="toc-broken-methods" class="nav-link" data-scroll-target="#broken-methods">Broken methods</a></li>
+  <li><a href="#two-functions-you-must-not-use-dgrid_from_atoms_gpu-and-dgrid_from_atoms_cpu_no_aabb" id="toc-two-functions-you-must-not-use-dgrid_from_atoms_gpu-and-dgrid_from_atoms_cpu_no_aabb" class="nav-link" data-scroll-target="#two-functions-you-must-not-use-dgrid_from_atoms_gpu-and-dgrid_from_atoms_cpu_no_aabb">Two functions you must NOT use: <code>dgrid_from_atoms_gpu</code> and <code>dgrid_from_atoms_cpu_no_aabb</code></a></li>
+  <li><a href="#parameter-guide" id="toc-parameter-guide" class="nav-link" data-scroll-target="#parameter-guide">Parameter guide</a></li>
+  <li><a href="#quick-decision-recap" id="toc-quick-decision-recap" class="nav-link" data-scroll-target="#quick-decision-recap">Quick decision recap</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">Next steps</a></li>
+  <li><a href="#related-documentation" id="toc-related-documentation" class="nav-link" data-scroll-target="#related-documentation">Related documentation</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/dgrid_methods.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Distance Grid Methods — Choosing the Right Backend</h1>
+</div>
+
+<div>
+  <div class="description">
+    Compare all four distance grid backends (rust_exact, rust_aabb, rust_aabb_interp, cpu/dask), pick the right one for your system size, and learn which two methods to never use.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="overview" class="level2">
+<h2 class="anchored" data-anchor-id="overview">Overview</h2>
+<p>The distance grid is the foundation of every <code>mofography</code> pore analysis — segmentation, RAG, PSD, PLD, and surface area all consume the same <code>dgrid</code> array. <strong>Which function you call to build that array matters</strong> because each backend trades off accuracy, memory, and runtime differently, and two of the legacy backends are <em>unsafe</em> on non-orthogonal cells.</p>
+<p>This tutorial covers:</p>
+<ol type="1">
+<li>The four <strong>active</strong> distance grid backends and their exact signatures</li>
+<li>A <strong>decision tree</strong> mapping system size to the right method</li>
+<li>The <strong>auto-AABB</strong> policy the interactive app uses</li>
+<li>⚠️ The two <strong>broken</strong> methods to <em>never</em> use and why</li>
+</ol>
+<p>If you have not done so, please complete the <a href="./distance_grid.html">Distance Grid tutorial</a> first — the rest of this page assumes you understand what a <code>dgrid</code> is and what <code>spacing</code> controls.</p>
+</section>
+<section id="the-four-distance-grid-backends" class="level2">
+<h2 class="anchored" data-anchor-id="the-four-distance-grid-backends">The four distance grid backends</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 24%">
+<col style="width: 24%">
+<col style="width: 24%">
+<col style="width: 19%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Function</th>
+<th>Strategy</th>
+<th>Best for</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td><code>dgrid_from_atoms_rust</code></td>
+<td>Brute-force Rust, exact MIC, thread-parallel</td>
+<td><strong>All systems — default</strong></td>
+<td>✅ Active</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td><code>dgrid_from_atoms_aabb_rust</code></td>
+<td>R-tree (AABB) neighbor search in Rust</td>
+<td>Large systems, memory-constrained</td>
+<td>✅ Active</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td><code>dgrid_from_atoms_aabb_interp_rust</code></td>
+<td>Coarse AABB + trilinear interpolation</td>
+<td>Very large systems, mild smoothing OK</td>
+<td>✅ Active</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td><code>dgrid_from_atoms_cpu</code></td>
+<td>freud <code>AABBQuery</code> + Dask, Python</td>
+<td>Legacy compatibility</td>
+<td>⚠️ Legacy</td>
+</tr>
+</tbody>
+</table>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>⚠️ Do NOT use these two methods
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong><code>dgrid_from_atoms_gpu</code></strong> and <strong><code>dgrid_from_atoms_cpu_no_aabb</code></strong> are <strong>BROKEN on non-orthogonal (skewed) cells</strong>. They compute the minimum-image convention with per-axis <code>NINT</code>, which is <em>only</em> correct for orthogonal cells. Most MOFs (and all triclinic/monoclinic cells) violate this assumption, so these functions produce <em>systematically wrong</em> distance grids on real materials. They are kept in the codebase for legacy code paths but <strong>must not be used in new work</strong>. The Rust backend uses the same correct MIC path for every cell type. See the <a href="#broken-methods">Broken methods</a> section for details.</p>
+</div>
+</div>
+</section>
+<section id="signatures" class="level2">
+<h2 class="anchored" data-anchor-id="signatures">Signatures</h2>
+<section id="dgrid_from_atoms_rust-exact-brute-force" class="level3">
+<h3 class="anchored" data-anchor-id="dgrid_from_atoms_rust-exact-brute-force">1. <code>dgrid_from_atoms_rust</code> — exact, brute-force</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>dgrid_from_atoms_rust(ase_atoms, spacing, radii<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 17%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ase_atoms</code></td>
+<td><code>ase.Atoms</code></td>
+<td>—</td>
+<td>Framework structure</td>
+</tr>
+<tr class="even">
+<td><code>spacing</code></td>
+<td><code>float</code></td>
+<td>—</td>
+<td>Grid spacing in Å</td>
+</tr>
+<tr class="odd">
+<td><code>radii</code></td>
+<td><code>np.ndarray</code> or <code>None</code></td>
+<td><code>None</code></td>
+<td>Per-atom VDW radii (Å). <code>None</code> → Bondi (1964) with Mendeleev fill</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>np.ndarray</code> of shape <code>(nx, ny, nz)</code>, signed distance to the nearest atom surface.</p>
+<p><strong>Strategy:</strong> Thread-parallel (Rayon) brute-force — every grid point is checked against every atom using an <em>exact</em> minimum-image convention. Orthogonal cells use a SIMD-optimized SoA path; skewed cells fall back to a 7-image Wassenaar construction. O(N_atoms × N_grid) work, O(N_grid) memory.</p>
+<p><strong>Use when:</strong> you want the most accurate distance grid and you have enough RAM for one float32 per voxel.</p>
+</section>
+<section id="dgrid_from_atoms_aabb_rust-r-tree-memory-efficient" class="level3">
+<h3 class="anchored" data-anchor-id="dgrid_from_atoms_aabb_rust-r-tree-memory-efficient">2. <code>dgrid_from_atoms_aabb_rust</code> — R-tree, memory-efficient</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>dgrid_from_atoms_aabb_rust(ase_atoms, spacing, radii<span class="op">=</span><span class="va">None</span>, n_neighbors<span class="op">=</span><span class="dv">10</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 17%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ase_atoms</code></td>
+<td><code>ase.Atoms</code></td>
+<td>—</td>
+<td>Framework structure</td>
+</tr>
+<tr class="even">
+<td><code>spacing</code></td>
+<td><code>float</code></td>
+<td>—</td>
+<td>Grid spacing in Å</td>
+</tr>
+<tr class="odd">
+<td><code>radii</code></td>
+<td><code>np.ndarray</code> or <code>None</code></td>
+<td><code>None</code></td>
+<td>Per-atom VDW radii (Å)</td>
+</tr>
+<tr class="even">
+<td><code>n_neighbors</code></td>
+<td><code>int</code></td>
+<td><code>10</code></td>
+<td>Number of nearest atoms to query per grid point</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Strategy:</strong> Builds a Rust AABB (axis-aligned bounding box) tree on the atoms, then queries <code>n_neighbors</code> nearest atoms for every grid point under PBC. The minimum of <code>dist - radii[nbr]</code> becomes the surface distance. Memory is dominated by the R-tree, <em>not</em> by the grid → much smaller RAM footprint than brute force on large cells.</p>
+<p><strong>Use when:</strong> cells &gt; 50 Å or atoms &gt; 1000 and the brute-force Rust path runs out of memory. Accuracy depends on <code>n_neighbors</code>: 10 is safe for typical MOFs; reduce to 4–6 if the structure has very large open channels where the nearest atoms may be far apart, and consider whether you need 20+ for tiny-pore systems.</p>
+</section>
+<section id="dgrid_from_atoms_aabb_interp_rust-coarse-trilinear" class="level3">
+<h3 class="anchored" data-anchor-id="dgrid_from_atoms_aabb_interp_rust-coarse-trilinear">3. <code>dgrid_from_atoms_aabb_interp_rust</code> — coarse + trilinear</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>dgrid_from_atoms_aabb_interp_rust(</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    ase_atoms, spacing, coarse_factor<span class="op">=</span><span class="dv">2</span>, radii<span class="op">=</span><span class="va">None</span>, n_neighbors<span class="op">=</span><span class="dv">10</span>,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 17%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ase_atoms</code></td>
+<td><code>ase.Atoms</code></td>
+<td>—</td>
+<td>Framework structure</td>
+</tr>
+<tr class="even">
+<td><code>spacing</code></td>
+<td><code>float</code></td>
+<td>—</td>
+<td><strong>Fine</strong> grid spacing in Å</td>
+</tr>
+<tr class="odd">
+<td><code>coarse_factor</code></td>
+<td><code>int</code></td>
+<td><code>2</code></td>
+<td>Coarsening factor for the AABB sampling grid (must be &gt; 1)</td>
+</tr>
+<tr class="even">
+<td><code>radii</code></td>
+<td><code>np.ndarray</code> or <code>None</code></td>
+<td><code>None</code></td>
+<td>Per-atom VDW radii (Å)</td>
+</tr>
+<tr class="odd">
+<td><code>n_neighbors</code></td>
+<td><code>int</code></td>
+<td><code>10</code></td>
+<td>AABB neighbor count</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> <code>np.ndarray</code> (float32) of shape <code>(nx, ny, nz)</code> matching the <em>fine</em> <code>spacing</code>.</p>
+<p><strong>Strategy:</strong> Computes the AABB distance grid on a <strong>coarse</strong> grid (spacing × <code>coarse_factor</code>), then trilinearly interpolates back to the fine grid. Reduces compute by <code>coarse_factor³</code> (default 8×) and <em>also</em> acts as a mild low-pass filter. The grid shape is identical to the brute-force result, so downstream code is unchanged.</p>
+<p><strong>Use when:</strong> systems so large that even the AABB Rust path is too slow, <em>and</em> you can tolerate a slightly smoother distance field (mild trilinear averaging of nearby values). Good for HT screens where you want a ballpark PSD, less ideal for resolving sub-Å features like pore-limiting windows. Increase <code>coarse_factor</code> to 3 or 4 for very large cells; decrease toward 1 (in practice, use the plain AABB method) when you need sharper windows.</p>
+</section>
+<section id="dgrid_from_atoms_cpu-freud-dask-python" class="level3">
+<h3 class="anchored" data-anchor-id="dgrid_from_atoms_cpu-freud-dask-python">4. <code>dgrid_from_atoms_cpu</code> — freud + Dask, Python</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dgrid_from_atoms_cpu(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    ase_atoms, radii<span class="op">=</span><span class="va">None</span>, spacing<span class="op">=</span><span class="fl">0.25</span>, block_size<span class="op">=</span><span class="dv">50000</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    n_neighbors<span class="op">=</span><span class="dv">10</span>, probe_radius<span class="op">=</span><span class="dv">0</span>, precompute<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 31%">
+<col style="width: 17%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ase_atoms</code></td>
+<td><code>ase.Atoms</code></td>
+<td>—</td>
+<td>Framework structure</td>
+</tr>
+<tr class="even">
+<td><code>radii</code></td>
+<td><code>np.ndarray</code> or <code>None</code></td>
+<td><code>None</code></td>
+<td>Per-atom VDW radii (Å). <code>None</code> → uses a hand-rolled Bondi table</td>
+</tr>
+<tr class="odd">
+<td><code>spacing</code></td>
+<td><code>float</code></td>
+<td><code>0.25</code></td>
+<td>Grid spacing in Å</td>
+</tr>
+<tr class="even">
+<td><code>block_size</code></td>
+<td><code>int</code></td>
+<td><code>50000</code></td>
+<td>Dask chunk size (grid points per block)</td>
+</tr>
+<tr class="odd">
+<td><code>n_neighbors</code></td>
+<td><code>int</code></td>
+<td><code>10</code></td>
+<td>AABB neighbor count for freud query</td>
+</tr>
+<tr class="even">
+<td><code>probe_radius</code></td>
+<td><code>float</code></td>
+<td><code>0</code></td>
+<td>Probe radius added on top of atom radii (Å)</td>
+</tr>
+<tr class="odd">
+<td><code>precompute</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>If <code>True</code>, call <code>.compute()</code> and return a NumPy array; if <code>False</code>, return a lazy Dask array</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Strategy:</strong> Builds a freud <code>AABBQuery</code> on the framework, lays out the grid as a Dask array of <code>block_size</code> chunks, and maps <code>gpd_aabb</code> (a NumPy reduction over the freud neighbor list) over every block. Uses <code>complete_cell().T</code> for the box, so the <strong>MIC is correct on skewed cells</strong> — this is <em>not</em> one of the broken methods.</p>
+<p><strong>Use when:</strong> you need Python-level introspection of intermediate values, are running on a machine without the Rust extension, or want lazy Dask composition with other grid ops. Performance is generally 5–20× slower than the Rust path on the same machine.</p>
+</section>
+</section>
+<section id="decision-tree" class="level2">
+<h2 class="anchored" data-anchor-id="decision-tree">Decision tree</h2>
+<pre class="mermaid"><code>flowchart TD
+    A[System: ASE Atoms + spacing] --&gt; B{Atoms × grid voxels&lt;br/&gt;fits in RAM&lt;br/&gt;and runtime OK?}
+    B -- Yes --&gt; C[rust_exact&lt;br/&gt;dgrid_from_atoms_rust]
+    B -- No, OOM or too slow --&gt; D{Is mild smoothing&lt;br/&gt;of the dgrid OK?}
+    D -- Yes --&gt; E[rust_aabb_interp&lt;br/&gt;dgrid_from_atoms_aabb_interp_rust]
+    D -- No, need exact --&gt; F[rust_aabb&lt;br/&gt;dgrid_from_atoms_aabb_rust]
+    A --&gt; G[Need Python-level&lt;br/&gt;introspection?]
+    G -- Yes --&gt; H[cpu / Dask&lt;br/&gt;dgrid_from_atoms_cpu]
+    G -- No --&gt; C
+    A -.-&gt;|NEVER| X[gpu or cpu_no_aabb&lt;br/&gt;broken on skewed cells]
+    X -.-&gt;|redirect| C</code></pre>
+<section id="rule-of-thumb" class="level3">
+<h3 class="anchored" data-anchor-id="rule-of-thumb">Rule of thumb</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 59%">
+<col style="width: 32%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>System size (atoms × grid voxels)</th>
+<th>Recommended method</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>&lt; 5 × 10⁷ (small-to-medium)</td>
+<td><code>dgrid_from_atoms_rust</code></td>
+<td>Brute-force is fast enough and the most accurate</td>
+</tr>
+<tr class="even">
+<td>5 × 10⁷ to 5 × 10⁸ (large)</td>
+<td><code>dgrid_from_atoms_aabb_rust</code></td>
+<td>AABB tree cuts memory; same accuracy as brute force</td>
+</tr>
+<tr class="odd">
+<td>&gt; 5 × 10⁸ (very large, HT screens)</td>
+<td><code>dgrid_from_atoms_aabb_interp_rust</code> with <code>coarse_factor=2</code> or <code>3</code></td>
+<td>8–27× compute savings; smooths fine features</td>
+</tr>
+<tr class="even">
+<td>Need Python / Dask composition</td>
+<td><code>dgrid_from_atoms_cpu</code></td>
+<td>Slowest but flexible; uses correct freud MIC</td>
+</tr>
+</tbody>
+</table>
+<p>These are rough numbers — the actual crossover depends on cell shape, number of periodic images the AABB has to handle, and how much RAM you have. The auto-AABB policy in the interactive app uses a similar memory budget to switch.</p>
+</section>
+</section>
+<section id="auto-aabb-policy-interactive-app" class="level2">
+<h2 class="anchored" data-anchor-id="auto-aabb-policy-interactive-app">Auto-AABB policy (interactive app)</h2>
+<p>The Streamlit app (<code>mofography_dash</code> / hosted demo) does <strong>not</strong> expose the distance-grid method as a user knob by default. Instead it runs a two-step policy:</p>
+<ol type="1">
+<li><strong>Estimate</strong> the float32 memory cost of the brute-force grid: <code>4 × nx × ny × nz</code> bytes.</li>
+<li><strong>If</strong> that estimate exceeds the configured RAM budget (default: ~512 MB), it auto-switches to <code>dgrid_from_atoms_aabb_rust</code> with <code>n_neighbors=10</code> (or to <code>dgrid_from_atoms_aabb_interp_rust</code> with <code>coarse_factor=2</code> for very large systems). A short status line in the UI tells you which backend was used.</li>
+</ol>
+<p>This means the app “just works” for both IRMOF-1 and a 100-atom × 200-Å supercell, but it also means you should <em>check the UI output</em> before running a 1000-frame batch — silently hitting the AABB path on a system that needs brute-force precision can change window diameters by a few percent. The notebook and CLI surfaces do <strong>not</strong> auto-switch; you choose the backend explicitly.</p>
+</section>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div id="26a0ee33" class="cell" data-execution_count="2">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> time</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Load a MOF structure</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>atoms <span class="op">=</span> read(<span class="st">"IRMOF-1.cif"</span>)  <span class="co"># 424 atoms, ~26 Å cubic cell</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Loaded </span><span class="sc">{</span><span class="bu">len</span>(atoms)<span class="sc">}</span><span class="ss"> atoms, cell: </span><span class="sc">{</span>atoms<span class="sc">.</span>cell<span class="sc">.</span>cellpar()[:<span class="dv">3</span>]<span class="sc">.</span><span class="bu">round</span>(<span class="dv">2</span>)<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>Loaded 424 atoms, cell: [25.83 25.83 25.83]</code></pre>
+</div>
+</div>
+</section>
+<section id="method-1-dgrid_from_atoms_rust-default" class="level2">
+<h2 class="anchored" data-anchor-id="method-1-dgrid_from_atoms_rust-default">Method 1: <code>dgrid_from_atoms_rust</code> (default)</h2>
+<div id="1fdabd93" class="cell" data-execution_count="3">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>t0 <span class="op">=</span> time.perf_counter()</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>dgrid_exact <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>t_exact <span class="op">=</span> time.perf_counter() <span class="op">-</span> t0</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"rust_exact:    shape=</span><span class="sc">{</span>dgrid_exact<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, "</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"min=</span><span class="sc">{</span>dgrid_exact<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.2f}</span><span class="ss">, max=</span><span class="sc">{</span>dgrid_exact<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.2f}</span><span class="ss">, "</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"time=</span><span class="sc">{</span>t_exact<span class="op">*</span><span class="dv">1000</span><span class="sc">:.0f}</span><span class="ss"> ms"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>rust_exact:    shape=(52, 52, 52), min=-1.70, max=7.54, time=48 ms</code></pre>
+</div>
+</div>
+<p><strong>Pros:</strong> exact MIC for all cell types, thread-parallel, no accuracy trade-off. <strong>Cons:</strong> O(N_atoms × N_grid) — memory scales with grid size.</p>
+</section>
+<section id="method-2-dgrid_from_atoms_aabb_rust-memory-efficient" class="level2">
+<h2 class="anchored" data-anchor-id="method-2-dgrid_from_atoms_aabb_rust-memory-efficient">Method 2: <code>dgrid_from_atoms_aabb_rust</code> (memory-efficient)</h2>
+<div id="caa6e1df" class="cell" data-execution_count="4">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>t0 <span class="op">=</span> time.perf_counter()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>dgrid_aabb <span class="op">=</span> mgr.dgrid_from_atoms_aabb_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, n_neighbors<span class="op">=</span><span class="dv">10</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>t_aabb <span class="op">=</span> time.perf_counter() <span class="op">-</span> t0</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"rust_aabb:     shape=</span><span class="sc">{</span>dgrid_aabb<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, "</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"min=</span><span class="sc">{</span>dgrid_aabb<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.2f}</span><span class="ss">, max=</span><span class="sc">{</span>dgrid_aabb<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.2f}</span><span class="ss">, "</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"time=</span><span class="sc">{</span>t_aabb<span class="op">*</span><span class="dv">1000</span><span class="sc">:.0f}</span><span class="ss"> ms"</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Agreement with exact method</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"max |dgrid_exact - dgrid_aabb| = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">abs</span>(dgrid_exact <span class="op">-</span> dgrid_aabb)<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>rust_aabb:     shape=(52, 52, 52), min=-1.70, max=7.54, time=36 ms
+max |dgrid_exact - dgrid_aabb| = 0.000e+00</code></pre>
+</div>
+</div>
+<p>Uses a Rust AABB tree to find nearby atoms for each grid point. <code>n_neighbors</code> controls the search radius — higher = more accurate but slower. For typical MOFs, <code>n_neighbors=10</code> agrees with the exact method to ~1e-3 Å. If you see a few-voxel disagreement near a wall, raise <code>n_neighbors</code> to 16 or 20.</p>
+</section>
+<section id="method-3-dgrid_from_atoms_aabb_interp_rust-very-large-systems" class="level2">
+<h2 class="anchored" data-anchor-id="method-3-dgrid_from_atoms_aabb_interp_rust-very-large-systems">Method 3: <code>dgrid_from_atoms_aabb_interp_rust</code> (very large systems)</h2>
+<div id="0c6a3d9f" class="cell" data-execution_count="5">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>t0 <span class="op">=</span> time.perf_counter()</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>dgrid_interp <span class="op">=</span> mgr.dgrid_from_atoms_aabb_interp_rust(</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, coarse_factor<span class="op">=</span><span class="dv">2</span>, n_neighbors<span class="op">=</span><span class="dv">10</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>t_interp <span class="op">=</span> time.perf_counter() <span class="op">-</span> t0</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"rust_aabb+int: shape=</span><span class="sc">{</span>dgrid_interp<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, "</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"min=</span><span class="sc">{</span>dgrid_interp<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.2f}</span><span class="ss">, max=</span><span class="sc">{</span>dgrid_interp<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.2f}</span><span class="ss">, "</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"time=</span><span class="sc">{</span>t_interp<span class="op">*</span><span class="dv">1000</span><span class="sc">:.0f}</span><span class="ss"> ms"</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"max |dgrid_exact - dgrid_interp| = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">abs</span>(dgrid_exact <span class="op">-</span> dgrid_interp)<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>rust_aabb+int: shape=(52, 52, 52), min=-1.26, max=7.54, time=8 ms
+max |dgrid_exact - dgrid_interp| = 8.061e-01</code></pre>
+</div>
+</div>
+<p>The coarse grid is at 1.0 Å spacing (spacing × coarse_factor), and the result is trilinearly interpolated back to 0.5 Å. The interpolation step is what introduces the mild smoothing — you can see it as a slight rounding of the surface near tight windows. <strong>Do not</strong> crank <code>coarse_factor</code> above ~3 if you care about sub-Å window diameters; beyond that the interpolation swamps the true signal.</p>
+</section>
+<section id="method-4-dgrid_from_atoms_cpu-legacy-python" class="level2">
+<h2 class="anchored" data-anchor-id="method-4-dgrid_from_atoms_cpu-legacy-python">Method 4: <code>dgrid_from_atoms_cpu</code> (legacy / Python)</h2>
+<div id="5b855c78" class="cell" data-execution_count="6">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>t0 <span class="op">=</span> time.perf_counter()</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>dgrid_cpu <span class="op">=</span> mgr.dgrid_from_atoms_cpu(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, block_size<span class="op">=</span><span class="dv">50000</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>t_cpu <span class="op">=</span> time.perf_counter() <span class="op">-</span> t0</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"cpu/dask:      shape=</span><span class="sc">{</span>dgrid_cpu<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">, "</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"min=</span><span class="sc">{</span>dgrid_cpu<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:.2f}</span><span class="ss">, max=</span><span class="sc">{</span>dgrid_cpu<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.2f}</span><span class="ss">, "</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>      <span class="ss">f"time=</span><span class="sc">{</span>t_cpu<span class="op">*</span><span class="dv">1000</span><span class="sc">:.0f}</span><span class="ss"> ms"</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Note: dgrid_from_atoms_cpu is correct on skewed cells (uses freud AABB)</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"max |dgrid_exact - dgrid_cpu| = </span><span class="sc">{</span>np<span class="sc">.</span><span class="bu">abs</span>(dgrid_exact <span class="op">-</span> dgrid_cpu)<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>cpu/dask:      shape=(52, 52, 52), min=-1.98, max=7.54, time=1033 ms
+max |dgrid_exact - dgrid_cpu| = 2.800e-01</code></pre>
+</div>
+</div>
+<p>5–20× slower than the Rust path on a single thread, but the Dask graph is composable: pass <code>precompute=False</code> to get a lazy array and chain downstream reductions. This is the right entry point if you need to plug <code>dgrid</code> into an existing Dask pipeline.</p>
+</section>
+<section id="side-by-side-timing" class="level2">
+<h2 class="anchored" data-anchor-id="side-by-side-timing">Side-by-side timing</h2>
+<div id="edb7c572" class="cell" data-execution_count="7">
+<details class="code-fold">
+<summary>Show code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>methods <span class="op">=</span> {</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"rust_exact"</span>:     mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>),</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"rust_aabb"</span>:      mgr.dgrid_from_atoms_aabb_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, n_neighbors<span class="op">=</span><span class="dv">10</span>),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"rust_aabb+int"</span>:  mgr.dgrid_from_atoms_aabb_interp_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, coarse_factor<span class="op">=</span><span class="dv">2</span>),</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"cpu/dask"</span>:       mgr.dgrid_from_atoms_cpu(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, block_size<span class="op">=</span><span class="dv">50000</span>),</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>ref <span class="op">=</span> methods[<span class="st">"rust_exact"</span>]</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'method'</span><span class="sc">:&lt;18}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'shape'</span><span class="sc">:&lt;14}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'min'</span><span class="sc">:&gt;7}</span><span class="ss">  </span><span class="sc">{</span><span class="st">'max'</span><span class="sc">:&gt;7}</span><span class="ss">  max|diff|"</span>)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, g <span class="kw">in</span> methods.items():</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>    diff <span class="op">=</span> <span class="bu">float</span>(np.<span class="bu">abs</span>(g <span class="op">-</span> ref).<span class="bu">max</span>()) <span class="cf">if</span> name <span class="op">!=</span> <span class="st">"rust_exact"</span> <span class="cf">else</span> <span class="fl">0.0</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;18}</span><span class="ss">  </span><span class="sc">{</span><span class="bu">str</span>(g.shape)<span class="sc">:&lt;14}</span><span class="ss">  </span><span class="sc">{</span>g<span class="sc">.</span><span class="bu">min</span>()<span class="sc">:&gt;7.2f}</span><span class="ss">  </span><span class="sc">{</span>g<span class="sc">.</span><span class="bu">max</span>()<span class="sc">:&gt;7.2f}</span><span class="ss">  </span><span class="sc">{</span>diff<span class="sc">:.3e}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>method              shape               min      max  max|diff|
+rust_exact          (52, 52, 52)      -1.70     7.54  0.000e+00
+rust_aabb           (52, 52, 52)      -1.70     7.54  0.000e+00
+rust_aabb+int       (52, 52, 52)      -1.26     7.54  8.061e-01
+cpu/dask            (52, 52, 52)      -1.98     7.54  2.800e-01</code></pre>
+</div>
+</div>
+</section>
+<section id="broken-methods" class="level2">
+<h2 class="anchored" data-anchor-id="broken-methods">Broken methods</h2>
+</section>
+<section id="two-functions-you-must-not-use-dgrid_from_atoms_gpu-and-dgrid_from_atoms_cpu_no_aabb" class="level2 callout-danger">
+<h2 class="anchored" data-anchor-id="two-functions-you-must-not-use-dgrid_from_atoms_gpu-and-dgrid_from_atoms_cpu_no_aabb">Two functions you must NOT use: <code>dgrid_from_atoms_gpu</code> and <code>dgrid_from_atoms_cpu_no_aabb</code></h2>
+<p>Both compute the <strong>minimum-image convention</strong> with per-axis <code>NINT</code> rounding:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># WRONG on a skewed cell</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>dx <span class="op">=</span> dx <span class="op">-</span> cell[<span class="dv">0</span>, <span class="dv">0</span>] <span class="op">*</span> NINT(dx <span class="op">/</span> cell[<span class="dv">0</span>, <span class="dv">0</span>])</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>dy <span class="op">=</span> dy <span class="op">-</span> cell[<span class="dv">1</span>, <span class="dv">1</span>] <span class="op">*</span> NINT(dy <span class="op">/</span> cell[<span class="dv">1</span>, <span class="dv">1</span>])</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>dz <span class="op">=</span> dz <span class="op">-</span> cell[<span class="dv">2</span>, <span class="dv">2</span>] <span class="op">*</span> NINT(dz <span class="op">/</span> cell[<span class="dv">2</span>, <span class="dv">2</span>])</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>This is <strong>only correct for orthogonal cells</strong> (cubic, tetragonal, orthorhombic). On a monoclinic or triclinic cell — which includes most real MOFs — the per-axis NINT picks the wrong image for some atom–grid pairs, and the distance grid develops systematic stripes near the cell walls. The bug is silent: the function returns without warning and the dgrid <em>looks</em> plausible until you compare it to the exact result.</p>
+<p><strong>Use the Rust backend (<code>dgrid_from_atoms_rust</code>) instead.</strong> Its MIC path uses a 7-image Wassenaar construction on skewed cells, which is correct for all cell types. The CPU/Dask method (<code>dgrid_from_atoms_cpu</code>, <em>without</em> the <code>_no_aabb</code> suffix) is also correct because it routes through freud’s AABB query, which uses the proper box geometry.</p>
+<p>If you see <code>dgrid_from_atoms_gpu</code> or <code>dgrid_from_atoms_cpu_no_aabb</code> in legacy code, replace the call with:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace dgrid_from_atoms_gpu(...)</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_rust(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace dgrid_from_atoms_cpu_no_aabb(...)</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> mgr.dgrid_from_atoms_cpu(atoms, spacing<span class="op">=</span><span class="fl">0.5</span>, block_size<span class="op">=</span><span class="dv">50000</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="parameter-guide" class="level2">
+<h2 class="anchored" data-anchor-id="parameter-guide">Parameter guide</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 18%">
+<col style="width: 13%">
+<col style="width: 23%">
+<col style="width: 27%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Applies to</th>
+<th>Default</th>
+<th>Typical range</th>
+<th>What it controls</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>spacing</code></td>
+<td>all</td>
+<td>—</td>
+<td>0.2 – 1.0 Å</td>
+<td>Voxel edge length. Halving → 8× voxels.</td>
+</tr>
+<tr class="even">
+<td><code>radii</code></td>
+<td>all</td>
+<td><code>None</code></td>
+<td>—</td>
+<td>Override per-atom VDW radii (Å). <code>None</code> → Bondi (1964) + Mendeleev fill.</td>
+</tr>
+<tr class="odd">
+<td><code>n_neighbors</code></td>
+<td>AABB, interp, CPU</td>
+<td><code>10</code></td>
+<td>4 – 20</td>
+<td>Number of nearest atoms queried per voxel.</td>
+</tr>
+<tr class="even">
+<td><code>coarse_factor</code></td>
+<td>interp</td>
+<td><code>2</code></td>
+<td>2 – 4</td>
+<td>Coarsening of the sampling grid.</td>
+</tr>
+<tr class="odd">
+<td><code>block_size</code></td>
+<td>CPU</td>
+<td><code>50000</code></td>
+<td>10k – 200k</td>
+<td>Dask chunk size (grid points per block).</td>
+</tr>
+<tr class="even">
+<td><code>precompute</code></td>
+<td>CPU</td>
+<td><code>True</code></td>
+<td>bool</td>
+<td><code>True</code> → return NumPy; <code>False</code> → return lazy Dask array.</td>
+</tr>
+<tr class="odd">
+<td><code>probe_radius</code></td>
+<td>CPU</td>
+<td><code>0</code></td>
+<td>0 – 5 Å</td>
+<td>Extra probe radius added on top of <code>radii</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Tip:</strong> Start with <code>dgrid_from_atoms_rust(atoms, spacing=0.5)</code> and only switch to AABB or interp when you hit a memory or runtime wall.</p>
+</section>
+<section id="quick-decision-recap" class="level2">
+<h2 class="anchored" data-anchor-id="quick-decision-recap">Quick decision recap</h2>
+<ul>
+<li><strong>Default → <code>dgrid_from_atoms_rust(atoms, spacing=0.5)</code></strong> — exact MIC, correct for all cell types.</li>
+<li><strong>OOM on big cell → <code>dgrid_from_atoms_aabb_rust(atoms, spacing=0.5, n_neighbors=10)</code></strong> — R-tree, same accuracy, less RAM.</li>
+<li><strong>HT screen / very large system → <code>dgrid_from_atoms_aabb_interp_rust(atoms, spacing=0.5, coarse_factor=2)</code></strong> — 8× faster, mild smoothing.</li>
+<li><strong>Python/Dask composition → <code>dgrid_from_atoms_cpu(atoms, spacing=0.5, block_size=50000)</code></strong> — slowest, but lazy-friendly.</li>
+<li><strong>NEVER → <code>dgrid_from_atoms_gpu</code>, <code>dgrid_from_atoms_cpu_no_aabb</code></strong> — broken on skewed cells.</li>
+</ul>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">Next steps</h2>
+<ul>
+<li><a href="./distance_grid.html">Distance Grid tutorial</a> — basic usage, spacing tradeoffs, visualization.</li>
+<li><a href="./benchmark_rust_aabb_dgrid.html">Benchmark: Rust AABB dgrid</a> — performance numbers across methods.</li>
+<li><a href="./region_segmentation.html">Region Segmentation</a> — what happens after the distance grid.</li>
+<li><a href="applying_pbc.qmd">Appyling Periodic Boundary Conditions</a> — PBC group structure on top of the segmentation.</li>
+</ul>
+</section>
+<section id="related-documentation" class="level2">
+<h2 class="anchored" data-anchor-id="related-documentation">Related documentation</h2>
+<ul>
+<li><code>mofography.rust_fun.dgrid_from_atoms_rust</code></li>
+<li><code>mofography.rust_fun.dgrid_from_atoms_aabb_rust</code></li>
+<li><code>mofography.rust_fun.dgrid_from_atoms_aabb_interp_rust</code></li>
+<li><code>mofography.compute.dgrid_from_atoms_cpu</code> (active, correct)</li>
+<li><code>mofography.compute.dgrid_from_atoms_gpu</code> (broken on skewed cells — do not use)</li>
+<li><code>mofography.compute.dgrid_from_atoms_cpu_no_aabb</code> (broken on skewed cells — do not use)</li>
+</ul>
+
+
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/dgrid_methods.qmd" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>

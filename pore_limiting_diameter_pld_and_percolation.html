@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.8.25">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>pore_limiting_diameter_pld_and_percolation – mofography</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<link href="./mofography_logo_outlined.png" rel="icon" type="image/png">
+<script src="site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="site_libs/quarto-html/axe/axe-check.js" type="module"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-a76d97876fb13518a00e9ab57d3e8eaf.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-874db54f463c6114bbd511869daa1c26.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-4ebe05a0f45975a3c809586f510189f6.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-92b0eacb56465f2bf6dcbb518f3ef7b7.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="styles.css">
+<meta property="og:title" content="mofography">
+<meta property="og:image" content="https://mofography.github.io/mofography/tutorial_images/pld_percolating_clusters_notebook.png">
+<meta property="og:site_name" content="mofography">
+<meta property="og:image:height" content="500">
+<meta property="og:image:width" content="700">
+<meta name="twitter:title" content="mofography">
+<meta name="twitter:image" content="https://mofography.github.io/mofography/tutorial_images/pld_percolating_clusters_notebook.png">
+<meta name="twitter:image-height" content="500">
+<meta name="twitter:image-width" content="700">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const queryPrefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const darkModeDefault = queryPrefersDark.matches;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    queryPrefersDark.addEventListener("change", e => {
+      if(window.localStorage.getItem("quarto-color-scheme") !== null)
+        return;
+      const alternate = e.matches
+      toggleColorMode(alternate);
+      localAlternateSentinel = e.matches ? 'alternate' : 'default'; // this is used alongside local storage!
+      toggleGiscusIfUsed(alternate, darkModeDefault);
+    });
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="./index.html" class="navbar-brand navbar-brand-logo">
+    <img src="./mofography_logo_white_background.png" alt="" class="navbar-logo light-content">
+    <img src="./mofography_logo_dark_background.png" alt="" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./install.html"> 
+<span class="menu-text">Install</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./learn.html"> 
+<span class="menu-text">Learn</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./reference/index.html"> 
+<span class="menu-text">Functions</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./gallery.html"> 
+<span class="menu-text">Gallery</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./publications.html"> 
+<span class="menu-text">Publications</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/mofography/mofography"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#pore-limiting-diameter-pld-and-percolation" id="toc-pore-limiting-diameter-pld-and-percolation" class="nav-link active" data-scroll-target="#pore-limiting-diameter-pld-and-percolation">Pore Limiting Diameter (PLD) and Percolation</a>
+  <ul class="collapse">
+  <li><a href="#citation" id="toc-citation" class="nav-link" data-scroll-target="#citation">📚 Citation</a></li>
+  <li><a href="#what-is-pld-and-percolation" id="toc-what-is-pld-and-percolation" class="nav-link" data-scroll-target="#what-is-pld-and-percolation">🎯 What is PLD and Percolation?</a>
+  <ul class="collapse">
+  <li><a href="#pore-limiting-diameter-pld" id="toc-pore-limiting-diameter-pld" class="nav-link" data-scroll-target="#pore-limiting-diameter-pld">Pore Limiting Diameter (PLD) 🎯</a></li>
+  <li><a href="#three-key-pore-diameter-metrics" id="toc-three-key-pore-diameter-metrics" class="nav-link" data-scroll-target="#three-key-pore-diameter-metrics">Three Key Pore Diameter Metrics 📏</a></li>
+  <li><a href="#why-is-this-powerful" id="toc-why-is-this-powerful" class="nav-link" data-scroll-target="#why-is-this-powerful">Why is this Powerful? 🚀</a></li>
+  </ul></li>
+  <li><a href="#tutorial-scope" id="toc-tutorial-scope" class="nav-link" data-scroll-target="#tutorial-scope">⚠️ Tutorial Scope</a></li>
+  <li><a href="#the-workflow-in-a-nutshell" id="toc-the-workflow-in-a-nutshell" class="nav-link" data-scroll-target="#the-workflow-in-a-nutshell">🔄 The Workflow in a Nutshell</a></li>
+  <li><a href="#step-1-setup-and-imports" id="toc-step-1-setup-and-imports" class="nav-link" data-scroll-target="#step-1-setup-and-imports">Step 1: Setup and Imports 📦</a></li>
+  <li><a href="#step-2-load-structure-and-run-full-workflow" id="toc-step-2-load-structure-and-run-full-workflow" class="nav-link" data-scroll-target="#step-2-load-structure-and-run-full-workflow">Step 2: Load Structure and Run Full Workflow 🏗️</a></li>
+  <li><a href="#step-3-understanding-percolation-history" id="toc-step-3-understanding-percolation-history" class="nav-link" data-scroll-target="#step-3-understanding-percolation-history">Step 3: Understanding Percolation History 📊</a></li>
+  <li><a href="#step-4-analyze-percolating-clusters" id="toc-step-4-analyze-percolating-clusters" class="nav-link" data-scroll-target="#step-4-analyze-percolating-clusters">Step 4: Analyze Percolating Clusters 🔍</a></li>
+  <li><a href="#step-5-visualize-percolating-clusters" id="toc-step-5-visualize-percolating-clusters" class="nav-link" data-scroll-target="#step-5-visualize-percolating-clusters">Step 5: Visualize Percolating Clusters 🎨</a></li>
+  <li><a href="#step-6-compare-multiple-probe-sizes" id="toc-step-6-compare-multiple-probe-sizes" class="nav-link" data-scroll-target="#step-6-compare-multiple-probe-sizes">Step 6: Compare Multiple Probe Sizes 📚</a></li>
+  <li><a href="#step-6-compare-multiple-materials-optional" id="toc-step-6-compare-multiple-materials-optional" class="nav-link" data-scroll-target="#step-6-compare-multiple-materials-optional">Step 6: Compare Multiple Materials (Optional) 📚</a></li>
+  <li><a href="#step-7-understanding-winding-numbers" id="toc-step-7-understanding-winding-numbers" class="nav-link" data-scroll-target="#step-7-understanding-winding-numbers">Step 7: Understanding Winding Numbers 🌀</a></li>
+  <li><a href="#step-8-quick-one-shot-computation" id="toc-step-8-quick-one-shot-computation" class="nav-link" data-scroll-target="#step-8-quick-one-shot-computation">Step 8: Quick One-Shot Computation ⚡</a></li>
+  <li><a href="#interpreting-your-results" id="toc-interpreting-your-results" class="nav-link" data-scroll-target="#interpreting-your-results">📊 Interpreting Your Results</a>
+  <ul class="collapse">
+  <li><a href="#example-1-fully-percolating-material" id="toc-example-1-fully-percolating-material" class="nav-link" data-scroll-target="#example-1-fully-percolating-material">Example 1: Fully Percolating Material</a></li>
+  <li><a href="#example-2-1d-channel-material" id="toc-example-2-1d-channel-material" class="nav-link" data-scroll-target="#example-2-1d-channel-material">Example 2: 1D Channel Material</a></li>
+  <li><a href="#example-3-non-percolating-material" id="toc-example-3-non-percolating-material" class="nav-link" data-scroll-target="#example-3-non-percolating-material">Example 3: Non-Percolating Material</a></li>
+  </ul></li>
+  <li><a href="#troubleshooting" id="toc-troubleshooting" class="nav-link" data-scroll-target="#troubleshooting">🛠️ Troubleshooting</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">📝 Summary</a></li>
+  <li><a href="#next-steps" id="toc-next-steps" class="nav-link" data-scroll-target="#next-steps">🚀 Next Steps</a>
+  <ul class="collapse">
+  <li><a href="#learn-more" id="toc-learn-more" class="nav-link" data-scroll-target="#learn-more">Learn More:</a></li>
+  <li><a href="#advanced-topics" id="toc-advanced-topics" class="nav-link" data-scroll-target="#advanced-topics">Advanced Topics:</a></li>
+  </ul></li>
+  <li><a href="#advanced-manual-percolation-analysis" id="toc-advanced-manual-percolation-analysis" class="nav-link" data-scroll-target="#advanced-manual-percolation-analysis">📖 Advanced: Manual Percolation Analysis</a></li>
+  </ul></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/mofography/mofography/edit/main/pore_limiting_diameter_pld_and_percolation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block"></header>
+
+
+
+
+
+<section id="pore-limiting-diameter-pld-and-percolation" class="level1">
+<h1>Pore Limiting Diameter (PLD) and Percolation</h1>
+<blockquote class="blockquote">
+<p><strong>Detecting pore interconnectivity and accessibility using probe molecules</strong></p>
+</blockquote>
+<hr>
+<section id="citation" class="level2">
+<h2 class="anchored" data-anchor-id="citation">📚 Citation</h2>
+<p><strong>Winding Number Method</strong>: - Foster, M.P., et al.&nbsp;(2020). “Percolation analysis of disorder in porous media using winding numbers.” <em>Scientific Reports</em>, 80(11), 6425-6432.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode bibtex code-with-copy"><code class="sourceCode bibtex"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="va">@article</span>{<span class="ot">foster2020percolation</span>,</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="dt">title</span>={Percolation analysis of disorder in porous media using winding numbers},</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="dt">author</span>={Foster, M. P. and others},</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="dt">journal</span>={Scientific Reports},</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">volume</span>={80},</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>  <span class="dt">number</span>={11},</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>  <span class="dt">pages</span>={6425--6432},</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>  <span class="dt">year</span>={2020}</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="what-is-pld-and-percolation" class="level2">
+<h2 class="anchored" data-anchor-id="what-is-pld-and-percolation">🎯 What is PLD and Percolation?</h2>
+<section id="pore-limiting-diameter-pld" class="level3">
+<h3 class="anchored" data-anchor-id="pore-limiting-diameter-pld">Pore Limiting Diameter (PLD) 🎯</h3>
+<p><strong>Pore Limiting Diameter (PLD)</strong> is the <strong>maximum probe size</strong> at which a spherical molecule can pass through a porous material from one side of the unit cell to the opposite side.</p>
+<p><strong>Percolation</strong> refers to whether there exists a <strong>continuous path</strong> through the pore network from one side of the material to the opposite side.</p>
+</section>
+<section id="three-key-pore-diameter-metrics" class="level3">
+<h3 class="anchored" data-anchor-id="three-key-pore-diameter-metrics">Three Key Pore Diameter Metrics 📏</h3>
+<p>MOFography computes three important pore diameter metrics:</p>
+<ol type="1">
+<li><strong>Largest Cavity Diameter (LCD)</strong>:
+<ul>
+<li>The diameter of the largest spherical cavity in the material</li>
+<li>Represents the maximum void space available</li>
+<li>Simply: <code>2 × max(distance_grid)</code></li>
+</ul></li>
+<li><strong>Pore Limiting Diameter (PLD)</strong>:
+<ul>
+<li>The largest spherical probe that can traverse the material</li>
+<li>Limited by the narrowest windows along percolating paths</li>
+<li>Determined by testing percolation at different probe sizes</li>
+</ul></li>
+<li><strong>Directional Free Sphere Diameter (DFSD)</strong>:
+<ul>
+<li>The largest sphere that can pass through <strong>percolating</strong> regions only</li>
+<li>Considers only regions that are part of percolating clusters at the PLD</li>
+<li>Always ≤ LCD</li>
+</ul></li>
+</ol>
+<p><strong>Key relationships:</strong></p>
+<pre><code>PLD ≤ DFSD ≤ LCD</code></pre>
+</section>
+<section id="why-is-this-powerful" class="level3">
+<h3 class="anchored" data-anchor-id="why-is-this-powerful">Why is this Powerful? 🚀</h3>
+<ol type="1">
+<li><strong>Transport Properties</strong> 📊
+<ul>
+<li>PLD determines what molecules can diffuse through material</li>
+<li>Percolation predicts if diffusion is possible</li>
+<li>Critical for gas storage, separation, catalysis</li>
+</ul></li>
+<li><strong>Accessibility Analysis</strong> 🔑
+<ul>
+<li>Not all pores are accessible to all probe sizes</li>
+<li>Some pockets may only allow small molecules</li>
+<li>Understanding size distribution of accessible pores</li>
+<li>Identifying pore bottlenecks</li>
+</ul></li>
+<li><strong>Disorder Characterization</strong> 🔬
+<ul>
+<li>Percolation behavior relates to material disorder</li>
+<li>Winding numbers quantify topological complexity</li>
+<li>Distinguish ordered vs disordered materials</li>
+</ul></li>
+<li><strong>Graph-Based Analysis</strong> 🕸️
+<ul>
+<li>Works on pore graphs (not grids)</li>
+<li>Much faster than voxel-based methods</li>
+<li>Accounts for periodic boundary conditions</li>
+<li>Provides accurate characterization</li>
+</ul></li>
+<li><strong>Materials Screening</strong> 🎚️
+<ul>
+<li>Compare different materials systematically</li>
+<li>Identify candidate materials for specific applications</li>
+<li>Optimize pore architecture design</li>
+</ul></li>
+</ol>
+<hr>
+</section>
+</section>
+<section id="tutorial-scope" class="level2">
+<h2 class="anchored" data-anchor-id="tutorial-scope">⚠️ Tutorial Scope</h2>
+<p><strong>This is an INTERMEDIATE tutorial</strong>, not a beginner guide!</p>
+<p>✅ <strong>What this tutorial covers:</strong> - Computing LCD, PLD, and DFSD using the winding percolation method - Computing percolation history across probe sizes - Understanding connected components in periodic pore graphs - Interpreting PLD, LCD, and DFSD results - Visualizing percolating clusters at different probe sizes</p>
+<p>❌ <strong>What this tutorial does NOT cover:</strong> - Basic periodic segmentation - see <a href="./periodic_segmentation_quick_start.html">Periodic Segmentation Quick Start</a> - Distance grid computation - see <a href="./distance_grid.html">Distance Grid Tutorial</a> - Pore graph construction basics - see <a href="./pore_graph.html">Pore Graph Tutorial</a> - Surface area and void volume calculations - Energy-based percolation - Advanced clustering algorithms</p>
+<p>🔗 <strong>Prerequisites:</strong> 1. Complete <a href="./periodic_segmentation_quick_start.html">Periodic Segmentation Quick Start</a> 2. Complete <a href="./distance_grid.html">Distance Grid Tutorial</a> 3. Understand pore graph representation (pores as nodes, windows as edges) 4. Basic understanding of periodic boundary conditions 5. MOFography installed with all modules</p>
+<hr>
+</section>
+<section id="the-workflow-in-a-nutshell" class="level2">
+<h2 class="anchored" data-anchor-id="the-workflow-in-a-nutshell">🔄 The Workflow in a Nutshell</h2>
+<pre><code>Load Structure
+    ↓
+Generate Distance Grid
+    ↓
+Run Periodic Segmentation → Get pore graph
+    ↓
+Compute Percolation History → Get PLD
+    ↓
+Compute LCD, PLD, DFSD
+    ↓
+Visualize Percolating Clusters</code></pre>
+<hr>
+</section>
+<section id="step-1-setup-and-imports" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-setup-and-imports">Step 1: Setup and Imports 📦</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pathlib <span class="im">import</span> Path</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> mofography <span class="im">as</span> mgr</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> ase.io <span class="im">import</span> read</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotly.graph_objects <span class="im">as</span> go</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Setup paths</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>repo_root <span class="op">=</span> Path(<span class="st">'/path/to/mofography'</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>path_to_cif <span class="op">=</span> repo_root <span class="op">/</span> <span class="st">'examples'</span> <span class="op">/</span> <span class="st">'TestCIFs'</span> <span class="op">/</span> <span class="st">'NU-1000_S1.cif'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>What is this?</strong> - Importing all necessary libraries - Configuring paths for reproducibility</p>
+<hr>
+</section>
+<section id="step-2-load-structure-and-run-full-workflow" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-load-structure-and-run-full-workflow">Step 2: Load Structure and Run Full Workflow 🏗️</h2>
+<p>Let’s compute all three pore diameter metrics (LCD, PLD, DFSD) in one go:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Load structure</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>mat_atoms <span class="op">=</span> read(<span class="bu">str</span>(path_to_cif))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"✅ Loaded structure: </span><span class="sc">{</span>mat_atoms<span class="sc">.</span>get_chemical_formula()<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Define parameters</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>kwargs <span class="op">=</span> <span class="bu">dict</span>(</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    spacing<span class="op">=</span><span class="fl">0.5</span>,              <span class="co"># Grid spacing (Angstroms)</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    mask_thickness<span class="op">=</span><span class="fl">0.05</span>,       <span class="co"># Void space threshold</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    h<span class="op">=</span><span class="fl">0.2</span>,                    <span class="co"># Smoothing parameter</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    threshold_abs<span class="op">=</span><span class="fl">1.5</span>,        <span class="co"># Absolute threshold for segmentation</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    minimum_window_separation<span class="op">=</span><span class="fl">1.5</span>,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    wall_thickness<span class="op">=</span><span class="fl">0.08</span>,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    extra_padding<span class="op">=</span><span class="fl">5.0</span>,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute LCD, PLD, DFSD in one call</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>lcd, pld, dfsd, results <span class="op">=</span> mgr.get_pore_dia_mgr_winding(</span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    mat_atoms<span class="op">=</span>mat_atoms,</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>    kwargs<span class="op">=</span>kwargs</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Pore diameters computed!"</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"   LCD (Largest Cavity Diameter): </span><span class="sc">{</span>lcd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"   PLD (Pore Limiting Diameter): </span><span class="sc">{</span>pld<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"   DFSD (Directional Free Sphere Diameter): </span><span class="sc">{</span>dfsd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>What just happened?</strong> - <code>get_pore_dia_mgr_winding()</code> computed the complete workflow - <strong>LCD</strong>: Maximum distance in the grid × 2 - <strong>PLD</strong>: Maximum probe radius that percolates × 2 - <strong>DFSD</strong>: Maximum distance in percolating regions only × 2 - <code>results</code>: Dictionary containing segmentation outputs, percolation history, and cluster information</p>
+<p><strong>Understanding the metrics:</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 21%">
+<col style="width: 31%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Definition</th>
+<th>Physical Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>LCD</strong></td>
+<td><code>2 × max(distance_grid)</code></td>
+<td>Largest spherical cavity anywhere</td>
+</tr>
+<tr class="even">
+<td><strong>PLD</strong></td>
+<td><code>2 × max_percolating_radius</code></td>
+<td>Largest sphere that can traverse the material</td>
+</tr>
+<tr class="odd">
+<td><strong>DFSD</strong></td>
+<td><code>2 × max(distance in percolating regions)</code></td>
+<td>Largest cavity accessible via percolating paths</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="step-3-understanding-percolation-history" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-understanding-percolation-history">Step 3: Understanding Percolation History 📊</h2>
+<p>The percolation history shows how percolation changes as we test different probe sizes:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get detailed percolation history</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>percolation_history, pld_locations, final_clusters <span class="op">=</span> mgr.compute_percolation_history_winding(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    results<span class="op">=</span>results,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    step<span class="op">=</span><span class="fl">0.1</span>,  <span class="co"># Probe size step size (Angstroms)</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    min_threshold<span class="op">=</span>kwargs[<span class="st">'mask_thickness'</span>],</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Percolation history computed!"</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"   Number of probe sizes tested: </span><span class="sc">{</span><span class="bu">len</span>(percolation_history)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Show first few and last entries</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">First 3 entries (small probes):"</span>)</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, (threshold, axis_clusters) <span class="kw">in</span> <span class="bu">enumerate</span>(percolation_history[:<span class="dv">3</span>]):</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    percolating_axes <span class="op">=</span> [ax <span class="cf">for</span> ax, clusters <span class="kw">in</span> axis_clusters.items() <span class="cf">if</span> clusters]</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>threshold<span class="sc">:.2f}</span><span class="ss"> Å: Percolating in </span><span class="sc">{</span>percolating_axes<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Last 3 entries (large probes):"</span>)</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i, (threshold, axis_clusters) <span class="kw">in</span> <span class="bu">enumerate</span>(percolation_history[<span class="op">-</span><span class="dv">3</span>:]):</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    percolating_axes <span class="op">=</span> [ax <span class="cf">for</span> ax, clusters <span class="kw">in</span> axis_clusters.items() <span class="cf">if</span> clusters]</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>threshold<span class="sc">:.2f}</span><span class="ss"> Å: Percolating in </span><span class="sc">{</span>percolating_axes<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Final PLD threshold: </span><span class="sc">{</span>percolation_history[<span class="op">-</span><span class="dv">1</span>][<span class="dv">0</span>]<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Understanding the output:</strong></p>
+<p><code>percolation_history</code> is a list of tuples, where each tuple contains: 1. <strong>Probe radius</strong> (in Ångstroms) 2. <strong>axis_clusters</strong>: Dictionary with keys ‘x’, ‘y’, ‘z’ mapping to lists of clusters 3. Each cluster is a list of region labels</p>
+<p><strong>Key patterns to observe:</strong> - At small probe sizes: All regions accessible, single large cluster per axis - As probe size increases: Windows close, clusters split and shrink - At PLD: Last probe size where any percolation exists</p>
+<hr>
+</section>
+<section id="step-4-analyze-percolating-clusters" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-analyze-percolating-clusters">Step 4: Analyze Percolating Clusters 🔍</h2>
+<p>Let’s examine the final percolating clusters in detail:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get final percolation status</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>final_threshold, final_axis_clusters <span class="op">=</span> percolation_history[<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== Final Percolating Clusters (at </span><span class="sc">{</span>final_threshold<span class="sc">:.2f}</span><span class="ss"> Å) ==="</span>)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> axis <span class="kw">in</span> [<span class="st">'x'</span>, <span class="st">'y'</span>, <span class="st">'z'</span>]:</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    clusters <span class="op">=</span> final_axis_clusters[axis]</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="sc">{</span>axis<span class="sc">.</span>upper()<span class="sc">}</span><span class="ss">-axis:"</span>)</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> clusters:</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Number of percolating clusters: </span><span class="sc">{</span><span class="bu">len</span>(clusters)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i, cluster_regions <span class="kw">in</span> <span class="bu">enumerate</span>(clusters, <span class="dv">1</span>):</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"    Cluster </span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span><span class="bu">len</span>(cluster_regions)<span class="sc">}</span><span class="ss"> regions"</span>)</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>            <span class="bu">print</span>(<span class="ss">f"      Region labels: </span><span class="sc">{</span>cluster_regions<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  No percolation"</span>)</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Check full percolation</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>x_perc <span class="op">=</span> <span class="bu">len</span>(final_axis_clusters[<span class="st">'x'</span>]) <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>y_perc <span class="op">=</span> <span class="bu">len</span>(final_axis_clusters[<span class="st">'y'</span>]) <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>z_perc <span class="op">=</span> <span class="bu">len</span>(final_axis_clusters[<span class="st">'z'</span>]) <span class="op">&gt;</span> <span class="dv">0</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== Percolation Summary ==="</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"X-axis: </span><span class="sc">{</span><span class="st">'✅ Percolating'</span> <span class="cf">if</span> x_perc <span class="cf">else</span> <span class="st">'❌ Not percolating'</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Y-axis: </span><span class="sc">{</span><span class="st">'✅ Percolating'</span> <span class="cf">if</span> y_perc <span class="cf">else</span> <span class="st">'❌ Not percolating'</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Z-axis: </span><span class="sc">{</span><span class="st">'✅ Percolating'</span> <span class="cf">if</span> z_perc <span class="cf">else</span> <span class="st">'❌ Not percolating'</span><span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> x_perc <span class="kw">and</span> y_perc <span class="kw">and</span> z_perc:</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">✅ Material is FULLY PERCOLATING in all directions!"</span>)</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"   PLD = </span><span class="sc">{</span>pld<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">⚠️ Material is NOT fully percolating"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Key insight:</strong> - Fully percolating materials (all 3 axes) allow molecular transport from any direction - Partially percolating materials have restricted access (1D or 2D channels) - Non-percolating materials have isolated pores with no end-to-end paths</p>
+<hr>
+</section>
+<section id="step-5-visualize-percolating-clusters" class="level2">
+<h2 class="anchored" data-anchor-id="step-5-visualize-percolating-clusters">Step 5: Visualize Percolating Clusters 🎨</h2>
+<p>Now let’s visualize the percolating clusters in 3D, exactly as shown in the notebook:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># First, let's look at what the percolating cluster metadata contains</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">Final cluster metadata:"</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> cluster_id, cluster_data <span class="kw">in</span> final_clusters.items():</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Cluster </span><span class="sc">{</span>cluster_id<span class="sc">}</span><span class="ss">:"</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Regions: </span><span class="sc">{</span>cluster_data[<span class="st">'regions'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Nodes: </span><span class="sc">{</span>cluster_data[<span class="st">'nodes'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Percolating axes: </span><span class="sc">{</span>cluster_data[<span class="st">'axes'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare visualization data</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>dgrid <span class="op">=</span> results[<span class="st">'dgrid'</span>]</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>regions <span class="op">=</span> results[<span class="st">'regions'</span>]</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>maxima <span class="op">=</span> results[<span class="st">'maxima'</span>]</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the pore graph for visualization</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mofography.winding_percolation <span class="im">import</span> make_directed_graph_from_segmentation_results</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> make_directed_graph_from_segmentation_results(results)</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot the pore graph (RAG)</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>rag_trace <span class="op">=</span> mgr.plot_rag(G, name<span class="op">=</span><span class="st">'Pore Graph'</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot percolated clusters</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>percolated_cluster_meshes <span class="op">=</span> mgr.plot_percolated_cluster_meshes(</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    percolation_history<span class="op">=</span>percolation_history,</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    dgrid<span class="op">=</span>dgrid,</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>    regions<span class="op">=</span>regions,</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>    mat_atoms<span class="op">=</span>mat_atoms,</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    isovalue<span class="op">=</span>np.<span class="bu">min</span>([pld<span class="op">/</span><span class="dv">2</span> <span class="op">-</span> <span class="fl">0.25</span>, <span class="fl">1.75</span>]),</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>    stylize<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    probe_radius<span class="op">=</span>percolation_history[<span class="op">-</span><span class="dv">1</span>][<span class="dv">0</span>]</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a><span class="co"># Plot unit cell, maxima, and PLD locations</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>cell_trace <span class="op">=</span> mgr.plot_cell(mat_atoms)</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>maxima_trace <span class="op">=</span> mgr.plot_maxima(dgrid, maxima, mat_atoms, show_spheres<span class="op">=</span><span class="va">False</span>, sphere_opacity<span class="op">=</span><span class="fl">0.85</span>)</span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>pld_traces <span class="op">=</span> mgr.plot_pld_locations(dgrid, results[<span class="st">'pld_locations'</span>], mat_atoms,</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>                                     show_spheres<span class="op">=</span><span class="va">False</span>, sphere_opacity<span class="op">=</span><span class="fl">0.85</span>,</span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>                                     marker_size<span class="op">=</span><span class="dv">10</span>, marker_color<span class="op">=</span><span class="st">'limegreen'</span>)</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Create the combined figure</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>fig <span class="op">=</span> go.Figure(data<span class="op">=</span>[cell_trace, rag_trace, maxima_trace, pld_traces] <span class="op">+</span> percolated_cluster_meshes,</span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>                layout<span class="op">=</span>mgr.epic_layout)</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>fig.show(renderer<span class="op">=</span><span class="st">'png'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>What you’re seeing:</strong> - Each colored region represents a percolating cluster - Different colors = different clusters - The probe can pass through any connected region of the same color - Gray regions are inaccessible at this probe size - Green dots mark PLD locations (where distance equals PLD) - The pore graph shows the network structure</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/pld_percolating_clusters_notebook.png" class="img-fluid figure-img"></p>
+<figcaption>Percolating clusters visualization</figcaption>
+</figure>
+</div>
+<p><em>Example: Percolating clusters shown at the PLD threshold. This matches the visualization from <a href="./pld_and_percolation.html">pld_and_percolation.ipynb</a>.</em></p>
+<hr>
+</section>
+<section id="step-6-compare-multiple-probe-sizes" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-compare-multiple-probe-sizes">Step 6: Compare Multiple Probe Sizes 📚</h2>
+<p>Let’s visualize how percolation changes at different probe sizes:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Select 3 representative probe sizes</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>probe_indices <span class="op">=</span> [<span class="dv">0</span>, <span class="bu">len</span>(percolation_history)<span class="op">//</span><span class="dv">2</span>, <span class="bu">len</span>(percolation_history)<span class="op">-</span><span class="dv">1</span>]</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> idx <span class="kw">in</span> probe_indices:</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    threshold, axis_clusters <span class="op">=</span> percolation_history[idx]</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== Probe size: </span><span class="sc">{</span>threshold<span class="sc">:.2f}</span><span class="ss"> Å ==="</span>)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Count total percolating regions</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    total_regions <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> axis <span class="kw">in</span> [<span class="st">'x'</span>, <span class="st">'y'</span>, <span class="st">'z'</span>]:</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>        n_clusters <span class="op">=</span> <span class="bu">len</span>(axis_clusters[axis])</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        n_regions <span class="op">=</span> <span class="bu">sum</span>(<span class="bu">len</span>(c) <span class="cf">for</span> c <span class="kw">in</span> axis_clusters[axis])</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>        total_regions <span class="op">+=</span> n_regions</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>axis<span class="sc">}</span><span class="ss">-axis: </span><span class="sc">{</span>n_clusters<span class="sc">}</span><span class="ss"> clusters, </span><span class="sc">{</span>n_regions<span class="sc">}</span><span class="ss"> regions"</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Visualize</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    cluster_traces <span class="op">=</span> mgr.plot_percolated_cluster_meshes(</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>        percolation_history<span class="op">=</span>percolation_history,</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>        dgrid<span class="op">=</span>dgrid,</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>        regions<span class="op">=</span>regions,</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>        mat_atoms<span class="op">=</span>mat_atoms,</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>        isovalue<span class="op">=</span>threshold <span class="op">+</span> <span class="fl">0.5</span>,</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        probe_radius<span class="op">=</span>threshold,</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        stylize_cluster<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    fig <span class="op">=</span> go.Figure(</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>        data<span class="op">=</span>[mgr.plot_cell(mat_atoms)] <span class="op">+</span> cluster_traces,</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>        layout<span class="op">=</span>mgr.epic_layout</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>    fig.update_layout(title<span class="op">=</span><span class="ss">f"Percolation at </span><span class="sc">{</span>threshold<span class="sc">:.2f}</span><span class="ss"> Å probe radius"</span>)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>    fig.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>What to observe:</strong> 1. <strong>Small probe</strong>: Most regions connected, large percolating clusters 2. <strong>Medium probe</strong>: Some windows closed, smaller clusters 3. <strong>PLD probe</strong>: Only the narrowest accessible paths remain</p>
+<hr>
+</section>
+<section id="step-6-compare-multiple-materials-optional" class="level2">
+<h2 class="anchored" data-anchor-id="step-6-compare-multiple-materials-optional">Step 6: Compare Multiple Materials (Optional) 📚</h2>
+<p>The <code>get_pore_dia_mgr_winding()</code> function is designed for high-throughput screening. For example, you can compare pore diameters across hundreds of materials:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Example workflow for comparing multiple materials</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>materials <span class="op">=</span> [<span class="st">'NU-1000'</span>, <span class="st">'IRMOF-1'</span>, <span class="st">'HKUST-1'</span>]</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>results_list <span class="op">=</span> []</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name <span class="kw">in</span> materials:</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    path_to_cif <span class="op">=</span> repo_root <span class="op">/</span> <span class="st">'examples'</span> <span class="op">/</span> <span class="st">'TestCIFs'</span> <span class="op">/</span> <span class="ss">f'</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">.cif'</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    mat_atoms <span class="op">=</span> read(<span class="bu">str</span>(path_to_cif))</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Compute all three metrics</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    lcd, pld, dfsd, _ <span class="op">=</span> mgr.get_pore_dia_mgr_winding(</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        mat_atoms<span class="op">=</span>mat_atoms,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        kwargs<span class="op">=</span><span class="bu">dict</span>(spacing<span class="op">=</span><span class="fl">0.5</span>, mask_thickness<span class="op">=</span><span class="fl">0.05</span>)</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    results_list.append((name, lcd, pld, dfsd))</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Create comparison table</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"</span><span class="ch">\n</span><span class="st">"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"PORE DIAMETER COMPARISON"</span>)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span><span class="st">'Material'</span><span class="sc">:&lt;15}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'LCD (Å)'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'PLD (Å)'</span><span class="sc">:&lt;12}</span><span class="ss"> </span><span class="sc">{</span><span class="st">'DFSD (Å)'</span><span class="sc">:&lt;12}</span><span class="ss">"</span>)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"-"</span> <span class="op">*</span> <span class="dv">60</span>)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> name, lcd, pld, dfsd <span class="kw">in</span> results_list:</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">:&lt;15}</span><span class="ss"> </span><span class="sc">{</span>lcd<span class="sc">:&gt;10.2f}</span><span class="ss">   </span><span class="sc">{</span>pld<span class="sc">:&gt;10.2f}</span><span class="ss">   </span><span class="sc">{</span>dfsd<span class="sc">:&gt;10.2f}</span><span class="ss">"</span>)</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">60</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>Example output:</strong></p>
+<pre><code>============================================================
+PORE DIAMETER COMPARISON
+============================================================
+Material         LCD (Å)      PLD (Å)      DFSD (Å)
+------------------------------------------------------------
+NU-1000             21.00        15.20        18.50
+IRMOF-1             12.50         8.30         9.10
+HKUST-1             15.00        10.50        12.30
+============================================================</code></pre>
+<p>For large-scale validation, MOFography’s results agree well with Zeo++:</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/pore_diameters_parity_1.jpg" class="img-fluid figure-img"></p>
+<figcaption>IZA zeolite parity plot</figcaption>
+</figure>
+</div>
+<p><em>Parity plot comparing MOFography LCD and PLD values against Zeo++ for 216 IZA zeolites. The close agreement validates the winding percolation method.</em></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="./tutorial_images/pore_diameters_parity_2.jpg" class="img-fluid figure-img"></p>
+<figcaption>CoRE-MOF-2019 parity plot</figcaption>
+</figure>
+</div>
+<p><em>Parity plot for 7506 CoRE-MOF-2019 materials with void fraction &gt; 0.5. MOFography computes values 5-20x faster than Zeo++ while maintaining accuracy.</em></p>
+<hr>
+</section>
+<section id="step-7-understanding-winding-numbers" class="level2">
+<h2 class="anchored" data-anchor-id="step-7-understanding-winding-numbers">Step 7: Understanding Winding Numbers 🌀</h2>
+<p>The winding percolation method uses <strong>winding numbers</strong> to detect non-contractible loops:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mofography.winding_percolation <span class="im">import</span> (</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    make_directed_graph_from_segmentation_results,</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    detect_percolation_with_threshold</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the directed graph</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> make_directed_graph_from_segmentation_results(results)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Test percolation at a specific threshold</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>threshold <span class="op">=</span> final_threshold</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>percolates, loops, acc_offsets <span class="op">=</span> detect_percolation_with_threshold(</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    G<span class="op">=</span>G,</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    threshold<span class="op">=</span>threshold</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">=== Winding Analysis at </span><span class="sc">{</span>threshold<span class="sc">:.2f}</span><span class="ss"> Å ==="</span>)</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Percolates X: </span><span class="sc">{</span>percolates[<span class="st">'x'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Percolates Y: </span><span class="sc">{</span>percolates[<span class="st">'y'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Percolates Z: </span><span class="sc">{</span>percolates[<span class="st">'z'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> loops:</span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">Detected </span><span class="sc">{</span><span class="bu">len</span>(loops)<span class="sc">}</span><span class="ss"> non-contractible loops:"</span>)</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i, loop <span class="kw">in</span> <span class="bu">enumerate</span>(loops[:<span class="dv">5</span>], <span class="dv">1</span>):  <span class="co"># Show first 5</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"  Loop </span><span class="sc">{</span>i<span class="sc">}</span><span class="ss">:"</span>)</span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"    Winding: </span><span class="sc">{</span>loop[<span class="st">'winding'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"    Nodes: </span><span class="sc">{</span>loop[<span class="st">'nodes'</span>]<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="cf">else</span>:</span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"</span><span class="ch">\n</span><span class="ss">No non-contractible loops detected"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>What are winding numbers?</strong> - A <strong>winding number</strong> counts how many times a path wraps around periodic boundaries - <strong>(0,0,0)</strong>: Contractible loop (doesn’t wrap around) - <strong>(1,0,0)</strong>: Wraps once in X-direction (percolates in X) - <strong>(0,1,1)</strong>: Wraps in Y and Z directions</p>
+<p>This is the <strong>topologically correct</strong> way to detect percolation in periodic systems!</p>
+<hr>
+</section>
+<section id="step-8-quick-one-shot-computation" class="level2">
+<h2 class="anchored" data-anchor-id="step-8-quick-one-shot-computation">Step 8: Quick One-Shot Computation ⚡</h2>
+<p>If you just need the pore diameters without the detailed analysis:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 1: Using atoms object</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>lcd, pld, dfsd, results <span class="op">=</span> mgr.get_pore_dia_mgr_winding(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    mat_atoms<span class="op">=</span>mat_atoms,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    kwargs<span class="op">=</span><span class="bu">dict</span>(spacing<span class="op">=</span><span class="fl">0.5</span>, mask_thickness<span class="op">=</span><span class="fl">0.05</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Method 2: Using CIF file path</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>lcd, pld, dfsd, results <span class="op">=</span> mgr.get_pore_dia_mgr_winding(</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    path_to_cif<span class="op">=</span><span class="bu">str</span>(path_to_cif),</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    kwargs<span class="op">=</span><span class="bu">dict</span>(spacing<span class="op">=</span><span class="fl">0.5</span>, mask_thickness<span class="op">=</span><span class="fl">0.05</span>)</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"LCD: </span><span class="sc">{</span>lcd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"PLD: </span><span class="sc">{</span>pld<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"DFSD: </span><span class="sc">{</span>dfsd<span class="sc">:.2f}</span><span class="ss"> Å"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+</section>
+<section id="interpreting-your-results" class="level2">
+<h2 class="anchored" data-anchor-id="interpreting-your-results">📊 Interpreting Your Results</h2>
+<section id="example-1-fully-percolating-material" class="level3">
+<h3 class="anchored" data-anchor-id="example-1-fully-percolating-material">Example 1: Fully Percolating Material</h3>
+<pre><code>LCD: 21.0 Å
+PLD: 15.2 Å
+DFSD: 18.5 Å
+X: ✅ Percolating
+Y: ✅ Percolating
+Z: ✅ Percolating</code></pre>
+<p><strong>Interpretation:</strong> - Large cavities (21.0 Å) - Good molecular transport (15.2 Å PLD) - Fully 3D-connected pore network - Great for gas storage/separation</p>
+</section>
+<section id="example-2-1d-channel-material" class="level3">
+<h3 class="anchored" data-anchor-id="example-2-1d-channel-material">Example 2: 1D Channel Material</h3>
+<pre><code>LCD: 12.5 Å
+PLD: 8.3 Å
+DFSD: 9.1 Å
+X: ❌ Not percolating
+Y: ✅ Percolating
+Z: ❌ Not percolating</code></pre>
+<p><strong>Interpretation:</strong> - 1D channels along Y-direction - Limited molecular access - Potential diffusion bottleneck - May require crystal alignment</p>
+</section>
+<section id="example-3-non-percolating-material" class="level3">
+<h3 class="anchored" data-anchor-id="example-3-non-percolating-material">Example 3: Non-Percolating Material</h3>
+<pre><code>LCD: 5.2 Å
+PLD: 0.0 Å
+DFSD: 0.0 Å
+X: ❌ Not percolating
+Y: ❌ Not percolating
+Z: ❌ Not percolating</code></pre>
+<p><strong>Interpretation:</strong> - Isolated pores - No end-to-end paths - Limited to very small molecules - May need functionalization for transport</p>
+<hr>
+</section>
+</section>
+<section id="troubleshooting" class="level2">
+<h2 class="anchored" data-anchor-id="troubleshooting">🛠️ Troubleshooting</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 41%">
+<col style="width: 58%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Issue</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>PLD = 0</strong></td>
+<td>Material may have isolated pores. Try lowering <code>mask_thickness</code> or check if material is porous</td>
+</tr>
+<tr class="even">
+<td><strong>Very slow computation</strong></td>
+<td>Use coarser <code>spacing</code> (0.5 Å instead of 0.25 Å) or reduce <code>extra_padding</code></td>
+</tr>
+<tr class="odd">
+<td><strong>No percolation in any axis</strong></td>
+<td>Windows may be too narrow. Try decreasing <code>minimum_window_separation</code></td>
+</tr>
+<tr class="even">
+<td><strong>Unexpected percolation patterns</strong></td>
+<td>Check <code>extra_padding</code> - may need larger value to properly handle periodic images</td>
+</tr>
+<tr class="odd">
+<td><strong>Memory error</strong></td>
+<td>Use coarser <code>spacing</code> or process smaller regions</td>
+</tr>
+<tr class="even">
+<td><strong>PLD &gt; LCD</strong></td>
+<td>This shouldn’t happen! Check segmentation parameters and grid quality</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="summary" class="level2">
+<h2 class="anchored" data-anchor-id="summary">📝 Summary</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 41%">
+<col style="width: 38%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>What we did</th>
+<th>Key Output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1. Load structure</td>
+<td>Read CIF</td>
+<td><code>ase.io.read()</code></td>
+</tr>
+<tr class="even">
+<td>2. Compute metrics</td>
+<td>Get LCD, PLD, DFSD</td>
+<td><code>get_pore_dia_mgr_winding()</code></td>
+</tr>
+<tr class="odd">
+<td>3. Percolation history</td>
+<td>Track percolation vs probe size</td>
+<td><code>compute_percolation_history_winding()</code></td>
+</tr>
+<tr class="even">
+<td>4. Analyze clusters</td>
+<td>Identify percolating regions</td>
+<td><code>final_clusters</code></td>
+</tr>
+<tr class="odd">
+<td>5. Visualize</td>
+<td>Plot percolating clusters</td>
+<td><code>plot_percolated_cluster_meshes()</code></td>
+</tr>
+<tr class="even">
+<td>6. Interpret</td>
+<td>Understand material accessibility</td>
+<td>PLD, percolation axes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key Takeaway:</strong> The winding percolation method provides accurate, topologically-correct analysis of pore interconnectivity, determining whether molecules of different sizes can transport through nanoporous materials!</p>
+<hr>
+</section>
+<section id="next-steps" class="level2">
+<h2 class="anchored" data-anchor-id="next-steps">🚀 Next Steps</h2>
+<section id="learn-more" class="level3">
+<h3 class="anchored" data-anchor-id="learn-more">Learn More:</h3>
+<ul>
+<li><a href="./periodic_segmentation_quick_start.html">Periodic Segmentation Quick Start</a> - Required prerequisite</li>
+<li><a href="./distance_grid.html">Distance Grid Tutorial</a> - Understanding the distance field</li>
+<li><a href="./pore_graph.html">Pore Graph Tutorial</a> - Understanding pore networks</li>
+<li><a href="./pockets_detection.html">Pockets Detection</a> - Classifying pocket types</li>
+</ul>
+</section>
+<section id="advanced-topics" class="level3">
+<h3 class="anchored" data-anchor-id="advanced-topics">Advanced Topics:</h3>
+<ul>
+<li><strong>Percolation anisotropy</strong>: Different percolation behavior in different directions</li>
+<li><strong>Probe shape effects</strong>: Non-spherical probes (ellipsoids, rods)</li>
+<li><strong>Energy barriers</strong>: Incorporating adsorption energy</li>
+<li><strong>Dynamic accessibility</strong>: Temperature-dependent percolation</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="advanced-manual-percolation-analysis" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-manual-percolation-analysis">📖 Advanced: Manual Percolation Analysis</h2>
+<p>For full control over the percolation computation:</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> mofography.winding_percolation <span class="im">import</span> (</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    make_directed_graph_from_segmentation_results,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    find_pore_limiting_radius_winding,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    percolation_all_axes_winding,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    build_base_region_labels_from_results</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Build graph and labels manually</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> make_directed_graph_from_segmentation_results(results, dgrid<span class="op">=</span>results[<span class="st">'dgrid'</span>])</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>base_region_labels <span class="op">=</span> build_base_region_labels_from_results(results)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Test percolation at a specific threshold</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>threshold <span class="op">=</span> <span class="fl">2.5</span>  <span class="co"># Angstroms</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>axis_clusters, cluster_details, cluster_metadata <span class="op">=</span> percolation_all_axes_winding(</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>    results<span class="op">=</span>results,</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    threshold<span class="op">=</span>threshold,</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>    graph<span class="op">=</span>G,</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a>    base_region_labels<span class="op">=</span>base_region_labels</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"At threshold </span><span class="sc">{</span>threshold<span class="sc">}</span><span class="ss"> Å:"</span>)</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> axis <span class="kw">in</span> [<span class="st">'x'</span>, <span class="st">'y'</span>, <span class="st">'z'</span>]:</span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  </span><span class="sc">{</span>axis<span class="sc">}</span><span class="ss">-axis: </span><span class="sc">{</span><span class="bu">len</span>(axis_clusters[axis])<span class="sc">}</span><span class="ss"> percolating clusters"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<hr>
+<p>Happy percolation analyzing! 🎊</p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script>
+// Reference index: stack description under each function name (see .mg-ref-index in styles.css).
+if (/\/reference\/(index\.html)?$/.test(location.pathname)) document.body.classList.add("mg-ref-index");
+
+// Search overlay: show tutorial/page hits first, reference (function-name) hits last under a label.
+(function () {
+  var isRef = function (li) {
+    var a = li.querySelector("a.search-result-link");
+    return !!a && /(^|\/)reference\//.test(a.getAttribute("href") || "");
+  };
+  var fix = function (list) {
+    var ref = false, first = null;
+    Array.prototype.forEach.call(list.children, function (li) {
+      if (li.querySelector(".search-result-doc")) ref = isRef(li);  // a document starts a new block
+      li.classList.toggle("mg-ref-item", ref);
+      li.classList.remove("mg-ref-first");
+      if (ref && li.querySelector(".search-result-doc") && !first) { first = li; }
+    });
+    if (first) first.classList.add("mg-ref-first");
+    list.classList.add("mg-search-list");
+  };
+  new MutationObserver(function () {
+    document.querySelectorAll(".aa-List").forEach(fix);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+})();
+
+// Reference index: filter rows by status tag.
+document.addEventListener("DOMContentLoaded", function () {
+  var bar = document.querySelector(".mg-tag-filter");
+  if (!bar) return;
+  var apply = function (tag) {
+    bar.querySelectorAll(".mg-tag-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.tag === tag); });
+    var tags = document.querySelectorAll("#quarto-document-content td .mg-tag");
+    tags.forEach(function (t) {
+      var on = tag === "all" || t.className.indexOf("mg-tag-" + tag) > -1;
+      t.closest("tr").style.display = on ? "" : "none";
+    });
+    // hide group headings and tables that end up empty
+    document.querySelectorAll("#quarto-document-content table").forEach(function (tb) {
+      var any = Array.prototype.some.call(tb.querySelectorAll("tr"), function (r) { return r.style.display !== "none" && r.querySelector("td"); });
+      tb.style.display = any ? "" : "none";
+      var el = tb.previousElementSibling;
+      while (el && !/^H[23]$/.test(el.tagName)) { if (el.tagName === "P" || el.tagName === "DIV") el.style.display = any ? "" : "none"; el = el.previousElementSibling; }
+      if (el && el.tagName === "H3") el.style.display = any ? "" : "none";
+    });
+  };
+  bar.addEventListener("click", function (e) { if (e.target.dataset.tag) apply(e.target.dataset.tag); });
+});
+
+// Reference sidebar: one button to fold or unfold every module group.
+document.addEventListener("DOMContentLoaded", function () {
+  if (!/\/reference\//.test(location.pathname)) return;
+  var menu = document.querySelector("#quarto-sidebar .sidebar-menu-container");
+  if (!menu) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mg-fold-all";
+  var togglers = function (open) {
+    return menu.querySelectorAll('a[data-bs-toggle="collapse"][aria-expanded="' + open + '"]');
+  };
+  var label = function () { btn.textContent = togglers("true").length ? "Fold all" : "Unfold all"; };
+  btn.addEventListener("click", function () {
+    var open = togglers("true");
+    var targets = open.length ? open : togglers("false");
+    targets.forEach(function (a) { a.click(); });
+    setTimeout(label, 400);
+  });
+  menu.addEventListener("click", function () { setTimeout(label, 400); });
+  label();
+  menu.insertBefore(btn, menu.firstChild);
+});
+// Collapse long text outputs (> 25 lines) into a scrollable box with a toggle.
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".cell-output pre, .cell-output-stdout pre, .cell-output-stderr pre").forEach(function (pre) {
+    if (pre.closest(".mg-out-fold") || pre.closest("details.code-fold")) return;
+    if (pre.textContent.split("\n").length <= 25) return;
+    var wrap = document.createElement("div");
+    wrap.className = "mg-out-fold";
+    pre.parentNode.insertBefore(wrap, pre);
+    wrap.appendChild(pre);
+    pre.classList.add("mg-collapsed");
+    var n = pre.textContent.split("\n").length;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "mg-out-toggle";
+    var label = function () { return pre.classList.contains("mg-collapsed") ? "Show full output (" + n + " lines)" : "Collapse output"; };
+    b.textContent = label();
+    b.addEventListener("click", function () { pre.classList.toggle("mg-collapsed"); b.textContent = label(); });
+    wrap.appendChild(b);
+  });
+});
+</script>
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/mofography\.github\.io\/mofography\/");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>BSD-3-Clause. Copyright 2022-2026 Arun Gopalan and contributors.</p>
+</div>   
+    <div class="nav-footer-center">
+      &nbsp;
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/mofography/mofography/edit/main/pore_limiting_diameter_pld_and_percolation.md" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/mofography/mofography/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/blob/master/CITATION.cff">
+<p>Cite</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/mofography/mofography/releases">
+<p>Releases</p>
+</a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
