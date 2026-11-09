@@ -44,16 +44,16 @@ Everything below is available from the Python module. Global properties and pock
 
 | Capability | What you get | Learn more |
 |---|---|---|
-| **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](docs/compute_pore_diameters.ipynb), [PLD and percolation](docs/pld_and_percolation.ipynb) |
-| **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](docs/surface_area.qmd), [Accessibility](docs/accessibility.qmd) |
-| **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Pore size distributions](docs/pore_size_distributions.qmd) |
-| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](docs/region_segmentation.qmd), [PBC considerations](docs/pbc_considerations.qmd) |
-| **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](docs/pockets_detection.qmd) |
-| **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](docs/connections_and_windows.qmd), [Window fingerprinting](docs/window_fingerprinting.qmd) |
-| **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](docs/region_adjacency_graph.ipynb), [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) |
-| **Percolation** | Percolation thresholds for a given probe, and 3D plots of the accessible, percolating clusters of pockets | [PLD and percolation](docs/pld_and_percolation.ipynb) |
-| **Visualization** | Interactive 3D views of the framework, pore surfaces, pockets, and pore graphs | [Visualization](docs/framework_visualization_example.ipynb) |
-| **High throughput** | Parallel characterization of whole databases with a Rust core | [High-throughput characterization](docs/hts_using_mofography.ipynb) |
+| **Pore diameters** | Largest cavity diameter (LCD), pore limiting diameter (PLD), and largest included sphere (LIS) along percolating pathways | [Compute pore diameters](https://mofography.github.io/mofography/compute_pore_diameters.html), [PLD and percolation](https://mofography.github.io/mofography/pld_and_percolation.html) |
+| **Surface area and void volume** | Total (probe-center occupiable) and accessible (probe-center accessible) values, globally and per pocket | [Surface area](https://mofography.github.io/mofography/surface_area.html), [Accessibility](https://mofography.github.io/mofography/accessibility.html) |
+| **Pore size distributions** | Global distributions, and pocket-wise distributions that do not undersample small pockets | [Pore size distributions](https://mofography.github.io/mofography/pore_size_distributions.html) |
+| **Pocket segmentation** | The void space split into convex pockets with periodic boundary conditions handled | [Region segmentation](https://mofography.github.io/mofography/region_segmentation.html), [PBC considerations](https://mofography.github.io/mofography/pbc_considerations.html) |
+| **Pocket types** | Fingerprinting of pockets by their local environment, to group chemically and geometrically similar pores | [Pocket type detection](https://mofography.github.io/mofography/pockets_detection.html) |
+| **Pore windows** | Detection of the windows that connect pockets, including across periodic boundaries | [Connections and windows](https://mofography.github.io/mofography/connections_and_windows.html), [Window fingerprinting](https://mofography.github.io/mofography/window_fingerprinting.html) |
+| **Pore graphs** | Pockets as nodes and windows as edges, annotated with local properties, as input for analysis and graph learning | [Region adjacency graph](https://mofography.github.io/mofography/region_adjacency_graph.html), [Graph neural network model on pore graphs (PoroNet)](https://mofography.github.io/mofography/PoroNet.html) |
+| **Percolation** | Percolation thresholds for a given probe, and 3D plots of the accessible, percolating clusters of pockets | [PLD and percolation](https://mofography.github.io/mofography/pld_and_percolation.html) |
+| **Visualization** | Interactive 3D views of the framework, pore surfaces, pockets, and pore graphs | [Visualization](https://mofography.github.io/mofography/framework_visualization_example.html) |
+| **High throughput** | Parallel characterization of whole databases with a Rust core | [High-throughput characterization](https://mofography.github.io/mofography/hts_using_mofography.html) |
 
 Not a Python user? The same core is available as a **CLI** ([`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py)) for terminal users and AI agents, and as a **web app** for anyone who prefers a GUI and does not code or use a terminal. Both expose a subset of the features above; see [Who should use what](#who).
 
@@ -231,7 +231,7 @@ python -m pip install -e .
 
 After `git pull`, rebuild Rust: `cd mgr_rust && maturin develop --release`
 
-More detail: [docs/rust_backend_documentation.md](docs/rust_backend_documentation.md), [docs/install.qmd](docs/install.qmd).
+More detail: [docs/rust_backend_documentation.md](docs/rust_backend_documentation.md), [install guide](https://mofography.github.io/mofography/install.html).
 
 We do **not** ship prebuilt `mgr_rust` wheels per OS — local `--release` builds match your machine best.
 
@@ -263,7 +263,7 @@ rag = mgr.rag_from_connections(seg["connections"], seg["all_maxima"])
 print(rag)
 ```
 
-See the full [Quick start](docs/quick_start.qmd) for pocket types, windows, and textural properties (LCD, PLD, surface area, void volume).
+See the full [Quick start](https://mofography.github.io/mofography/quick_start.html) for pocket types, windows, and textural properties (LCD, PLD, surface area, void volume).
 
 Interactive **Three.js HTML** is not stored in this repo; export from the **web demo** or [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), or regenerate with `examples/gen_*_threejs.py`.
 
@@ -273,42 +273,42 @@ Interactive **Three.js HTML** is not stored in this repo; export from the **web 
 
 ## Tutorials & documentation
 
-**Read the docs: [mofography.github.io/mofography](https://mofography.github.io/mofography/)** (planned public URL; live once `mofography/mofography` is public and GitHub Pages is deployed). The site has the tutorials below, the [function reference](https://mofography.github.io/mofography/reference/), and the install guide. GitHub shows `.qmd` tutorials as plain text, so read those on the website; the `.ipynb` notebooks render fine on GitHub.
+**Read the docs: [mofography.github.io/mofography](https://mofography.github.io/mofography/)**. The site has the tutorials below, the [function reference](https://mofography.github.io/mofography/reference/), and the install guide. GitHub shows `.qmd` tutorials as plain text, so read those on the website; the `.ipynb` notebooks render fine on GitHub.
 
-The list below mirrors the [Learn page](docs/learn.qmd). To build the site locally, see [Building the docs](#building-the-docs).
+The list below mirrors the [Learn page](https://mofography.github.io/mofography/learn.html). To build the site locally, see [Building the docs](#building-the-docs).
 
 ### Basic tutorials (recommended order)
 
-1. [Quick start](docs/quick_start.qmd) — CIF to pore graph, pocket types, windows, and textural properties **(new)**
-2. [Guide to choosing functions](docs/choosing_functions.qmd) — which function to call for each task **(new)**
-3. [Distance grid](docs/distance_grid.qmd)
-4. [Region segmentation](docs/region_segmentation.qmd)
-5. [PBC considerations](docs/pbc_considerations.qmd)
-6. [Connections and windows](docs/connections_and_windows.qmd)
-7. [Pore graph (region adjacency graph, RAG)](docs/region_adjacency_graph.ipynb)
-8. [Compute pore diameters](docs/compute_pore_diameters.ipynb)
-9. [Surface area and void volume](docs/surface_area.qmd)
-10. [PLD and percolation (winding method)](docs/pld_and_percolation.ipynb)
-11. [Pore size distributions](docs/pore_size_distributions.qmd)
-12. [Pocket type detection](docs/pockets_detection.qmd) **(new)**
-13. [Three.js plotting](docs/threejs_plotting.qmd) **(new)**
-14. [Basic structure visualization using Plotly](docs/quick_structure_visualization.ipynb)
+1. [Quick start](https://mofography.github.io/mofography/quick_start.html) ([source](docs/quick_start.qmd)) — CIF to pore graph, pocket types, windows, and textural properties **(new)**
+2. [Guide to choosing functions](https://mofography.github.io/mofography/choosing_functions.html) ([source](docs/choosing_functions.qmd)) — which function to call for each task **(new)**
+3. [Distance grid](https://mofography.github.io/mofography/distance_grid.html) ([source](docs/distance_grid.qmd))
+4. [Region segmentation](https://mofography.github.io/mofography/region_segmentation.html) ([source](docs/region_segmentation.qmd))
+5. [PBC considerations](https://mofography.github.io/mofography/pbc_considerations.html) ([source](docs/pbc_considerations.qmd))
+6. [Connections and windows](https://mofography.github.io/mofography/connections_and_windows.html) ([source](docs/connections_and_windows.qmd))
+7. [Pore graph (region adjacency graph, RAG)](https://mofography.github.io/mofography/region_adjacency_graph.html) ([source](docs/region_adjacency_graph.ipynb))
+8. [Compute pore diameters](https://mofography.github.io/mofography/compute_pore_diameters.html) ([source](docs/compute_pore_diameters.ipynb))
+9. [Surface area and void volume](https://mofography.github.io/mofography/surface_area.html) ([source](docs/surface_area.qmd))
+10. [PLD and percolation (winding method)](https://mofography.github.io/mofography/pld_and_percolation.html) ([source](docs/pld_and_percolation.ipynb))
+11. [Pore size distributions](https://mofography.github.io/mofography/pore_size_distributions.html) ([source](docs/pore_size_distributions.qmd))
+12. [Pocket type detection](https://mofography.github.io/mofography/pockets_detection.html) ([source](docs/pockets_detection.qmd)) **(new)**
+13. [Three.js plotting](https://mofography.github.io/mofography/threejs_plotting.html) ([source](docs/threejs_plotting.qmd)) **(new)**
+14. [Basic structure visualization using Plotly](https://mofography.github.io/mofography/quick_structure_visualization.html) ([source](docs/quick_structure_visualization.ipynb))
 
 ### Advanced tutorials
 
-- [MOFDB example](docs/mofdb_example.ipynb)
-- [High-throughput characterization](docs/hts_using_mofography.ipynb)
-- [Graph neural network model on pore graphs (PoroNet)](docs/PoroNet.qmd) **(new)**
-- [Advanced geometric and topological pore network properties](docs/property_calculation.qmd)
-- [Structure analysis](docs/basic_structure_io.ipynb)
-- [Aromatic ring detection](docs/aromatic_ring_detection.qmd)
-- [Functional group detection](docs/detect_functional_groups_in_dataset.ipynb)
-- [Advanced structure visualization](docs/framework_visualization_example.ipynb)
-- [Framework subset visualization](docs/plot_subset_as_mesh_tutorial.ipynb)
+- [MOFDB example](https://mofography.github.io/mofography/mofdb_example.html) ([source](docs/mofdb_example.ipynb))
+- [High-throughput characterization](https://mofography.github.io/mofography/hts_using_mofography.html) ([source](docs/hts_using_mofography.ipynb))
+- [Graph neural network model on pore graphs (PoroNet)](https://mofography.github.io/mofography/PoroNet.html) ([source](docs/PoroNet.qmd)) **(new)**
+- [Advanced geometric and topological pore network properties](https://mofography.github.io/mofography/property_calculation.html) ([source](docs/property_calculation.qmd))
+- [Structure analysis](https://mofography.github.io/mofography/basic_structure_io.html) ([source](docs/basic_structure_io.ipynb))
+- [Aromatic ring detection](https://mofography.github.io/mofography/aromatic_ring_detection.html) ([source](docs/aromatic_ring_detection.qmd))
+- [Functional group detection](https://mofography.github.io/mofography/detect_functional_groups_in_dataset.html) ([source](docs/detect_functional_groups_in_dataset.ipynb))
+- [Advanced structure visualization](https://mofography.github.io/mofography/framework_visualization_example.html) ([source](docs/framework_visualization_example.ipynb))
+- [Framework subset visualization](https://mofography.github.io/mofography/plot_subset_as_mesh_tutorial.html) ([source](docs/plot_subset_as_mesh_tutorial.ipynb))
 
-**Deeper knowledge** (parameter tuning, distance-grid and watershed backends, accessibility methods, and more) is on the [Learn page of the docs](docs/learn.qmd#deeper-knowledge); see the website for the full list.
+**Deeper knowledge** (parameter tuning, distance-grid and watershed backends, accessibility methods, and more) is on the [Learn page of the docs](https://mofography.github.io/mofography/learn.html#deeper-knowledge); see the website for the full list.
 
-Also: [install](docs/install.qmd), [CLI quick start](docs/cli_quickstart.qmd), [API reference](docs/reference/index.qmd).
+Also: [install](https://mofography.github.io/mofography/install.html), [CLI quick start](https://mofography.github.io/mofography/cli_quickstart.html), [API reference](https://mofography.github.io/mofography/reference/).
 
 ---
 
