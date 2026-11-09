@@ -242,12 +242,28 @@ We do **not** ship prebuilt `mgr_rust` wheels per OS — local `--release` build
 ## Quick test
 
 ```python
+import numpy as np
 import mofography as mgr
-from ase.io import read
+from mofography.cif_io import read_cif_to_ase
 
-atoms = read("examples/TestCIFs/P1-IRMOF-1.cif")
-figures = mgr.quick_cluster(atoms)
+atoms = read_cif_to_ase("examples/TestCIFs/P1-IRMOF-1.cif")
+
+# 1. Distance grid
+spacing = 0.5  # Å
+dgrid = mgr.dgrid_from_atoms_rust(atoms, spacing=spacing).astype(np.float32)
+
+# 2. Periodic segmentation: pockets, PBC merging, windows
+seg = mgr.do_periodic_segmentation_rust(
+    dgrid, atoms, spacing=spacing,
+    compute_connections=True, return_dgrid=True, disable_tqdm=True,
+)
+
+# 3. Pore graph (pockets = nodes, windows = edges)
+rag = mgr.rag_from_connections(seg["connections"], seg["all_maxima"])
+print(rag)
 ```
+
+See the full [Quick start](docs/quick_start.qmd) for pocket types, windows, and textural properties (LCD, PLD, surface area, void volume).
 
 Interactive **Three.js HTML** is not stored in this repo; export from the **web demo** or [`mgr_cli_py`](https://github.com/arung-northwestern/mgr_cli_py), or regenerate with `examples/gen_*_threejs.py`.
 
