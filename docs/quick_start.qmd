@@ -145,7 +145,7 @@ mgr.show_mof_threejs(seg, atoms, typed_result=typed, output_html="mof.html")
 
 ## Notes
 
-- `mgr.quick_cluster(atoms)` is a legacy one-call helper that builds a figure set (and opens a browser renderer). Use the explicit steps above in scripts.
+- `mgr.quick_cluster(atoms)` is a deprecated one-call helper that builds a figure set (and opens a browser renderer). Use the explicit steps above in scripts.
 - Cast `dgrid` to `float32` before segmentation, as above.
 - Defaults are a good start for most MOFs. If pocket counts look wrong, go to [Tuning and safe ranges](parameter_tuning.qmd).
 

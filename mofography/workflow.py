@@ -54,6 +54,13 @@ def quick_cluster(ase_atoms,
     # mat_atoms = read('../examples/TestCIFs/NU-1000_S1.cif')
     """Run the legacy Python dgrid segmentation and geometry-JS clustering pipeline with optional figures.
 
+    .. deprecated::
+        Uses the old CPU/Python pipeline and the old geometry-JS pocket typing
+        (not the ``env_cluster`` method of ``assign_pocket_types``), and produces
+        plots for everything.
+        Use the explicit Rust steps instead: ``dgrid_from_atoms_rust`` then
+        ``do_periodic_segmentation_rust`` (see the Quick start tutorial).
+
     :param ase_atoms: ASE atoms object
     :param spacing: the spacing of the distance grid
     :param mask_thickness: The thickness of the mask used to create the distance grid
@@ -76,6 +83,14 @@ def quick_cluster(ase_atoms,
     :param list_return_strings: list of strings, the names of the variables you want to return
     """
 
+    import warnings
+    warnings.warn(
+        "quick_cluster is deprecated and will be removed in a future release. "
+        "Use dgrid_from_atoms_rust + do_periodic_segmentation_rust "
+        "(see the Quick start tutorial).",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     
 
