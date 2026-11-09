@@ -17,7 +17,7 @@ Set-Location $RepoDir
 $deps = @(
     "pymatgen", "ase", "dask", "dask-jobqueue", "networkx", "scikit-image", "tqdm", "aiohttp",
     "sparse", "scikit-learn", "rich", "trimesh", "pyvista", "plotly", "furl", "requests",
-    "freud-analysis", "rdkit", "optuna", "kaleido", "nbformat"
+    "freud-analysis", "rdkit", "optuna", "kaleido", "nbformat", "icecream"
 )
 
 if ($Mode -eq "venv") {
