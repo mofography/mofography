@@ -317,9 +317,10 @@ def resolve_typing_vdw_radii(
     if key in {"crc", "mendeleev", "webapp"}:
         return mendeleev_vdw_radii_angstrom(atoms)
     if key in {"alvarez", "alv"}:
-        from mgr import vdw_radii as mcli_vr
-
-        return mcli_vr.alvarez_vdw_radii_angstrom(atoms)
+        raise ValueError(
+            "typing_radii='alvarez' is not built in; pass a per-atom radii array "
+            "(Å) instead, e.g. the Alvarez (2013) table shown in the VDW radii docs"
+        )
     raise ValueError(
         f"unknown typing_radii={typing_radii!r}; use "
         f"{TYPING_RADII_BONDI_CRC!r}, {TYPING_RADII_SEGMENTATION!r}, or a radii array"
