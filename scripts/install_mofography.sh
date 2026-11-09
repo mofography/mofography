@@ -45,6 +45,7 @@ MOFO_DEPS=(
   pymatgen ase dask dask-jobqueue networkx scikit-image tqdm aiohttp
   sparse scikit-learn rich trimesh pyvista plotly furl requests freud-analysis
   rdkit optuna kaleido nbformat icecream
+  numpy scipy pandas matplotlib pillow jinja2 more-itertools dijkstra3d pysmiles
 )
 
 need_cmd() {
