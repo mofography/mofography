@@ -997,7 +997,7 @@ def show_mof_threejs(seg, atoms, typed_result=None, stylize=True, framework_atom
             _fw_repr_raw = defaults.get("plot_framework_style", "mesh")
         _fw_repr = str(_fw_repr_raw).lower()
         _fw_scale = float(defaults.get("plot_framework_mesh_scale", 0.65))
-        _fw_bond_lw = float(defaults.get("plot_framework_bond_linewidth", 8.0))
+        _fw_bond_lw = float(defaults.get("plot_framework_bond_linewidth", 3.75))
         if _fw_repr == "scatter":
             from mofography.movies import make_framework_scatter_trace
             _scatter = make_framework_scatter_trace(

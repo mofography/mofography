@@ -1644,6 +1644,7 @@ def make_framework_scatter_trace(
             "positions": positions.reshape(-1).tolist(),
             "colors": atom_colors_rgb.reshape(-1).tolist(),
             "sizes": sizes,
+            "world_radii": radii.tolist(),
             "n_points": n_atoms,
         },
         style={"color": [0.7, 0.7, 0.7], "size": float(max(sizes)) if sizes else 2.5,
@@ -3600,6 +3601,8 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       <label>Representation:
         <select id="reprSelect" style="font-size:10px;width:100%;"><option value="ball_and_stick">Ball-and-stick</option><option value="stick">Stick</option><option value="space_filling">Space-filling</option></select>
       </label>
+      <label id="atomRadiusLabel" style="display:none;">Atom radius: <input id="atomRadiusSlider" type="range" min="0.1" max="3" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
+      <label id="bondRadiusLabel" style="display:none;">Bond radius: <input id="bondRadiusSlider" type="range" min="0.1" max="4" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Play speed: <input id="speedSlider" type="range" min="0.25" max="4" step="0.25" value="1" style="width:80px;vertical-align:middle;" /></label>
       <label>Ambient: <input id="ambSlider" type="range" min="0" max="1" step="0.05" value="0.28" style="width:80px;vertical-align:middle;" /></label>
       <label>Directional: <input id="dirSlider" type="range" min="0" max="2" step="0.05" value="1" style="width:80px;vertical-align:middle;" /></label>
@@ -4042,10 +4045,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       toggleOrthoBtn.textContent = isOrtho ? "Perspective" : "Ortho";
 
       Object.values(objectsById).forEach(function(obj) {
-        if (obj && obj.material && obj.material.isPointsMaterial) {
+        if (isScatterPointsObj(obj)) {
           obj.material.depthTest = true;
           obj.material.depthWrite = false;
-          var base = obj.material.userData && obj.material.userData.baseSize ? obj.material.userData.baseSize : obj.material.size;
+          var base = obj.userData.baseSize || (obj.material.userData && obj.material.userData.baseSize) || obj.material.size;
           applyPointSize(obj, base);
         }
       });
@@ -4128,6 +4131,64 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       if (traceId && pointSizeMultByTrace[traceId] !== undefined) return pointSizeMultByTrace[traceId];
       return 1.0;
     }
+    function isScatterPointsObj(obj) {
+      return !!(obj && (
+        (obj.material && obj.material.isPointsMaterial) ||
+        (obj.userData && obj.userData.isBillboardPoints)
+      ));
+    }
+    const _billboardDummy = new THREE.Object3D();
+    const _billboardLift = new THREE.Vector3();
+    function pixelSizeToWorldScale(pixelSize, position, camera, renderer) {
+      const height = Math.max(renderer.domElement.clientHeight, 1);
+      if (camera.isOrthographicCamera) {
+        return pixelSize * (camera.top - camera.bottom) / height;
+      }
+      const dist = Math.max(camera.position.distanceTo(position), 1e-6);
+      const vFOV = THREE.MathUtils.degToRad(camera.fov);
+      return pixelSize * 2 * Math.tan(vFOV * 0.5) * dist / height;
+    }
+    function updateBillboardPointsMesh(mesh) {
+      if (!mesh || !mesh.userData || !mesh.userData.isBillboardPoints) return;
+      const positions = mesh.userData.pointPositions;
+      if (!positions || !positions.length) return;
+      const base = mesh.userData.baseSize || (mesh.material.userData && mesh.material.userData.baseSize) || 1;
+      const mult = pointSizeMultFor(mesh.name);
+      const pixelSize = Math.max(base * mult * (isOrtho ? 2.0 : 1.0), 0);
+      mesh.userData.targetPixelSize = pixelSize;
+      const isFwAtoms = mesh.name === "framework_atoms" || mesh.name === "framework_stick_atoms" || mesh.name === "framework_spacefill_atoms";
+      const worldRadii = mesh.userData.worldRadii;
+      const wMult = mesh.userData.worldScaleMult !== undefined ? mesh.userData.worldScaleMult : 1.0;
+      mesh.visible = (worldRadii ? wMult > 0.001 : pixelSize > 0.01) && legendEnabledByTrace[mesh.name] !== false &&
+        (!isFwAtoms || scene.userData.fwLegendEnabled !== false);
+      const n = mesh.count;
+      for (let i = 0; i < n; i++) {
+        _billboardDummy.position.set(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+        _billboardDummy.quaternion.copy(camera.quaternion);
+        // world-size discs (framework atoms): diameter in Angstrom, consistent with bond radius
+        const ws = worldRadii
+          ? 2 * worldRadii[i] * wMult
+          : pixelSizeToWorldScale(pixelSize, _billboardDummy.position, camera, renderer);
+        if (isFwAtoms) {
+          // lift disc to the sphere's front so bond cylinders do not poke over atoms
+          _billboardLift.subVectors(camera.position, _billboardDummy.position).normalize();
+          _billboardDummy.position.addScaledVector(_billboardLift, ws * 0.5);
+        }
+        _billboardDummy.scale.set(ws, ws, 1);
+        _billboardDummy.updateMatrix();
+        mesh.setMatrixAt(i, _billboardDummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+    }
+    function refreshAllBillboardPointMeshes() {
+      Object.values(objectsById).forEach(function(obj) {
+        if (obj && obj.userData && obj.userData.isBillboardPoints) updateBillboardPointsMesh(obj);
+      });
+    }
+    function traceLegendVisible(traceId) {
+      return legendEnabledByTrace[traceId] !== false;
+    }
+    controls.addEventListener("change", function() { refreshAllBillboardPointMeshes(); });
     function lineWidthMultFor(traceId) {
       if (traceId && lineWidthMultByTrace[traceId] !== undefined) return lineWidthMultByTrace[traceId];
       return 1.0;
@@ -4142,6 +4203,16 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       return 0.04 * Math.max(Number(effectiveLw) || 0, 0.01);
     }
     function applyPointSize(pointsObj, baseSize) {
+      if (pointsObj && pointsObj.userData && pointsObj.userData.isBillboardPoints) {
+        if (baseSize !== undefined) {
+          pointsObj.userData.baseSize = baseSize;
+          if (pointsObj.material && pointsObj.material.userData) {
+            pointsObj.material.userData.baseSize = baseSize;
+          }
+        }
+        updateBillboardPointsMesh(pointsObj);
+        return;
+      }
       if (!pointsObj || !pointsObj.material || !pointsObj.material.isPointsMaterial) return;
       const base = baseSize !== undefined ? baseSize : (
         pointsObj.material.userData && pointsObj.material.userData.baseSize
@@ -4588,39 +4659,73 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     function addPoints(trace, colorOverride, sizeOverride) {
       const pts = trace.data.positions || [];
       if (!pts.length) { console.warn("Skipping empty points trace:", trace.id); return null; }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-      if (trace.data.colors && trace.data.colors.length) {
-        geo.setAttribute("color", new THREE.Float32BufferAttribute(trace.data.colors, 3));
-      }
       const style = styleFor(trace);
       const baseSize = (sizeOverride !== undefined ? sizeOverride : pointsBaseSize(trace)) * 1.3;
-      const size = baseSize * pointSizeMultFor(trace.id) * (isOrtho ? 2.0 : 1.0);
       const sym = style.symbol || "circle";
       const tex = spriteTextures[sym] || spriteTextures["circle"];
-      const mat = new THREE.PointsMaterial({
-        size: size,
-        map: tex,
-        vertexColors: !!(trace.data.colors && trace.data.colors.length),
-        sizeAttenuation: false,
-        transparent: true,
-        opacity: 0.95,
-      });
-      mat.userData.baseSize = baseSize;
-      if (colorOverride !== undefined && (!trace.data.colors || !trace.data.colors.length)) {
-        mat.color.copy(threeColorFromStyle(colorOverride, 0xffffff));
-      } else if (!trace.data.colors || !trace.data.colors.length) {
-        mat.color.copy(threeColorFromStyle(style.color, 0xffffff));
+      const n = pts.length / 3;
+      const hasColors = !!(trace.data.colors && trace.data.colors.length >= n * 3);
+      const geo = new THREE.PlaneBufferGeometry(1, 1);
+      let mat;
+      if (hasColors) {
+        mat = new THREE.MeshPhongMaterial({
+          color: 0xffffff,
+          map: tex,
+          shininess: style.shininess !== undefined ? style.shininess : 20,
+          specular: style.specular !== undefined ? style.specular : 0x222222,
+          transparent: true,
+          opacity: 0.95,
+          alphaTest: 0.05,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide,
+        });
+      } else {
+        mat = new THREE.MeshBasicMaterial({
+          map: tex,
+          transparent: true,
+          opacity: 0.95,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide,
+        });
+        mat.color.copy(threeColorFromStyle(
+          colorOverride !== undefined ? colorOverride : style.color,
+          0xffffff
+        ));
       }
-      const points = new THREE.Points(geo, mat);
+      mat.userData.baseSize = baseSize;
+      const points = new THREE.InstancedMesh(geo, mat, n);
+      points.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      if (points.instanceColor) points.instanceColor.setUsage(THREE.DynamicDrawUsage);
       points.name = trace.id;
+      points.userData.isBillboardPoints = true;
+      points.userData.baseSize = baseSize;
+      points.userData.pointPositions = pts.slice();
       points.userData.originalPositions = pts.slice();
+      if (trace.data.world_radii && trace.data.world_radii.length >= n) {
+        points.userData.worldRadii = trace.data.world_radii.slice();
+        points.userData.worldScaleMult = 1.0;
+      }
+      if (trace.hover && trace.hover.length) {
+        points.userData.traceHover = trace.hover.slice();
+      }
+      if (hasColors) {
+        for (let i = 0; i < n; i++) {
+          points.setColorAt(
+            i,
+            new THREE.Color(trace.data.colors[i * 3], trace.data.colors[i * 3 + 1], trace.data.colors[i * 3 + 2])
+          );
+        }
+        if (points.instanceColor) points.instanceColor.needsUpdate = true;
+      }
       if (trace.data.window_radii && trace.data.window_radii.length) {
         points.userData.windowRadii = trace.data.window_radii.slice();
         points.userData.originalHover = trace.hover ? trace.hover.slice() : [];
         points.userData.activeHover = points.userData.originalHover.slice();
         points.userData.windowFilterKind = "windows";
       }
+      updateBillboardPointsMesh(points);
       scene.add(points);
       objectsById[trace.id] = points;
       return points;
@@ -4923,6 +5028,34 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
 
     function replacePointsGeometry(points, trace) {
+      if (points.userData && points.userData.isBillboardPoints) {
+        const pts = trace.data.positions || [];
+        const n = pts.length / 3;
+        points.userData.pointPositions = pts.slice();
+        points.userData.originalPositions = pts.slice();
+        if (trace.hover && trace.hover.length) {
+          points.userData.traceHover = trace.hover.slice();
+        }
+        if (trace.data.colors && trace.data.colors.length >= n * 3) {
+          for (let i = 0; i < n; i++) {
+            points.setColorAt(
+              i,
+              new THREE.Color(trace.data.colors[i * 3], trace.data.colors[i * 3 + 1], trace.data.colors[i * 3 + 2])
+            );
+          }
+          if (points.instanceColor) points.instanceColor.needsUpdate = true;
+        }
+        const style = styleFor(trace);
+        const baseSize = pointsBaseSize(trace) * 1.3;
+        points.userData.baseSize = baseSize;
+        points.material.userData.baseSize = baseSize;
+        if (!trace.data.colors || !trace.data.colors.length) {
+          points.material.color.copy(threeColorFromStyle(style.color, 0xffffff));
+        }
+        points.count = n;
+        applyPointSize(points, baseSize);
+        return;
+      }
       const oldGeo = points.geometry;
       const geo = new THREE.BufferGeometry();
       const pts = trace.data.positions || [];
@@ -5168,6 +5301,26 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       const ids = fwMerge ? FW_MERGE_IDS.filter(function(tid) { return objectsById[tid]; }) : traceIds.slice();
       ids.forEach(function(tid) {
         const obj = objectsById[tid];
+        if (obj && !obj.material && obj.children && obj.children.length) {
+          // Group (e.g. thick-line bond cylinders sharing one material)
+          const mats = [];
+          obj.children.forEach(function(ch) {
+            if (ch.material && mats.indexOf(ch.material) < 0) mats.push(ch.material);
+          });
+          if (obj.userData.originalOpacity === undefined) {
+            obj.userData.originalOpacity = mats.length ? mats[0].opacity : 1.0;
+          }
+          const gOp = val * (obj.userData.originalOpacity || 1.0);
+          mats.forEach(function(m) {
+            m.opacity = gOp;
+            m.transparent = gOp < 1.0;
+            m.depthWrite = true;
+            m.needsUpdate = true;
+          });
+          obj.visible = traceLegendVisible(tid) && val > 0.001 &&
+            (!(FW_MERGE_IDS.indexOf(tid) >= 0) || scene.userData.fwLegendEnabled !== false);
+          return;
+        }
         if (!obj || !obj.material) return;
         const isFw = FW_MERGE_IDS.indexOf(tid) >= 0;
         const hiddenByOpacity = val <= 0.001;
@@ -5248,9 +5401,10 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
           traceIds.forEach(function(tid) {
             pointSizeMultByTrace[tid] = parseFloat(slider.value) || 1.0;
             const obj = objectsById[tid];
-            if (obj && obj.material && obj.material.isPointsMaterial) {
-              const base = obj.material.userData && obj.material.userData.baseSize
-                ? obj.material.userData.baseSize : obj.material.size;
+            if (isScatterPointsObj(obj)) {
+              const base = obj.userData.baseSize
+                || (obj.material.userData && obj.material.userData.baseSize)
+                || obj.material.size;
               applyPointSize(obj, base);
             }
           });
@@ -5300,6 +5454,7 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
       cb.addEventListener("change", function() {
         if (entry.fwMerge) {
           scene.userData.fwLegendEnabled = cb.checked;
+          FW_MERGE_IDS.forEach(function(tid) { legendEnabledByTrace[tid] = cb.checked; });
           updateFrameworkVisibility();
         } else if (entry.id === "connections_internal" || entry.id === "connections_periodic") {
           traceIds.forEach(function(tid) {
@@ -5797,6 +5952,50 @@ _DEFAULT_THREEJS_TEMPLATE = r'''<!doctype html>
     }
     // Initialize visibility so only the selected representation is shown
     updateFrameworkVisibility();
+
+    // ---- Dynamic atom / bond radius (instanced framework traces only) ----
+    (function() {
+      const ATOM_IDS = ["framework_atoms", "framework_stick_atoms", "framework_spacefill_atoms"];
+      const BOND_IDS = ["framework_bonds", "framework_stick_bonds"];
+      const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+      function rescale(ids, k, uniform) {
+        ids.forEach(function(tid) {
+          const mesh = objectsById[tid];
+          if (mesh && mesh.userData && mesh.userData.worldRadii) {
+            mesh.userData.worldScaleMult = k;       // scatter atoms: world-size discs
+            updateBillboardPointsMesh(mesh);
+            return;
+          }
+          if (mesh && mesh.isGroup && mesh.userData.thickLines && !uniform) {
+            // scatter bonds: cylinder radius only
+            mesh.children.forEach(function(ch) {
+              if (ch.userData.baseRadius === undefined) ch.userData.baseRadius = ch.scale.x;
+              ch.scale.x = ch.scale.z = ch.userData.baseRadius * k;
+            });
+            return;
+          }
+          if (!mesh || !mesh.isInstancedMesh) return;
+          const arr = mesh.instanceMatrix.array;
+          if (!mesh.userData.baseMatrices) mesh.userData.baseMatrices = arr.slice();
+          const base = mesh.userData.baseMatrices;
+          for (let i = 0; i < mesh.count; i++) {
+            _m.fromArray(base, i * 16).decompose(_p, _q, _s);
+            if (uniform) _s.multiplyScalar(k); else { _s.x *= k; _s.z *= k; }  // cylinders: radius only, keep length
+            _m.compose(_p, _q, _s).toArray(arr, i * 16);
+          }
+          mesh.instanceMatrix.needsUpdate = true;
+        });
+      }
+      function wire(labelId, sliderId, ids, uniform) {
+        const has = ids.some(function(tid) { const o = objectsById[tid]; return o && (o.isInstancedMesh || (o.isGroup && o.userData.thickLines)); });
+        if (!has) return;
+        document.getElementById(labelId).style.display = "";
+        const sl = document.getElementById(sliderId);
+        sl.addEventListener("input", function() { rescale(ids, parseFloat(sl.value), uniform); });
+      }
+      wire("atomRadiusLabel", "atomRadiusSlider", ATOM_IDS, true);
+      wire("bondRadiusLabel", "bondRadiusSlider", BOND_IDS, false);
+    })();
     // Helpers to keep exploded cell-copy visibility in sync with actual trace visibility
     // (works for individual checkboxes, group checkboxes, and any other toggle mechanism)
     function updateCellCopyVisibility() {
@@ -5953,6 +6152,52 @@ function readWindowMinThreshold() {
       if (!isWindowTraceId(traceId)) return;
       const obj = objectsById[traceId];
       if (!obj || !obj.userData.originalPositions) return;
+      if (obj.userData && obj.userData.isBillboardPoints) {
+        const threshold = readWindowMinThreshold();
+        const legendOn = legendEnabledByTrace[traceId] !== false;
+        const orig = obj.userData.originalPositions;
+        const radii = obj.userData.windowRadii || [];
+        const origHover = obj.userData.originalHover || [];
+        const nPts = radii.length || Math.floor(orig.length / 3);
+        const filtered = [];
+        const filteredHover = [];
+        if (threshold === null) {
+          if (!obj.userData.filteredByThreshold) {
+            obj.visible = legendOn && nPts > 0;
+            updateBillboardPointsMesh(obj);
+            return;
+          }
+          for (let i = 0; i < nPts; i++) {
+            const base = i * 3;
+            filtered.push(orig[base], orig[base + 1], orig[base + 2]);
+            if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+          }
+        } else {
+          for (let i = 0; i < nPts; i++) {
+            const r = radii[i];
+            if (Number.isFinite(r) && r < threshold) continue;
+            const base = i * 3;
+            filtered.push(orig[base], orig[base + 1], orig[base + 2]);
+            if (origHover[i] !== undefined) filteredHover.push(origHover[i]);
+          }
+        }
+        const trace0 = findTraceById(traceId);
+        if (!trace0) return;
+        const filteredTrace = Object.assign({}, trace0, {
+          data: Object.assign({}, trace0.data, { positions: filtered }),
+          hover: threshold === null ? origHover.slice() : filteredHover,
+        });
+        replacePointsGeometry(obj, filteredTrace);
+        // replacePointsGeometry overwrites originalPositions with the filtered set;
+        // restore full set so windowRadii indices stay aligned on the next filter.
+        obj.userData.originalPositions = orig;
+        obj.count = Math.floor(filtered.length / 3);
+        obj.userData.filteredByThreshold = threshold !== null;
+        obj.userData.activeHover = threshold === null ? origHover.slice() : filteredHover;
+        obj.visible = legendOn && filtered.length > 0;
+        updateBillboardPointsMesh(obj);
+        return;
+      }
       const threshold = readWindowMinThreshold();
       const legendOn = legendEnabledByTrace[traceId] !== false;
       const orig = obj.userData.originalPositions;
@@ -6257,6 +6502,7 @@ function readWindowMinThreshold() {
       const name = (obj && obj.name) ? String(obj.name) : "";
       if (name === "framework_atoms" || name === "framework_stick_atoms" || name === "framework_spacefill_atoms") return 8;
       if (obj instanceof THREE.Points) return 6;
+      if (obj.userData && obj.userData.isBillboardPoints) return 6;
       if (hit && hit.face && obj instanceof THREE.Mesh) return 5;
       if (obj instanceof THREE.LineSegments) return 4;
       if (name.endsWith("_bonds") || name.endsWith("_bonds")) return 2;
@@ -6471,6 +6717,7 @@ function readWindowMinThreshold() {
         camera.lookAt(target);
       }
       controls.update();
+      refreshAllBillboardPointMeshes();
       if (composer) {
         composer.render();
       } else {
@@ -6488,6 +6735,7 @@ function readWindowMinThreshold() {
       document.getElementById("app").style.right = vp.hudW + "px";
       updateOrthoFrustum();
       if (composer) composer.setSize(w, h);
+      refreshAllBillboardPointMeshes();
     });
     window.dispatchEvent(new Event("resize"));
 

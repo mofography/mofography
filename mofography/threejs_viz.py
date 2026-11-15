@@ -172,7 +172,7 @@ def plot_cell(ase_atoms, color="purple", name="cell", **kwargs):
     return make_cell_trace(ase_atoms, style=_style_from_plotly_kwargs(color=color, name=name, **kwargs), name=name)
 
 def draw_framework(ase_atoms, bonds="auto", representation="scatter", atom_scale=0.65,
-                   bond_color=None, bond_linewidth=8.0, name="Framework", **kwargs):
+                   bond_color=None, bond_linewidth=3.75, name="Framework", **kwargs):
     """Build Three.js framework trace(s) as scatter points or ball-and-stick mesh."""
     del kwargs
     if representation in ("scatter", "points"):
