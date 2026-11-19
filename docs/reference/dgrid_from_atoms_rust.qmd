@@ -8,8 +8,10 @@ rust_fun.dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)
 
 Compute a distance grid from atomic positions using the Rust backend.
 
-Uses optimized exact MIC (SoA, SIMD on orthogonal cells, Wassenaar 7-image
-fallback on skewed cells).
+Uses optimized MIC (SoA, SIMD on orthogonal cells). Skewed cells use the 7-image rule
+(nearest fractional image plus six face shifts), then recompute exactly over the 27
+shifts in {-1,0,1}^3 every voxel it cannot certify (``d + r_max >= h_min / 2``, with
+``h_min`` the smallest perpendicular cell width).
 
 This function calculates the distance field (dgrid) for a given atomic structure,
 where each grid point represents the minimum distance to the nearest atom surface,

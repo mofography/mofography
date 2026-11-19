@@ -6182,6 +6182,7 @@ fn mgr_rust(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     pyo3_log::init();
 
     m.add_function(wrap_pyfunction!(dgrid_exp::dgrid_from_atoms, m)?)?;
+    m.add_function(wrap_pyfunction!(dgrid_exp::dgrid_from_atoms_stats, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_rtree, m)?)?;
     m.add_function(wrap_pyfunction!(dgrid_from_atoms_rtree_interp, m)?)?;
     m.add_function(wrap_pyfunction!(egrid_from_atoms, m)?)?;

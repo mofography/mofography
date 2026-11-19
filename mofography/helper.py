@@ -16,16 +16,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 _ORTHO_TOL = 1e-12
-_MIC_OFFSETS_7 = np.array(
-    [
-        [0.0, 0.0, 0.0],
-        [1.0, 0.0, 0.0],
-        [-1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, -1.0, 0.0],
-        [0.0, 0.0, 1.0],
-        [0.0, 0.0, -1.0],
-    ],
+_MIC_OFFSETS_27 = np.array(
+    [[i, j, k] for i in (0, -1, 1) for j in (0, -1, 1) for k in (0, -1, 1)],
     dtype=np.float64,
 )
 
@@ -47,9 +39,9 @@ def cell_is_orthogonal(cell, tol=_ORTHO_TOL):
 def mic_frac_diff_batch(raw_diff, cell, xp=np):
     """Minimum-image fractional displacement for orthogonal or skewed cells.
 
-    Orthogonal cells use per-component wrapping. Skewed cells use the Wassenaar
-    7-image set (nearest fractional image plus six face neighbors), matching
-    ``mgr_rust`` ``dgrid_exp::mic_min_dist_skewed``.
+    Orthogonal cells use per-component wrapping. Skewed cells test the nearest
+    fractional image plus all 26 neighbor shifts in {-1,0,1}^3. The six face shifts
+    alone miss edge and corner images on triclinic cells.
     """
     cell = xp.asarray(cell, dtype=xp.float64)
     raw_diff = xp.asarray(raw_diff, dtype=xp.float64)
@@ -58,7 +50,7 @@ def mic_frac_diff_batch(raw_diff, cell, xp=np):
         return raw_diff - xp.round(raw_diff)
 
     nint = raw_diff - xp.round(raw_diff)
-    offsets = xp.asarray(_MIC_OFFSETS_7, dtype=xp.float64)
+    offsets = xp.asarray(_MIC_OFFSETS_27, dtype=xp.float64)
     candidates = nint[..., None, :] + offsets
     cart = xp.einsum("...ni,ji->...nj", candidates, cell)
     sq = xp.sum(cart * cart, axis=-1)
@@ -68,7 +60,7 @@ def mic_frac_diff_batch(raw_diff, cell, xp=np):
     n_lead = 1
     for dim in lead_shape:
         n_lead *= int(dim)
-    flat_cand = candidates.reshape(n_lead, 7, 3)
+    flat_cand = candidates.reshape(n_lead, len(_MIC_OFFSETS_27), 3)
     flat_best = best.ravel()
     idx = xp.arange(flat_cand.shape[0])
     flat_mic = flat_cand[idx, flat_best]
