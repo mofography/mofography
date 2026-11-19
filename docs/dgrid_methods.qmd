@@ -50,7 +50,7 @@ dgrid_from_atoms_rust(ase_atoms, spacing, radii=None)
 
 **Returns:** `np.ndarray` of shape `(nx, ny, nz)`, signed distance to the nearest atom surface.
 
-**Strategy:** Thread-parallel (Rayon) brute-force — every grid point is checked against every atom using an *exact* minimum-image convention. Orthogonal cells use a SIMD-optimized SoA path; skewed cells fall back to a 7-image Wassenaar construction. O(N_atoms × N_grid) work, O(N_grid) memory.
+**Strategy:** Thread-parallel (Rayon) brute-force — every grid point is checked against every atom using an *exact* minimum-image convention. Orthogonal cells use a SIMD-optimized SoA path; skewed cells use a 7-image rule and then recompute exactly, over 27 images, any voxel the 7-image rule cannot certify (the face-only rule can miss edge and corner images on triclinic cells). O(N_atoms × N_grid) work, O(N_grid) memory.
 
 **Use when:** you want the most accurate distance grid and you have enough RAM for one float32 per voxel.
 
@@ -259,7 +259,7 @@ dz = dz - cell[2, 2] * NINT(dz / cell[2, 2])
 
 This is **only correct for orthogonal cells** (cubic, tetragonal, orthorhombic). On a monoclinic or triclinic cell — which includes most real MOFs — the per-axis NINT picks the wrong image for some atom–grid pairs, and the distance grid develops systematic stripes near the cell walls. The bug is silent: the function returns without warning and the dgrid *looks* plausible until you compare it to the exact result.
 
-**Use the Rust backend (`dgrid_from_atoms_rust`) instead.** Its MIC path uses a 7-image Wassenaar construction on skewed cells, which is correct for all cell types. The CPU/Dask method (`dgrid_from_atoms_cpu`, *without* the `_no_aabb` suffix) is also correct because it routes through freud's AABB query, which uses the proper box geometry.
+**Use the Rust backend (`dgrid_from_atoms_rust`) instead.** Its MIC path uses a 7-image rule on skewed cells plus an exact 27-image refinement of the voxels it cannot certify, so it is correct for all cell types. The CPU/Dask method (`dgrid_from_atoms_cpu`, *without* the `_no_aabb` suffix) is also correct because it routes through freud's AABB query, which uses the proper box geometry.
 
 If you see `dgrid_from_atoms_gpu` or `dgrid_from_atoms_cpu_no_aabb` in legacy code, replace the call with:
 
